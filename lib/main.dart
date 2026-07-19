@@ -15,24 +15,23 @@ import 'material_inventory_mobile.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
+import 'features/billing/presentation/screens/billing_list_screen.dart';
+import 'features/expenses/presentation/screens/expense_list_screen.dart';
 
 import 'web_dashboard.dart';
 import 'project_detail_web.dart';
 import 'project_materials_web.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
-  // Read variables from String.fromEnvironment or dotenv.
-  // Fallbacks provided for local sandbox environments
-  const supabaseUrl = String.fromEnvironment(
-    'SUPABASE_URL',
-    defaultValue: 'https://placeholder-project.supabase.co',
-  );
-  const supabaseAnonKey = String.fromEnvironment(
-    'SUPABASE_ANON_KEY',
-    defaultValue: 'placeholder-anon-key',
-  );
+
+  // Load environment variables from .env file
+  await dotenv.load(fileName: '.env');
+
+  final supabaseUrl = dotenv.env['SUPABASE_URL']!;
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
 
   await Supabase.initialize(
     url: supabaseUrl,
@@ -68,6 +67,8 @@ enum MobileScreen {
   inventory,
   attendance,
   employees,
+  billing,
+  expenses,
   settings,
 }
 
@@ -159,6 +160,12 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
       case MobileScreen.employees:
         body = const EmployeeListScreen();
         break;
+      case MobileScreen.billing:
+        body = const BillingListScreen();
+        break;
+      case MobileScreen.expenses:
+        body = const ExpenseListScreen();
+        break;
       case MobileScreen.settings:
         body = const SettingsScreen();
         break;
@@ -178,7 +185,9 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
       bottomBarIndex = 2;
     } else if (_currentMobileScreen == MobileScreen.employees) {
       bottomBarIndex = 3;
-    } else if (_currentMobileScreen == MobileScreen.settings) {
+    } else if (_currentMobileScreen == MobileScreen.billing ||
+        _currentMobileScreen == MobileScreen.expenses ||
+        _currentMobileScreen == MobileScreen.settings) {
       bottomBarIndex = 4;
     }
 
@@ -205,7 +214,7 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
           } else if (index == 3) {
             _setMobileTab(MobileScreen.employees);
           } else if (index == 4) {
-            _setMobileTab(MobileScreen.settings);
+            _showMoreMenu(context);
           }
         },
         items: const [
@@ -230,12 +239,67 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
             label: 'Employees',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.settings_outlined),
-            activeIcon: Icon(Icons.settings),
-            label: 'Settings',
+            icon: Icon(Icons.more_horiz_outlined),
+            activeIcon: Icon(Icons.more_horiz),
+            label: 'More',
           ),
         ],
       ),
+    );
+  }
+
+  void _showMoreMenu(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.borderSubtle,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                const SizedBox(height: 16),
+                ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined, color: AppColors.primary),
+                  title: const Text('Billing', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.billing);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
+                  title: const Text('Expenses', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.expenses);
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(Icons.settings_outlined, color: AppColors.primary),
+                  title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.w600)),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.settings);
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

@@ -1,5 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../core/supabase/supabase_client.provider.dart';
+import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/repositories/supabase_project_repository.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../../data/models/project_model.dart';
