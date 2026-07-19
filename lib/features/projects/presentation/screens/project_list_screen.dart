@@ -19,11 +19,18 @@ class ProjectListScreen extends ConsumerWidget {
       backgroundColor: AppColors.background,
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
-        title: const Text('Projects', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary)),
+        title: const Text(
+          'Projects',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+          ),
+        ),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: () => ref.read(projectControllerProvider.notifier).loadProjects(),
+            onPressed: () =>
+                ref.read(projectControllerProvider.notifier).loadProjects(),
           ),
         ],
       ),
@@ -31,18 +38,35 @@ class ProjectListScreen extends ConsumerWidget {
         children: [
           Padding(
             padding: const EdgeInsets.fromLTRB(
-              AppSpacing.containerMargin, AppSpacing.stackSm, AppSpacing.containerMargin, 0,
+              AppSpacing.containerMargin,
+              AppSpacing.stackSm,
+              AppSpacing.containerMargin,
+              0,
             ),
             child: SearchFilterBar(
               hintText: 'Search projects...',
-              onSearchChanged: (q) => ref.read(projectControllerProvider.notifier).setSearch(q),
-              filterOptions: const ['planning', 'active', 'completed', 'delayed'],
+              onSearchChanged: (q) =>
+                  ref.read(projectControllerProvider.notifier).setSearch(q),
+              filterOptions: const [
+                'planning',
+                'active',
+                'completed',
+                'delayed',
+              ],
               activeFilter: state.statusFilter,
-              onFilterChanged: (f) => ref.read(projectControllerProvider.notifier).setStatusFilter(f),
+              onFilterChanged: (f) => ref
+                  .read(projectControllerProvider.notifier)
+                  .setStatusFilter(f),
               sortOptions: const ['Name', 'Budget', 'Date'],
               onSortChanged: (s) {
-                final map = {'Name': 'name', 'Budget': 'budget', 'Date': 'created_at'};
-                ref.read(projectControllerProvider.notifier).setSort(map[s] ?? 'created_at');
+                final map = {
+                  'Name': 'name',
+                  'Budget': 'budget',
+                  'Date': 'created_at',
+                };
+                ref
+                    .read(projectControllerProvider.notifier)
+                    .setSort(map[s] ?? 'created_at');
               },
             ),
           ),
@@ -52,14 +76,18 @@ class ProjectListScreen extends ConsumerWidget {
               items: state.projects,
               isLoading: state.isLoading,
               hasMore: state.hasMore,
-              onLoadMore: () => ref.read(projectControllerProvider.notifier).loadMore(),
+              onLoadMore: () =>
+                  ref.read(projectControllerProvider.notifier).loadMore(),
               emptyMessage: 'No projects found. Create one!',
               errorMessage: state.errorMessage,
-              onRetry: () => ref.read(projectControllerProvider.notifier).loadProjects(),
+              onRetry: () =>
+                  ref.read(projectControllerProvider.notifier).loadProjects(),
               itemBuilder: (context, project) => _ProjectCard(
                 project: project,
                 onTap: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => ProjectDetailScreen(projectId: project.id)),
+                  MaterialPageRoute(
+                    builder: (_) => ProjectDetailScreen(projectId: project.id),
+                  ),
                 ),
               ),
             ),
@@ -67,12 +95,15 @@ class ProjectListScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProjectFormScreen()),
-        ),
+        tooltip: 'Add project',
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const ProjectFormScreen())),
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
         child: const Icon(Icons.add),
       ),
     );
@@ -87,10 +118,14 @@ class _ProjectCard extends StatelessWidget {
 
   Color _statusColor(String status) {
     switch (status) {
-      case 'active': return AppColors.secondary;
-      case 'completed': return AppColors.primary;
-      case 'delayed': return AppColors.error;
-      default: return AppColors.warning;
+      case 'active':
+        return AppColors.secondary;
+      case 'completed':
+        return AppColors.primary;
+      case 'delayed':
+        return AppColors.error;
+      default:
+        return AppColors.warning;
     }
   }
 
@@ -115,34 +150,66 @@ class _ProjectCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       project.name,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textMain),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                        color: AppColors.textMain,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.1),
+                      color: statusColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(AppRadius.full),
                     ),
                     child: Text(
                       project.status.toUpperCase(),
-                      style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
               ),
               if (project.clientName != null) ...[
                 const SizedBox(height: 4),
-                Text(project.clientName!, style: const TextStyle(color: AppColors.textMuted, fontSize: 13)),
+                Text(
+                  project.clientName!,
+                  style: const TextStyle(
+                    color: AppColors.textMuted,
+                    fontSize: 13,
+                  ),
+                ),
               ],
               const SizedBox(height: 12),
               // Budget progress
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Budget: ₹${_formatAmount(project.budget)}', style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
-                  Text('${(utilization * 100).toInt()}% used', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: utilization > 0.9 ? AppColors.error : AppColors.secondary)),
+                  Text(
+                    'Budget: ₹${_formatAmount(project.budget)}',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  Text(
+                    '${(utilization * 100).toInt()}% used',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: utilization > 0.9
+                          ? AppColors.error
+                          : AppColors.secondary,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 6),
@@ -151,7 +218,9 @@ class _ProjectCard extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: utilization.clamp(0.0, 1.0),
                   backgroundColor: AppColors.background,
-                  valueColor: AlwaysStoppedAnimation(utilization > 0.9 ? AppColors.error : AppColors.primary),
+                  valueColor: AlwaysStoppedAnimation(
+                    utilization > 0.9 ? AppColors.error : AppColors.primary,
+                  ),
                   minHeight: 4,
                 ),
               ),
@@ -163,9 +232,15 @@ class _ProjectCard extends StatelessWidget {
   }
 
   String _formatAmount(double amount) {
-    if (amount >= 10000000) return '${(amount / 10000000).toStringAsFixed(1)}Cr';
-    if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
+    if (amount >= 10000000) {
+      return '${(amount / 10000000).toStringAsFixed(1)}Cr';
+    }
+    if (amount >= 100000) {
+      return '${(amount / 100000).toStringAsFixed(1)}L';
+    }
+    if (amount >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K';
+    }
     return amount.toStringAsFixed(0);
   }
 }

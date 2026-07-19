@@ -48,16 +48,16 @@ class MobileDashboard extends ConsumerWidget {
               children: [
                 Text(
                   'Good morning,',
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
                 ),
                 Text(
                   'Master Admin',
                   style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primary,
-                      ),
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.primary,
+                  ),
                 ),
               ],
             ),
@@ -69,7 +69,10 @@ class MobileDashboard extends ConsumerWidget {
             child: Stack(
               children: [
                 IconButton(
-                  icon: const Icon(Icons.notifications_none, color: AppColors.primary),
+                  icon: const Icon(
+                    Icons.notifications_none,
+                    color: AppColors.primary,
+                  ),
                   onPressed: () {},
                 ),
                 Positioned(
@@ -130,8 +133,12 @@ class MobileDashboard extends ConsumerWidget {
                     icon: Icons.pending_actions,
                     value: '${stats.lowStockItems}',
                     label: 'Low Stock Materials',
-                    badgeText: stats.lowStockItems > 0 ? 'Action Required' : 'All Stock OK',
-                    badgeColor: stats.lowStockItems > 0 ? AppColors.error : AppColors.secondary,
+                    badgeText: stats.lowStockItems > 0
+                        ? 'Action Required'
+                        : 'All Stock OK',
+                    badgeColor: stats.lowStockItems > 0
+                        ? AppColors.error
+                        : AppColors.secondary,
                     onTap: onViewSupply,
                   ),
                   _buildBudgetKPICard(
@@ -157,8 +164,8 @@ class MobileDashboard extends ConsumerWidget {
                   Text(
                     'Operational Metrics',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   TextButton(
                     onPressed: onViewTrack,
@@ -184,13 +191,41 @@ class MobileDashboard extends ConsumerWidget {
                     borderData: FlBorderData(show: false),
                     gridData: const FlGridData(show: false),
                     barGroups: [
-                      _makeBarGroup(0, stats.activeProjects.toDouble().clamp(0.0, 10.0), false),
-                      _makeBarGroup(1, stats.completedProjects.toDouble().clamp(0.0, 10.0), false),
-                      _makeBarGroup(2, stats.totalProjects.toDouble().clamp(0.0, 10.0), false),
-                      _makeBarGroup(3, (stats.employeesPresent / 10.0).clamp(0.0, 10.0), false),
-                      _makeBarGroup(4, stats.lowStockItems.toDouble().clamp(0.0, 10.0), false),
-                      _makeBarGroup(5, (stats.pendingBills / 100000.0).clamp(0.0, 10.0), false),
-                      _makeBarGroup(6, (stats.monthlyExpense / 200000.0).clamp(0.0, 10.0), true),
+                      _makeBarGroup(
+                        0,
+                        stats.activeProjects.toDouble().clamp(0.0, 10.0),
+                        false,
+                      ),
+                      _makeBarGroup(
+                        1,
+                        stats.completedProjects.toDouble().clamp(0.0, 10.0),
+                        false,
+                      ),
+                      _makeBarGroup(
+                        2,
+                        stats.totalProjects.toDouble().clamp(0.0, 10.0),
+                        false,
+                      ),
+                      _makeBarGroup(
+                        3,
+                        (stats.employeesPresent / 10.0).clamp(0.0, 10.0),
+                        false,
+                      ),
+                      _makeBarGroup(
+                        4,
+                        stats.lowStockItems.toDouble().clamp(0.0, 10.0),
+                        false,
+                      ),
+                      _makeBarGroup(
+                        5,
+                        (stats.pendingBills / 100000.0).clamp(0.0, 10.0),
+                        false,
+                      ),
+                      _makeBarGroup(
+                        6,
+                        (stats.monthlyExpense / 200000.0).clamp(0.0, 10.0),
+                        true,
+                      ),
                     ],
                   ),
                 ),
@@ -201,8 +236,8 @@ class MobileDashboard extends ConsumerWidget {
               Text(
                 'Recent Activity',
                 style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
+                  fontWeight: FontWeight.bold,
+                ),
               ),
               const SizedBox(height: AppSpacing.stackMd),
               ListView(
@@ -226,7 +261,8 @@ class MobileDashboard extends ConsumerWidget {
                     bgColor: const Color(0x1FFFDD5F),
                     title: 'Labor Shortage Alert',
                     time: '1h ago',
-                    subtitle: 'Site B reporting 15% lower attendance than scheduled.',
+                    subtitle:
+                        'Site B reporting 15% lower attendance than scheduled.',
                     tags: ['Critical', 'HR'],
                     onTap: () {},
                   ),
@@ -237,7 +273,8 @@ class MobileDashboard extends ConsumerWidget {
                     bgColor: const Color(0x1FDDE1FF),
                     title: 'New Plan Uploaded',
                     time: '3h ago',
-                    subtitle: 'Architect updated the electrical schematics for Phase 2.',
+                    subtitle:
+                        'Architect updated the electrical schematics for Phase 2.',
                     tags: ['Update', 'Design'],
                     onTap: () {},
                   ),
@@ -248,14 +285,8 @@ class MobileDashboard extends ConsumerWidget {
           ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) => Center(child: Text('Error loading dashboard stats: $e')),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        child: const Icon(Icons.add),
+        error: (e, s) =>
+            Center(child: Text('Error loading dashboard stats: $e')),
       ),
     );
   }
@@ -266,7 +297,9 @@ class MobileDashboard extends ConsumerWidget {
       barRods: [
         BarChartRodData(
           toY: y,
-          color: isActive ? AppColors.primary : AppColors.primaryContainer.withOpacity(0.2),
+          color: isActive
+              ? AppColors.primary
+              : AppColors.primaryContainer.withOpacity(0.2),
           width: 22,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
         ),
@@ -309,7 +342,10 @@ class MobileDashboard extends ConsumerWidget {
               children: [
                 Icon(icon, color: AppColors.primary, size: 24),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: badgeColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(AppRadius.full),
@@ -331,15 +367,15 @@ class MobileDashboard extends ConsumerWidget {
                 Text(
                   value,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 28,
-                      ),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 28,
+                  ),
                 ),
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
                 ),
               ],
             ),
@@ -385,15 +421,15 @@ class MobileDashboard extends ConsumerWidget {
                 Text(
                   value,
                   style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        fontSize: 28,
-                      ),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 28,
+                  ),
                 ),
                 Text(
                   label,
-                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: AppColors.textMuted,
-                      ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
                 ),
                 const SizedBox(height: 6),
                 ClipRRect(
@@ -401,7 +437,9 @@ class MobileDashboard extends ConsumerWidget {
                   child: LinearProgressIndicator(
                     value: progress,
                     backgroundColor: AppColors.background,
-                    valueColor: const AlwaysStoppedAnimation<Color>(AppColors.primary),
+                    valueColor: const AlwaysStoppedAnimation<Color>(
+                      AppColors.primary,
+                    ),
                     minHeight: 4,
                   ),
                 ),
@@ -482,13 +520,19 @@ class MobileDashboard extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Row(
                     children: tags.map((tag) {
-                      final bool isHighlight = tag == 'Completed' || tag == 'Critical';
+                      final bool isHighlight =
+                          tag == 'Completed' || tag == 'Critical';
                       final Color tagColor = isHighlight
-                          ? (tag == 'Critical' ? AppColors.error : AppColors.secondary)
+                          ? (tag == 'Critical'
+                                ? AppColors.error
+                                : AppColors.secondary)
                           : AppColors.textMuted;
                       return Container(
                         margin: const EdgeInsets.only(right: 6),
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 2,
+                        ),
                         decoration: BoxDecoration(
                           color: tagColor.withOpacity(0.08),
                           borderRadius: BorderRadius.circular(AppRadius.full),

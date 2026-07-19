@@ -1,30 +1,30 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
-import 'package:ibuild/main.dart';
+import 'package:ibuild/features/projects/data/models/project_model.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  test('serializes project data for Supabase and calculates budget usage', () {
+    final project = Project(
+      id: 'project-1',
+      name: 'Riverside Commercial Complex',
+      clientName: 'Northstar Properties',
+      projectCode: 'RCC-2026',
+      address: 'Kochi, Kerala',
+      budget: 12500000,
+      estimatedCost: 11000000,
+      spent: 2500000,
+      status: 'active',
+      startDate: '2026-07-01',
+      expectedCompletion: '2027-03-31',
+      description: 'Commercial construction and fit-out.',
+      notes: 'Phase one is underway.',
+    );
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+    final payload = project.toJson();
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
-
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(payload['name'], 'Riverside Commercial Complex');
+    expect(payload['project_code'], 'RCC-2026');
+    expect(payload['description'], 'Commercial construction and fit-out.');
+    expect(payload.containsKey('id'), isFalse);
+    expect(project.budgetUtilization, 0.2);
   });
 }

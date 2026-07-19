@@ -34,16 +34,22 @@ class SupabaseProjectRepository implements ProjectRepository {
     query = query.range(offset, offset + limit - 1);
 
     final response = await query;
-    List<Project> projects = (response as List).map((j) => Project.fromJson(j)).toList();
+    List<Project> projects = (response as List)
+        .map((j) => Project.fromJson(j))
+        .toList();
 
     // Client-side search filter (Supabase free tier doesn't have full-text search)
     if (search != null && search.isNotEmpty) {
       final q = search.toLowerCase();
-      projects = projects.where((p) =>
-          p.name.toLowerCase().contains(q) ||
-          (p.clientName?.toLowerCase().contains(q) ?? false) ||
-          (p.projectCode?.toLowerCase().contains(q) ?? false) ||
-          (p.address?.toLowerCase().contains(q) ?? false)).toList();
+      projects = projects
+          .where(
+            (p) =>
+                p.name.toLowerCase().contains(q) ||
+                (p.clientName?.toLowerCase().contains(q) ?? false) ||
+                (p.projectCode?.toLowerCase().contains(q) ?? false) ||
+                (p.address?.toLowerCase().contains(q) ?? false),
+          )
+          .toList();
     }
 
     return projects;
@@ -51,7 +57,11 @@ class SupabaseProjectRepository implements ProjectRepository {
 
   @override
   Future<Project?> getProjectById(String id) async {
-    final response = await _client.from('projects').select().eq('id', id).maybeSingle();
+    final response = await _client
+        .from('projects')
+        .select()
+        .eq('id', id)
+        .maybeSingle();
     if (response == null) return null;
     return Project.fromJson(response);
   }
@@ -63,21 +73,54 @@ class SupabaseProjectRepository implements ProjectRepository {
 
   @override
   Future<void> updateProject(Project project) async {
-    await _client.from('projects').update(project.toJson()).eq('id', project.id);
+    final updated = await _client
+        .from('projects')
+        .update(project.toJson())
+        .eq('id', project.id)
+        .select('id')
+        .maybeSingle();
+    if (updated == null) {
+      throw StateError(
+        'Project was not found or you do not have permission to update it.',
+      );
+    }
   }
 
   @override
   Future<void> deleteProject(String id) async {
-    await _client.from('projects').delete().eq('id', id);
+    final deleted = await _client
+        .from('projects')
+        .delete()
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
+    if (deleted == null) {
+      throw StateError(
+        'Project was not found or you do not have permission to delete it.',
+      );
+    }
   }
 
   @override
   Future<void> archiveProject(String id) async {
-    await _client.from('projects').update({'is_archived': true}).eq('id', id);
+    final archived = await _client
+        .from('projects')
+        .update({'is_archived': true})
+        .eq('id', id)
+        .select('id')
+        .maybeSingle();
+    if (archived == null) {
+      throw StateError(
+        'Project was not found or you do not have permission to archive it.',
+      );
+    }
   }
 
   @override
-  Future<int> getProjectCount({String? statusFilter, bool includeArchived = false}) async {
+  Future<int> getProjectCount({
+    String? statusFilter,
+    bool includeArchived = false,
+  }) async {
     dynamic query = _client.from('projects').select();
     if (!includeArchived) {
       query = query.eq('is_archived', false);

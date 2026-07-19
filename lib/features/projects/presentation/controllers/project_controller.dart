@@ -32,10 +32,8 @@ class ProjectListState {
     this.hasMore = true,
   });
 
-  factory ProjectListState.initial() => ProjectListState(
-        projects: [],
-        isLoading: false,
-      );
+  factory ProjectListState.initial() =>
+      ProjectListState(projects: [], isLoading: false);
 
   ProjectListState copyWith({
     List<Project>? projects,
@@ -47,11 +45,12 @@ class ProjectListState {
     bool? ascending,
     int? offset,
     bool? hasMore,
+    bool clearError = false,
   }) {
     return ProjectListState(
       projects: projects ?? this.projects,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       searchQuery: searchQuery ?? this.searchQuery,
       statusFilter: statusFilter ?? this.statusFilter,
       sortBy: sortBy ?? this.sortBy,
@@ -74,7 +73,11 @@ class ProjectController extends StateNotifier<ProjectListState> {
     if (state.isLoading) return;
 
     final newOffset = reset ? 0 : state.offset;
-    state = state.copyWith(isLoading: true, offset: newOffset);
+    state = state.copyWith(
+      isLoading: true,
+      offset: newOffset,
+      clearError: true,
+    );
     if (reset) state = state.copyWith(projects: []);
 
     try {
@@ -112,53 +115,57 @@ class ProjectController extends StateNotifier<ProjectListState> {
   }
 
   void setSort(String sortBy) {
-    state = state.copyWith(sortBy: sortBy, ascending: !state.ascending, offset: 0);
+    state = state.copyWith(
+      sortBy: sortBy,
+      ascending: !state.ascending,
+      offset: 0,
+    );
     loadProjects();
   }
 
-  Future<bool> addProject(Project project) async {
+  Future<void> addProject(Project project) async {
     try {
       await _repository.createProject(project);
       await loadProjects();
-      return true;
     } catch (e) {
-      return false;
+      state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  Future<bool> editProject(Project project) async {
+  Future<void> editProject(Project project) async {
     try {
       await _repository.updateProject(project);
       await loadProjects();
-      return true;
     } catch (e) {
-      return false;
+      state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  Future<bool> removeProject(String id) async {
+  Future<void> removeProject(String id) async {
     try {
       await _repository.deleteProject(id);
       await loadProjects();
-      return true;
     } catch (e) {
-      return false;
+      state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 
-  Future<bool> archive(String id) async {
+  Future<void> archive(String id) async {
     try {
       await _repository.archiveProject(id);
       await loadProjects();
-      return true;
     } catch (e) {
-      return false;
+      state = state.copyWith(errorMessage: e.toString());
+      rethrow;
     }
   }
 }
 
 final projectControllerProvider =
     StateNotifierProvider<ProjectController, ProjectListState>((ref) {
-  final repo = ref.watch(projectRepositoryProvider);
-  return ProjectController(repo);
-});
+      final repo = ref.watch(projectRepositoryProvider);
+      return ProjectController(repo);
+    });

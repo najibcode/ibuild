@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/stat_card.dart';
 import '../../data/models/project_model.dart';
@@ -8,7 +7,10 @@ import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 
-final projectDetailProvider = FutureProvider.family<Project?, String>((ref, id) async {
+final projectDetailProvider = FutureProvider.family<Project?, String>((
+  ref,
+  id,
+) async {
   final repo = ref.watch(projectRepositoryProvider);
   return await repo.getProjectById(id);
 });
@@ -31,7 +33,8 @@ class ProjectDetailScreen extends ConsumerWidget {
         }
         return _ProjectDetailBody(project: project);
       },
-      loading: () => const Scaffold(body: Center(child: CircularProgressIndicator())),
+      loading: () =>
+          const Scaffold(body: Center(child: CircularProgressIndicator())),
       error: (e, _) => Scaffold(body: Center(child: Text('Error: $e'))),
     );
   }
@@ -46,20 +49,36 @@ class _ProjectDetailBody extends ConsumerWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Archive Project'),
-        content: Text('Archive "${project.name}"? It will be hidden from the main list.'),
+        content: Text(
+          'Archive "${project.name}"? It will be hidden from the main list.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.warning, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.warning,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Archive'),
           ),
         ],
       ),
     );
     if (confirm == true) {
-      await ref.read(projectControllerProvider.notifier).archive(project.id);
-      if (context.mounted) Navigator.of(context).pop();
+      try {
+        await ref.read(projectControllerProvider.notifier).archive(project.id);
+        if (context.mounted) {
+          Navigator.of(context).pop();
+        }
+      } catch (_) {
+        if (context.mounted) {
+          _showOperationError(context, 'Could not archive the project.');
+        }
+      }
     }
   }
 
@@ -68,28 +87,42 @@ class _ProjectDetailBody extends ConsumerWidget {
       context: context,
       builder: (_) => AlertDialog(
         title: const Text('Delete Project'),
-        content: Text('Permanently delete "${project.name}"? This cannot be undone.'),
+        content: Text(
+          'Permanently delete "${project.name}"? This cannot be undone.',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Delete'),
           ),
         ],
       ),
     );
     if (confirm == true) {
-      await ref.read(projectControllerProvider.notifier).removeProject(project.id);
-      if (context.mounted) Navigator.of(context).pop();
+      try {
+        await ref
+            .read(projectControllerProvider.notifier)
+            .removeProject(project.id);
+        if (context.mounted) Navigator.of(context).pop();
+      } catch (_) {
+        if (context.mounted) {
+          _showOperationError(context, 'Could not delete the project.');
+        }
+      }
     }
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final utilization = project.budgetUtilization;
-    final dateFormat = DateFormat('dd MMM yyyy');
-
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -97,9 +130,14 @@ class _ProjectDetailBody extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.edit, color: AppColors.primary),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => ProjectFormScreen(project: project)),
-            ),
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => ProjectFormScreen(project: project),
+                ),
+              );
+              ref.invalidate(projectDetailProvider(project.id));
+            },
           ),
           PopupMenuButton<String>(
             onSelected: (val) {
@@ -108,7 +146,10 @@ class _ProjectDetailBody extends ConsumerWidget {
             },
             itemBuilder: (_) => const [
               PopupMenuItem(value: 'archive', child: Text('Archive')),
-              PopupMenuItem(value: 'delete', child: Text('Delete', style: TextStyle(color: AppColors.error))),
+              PopupMenuItem(
+                value: 'delete',
+                child: Text('Delete', style: TextStyle(color: AppColors.error)),
+              ),
             ],
           ),
         ],
@@ -137,7 +178,9 @@ class _ProjectDetailBody extends ConsumerWidget {
                   value: '₹${_fmt(project.spent)}',
                   label: 'Amount Spent',
                   badge: '${(utilization * 100).toInt()}%',
-                  badgeColor: utilization > 0.9 ? AppColors.error : AppColors.secondary,
+                  badgeColor: utilization > 0.9
+                      ? AppColors.error
+                      : AppColors.secondary,
                 ),
                 StatCard(
                   icon: Icons.calculate,
@@ -165,14 +208,23 @@ class _ProjectDetailBody extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Project Details', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text(
+                    'Project Details',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  ),
                   const SizedBox(height: 16),
                   _infoRow('Client', project.clientName ?? '-'),
                   _infoRow('Code', project.projectCode ?? '-'),
                   _infoRow('Address', project.address ?? '-'),
                   _infoRow('Start Date', project.startDate ?? '-'),
-                  _infoRow('Expected Completion', project.expectedCompletion ?? '-'),
+                  _infoRow(
+                    'Expected Completion',
+                    project.expectedCompletion ?? '-',
+                  ),
                   _infoRow('Status', project.status.toUpperCase()),
+                  if (project.description != null &&
+                      project.description!.isNotEmpty)
+                    _infoRow('Scope', project.description!),
                   if (project.notes != null && project.notes!.isNotEmpty)
                     _infoRow('Notes', project.notes!),
                 ],
@@ -185,7 +237,12 @@ class _ProjectDetailBody extends ConsumerWidget {
               width: double.infinity,
               child: ElevatedButton.icon(
                 onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => DailyProgressScreen(projectId: project.id, projectName: project.name)),
+                  MaterialPageRoute(
+                    builder: (_) => DailyProgressScreen(
+                      projectId: project.id,
+                      projectName: project.name,
+                    ),
+                  ),
                 ),
                 icon: const Icon(Icons.camera_alt),
                 label: const Text('Daily Site Progress'),
@@ -193,7 +250,9 @@ class _ProjectDetailBody extends ConsumerWidget {
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.defaultValue)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                  ),
                 ),
               ),
             ),
@@ -211,10 +270,20 @@ class _ProjectDetailBody extends ConsumerWidget {
         children: [
           SizedBox(
             width: 140,
-            child: Text(label, style: const TextStyle(fontSize: 13, color: AppColors.textMuted)),
+            child: Text(
+              label,
+              style: const TextStyle(fontSize: 13, color: AppColors.textMuted),
+            ),
           ),
           Expanded(
-            child: Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.textMain)),
+            child: Text(
+              value,
+              style: const TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMain,
+              ),
+            ),
           ),
         ],
       ),
@@ -226,5 +295,11 @@ class _ProjectDetailBody extends ConsumerWidget {
     if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
     if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
     return v.toStringAsFixed(0);
+  }
+
+  void _showOperationError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: AppColors.error),
+    );
   }
 }

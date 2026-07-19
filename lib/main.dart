@@ -9,8 +9,6 @@ import 'core/widgets/web_sidebar.dart';
 import 'core/widgets/web_header.dart';
 
 import 'mobile_dashboard.dart';
-import 'project_details_mobile.dart';
-import 'project_materials_mobile.dart';
 import 'budget_utilization_mobile.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 import 'features/employees/presentation/screens/employee_list_screen.dart';
@@ -33,10 +31,7 @@ void main() async {
   final supabaseUrl = dotenv.env['SUPABASE_URL']!;
   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
 
-  await Supabase.initialize(
-    url: supabaseUrl,
-    anonKey: supabaseAnonKey,
-  );
+  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -61,8 +56,6 @@ class MyApp extends ConsumerWidget {
 enum MobileScreen {
   dashboard,
   projectsList,
-  projectDetails,
-  projectMaterials,
   budget,
   inventory,
   attendance,
@@ -137,17 +130,6 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
       case MobileScreen.projectsList:
         body = const ProjectListScreen();
         break;
-      case MobileScreen.projectDetails:
-        body = ProjectDetailsMobile(
-          projectId: 'projects/6661804967842142645',
-          onBack: _popMobile,
-          onViewMaterials: () => _pushMobile(MobileScreen.projectMaterials),
-          onViewBudget: () => _pushMobile(MobileScreen.budget),
-        );
-        break;
-      case MobileScreen.projectMaterials:
-        body = ProjectMaterialsMobile(onBack: _popMobile);
-        break;
       case MobileScreen.budget:
         body = BudgetUtilizationMobile(onBack: _popMobile);
         break;
@@ -176,8 +158,6 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
     if (_currentMobileScreen == MobileScreen.dashboard) {
       bottomBarIndex = 0;
     } else if (_currentMobileScreen == MobileScreen.projectsList ||
-        _currentMobileScreen == MobileScreen.projectDetails ||
-        _currentMobileScreen == MobileScreen.projectMaterials ||
         _currentMobileScreen == MobileScreen.budget ||
         _currentMobileScreen == MobileScreen.inventory) {
       bottomBarIndex = 1;
@@ -271,16 +251,28 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
                 ),
                 const SizedBox(height: 16),
                 ListTile(
-                  leading: const Icon(Icons.receipt_long_outlined, color: AppColors.primary),
-                  title: const Text('Billing', style: TextStyle(fontWeight: FontWeight.w600)),
+                  leading: const Icon(
+                    Icons.receipt_long_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Billing',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _setMobileTab(MobileScreen.billing);
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.account_balance_wallet_outlined, color: AppColors.primary),
-                  title: const Text('Expenses', style: TextStyle(fontWeight: FontWeight.w600)),
+                  leading: const Icon(
+                    Icons.account_balance_wallet_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Expenses',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _setMobileTab(MobileScreen.expenses);
@@ -288,8 +280,14 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
                 ),
                 const Divider(),
                 ListTile(
-                  leading: const Icon(Icons.settings_outlined, color: AppColors.primary),
-                  title: const Text('Settings', style: TextStyle(fontWeight: FontWeight.w600)),
+                  leading: const Icon(
+                    Icons.settings_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Settings',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
                   onTap: () {
                     Navigator.pop(context);
                     _setMobileTab(MobileScreen.settings);
@@ -323,23 +321,7 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
             child: Column(
               children: [
                 // ── Shared Header ──
-                WebHeader(
-                  trailing: _activeWebTab == 0
-                      ? ElevatedButton.icon(
-                          onPressed: () {},
-                          icon: const Icon(Icons.add, size: 16),
-                          label: const Text('New Project'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                          ),
-                        )
-                      : null,
-                ),
+                const WebHeader(),
                 // ── Content Body ──
                 Expanded(child: _buildWebContent()),
               ],
