@@ -5,25 +5,22 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'core/routing/router.dart';
 import 'core/widgets/responsive_layout.dart';
+import 'core/widgets/web_sidebar.dart';
+import 'core/widgets/web_header.dart';
 
 import 'mobile_dashboard.dart';
-import 'project_list_mobile.dart';
 import 'project_details_mobile.dart';
 import 'project_materials_mobile.dart';
 import 'budget_utilization_mobile.dart';
-import 'material_inventory_mobile.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
 import 'features/billing/presentation/screens/billing_list_screen.dart';
 import 'features/expenses/presentation/screens/expense_list_screen.dart';
 import 'features/projects/presentation/screens/project_list_screen.dart';
-import 'features/projects/presentation/screens/project_detail_screen.dart';
 import 'features/inventory/presentation/screens/inventory_list_screen.dart';
 
 import 'web_dashboard.dart';
-import 'project_detail_web.dart';
-import 'project_materials_web.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -86,7 +83,9 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
   // Navigation history stack for mobile view
   final List<MobileScreen> _mobileNavStack = [MobileScreen.dashboard];
 
-  // Active Web Screen selection (0: Dashboard, 1: Projects, 2: Materials, 3: Attendance, 4: Employees, 5: Settings)
+  // Active Web Screen selection — indexes match WebSidebar.items:
+  // 0: Dashboard, 1: Projects, 2: Attendance, 3: Employees,
+  // 4: Inventory, 5: Billing, 6: Expenses, 7: Settings
   int _activeWebTab = 0;
 
   // Push a new mobile screen
@@ -306,40 +305,72 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
 
   // --- DESKTOP NAVIGATION & LAYOUT ---
   Widget _buildDesktopLayout() {
-    Widget body;
-    if (_activeWebTab == 0) {
-      body = WebDashboard(
-        onSelectProject: () {
-          setState(() {
-            _activeWebTab = 1; // Open Projects Detail
-          });
-        },
-      );
-    } else if (_activeWebTab == 1) {
-      body = ProjectDetailWeb(
-        onBack: () {
-          setState(() {
-            _activeWebTab = 0; // Back to Dashboard
-          });
-        },
-        onViewMaterials: () {
-          setState(() {
-            _activeWebTab = 2; // Go to Materials
-          });
-        },
-      );
-    } else if (_activeWebTab == 2) {
-      body = ProjectMaterialsWeb(
-        onBack: () {
-          setState(() {
-            _activeWebTab = 1; // Back to Project Detail
-          });
-        },
-      );
-    } else {
-      body = Container();
-    }
+    return Scaffold(
+      backgroundColor: AppColors.background,
+      body: Row(
+        children: [
+          // ── Shared Sidebar ──
+          WebSidebar(
+            activeIndex: _activeWebTab,
+            onTabSelected: (index) {
+              setState(() {
+                _activeWebTab = index;
+              });
+            },
+          ),
+          // ── Main Content Area ──
+          Expanded(
+            child: Column(
+              children: [
+                // ── Shared Header ──
+                WebHeader(
+                  trailing: _activeWebTab == 0
+                      ? ElevatedButton.icon(
+                          onPressed: () {},
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('New Project'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primary,
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                          ),
+                        )
+                      : null,
+                ),
+                // ── Content Body ──
+                Expanded(child: _buildWebContent()),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 
-    return Scaffold(body: body);
+  /// Returns the content widget for the currently active web tab.
+  Widget _buildWebContent() {
+    switch (_activeWebTab) {
+      case 0:
+        return const WebDashboard();
+      case 1:
+        return const ProjectListScreen();
+      case 2:
+        return const AttendanceScreen();
+      case 3:
+        return const EmployeeListScreen();
+      case 4:
+        return const InventoryListScreen();
+      case 5:
+        return const BillingListScreen();
+      case 6:
+        return const ExpenseListScreen();
+      case 7:
+        return const SettingsScreen();
+      default:
+        return const WebDashboard();
+    }
   }
 }

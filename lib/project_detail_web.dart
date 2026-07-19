@@ -1,15 +1,10 @@
 import 'package:flutter/material.dart';
-import 'theme.dart';
+import 'core/theme/app_colors.dart';
 
+/// Web project detail screen — content only.
+/// The sidebar and header are provided by the MainRouterScreen shell.
 class ProjectDetailWeb extends StatefulWidget {
-  final VoidCallback onBack;
-  final VoidCallback onViewMaterials;
-
-  const ProjectDetailWeb({
-    super.key,
-    required this.onBack,
-    required this.onViewMaterials,
-  });
+  const ProjectDetailWeb({super.key});
 
   @override
   State<ProjectDetailWeb> createState() => _ProjectDetailWebState();
@@ -20,293 +15,66 @@ class _ProjectDetailWebState extends State<ProjectDetailWeb> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: Row(
-        children: [
-          // Sidebar (same as web dashboard)
-          _buildSidebar(context),
-          // Main Content
-          Expanded(
-            child: Column(
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.containerMargin),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Navigation Tabs
+            Container(
+              height: 48,
+              margin: const EdgeInsets.only(bottom: 24),
+              decoration: const BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(color: AppColors.borderSubtle),
+                ),
+              ),
+              child: Row(
+                children: [
+                  _buildTabButton('Details', 0),
+                  const SizedBox(width: 32),
+                  _buildTabButton('Timeline', 1),
+                  const SizedBox(width: 32),
+                  _buildTabButton('Documents', 2),
+                  const SizedBox(width: 32),
+                  _buildTabButton('Reports', 3),
+                ],
+              ),
+            ),
+
+            // Bento Grid & Split Layout
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Top Header (Breadcrumbs + Actions)
-                _buildHeader(context),
-                // Scrollable Body
+                // Left Area: Hero + Progress Bento
                 Expanded(
-                  child: SingleChildScrollView(
-                    padding: const EdgeInsets.all(AppSpacing.containerMargin),
-                    child: Container(
-                      constraints: const BoxConstraints(maxWidth: 1200),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Navigation Tabs
-                          Container(
-                            height: 48,
-                            margin: const EdgeInsets.only(bottom: 24),
-                            decoration: const BoxDecoration(
-                              border: Border(
-                                bottom: BorderSide(
-                                  color: AppColors.borderSubtle,
-                                ),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                _buildTabButton('Details', 0),
-                                const SizedBox(width: 32),
-                                _buildTabButton('Timeline', 1),
-                                const SizedBox(width: 32),
-                                _buildTabButton('Documents', 2),
-                                const SizedBox(width: 32),
-                                _buildTabButton('Reports', 3),
-                              ],
-                            ),
-                          ),
-
-                          // Bento Grid & Split Layout
-                          Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Left Area: Hero + Progress Bento
-                              Expanded(
-                                flex: 3,
-                                child: Column(
-                                  children: [
-                                    _buildHeroCard(context),
-                                    const SizedBox(height: 24),
-                                    _buildBentoGrid(context),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(width: 32),
-                              // Right Area: Map + Activity
-                              Expanded(
-                                flex: 2,
-                                child: Column(
-                                  children: [
-                                    _buildMapCard(context),
-                                    const SizedBox(height: 24),
-                                    _buildTimelineCard(context),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ),
+                  flex: 3,
+                  child: Column(
+                    children: [
+                      _buildHeroCard(context),
+                      const SizedBox(height: 24),
+                      _buildBentoGrid(context),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 32),
+                // Right Area: Map + Activity
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    children: [
+                      _buildMapCard(context),
+                      const SizedBox(height: 24),
+                      _buildTimelineCard(context),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebar(BuildContext context) {
-    return Container(
-      width: 280,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceWhite,
-        border: Border(right: BorderSide(color: AppColors.borderSubtle)),
-      ),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.containerMargin,
-              vertical: 32,
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(
-                    Icons.architecture,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                const Text(
-                  'IBUILD',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              children: [
-                _buildSidebarNavItem(
-                  Icons.dashboard,
-                  'Dashboard',
-                  false,
-                  onTap: widget.onBack,
-                ),
-                _buildSidebarNavItem(Icons.architecture, 'Projects', true),
-                _buildSidebarNavItem(Icons.group, 'Attendance', false),
-                _buildSidebarNavItem(
-                  Icons.inventory_2,
-                  'Materials',
-                  false,
-                  onTap: widget.onViewMaterials,
-                ),
-                _buildSidebarNavItem(Icons.analytics, 'Analytics', false),
-                _buildSidebarNavItem(Icons.settings, 'Settings', false),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSidebarNavItem(
-    IconData icon,
-    String label,
-    bool isActive, {
-    VoidCallback? onTap,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 4),
-      decoration: BoxDecoration(
-        color: isActive
-            ? AppColors.primaryContainer.withValues(alpha: 0.08)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: isActive
-            ? const Border(left: BorderSide(color: AppColors.primary, width: 4))
-            : null,
-      ),
-      child: ListTile(
-        onTap: onTap,
-        leading: Icon(
-          icon,
-          color: isActive ? AppColors.primary : AppColors.textMuted,
+          ],
         ),
-        title: Text(
-          label,
-          style: TextStyle(
-            color: isActive ? AppColors.primary : AppColors.textMain,
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-            fontSize: 14,
-          ),
-        ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      ),
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Container(
-      height: 70,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceWhite,
-        border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
-      ),
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.containerMargin,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          // Breadcrumbs
-          Row(
-            children: [
-              IconButton(
-                icon: const Icon(
-                  Icons.arrow_back,
-                  color: AppColors.primary,
-                  size: 20,
-                ),
-                onPressed: widget.onBack,
-              ),
-              const SizedBox(width: 8),
-              const Text(
-                'Portfolio',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
-              ),
-              const SizedBox(width: 4),
-              const Icon(
-                Icons.chevron_right,
-                size: 14,
-                color: AppColors.outline,
-              ),
-              const SizedBox(width: 4),
-              const Text(
-                'Skyline Apartments',
-                style: TextStyle(
-                  color: AppColors.primary,
-                  fontWeight: FontWeight.bold,
-                  fontSize: 13,
-                ),
-              ),
-            ],
-          ),
-          // Actions
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0x1F10B981),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 6,
-                      height: 6,
-                      decoration: const BoxDecoration(
-                        color: AppColors.secondary,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    const Text(
-                      'On Track',
-                      style: TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton(
-                onPressed: () {},
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                ),
-                child: const Text('Add Task'),
-              ),
-            ],
-          ),
-        ],
       ),
     );
   }
@@ -472,7 +240,7 @@ class _ProjectDetailWebState extends State<ProjectDetailWeb> {
               child: _buildBentoCard(
                 icon: Icons.task_alt,
                 iconColor: AppColors.primary,
-                bgColor: AppColors.primary.withValues(alpha: 0.05),
+                bgColor: AppColors.primary.withOpacity(0.05),
                 title: 'Tasks',
                 value: '10/25',
                 subtitle: '4 milestones reached',
@@ -483,7 +251,7 @@ class _ProjectDetailWebState extends State<ProjectDetailWeb> {
               child: _buildBentoCard(
                 icon: Icons.group,
                 iconColor: AppColors.secondary,
-                bgColor: AppColors.secondary.withValues(alpha: 0.05),
+                bgColor: AppColors.secondary.withOpacity(0.05),
                 title: 'Attendance',
                 value: '12 Present',
                 subtitle: '100% capacity',
@@ -493,74 +261,71 @@ class _ProjectDetailWebState extends State<ProjectDetailWeb> {
         ),
         const SizedBox(height: 16),
         // Materials Pending Card
-        GestureDetector(
-          onTap: widget.onViewMaterials,
-          child: Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceWhite,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.borderSubtle),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(
-                        Icons.inventory_2,
-                        color: AppColors.warning,
-                        size: 20,
-                      ),
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceWhite,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.warning.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 12),
-                    const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Materials Pending',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                        Text(
-                          'Structural Steel, Ready-mix',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.textMuted,
-                          ),
-                        ),
-                      ],
+                    child: const Icon(
+                      Icons.inventory_2,
+                      color: AppColors.warning,
+                      size: 20,
                     ),
-                  ],
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Materials Pending',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                      ),
+                      Text(
+                        'Structural Steel, Ready-mix',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textMuted,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFFEE2E2),
-                    borderRadius: BorderRadius.all(Radius.circular(12)),
-                  ),
-                  child: const Text(
-                    '2 pending',
-                    style: TextStyle(
-                      color: AppColors.error,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                    ),
+                decoration: const BoxDecoration(
+                  color: Color(0xFFFEE2E2),
+                  borderRadius: BorderRadius.all(Radius.circular(12)),
+                ),
+                child: const Text(
+                  '2 pending',
+                  style: TextStyle(
+                    color: AppColors.error,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ],
@@ -730,7 +495,7 @@ class _ProjectDetailWebState extends State<ProjectDetailWeb> {
               width: 28,
               height: 28,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.08),
+                color: color.withOpacity(0.08),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 14),
