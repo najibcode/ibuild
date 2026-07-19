@@ -17,6 +17,9 @@ import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
 import 'features/billing/presentation/screens/billing_list_screen.dart';
 import 'features/expenses/presentation/screens/expense_list_screen.dart';
+import 'features/projects/presentation/screens/project_list_screen.dart';
+import 'features/projects/presentation/screens/project_detail_screen.dart';
+import 'features/inventory/presentation/screens/inventory_list_screen.dart';
 
 import 'web_dashboard.dart';
 import 'project_detail_web.dart';
@@ -133,9 +136,7 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
         );
         break;
       case MobileScreen.projectsList:
-        body = ProjectListMobile(
-          onSelectProject: (id) => _pushMobile(MobileScreen.projectDetails),
-        );
+        body = const ProjectListScreen();
         break;
       case MobileScreen.projectDetails:
         body = ProjectDetailsMobile(
@@ -152,7 +153,7 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
         body = BudgetUtilizationMobile(onBack: _popMobile);
         break;
       case MobileScreen.inventory:
-        body = MaterialInventoryMobile(onBack: _popMobile);
+        body = const InventoryListScreen();
         break;
       case MobileScreen.attendance:
         body = const AttendanceScreen();

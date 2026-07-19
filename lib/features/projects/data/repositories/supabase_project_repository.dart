@@ -17,7 +17,7 @@ class SupabaseProjectRepository implements ProjectRepository {
     int offset = 0,
     bool includeArchived = false,
   }) async {
-    var query = _client.from('projects').select();
+    dynamic query = _client.from('projects').select();
 
     if (!includeArchived) {
       query = query.eq('is_archived', false);
@@ -78,7 +78,7 @@ class SupabaseProjectRepository implements ProjectRepository {
 
   @override
   Future<int> getProjectCount({String? statusFilter, bool includeArchived = false}) async {
-    var query = _client.from('projects').select();
+    dynamic query = _client.from('projects').select();
     if (!includeArchived) {
       query = query.eq('is_archived', false);
     }

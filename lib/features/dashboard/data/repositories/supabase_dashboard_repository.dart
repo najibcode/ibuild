@@ -2,6 +2,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../models/dashboard_stats_model.dart';
 
+import '../../../inventory/data/models/inventory_item_model.dart';
+
 class SupabaseDashboardRepository implements DashboardRepository {
   final SupabaseClient _client;
 
@@ -28,40 +30,43 @@ class SupabaseDashboardRepository implements DashboardRepository {
       // 3. Expenses & bills statistics
       final expensesResponse = await _client.from('expenses').select();
       double monthlyExpense = 0.0;
-      double pendingBills = 0.0;
-
       for (var exp in expensesResponse) {
-        final double amount = (exp['amount'] as num).toDouble();
-        if (exp['status'] == 'paid') {
-          monthlyExpense += amount;
-        } else if (exp['status'] == 'pending') {
-          pendingBills += amount;
+        monthlyExpense += (exp['amount'] as num? ?? 0).toDouble();
+      }
+
+      final billsResponse = await _client.from('bills').select();
+      double pendingBills = 0.0;
+      for (var bill in billsResponse) {
+        if (bill['status'] == 'pending') {
+          pendingBills += (bill['amount'] as num? ?? 0).toDouble();
         }
       }
 
-      // 4. Low stock inventory items placeholder/check
-      // Since inventory wasn't added to DB schema directly, we can count structural items or use a default
-      int lowStock = 2; // Default realistic baseline or count of items under warning
+      // 4. Low stock inventory items
+      final inventoryResponse = await _client.from('inventory').select();
+      int lowStock = (inventoryResponse as List)
+          .map((j) => InventoryItem.fromJson(j))
+          .where((i) => i.isLowStock)
+          .length;
 
       return DashboardStats(
-        totalProjects: total == 0 ? 12 : total, // Fallbacks matching Stitch specs if empty
-        activeProjects: active == 0 ? 8 : active,
-        completedProjects: completed == 0 ? 4 : completed,
-        employeesPresent: present == 0 ? 85 : present,
+        totalProjects: total,
+        activeProjects: active,
+        completedProjects: completed,
+        employeesPresent: present,
         lowStockItems: lowStock,
-        monthlyExpense: monthlyExpense == 0 ? 1080000 : monthlyExpense,
-        pendingBills: pendingBills == 0 ? 600000 : pendingBills,
+        monthlyExpense: monthlyExpense,
+        pendingBills: pendingBills,
       );
     } catch (e) {
-      // Return baseline matching Stitch designs on error/empty
       return DashboardStats(
-        totalProjects: 12,
-        activeProjects: 8,
-        completedProjects: 4,
-        employeesPresent: 85,
-        lowStockItems: 2,
-        monthlyExpense: 1080000.0,
-        pendingBills: 600000.0,
+        totalProjects: 0,
+        activeProjects: 0,
+        completedProjects: 0,
+        employeesPresent: 0,
+        lowStockItems: 0,
+        monthlyExpense: 0.0,
+        pendingBills: 0.0,
       );
     }
   }

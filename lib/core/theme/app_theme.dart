@@ -37,7 +37,7 @@ class AppTheme {
         iconTheme: IconThemeData(color: AppColors.primary),
         titleTextStyle: TextStyle(fontFamily: 'Inter', fontWeight: FontWeight.bold, fontSize: 20, color: AppColors.primary),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.surfaceWhite,
         elevation: 0,
         shape: RoundedRectangleBorder(

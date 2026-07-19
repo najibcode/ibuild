@@ -16,7 +16,7 @@ class SupabaseExpenseRepository implements ExpenseRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    var query = _client.from('expenses').select('*, projects(name)');
+    dynamic query = _client.from('expenses').select('*, projects(name)');
 
     if (projectId != null && projectId.isNotEmpty) {
       query = query.eq('project_id', projectId);

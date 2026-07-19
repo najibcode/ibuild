@@ -493,7 +493,7 @@ class ProjectListMobile extends StatelessWidget {
                               supervisorName,
                               style: const TextStyle(
                                 fontSize: 11,
-                                fontWeight: FontWeight.semibold,
+                                fontWeight: FontWeight.w600,
                                 color: AppColors.textMain,
                               ),
                             ),

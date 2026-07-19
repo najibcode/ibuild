@@ -17,7 +17,7 @@ class SupabaseInventoryRepository implements InventoryRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    var query = _client.from('inventory').select();
+    dynamic query = _client.from('inventory').select();
 
     if (categoryFilter != null && categoryFilter.isNotEmpty) {
       query = query.eq('category', categoryFilter);

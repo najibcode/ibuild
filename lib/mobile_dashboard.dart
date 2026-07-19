@@ -112,7 +112,7 @@ class MobileDashboard extends ConsumerWidget {
                     icon: Icons.architecture,
                     value: '${stats.activeProjects}',
                     label: 'Active Projects',
-                    badgeText: '+2 this week',
+                    badgeText: '+${stats.activeProjects} Active',
                     badgeColor: AppColors.secondary,
                     onTap: onViewProjects,
                   ),
@@ -121,25 +121,29 @@ class MobileDashboard extends ConsumerWidget {
                     icon: Icons.group,
                     value: '${stats.employeesPresent}',
                     label: 'Workers Present',
-                    badgeText: '94% Present',
+                    badgeText: 'Active Today',
                     badgeColor: AppColors.secondary,
                     onTap: () {},
                   ),
                   _buildKPICard(
                     context: context,
                     icon: Icons.pending_actions,
-                    value: '2', // Delayed tasks
-                    label: 'Delayed Tasks',
-                    badgeText: 'Action Required',
-                    badgeColor: AppColors.error,
-                    onTap: onViewTrack,
+                    value: '${stats.lowStockItems}',
+                    label: 'Low Stock Materials',
+                    badgeText: stats.lowStockItems > 0 ? 'Action Required' : 'All Stock OK',
+                    badgeColor: stats.lowStockItems > 0 ? AppColors.error : AppColors.secondary,
+                    onTap: onViewSupply,
                   ),
                   _buildBudgetKPICard(
                     context: context,
                     icon: Icons.payments,
-                    value: '₹64L',
-                    label: 'Budget Spent',
-                    progress: 0.64,
+                    value: stats.monthlyExpense >= 100000
+                        ? '₹${(stats.monthlyExpense / 100000).toStringAsFixed(1)}L'
+                        : '₹${stats.monthlyExpense.toStringAsFixed(0)}',
+                    label: 'Total Expenses',
+                    progress: stats.monthlyExpense > 0
+                        ? (stats.monthlyExpense / 2000000.0).clamp(0.0, 1.0)
+                        : 0.0,
                     onTap: onViewTrack,
                   ),
                 ],
@@ -148,10 +152,10 @@ class MobileDashboard extends ConsumerWidget {
 
               // Project Velocity Section
               Row(
-                mainAxisAlignment: MainAxisAlignment.between,
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Project Velocity',
+                    'Operational Metrics',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                           fontWeight: FontWeight.bold,
                         ),
@@ -180,13 +184,13 @@ class MobileDashboard extends ConsumerWidget {
                     borderData: FlBorderData(show: false),
                     gridData: const FlGridData(show: false),
                     barGroups: [
-                      _makeBarGroup(0, 4.0, false),
-                      _makeBarGroup(1, 6.0, false),
-                      _makeBarGroup(2, 5.5, false),
-                      _makeBarGroup(3, 8.5, false),
-                      _makeBarGroup(4, 7.0, false),
-                      _makeBarGroup(5, 9.5, false),
-                      _makeBarGroup(6, 10.0, true),
+                      _makeBarGroup(0, stats.activeProjects.toDouble().clamp(0.0, 10.0), false),
+                      _makeBarGroup(1, stats.completedProjects.toDouble().clamp(0.0, 10.0), false),
+                      _makeBarGroup(2, stats.totalProjects.toDouble().clamp(0.0, 10.0), false),
+                      _makeBarGroup(3, (stats.employeesPresent / 10.0).clamp(0.0, 10.0), false),
+                      _makeBarGroup(4, stats.lowStockItems.toDouble().clamp(0.0, 10.0), false),
+                      _makeBarGroup(5, (stats.pendingBills / 100000.0).clamp(0.0, 10.0), false),
+                      _makeBarGroup(6, (stats.monthlyExpense / 200000.0).clamp(0.0, 10.0), true),
                     ],
                   ),
                 ),

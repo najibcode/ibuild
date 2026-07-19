@@ -3,8 +3,8 @@ import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/repositories/supabase_attendance_repository.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../../data/models/attendance_model.dart';
-import '../../../features/employees/presentation/controllers/employee_controller.dart';
-import '../../../features/employees/data/models/employee_model.dart';
+import '../../../employees/presentation/controllers/employee_controller.dart';
+import '../../../employees/data/models/employee_model.dart';
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
