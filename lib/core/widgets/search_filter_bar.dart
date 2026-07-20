@@ -31,10 +31,13 @@ class SearchFilterBar extends StatelessWidget {
         // Search row
         TextField(
           onChanged: onSearchChanged,
+          textAlignVertical: TextAlignVertical.center,
           decoration: InputDecoration(
+            isDense: true,
             hintText: hintText,
             hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
             prefixIcon: const Icon(Icons.search, color: AppColors.outline, size: 20),
+            prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             filled: true,
             fillColor: AppColors.surfaceWhite,
             border: OutlineInputBorder(

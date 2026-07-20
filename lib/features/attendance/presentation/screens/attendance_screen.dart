@@ -170,11 +170,11 @@ class AttendanceScreen extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        _buildToggleButton('P', 'present', activeStatus, AppColors.secondary, onSelected),
-        const SizedBox(width: 6),
-        _buildToggleButton('A', 'absent', activeStatus, AppColors.error, onSelected),
-        const SizedBox(width: 6),
-        _buildToggleButton('L', 'leave', activeStatus, AppColors.warning, onSelected),
+        _buildToggleButton('Present', 'present', activeStatus, AppColors.secondary, onSelected),
+        const SizedBox(width: 8),
+        _buildToggleButton('Absent', 'absent', activeStatus, AppColors.error, onSelected),
+        const SizedBox(width: 8),
+        _buildToggleButton('Leave', 'leave', activeStatus, AppColors.warning, onSelected),
       ],
     );
   }
@@ -189,21 +189,20 @@ class AttendanceScreen extends ConsumerWidget {
     final bool isActive = activeStatus == status;
     return GestureDetector(
       onTap: () => onSelected(status),
-      child: Container(
-        width: 32,
-        height: 32,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isActive ? activeColor : Colors.transparent,
-          border: Border.all(color: isActive ? activeColor : AppColors.borderSubtle),
-          shape: BoxShape.circle,
+          color: isActive ? activeColor : activeColor.withOpacity(0.08),
+          border: Border.all(color: isActive ? activeColor : activeColor.withOpacity(0.3)),
+          borderRadius: BorderRadius.circular(AppRadius.defaultValue),
         ),
-        alignment: Alignment.center,
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.white : AppColors.textMain,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+            color: isActive ? Colors.white : activeColor,
+            fontWeight: FontWeight.w600,
+            fontSize: 13,
           ),
         ),
       ),

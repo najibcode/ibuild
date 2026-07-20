@@ -23,7 +23,10 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
   @override
   Future<void> saveAttendance(Attendance attendance) async {
     // Upsert logic based on unique constraint (employee_id, date)
-    await _client.from('attendance').upsert(attendance.toJson());
+    await _client.from('attendance').upsert(
+      attendance.toJson(),
+      onConflict: 'employee_id,date',
+    );
   }
 
   @override

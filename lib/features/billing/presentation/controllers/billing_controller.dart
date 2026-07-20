@@ -36,16 +36,18 @@ class BillingListState {
     bool? isLoading,
     String? errorMessage,
     String? projectFilter,
+    bool clearProjectFilter = false,
     String? statusFilter,
+    bool clearStatusFilter = false,
     int? offset,
     bool? hasMore,
   }) {
     return BillingListState(
       bills: bills ?? this.bills,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage,
-      projectFilter: projectFilter ?? this.projectFilter,
-      statusFilter: statusFilter ?? this.statusFilter,
+      errorMessage: errorMessage ?? this.errorMessage,
+      projectFilter: clearProjectFilter ? null : (projectFilter ?? this.projectFilter),
+      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
       offset: offset ?? this.offset,
       hasMore: hasMore ?? this.hasMore,
     );
@@ -88,12 +90,12 @@ class BillingController extends StateNotifier<BillingListState> {
   void loadMore() => loadBills(reset: false);
 
   void setProjectFilter(String? p) {
-    state = state.copyWith(projectFilter: p);
+    state = state.copyWith(projectFilter: p, clearProjectFilter: p == null);
     loadBills();
   }
 
   void setStatusFilter(String? s) {
-    state = state.copyWith(statusFilter: s);
+    state = state.copyWith(statusFilter: s, clearStatusFilter: s == null);
     loadBills();
   }
 

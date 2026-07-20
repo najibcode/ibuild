@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
+import 'global_search_dialog.dart';
 
 /// Shared top header bar for the web (desktop) layout.
 /// Displays a search field, notifications, and contextual actions.
@@ -10,10 +11,13 @@ class WebHeader extends StatelessWidget {
   /// Optional trailing action widget (e.g., "New Project" button).
   final Widget? trailing;
 
+  final VoidCallback? onMenuPressed;
+
   const WebHeader({
     super.key,
     this.title,
     this.trailing,
+    this.onMenuPressed,
   });
 
   @override
@@ -27,6 +31,13 @@ class WebHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.containerMargin),
       child: Row(
         children: [
+          if (onMenuPressed != null) ...[
+            IconButton(
+              icon: const Icon(Icons.menu),
+              onPressed: onMenuPressed,
+            ),
+            const SizedBox(width: AppSpacing.gutter),
+          ],
           // Search Input
           Expanded(
             child: Container(
@@ -36,14 +47,29 @@ class WebHeader extends StatelessWidget {
                 color: AppColors.background,
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const TextField(
-                decoration: InputDecoration(
-                  hintText: 'Search projects, materials, or reports...',
-                  hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
-                  prefixIcon: Icon(Icons.search, color: AppColors.outline, size: 18),
-                  border: InputBorder.none,
-                  contentPadding: EdgeInsets.symmetric(vertical: 10),
-                ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 14),
+                  const Icon(Icons.search, color: AppColors.outline, size: 18),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      style: const TextStyle(fontSize: 14),
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: 'Search projects, materials, or reports...',
+                        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                        border: InputBorder.none,
+                      ),
+                      onSubmitted: (query) {
+                        showDialog(
+                          context: context,
+                          builder: (_) => GlobalSearchDialog(initialQuery: query),
+                        );
+                      },
+                    ),
+                  ),
+                ],
               ),
             ),
           ),

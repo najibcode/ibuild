@@ -37,9 +37,9 @@ class InventoryListState {
   InventoryListState copyWith({
     List<InventoryItem>? items,
     bool? isLoading,
-    String? errorMessage,
     String? searchQuery,
     String? categoryFilter,
+    bool clearCategoryFilter = false,
     String? sortBy,
     bool? ascending,
     int? offset,
@@ -50,7 +50,7 @@ class InventoryListState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
       searchQuery: searchQuery ?? this.searchQuery,
-      categoryFilter: categoryFilter ?? this.categoryFilter,
+      categoryFilter: clearCategoryFilter ? null : (categoryFilter ?? this.categoryFilter),
       sortBy: sortBy ?? this.sortBy,
       ascending: ascending ?? this.ascending,
       offset: offset ?? this.offset,
@@ -96,7 +96,7 @@ class InventoryController extends StateNotifier<InventoryListState> {
 
   void loadMore() => loadItems(reset: false);
   void setSearch(String q) { state = state.copyWith(searchQuery: q); loadItems(); }
-  void setCategoryFilter(String? c) { state = state.copyWith(categoryFilter: c); loadItems(); }
+  void setCategoryFilter(String? c) { state = state.copyWith(categoryFilter: c, clearCategoryFilter: c == null); loadItems(); }
   void setSort(String s) { state = state.copyWith(sortBy: s, ascending: !state.ascending); loadItems(); }
 
   Future<bool> addItem(InventoryItem item) async {

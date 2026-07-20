@@ -38,9 +38,9 @@ class ProjectListState {
   ProjectListState copyWith({
     List<Project>? projects,
     bool? isLoading,
-    String? errorMessage,
     String? searchQuery,
     String? statusFilter,
+    bool clearStatusFilter = false,
     String? sortBy,
     bool? ascending,
     int? offset,
@@ -52,7 +52,7 @@ class ProjectListState {
       isLoading: isLoading ?? this.isLoading,
       errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       searchQuery: searchQuery ?? this.searchQuery,
-      statusFilter: statusFilter ?? this.statusFilter,
+      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
       sortBy: sortBy ?? this.sortBy,
       ascending: ascending ?? this.ascending,
       offset: offset ?? this.offset,
@@ -110,7 +110,7 @@ class ProjectController extends StateNotifier<ProjectListState> {
   }
 
   void setStatusFilter(String? status) {
-    state = state.copyWith(statusFilter: status, offset: 0);
+    state = state.copyWith(statusFilter: status, clearStatusFilter: status == null, offset: 0);
     loadProjects();
   }
 

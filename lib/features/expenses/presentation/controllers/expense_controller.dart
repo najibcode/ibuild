@@ -36,7 +36,9 @@ class ExpenseListState {
     bool? isLoading,
     String? errorMessage,
     String? projectFilter,
+    bool clearProjectFilter = false,
     String? categoryFilter,
+    bool clearCategoryFilter = false,
     int? offset,
     bool? hasMore,
   }) {
@@ -44,8 +46,8 @@ class ExpenseListState {
       expenses: expenses ?? this.expenses,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage,
-      projectFilter: projectFilter ?? this.projectFilter,
-      categoryFilter: categoryFilter ?? this.categoryFilter,
+      projectFilter: clearProjectFilter ? null : (projectFilter ?? this.projectFilter),
+      categoryFilter: clearCategoryFilter ? null : (categoryFilter ?? this.categoryFilter),
       offset: offset ?? this.offset,
       hasMore: hasMore ?? this.hasMore,
     );
@@ -88,12 +90,12 @@ class ExpenseController extends StateNotifier<ExpenseListState> {
   void loadMore() => loadExpenses(reset: false);
 
   void setProjectFilter(String? p) {
-    state = state.copyWith(projectFilter: p);
+    state = state.copyWith(projectFilter: p, clearProjectFilter: p == null);
     loadExpenses();
   }
 
   void setCategoryFilter(String? c) {
-    state = state.copyWith(categoryFilter: c);
+    state = state.copyWith(categoryFilter: c, clearCategoryFilter: c == null);
     loadExpenses();
   }
 
