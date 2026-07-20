@@ -40,6 +40,12 @@ class SettingsScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final authState = ref.watch(authControllerProvider);
+    final profile = authState.profile;
+    final companyName = profile?['company_name'] as String? ?? 'IBUILD User';
+    final gstin = profile?['gstin'] as String? ?? 'Not provided';
+    final userEmail = authState.user?.email ?? 'Unknown';
+
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
@@ -69,18 +75,18 @@ class SettingsScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.borderSubtle),
               ),
-              child: const Column(
+              child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(Icons.business, color: AppColors.outline),
-                    title: Text('Company Name', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('BuildSense Enterprise Ltd.'),
+                    leading: const Icon(Icons.business, color: AppColors.outline),
+                    title: const Text('Company Name', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(companyName),
                   ),
-                  Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
                   ListTile(
-                    leading: Icon(Icons.receipt_long_outlined, color: AppColors.outline),
-                    title: Text('GSTIN Number', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('27AAPCS1234F1Z5'),
+                    leading: const Icon(Icons.receipt_long_outlined, color: AppColors.outline),
+                    title: const Text('GSTIN Number', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(gstin),
                   ),
                 ],
               ),
@@ -133,18 +139,18 @@ class SettingsScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.borderSubtle),
               ),
-              child: const Column(
+              child: Column(
                 children: [
-                  ListTile(
+                  const ListTile(
                     leading: Icon(Icons.info_outline, color: AppColors.outline),
                     title: Text('App Version', style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('v1.0.0 (Phase 1 Build)'),
                   ),
-                  Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
                   ListTile(
-                    leading: Icon(Icons.help_outline, color: AppColors.outline),
-                    title: Text('Help & Support', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('support@ibuild.com'),
+                    leading: const Icon(Icons.help_outline, color: AppColors.outline),
+                    title: const Text('Logged in as', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(userEmail),
                   ),
                 ],
               ),
