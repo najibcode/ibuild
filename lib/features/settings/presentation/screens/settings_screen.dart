@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/theme/theme_provider.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 
 class SettingsScreen extends ConsumerWidget {
@@ -110,10 +111,12 @@ class SettingsScreen extends ConsumerWidget {
                   ListTile(
                     leading: const Icon(Icons.palette_outlined, color: AppColors.outline),
                     title: const Text('Theme Mode', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: const Text('System default (Light Mode)'),
+                    subtitle: Text(ref.watch(themeProvider) == ThemeMode.dark ? 'Dark Mode' : 'System default (Light Mode)'),
                     trailing: Switch(
-                      value: false,
-                      onChanged: (val) {},
+                      value: ref.watch(themeProvider) == ThemeMode.dark,
+                      onChanged: (val) {
+                        ref.read(themeProvider.notifier).toggleTheme();
+                      },
                     ),
                   ),
                   const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),

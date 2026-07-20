@@ -188,71 +188,62 @@ class SupabaseDashboardRepository implements DashboardRepository {
     return result;
   }
 
-  // ── Recent activity (merged from multiple tables) ─────────────────────────
+  // ── Recent activity (from new activities table) ───────────────────────────
 
   Future<List<RecentActivity>> _fetchRecentActivity() async {
     final List<RecentActivity> activities = [];
-
-    // Fetch last 3 expenses
     try {
-      final expenses = await _client
-          .from('expenses')
-          .select('category, amount, expense_date, created_at, projects(name)')
+      final rows = await _client
+          .from('activities')
+          .select('*, profiles(company_name)')
           .order('created_at', ascending: false)
-          .limit(3);
+          .limit(10);
 
-      for (final e in expenses) {
-        final projectName = e['projects']?['name'] as String? ?? 'General';
+      for (final r in rows) {
+        final profile = r['profiles'] as Map<String, dynamic>?;
+        final userName = profile != null ? profile['company_name'] : 'System';
+        final actionType = r['action_type'] as String? ?? 'unknown';
+        final entityType = r['entity_type'] as String? ?? 'Unknown';
+        final details = r['details'] as Map<String, dynamic>? ?? {};
+        
+        // Build readable title and subtitle
+        String title = 'Activity';
+        String subtitle = 'By $userName';
+        String type = 'info';
+
+        if (actionType.contains('added') || actionType.contains('created')) {
+          title = 'Added $entityType';
+          type = 'add';
+          if (details.containsKey('name')) subtitle = 'By $userName — ${details['name']}';
+          else if (details.containsKey('item_name')) subtitle = 'By $userName — ${details['item_name']}';
+        } else if (actionType.contains('updated')) {
+          title = 'Updated $entityType';
+          type = 'edit';
+          if (details.containsKey('name')) subtitle = 'By $userName — ${details['name']}';
+          else if (details.containsKey('item_name')) subtitle = 'By $userName — ${details['item_name']}';
+        } else if (actionType.contains('deleted') || actionType.contains('archived')) {
+          title = 'Removed $entityType';
+          type = 'delete';
+        } else if (actionType.startsWith('inventory_')) {
+          title = 'Inventory ${actionType.split('_').last}';
+          type = 'inventory';
+          if (details.containsKey('quantity_change')) {
+            subtitle = 'By $userName — Qty Change: ${details['quantity_change']}';
+          }
+        }
+
         activities.add(RecentActivity(
-          type: 'expense',
-          title: 'Expense: ${e['category']}',
-          subtitle: '₹${_formatNum(e['amount'])} — $projectName',
-          timestamp: DateTime.tryParse(e['created_at'] as String? ?? '') ?? DateTime.now(),
+          type: type,
+          title: title,
+          subtitle: subtitle,
+          timestamp: DateTime.tryParse(r['created_at'] as String? ?? '') ?? DateTime.now(),
         ));
       }
-    } catch (_) {}
+    } catch (e) {
+      print('Dashboard RecentActivity fetch error: $e');
+    }
 
-    // Fetch last 3 bills
-    try {
-      final bills = await _client
-          .from('bills')
-          .select('bill_number, amount, status, created_at, projects(name)')
-          .order('created_at', ascending: false)
-          .limit(3);
-
-      for (final b in bills) {
-        final projectName = b['projects']?['name'] as String? ?? 'Unknown';
-        activities.add(RecentActivity(
-          type: 'bill',
-          title: 'Bill #${b['bill_number']}',
-          subtitle: '₹${_formatNum(b['amount'])} — ${b['status']} — $projectName',
-          timestamp: DateTime.tryParse(b['created_at'] as String? ?? '') ?? DateTime.now(),
-        ));
-      }
-    } catch (_) {}
-
-    // Fetch last 3 daily progress entries
-    try {
-      final progress = await _client
-          .from('daily_progress')
-          .select('date, progress_percentage, created_at, projects(name)')
-          .order('created_at', ascending: false)
-          .limit(3);
-
-      for (final p in progress) {
-        final projectName = p['projects']?['name'] as String? ?? 'Unknown';
-        activities.add(RecentActivity(
-          type: 'progress',
-          title: 'Progress Update',
-          subtitle: '$projectName — ${p['progress_percentage']}% on ${p['date']}',
-          timestamp: DateTime.tryParse(p['created_at'] as String? ?? '') ?? DateTime.now(),
-        ));
-      }
-    } catch (_) {}
-
-    // Sort all by timestamp descending, take top 5
-    activities.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-    return activities.take(5).toList();
+    return activities;
   }
 
   // ── Latest active project for quick access ────────────────────────────────

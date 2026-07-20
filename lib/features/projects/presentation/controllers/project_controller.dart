@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/repositories/supabase_project_repository.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../../data/models/project_model.dart';
 
 final projectRepositoryProvider = Provider<ProjectRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseProjectRepository(client);
+  final activityRepo = ref.watch(activityRepositoryProvider);
+  return SupabaseProjectRepository(client, activityRepo);
 });
 
 class ProjectListState {

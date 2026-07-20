@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/repositories/supabase_inventory_repository.dart';
 import '../../domain/repositories/inventory_repository.dart';
 import '../../data/models/inventory_item_model.dart';
 
 final inventoryRepositoryProvider = Provider<InventoryRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseInventoryRepository(client);
+  final activityRepo = ref.watch(activityRepositoryProvider);
+  return SupabaseInventoryRepository(client, activityRepo);
 });
 
 class InventoryListState {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'global_search_dialog.dart';
+import 'notifications_dropdown.dart';
 
 /// Shared top header bar for the web (desktop) layout.
 /// Displays a search field, notifications, and contextual actions.
@@ -48,6 +49,7 @@ class WebHeader extends StatelessWidget {
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
                   const SizedBox(width: 14),
                   const Icon(Icons.search, color: AppColors.outline, size: 18),
@@ -55,8 +57,10 @@ class WebHeader extends StatelessWidget {
                   Expanded(
                     child: TextField(
                       style: const TextStyle(fontSize: 14),
+                      textAlignVertical: TextAlignVertical.center,
                       decoration: const InputDecoration(
                         isDense: true,
+                        contentPadding: EdgeInsets.only(bottom: 15), // Adjust padding to match icon
                         hintText: 'Search projects, materials, or reports...',
                         hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
                         border: InputBorder.none,
@@ -78,11 +82,7 @@ class WebHeader extends StatelessWidget {
           Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              IconButton(
-                icon: const Icon(Icons.notifications_none, color: AppColors.outline, size: 20),
-                onPressed: () {},
-                tooltip: 'Notifications',
-              ),
+              const NotificationsDropdown(),
               IconButton(
                 icon: const Icon(Icons.help_outline, color: AppColors.outline, size: 20),
                 onPressed: () {},

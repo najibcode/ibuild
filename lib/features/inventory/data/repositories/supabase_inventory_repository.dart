@@ -2,11 +2,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/inventory_repository.dart';
 import '../models/inventory_item_model.dart';
 import '../models/inventory_history_model.dart';
+import '../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseInventoryRepository implements InventoryRepository {
   final SupabaseClient _client;
+  final SupabaseActivityRepository _activityRepo;
 
-  SupabaseInventoryRepository(this._client);
+  SupabaseInventoryRepository(this._client, this._activityRepo);
 
   @override
   Future<List<InventoryItem>> getItems({
@@ -51,16 +53,47 @@ class SupabaseInventoryRepository implements InventoryRepository {
   @override
   Future<void> createItem(InventoryItem item) async {
     await _client.from('inventory').insert(item.toJson());
+    
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'added_inventory',
+      entityType: 'Inventory',
+      entityId: item.id,
+      details: {'item_name': item.itemName, 'quantity': item.quantity},
+    );
   }
 
   @override
   Future<void> updateItem(InventoryItem item) async {
-    await _client.from('inventory').update(item.toJson()).eq('id', item.id);
+    final updated = await _client
+        .from('inventory')
+        .update(item.toJson())
+        .eq('id', item.id)
+        .select('id')
+        .maybeSingle();
+    if (updated == null) {
+      throw StateError('Item was not found or you do not have permission.');
+    }
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'updated_inventory',
+      entityType: 'Inventory',
+      entityId: item.id,
+      details: {'item_name': item.itemName},
+    );
   }
 
   @override
   Future<void> deleteItem(String id) async {
     await _client.from('inventory').delete().eq('id', id);
+    
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'deleted_inventory',
+      entityType: 'Inventory',
+      entityId: id,
+    );
   }
 
   @override
@@ -80,6 +113,29 @@ class SupabaseInventoryRepository implements InventoryRepository {
         .eq('inventory_id', inventoryId)
         .order('created_at', ascending: false);
     return (response as List).map((j) => InventoryHistory.fromJson(j)).toList();
+  }
+
+  @override
+  Future<void> logInventoryChange({
+    required String inventoryId,
+    required String changeType,
+    required double quantityChange,
+    String? notes,
+  }) async {
+    await _client.from('inventory_history').insert({
+      'inventory_id': inventoryId,
+      'change_type': changeType,
+      'quantity_change': quantityChange,
+      'notes': notes,
+    });
+
+    // Log global activity for history change
+    await _activityRepo.logActivity(
+      actionType: 'inventory_$changeType',
+      entityType: 'Inventory',
+      entityId: inventoryId,
+      details: {'quantity_change': quantityChange, 'notes': notes ?? ''},
+    );
   }
 
   @override

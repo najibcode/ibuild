@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/repositories/supabase_employee_repository.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../../data/models/employee_model.dart';
 
 final employeeRepositoryProvider = Provider<EmployeeRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseEmployeeRepository(client);
+  final activityRepo = ref.watch(activityRepositoryProvider);
+  return SupabaseEmployeeRepository(client, activityRepo);
 });
 
 class EmployeeListController extends StateNotifier<AsyncValue<List<Employee>>> {

@@ -1,11 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../models/project_model.dart';
+import '../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseProjectRepository implements ProjectRepository {
   final SupabaseClient _client;
+  final SupabaseActivityRepository _activityRepo;
 
-  SupabaseProjectRepository(this._client);
+  SupabaseProjectRepository(this._client, this._activityRepo);
 
   @override
   Future<List<Project>> getProjects({
@@ -69,6 +71,14 @@ class SupabaseProjectRepository implements ProjectRepository {
   @override
   Future<void> createProject(Project project) async {
     await _client.from('projects').insert(project.toJson());
+    
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'created_project',
+      entityType: 'Project',
+      entityId: project.id,
+      details: {'name': project.name},
+    );
   }
 
   @override
@@ -84,6 +94,14 @@ class SupabaseProjectRepository implements ProjectRepository {
         'Project was not found or you do not have permission to update it.',
       );
     }
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'updated_project',
+      entityType: 'Project',
+      entityId: project.id,
+      details: {'name': project.name},
+    );
   }
 
   @override
@@ -107,13 +125,21 @@ class SupabaseProjectRepository implements ProjectRepository {
         .from('projects')
         .update({'is_archived': true})
         .eq('id', id)
-        .select('id')
+        .select('id, name')
         .maybeSingle();
     if (archived == null) {
       throw StateError(
         'Project was not found or you do not have permission to archive it.',
       );
     }
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'archived_project',
+      entityType: 'Project',
+      entityId: id,
+      details: {'name': archived['name']},
+    );
   }
 
   @override

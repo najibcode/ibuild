@@ -254,22 +254,38 @@ class WebDashboard extends ConsumerWidget {
   /// Maps activity type to an icon.
   static IconData _activityIcon(String type) {
     switch (type) {
+      case 'add':
+        return Icons.add_circle_outline;
+      case 'edit':
+        return Icons.edit;
+      case 'delete':
+        return Icons.delete_outline;
+      case 'inventory':
+        return Icons.inventory_2_outlined;
+      case 'progress':
+        return Icons.trending_up;
       case 'expense':
         return Icons.account_balance_wallet;
       case 'bill':
         return Icons.receipt_long;
-      case 'progress':
-        return Icons.trending_up;
       case 'attendance':
         return Icons.how_to_reg;
       default:
-        return Icons.info;
+        return Icons.info_outline;
     }
   }
 
   /// Maps activity type to a color.
   static Color _activityColor(String type) {
     switch (type) {
+      case 'add':
+        return AppColors.secondary;
+      case 'edit':
+        return AppColors.primary;
+      case 'delete':
+        return AppColors.error;
+      case 'inventory':
+        return AppColors.warning;
       case 'expense':
         return AppColors.warning;
       case 'bill':
@@ -315,7 +331,7 @@ class WebDashboard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.cardPadding),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderSubtle),
         boxShadow: const [
@@ -401,7 +417,7 @@ class WebDashboard extends ConsumerWidget {
       height: 220,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderSubtle),
       ),
@@ -486,7 +502,7 @@ class WebDashboard extends ConsumerWidget {
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceWhite,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.borderSubtle),
         ),
@@ -556,7 +572,7 @@ class WebDashboard extends ConsumerWidget {
       return Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: AppColors.surfaceWhite,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.borderSubtle),
         ),
@@ -581,7 +597,7 @@ class WebDashboard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.borderSubtle),
       ),
