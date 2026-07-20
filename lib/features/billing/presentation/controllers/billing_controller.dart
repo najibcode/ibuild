@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/supabase/supabase_client.provider.dart';
-import '../../data/repositories/supabase_billing_repository.dart';
-import '../../domain/repositories/billing_repository.dart';
-import '../../data/models/bill_model.dart';
+import 'package:ibuild/core/supabase/supabase_client.provider.dart';
+import 'package:ibuild/features/activities/data/repositories/supabase_activity_repository.dart';
+import 'package:ibuild/features/billing/data/repositories/supabase_billing_repository.dart';
+import 'package:ibuild/features/billing/domain/repositories/billing_repository.dart';
+import 'package:ibuild/features/billing/data/models/bill_model.dart';
 
 final billingRepositoryProvider = Provider<BillingRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
