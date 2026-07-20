@@ -17,4 +17,10 @@ abstract class InventoryRepository {
   Future<List<InventoryItem>> getLowStockItems();
   Future<List<InventoryHistory>> getHistory(String inventoryId);
   Future<void> addHistoryEntry(InventoryHistory entry);
+  Future<void> logInventoryChange({
+    required String inventoryId,
+    required String changeType,
+    required double quantityChange,
+    String? notes,
+  });
 }

@@ -6,7 +6,8 @@ import '../../data/models/bill_model.dart';
 
 final billingRepositoryProvider = Provider<BillingRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseBillingRepository(client);
+  final activityRepo = ref.watch(activityRepositoryProvider);
+  return SupabaseBillingRepository(client, activityRepo);
 });
 
 class BillingListState {
@@ -46,8 +47,12 @@ class BillingListState {
       bills: bills ?? this.bills,
       isLoading: isLoading ?? this.isLoading,
       errorMessage: errorMessage ?? this.errorMessage,
-      projectFilter: clearProjectFilter ? null : (projectFilter ?? this.projectFilter),
-      statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
+      projectFilter: clearProjectFilter
+          ? null
+          : (projectFilter ?? this.projectFilter),
+      statusFilter: clearStatusFilter
+          ? null
+          : (statusFilter ?? this.statusFilter),
       offset: offset ?? this.offset,
       hasMore: hasMore ?? this.hasMore,
     );
@@ -132,6 +137,6 @@ class BillingController extends StateNotifier<BillingListState> {
 
 final billingControllerProvider =
     StateNotifierProvider<BillingController, BillingListState>((ref) {
-  final repo = ref.watch(billingRepositoryProvider);
-  return BillingController(repo);
-});
+      final repo = ref.watch(billingRepositoryProvider);
+      return BillingController(repo);
+    });

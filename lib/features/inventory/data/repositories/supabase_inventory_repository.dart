@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/inventory_repository.dart';
 import '../models/inventory_item_model.dart';
 import '../models/inventory_history_model.dart';
-import '../../activities/data/repositories/supabase_activity_repository.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseInventoryRepository implements InventoryRepository {
   final SupabaseClient _client;
@@ -52,6 +52,17 @@ class SupabaseInventoryRepository implements InventoryRepository {
 
   @override
   Future<void> createItem(InventoryItem item) async {
+    // Validate
+    if (item.materialName.trim().isEmpty) {
+      throw ArgumentError('Material name cannot be empty.');
+    }
+    if (item.quantity < 0) {
+      throw ArgumentError('Quantity cannot be negative.');
+    }
+    if (item.purchasePrice < 0) {
+      throw ArgumentError('Purchase price cannot be negative.');
+    }
+
     await _client.from('inventory').insert(item.toJson());
     
     // Log activity
@@ -59,7 +70,7 @@ class SupabaseInventoryRepository implements InventoryRepository {
       actionType: 'added_inventory',
       entityType: 'Inventory',
       entityId: item.id,
-      details: {'item_name': item.itemName, 'quantity': item.quantity},
+      details: {'item_name': item.materialName, 'quantity': item.quantity},
     );
   }
 
@@ -80,7 +91,7 @@ class SupabaseInventoryRepository implements InventoryRepository {
       actionType: 'updated_inventory',
       entityType: 'Inventory',
       entityId: item.id,
-      details: {'item_name': item.itemName},
+      details: {'item_name': item.materialName},
     );
   }
 

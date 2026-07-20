@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
-import '../../activities/data/repositories/supabase_activity_repository.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/repositories/supabase_inventory_repository.dart';
 import '../../domain/repositories/inventory_repository.dart';
 import '../../data/models/inventory_item_model.dart';
@@ -39,6 +39,8 @@ class InventoryListState {
   InventoryListState copyWith({
     List<InventoryItem>? items,
     bool? isLoading,
+    String? errorMessage,
+    bool clearError = false,
     String? searchQuery,
     String? categoryFilter,
     bool clearCategoryFilter = false,
@@ -50,7 +52,7 @@ class InventoryListState {
     return InventoryListState(
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       searchQuery: searchQuery ?? this.searchQuery,
       categoryFilter: clearCategoryFilter ? null : (categoryFilter ?? this.categoryFilter),
       sortBy: sortBy ?? this.sortBy,

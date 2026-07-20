@@ -1,11 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../models/attendance_model.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseAttendanceRepository implements AttendanceRepository {
   final SupabaseClient _client;
+  final SupabaseActivityRepository _activityRepo;
 
-  SupabaseAttendanceRepository(this._client);
+  SupabaseAttendanceRepository(this._client, this._activityRepo);
 
   @override
   Future<List<Attendance>> getAttendanceForDate(String date) async {
@@ -26,6 +28,19 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     await _client.from('attendance').upsert(
       attendance.toJson(),
       onConflict: 'employee_id,date',
+    );
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'updated_attendance',
+      entityType: 'Attendance',
+      entityId: attendance.employeeId,
+      details: {
+        'date': attendance.date,
+        'morning_status': attendance.morningStatus,
+        'evening_status': attendance.eveningStatus,
+        'employee_name': attendance.employeeName ?? '',
+      },
     );
   }
 

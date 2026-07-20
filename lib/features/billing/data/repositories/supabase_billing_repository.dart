@@ -1,11 +1,13 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/billing_repository.dart';
 import '../models/bill_model.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseBillingRepository implements BillingRepository {
   final SupabaseClient _client;
+  final SupabaseActivityRepository _activityRepo;
 
-  SupabaseBillingRepository(this._client);
+  SupabaseBillingRepository(this._client, this._activityRepo);
 
   @override
   Future<List<Bill>> getBills({
@@ -46,16 +48,55 @@ class SupabaseBillingRepository implements BillingRepository {
 
   @override
   Future<void> createBill(Bill bill) async {
+    // Validate
+    if (bill.billNumber.trim().isEmpty) {
+      throw ArgumentError('Bill number cannot be empty.');
+    }
+    if (bill.amount <= 0) {
+      throw ArgumentError('Bill amount must be greater than zero.');
+    }
+
     await _client.from('bills').insert(bill.toJson());
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'created_bill',
+      entityType: 'Bill',
+      entityId: bill.id,
+      details: {
+        'bill_number': bill.billNumber,
+        'amount': bill.amount,
+        'status': bill.status,
+      },
+    );
   }
 
   @override
   Future<void> updateBill(Bill bill) async {
     await _client.from('bills').update(bill.toJson()).eq('id', bill.id);
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'updated_bill',
+      entityType: 'Bill',
+      entityId: bill.id,
+      details: {
+        'bill_number': bill.billNumber,
+        'amount': bill.amount,
+        'status': bill.status,
+      },
+    );
   }
 
   @override
   Future<void> deleteBill(String id) async {
     await _client.from('bills').delete().eq('id', id);
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'deleted_bill',
+      entityType: 'Bill',
+      entityId: id,
+    );
   }
 }

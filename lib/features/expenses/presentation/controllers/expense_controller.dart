@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/repositories/supabase_expense_repository.dart';
 import '../../domain/repositories/expense_repository.dart';
 import '../../data/models/expense_model.dart';
 
 final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseExpenseRepository(client);
+  final activityRepo = ref.watch(activityRepositoryProvider);
+  return SupabaseExpenseRepository(client, activityRepo);
 });
 
 class ExpenseListState {

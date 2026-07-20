@@ -1,12 +1,14 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/repositories/supabase_daily_progress_repository.dart';
 import '../../domain/repositories/daily_progress_repository.dart';
 import '../../data/models/daily_progress_model.dart';
 
 final dailyProgressRepositoryProvider = Provider<DailyProgressRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseDailyProgressRepository(client);
+  final activityRepo = ref.watch(activityRepositoryProvider);
+  return SupabaseDailyProgressRepository(client, activityRepo);
 });
 
 final dailyProgressListProvider = FutureProvider.family<List<DailyProgress>, String>((ref, projectId) async {

@@ -90,14 +90,46 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                     itemBuilder: (context, index) {
                       final n = _notifications[index];
                       String type = 'Activity';
-                      if (n.actionType.contains('add')) type = 'Added';
-                      if (n.actionType.contains('update')) type = 'Updated';
-                      if (n.actionType.contains('delete')) type = 'Removed';
+                      IconData icon = Icons.info_outline;
+                      Color iconColor = AppColors.primary;
+
+                      if (n.actionType.contains('created') || n.actionType.contains('added')) {
+                        type = 'Added';
+                        icon = Icons.add_circle_outline;
+                        iconColor = const Color(0xFF4CAF50);
+                      } else if (n.actionType.contains('updated')) {
+                        type = 'Updated';
+                        icon = Icons.edit_outlined;
+                        iconColor = const Color(0xFF2196F3);
+                      } else if (n.actionType.contains('deleted') || n.actionType.contains('archived')) {
+                        type = 'Removed';
+                        icon = Icons.remove_circle_outline;
+                        iconColor = const Color(0xFFF44336);
+                      } else if (n.actionType.startsWith('inventory_')) {
+                        type = 'Inventory';
+                        icon = Icons.inventory_2_outlined;
+                        iconColor = const Color(0xFFFF9800);
+                      }
+
+                      // Build detail text from action details
+                      String detail = '';
+                      if (n.details.containsKey('name')) {
+                        detail = '${n.details['name']}';
+                      } else if (n.details.containsKey('item_name')) {
+                        detail = '${n.details['item_name']}';
+                      } else if (n.details.containsKey('bill_number')) {
+                        detail = '#${n.details['bill_number']}';
+                      } else if (n.details.containsKey('morning_status')) {
+                        final empName = n.details['employee_name'] ?? '';
+                        detail = '$empName: ${n.details['morning_status']}';
+                      } else if (n.details.containsKey('progress_percentage')) {
+                        detail = '${n.details['progress_percentage']}% complete';
+                      }
 
                       return ListTile(
-                        leading: const CircleAvatar(
-                          backgroundColor: AppColors.background,
-                          child: Icon(Icons.person, color: AppColors.primary, size: 20),
+                        leading: CircleAvatar(
+                          backgroundColor: iconColor.withOpacity(0.1),
+                          child: Icon(icon, color: iconColor, size: 20),
                         ),
                         title: Text(
                           '$type ${n.entityType}',
@@ -106,18 +138,20 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
+                            if (detail.isNotEmpty)
+                              Text(
+                                detail,
+                                style: const TextStyle(color: AppColors.textMain, fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             Text(
-                              'By ${n.userName ?? "Unknown"}',
-                              style: const TextStyle(color: AppColors.textMain, fontSize: 12),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _timeAgo(n.createdAt),
+                              'By ${n.userName ?? "Unknown"} • ${_timeAgo(n.createdAt)}',
                               style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
                             ),
                           ],
                         ),
-                        isThreeLine: true,
+                        isThreeLine: detail.isNotEmpty,
                       );
                     },
                   ),

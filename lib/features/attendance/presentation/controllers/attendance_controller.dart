@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/repositories/supabase_attendance_repository.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../../data/models/attendance_model.dart';
@@ -8,7 +9,8 @@ import '../../../employees/data/models/employee_model.dart';
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return SupabaseAttendanceRepository(client);
+  final activityRepo = ref.watch(activityRepositoryProvider);
+  return SupabaseAttendanceRepository(client, activityRepo);
 });
 
 class AttendanceState {

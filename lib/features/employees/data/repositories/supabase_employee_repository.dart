@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../models/employee_model.dart';
-import '../../activities/data/repositories/supabase_activity_repository.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseEmployeeRepository implements EmployeeRepository {
   final SupabaseClient _client;
@@ -28,6 +28,17 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
 
   @override
   Future<void> createEmployee(Employee employee) async {
+    // Validate
+    if (employee.name.trim().isEmpty) {
+      throw ArgumentError('Employee name cannot be empty.');
+    }
+    if (employee.phone.trim().isEmpty) {
+      throw ArgumentError('Employee phone number cannot be empty.');
+    }
+    if (employee.salary < 0) {
+      throw ArgumentError('Employee salary cannot be negative.');
+    }
+
     await _client.from('employees').insert(employee.toJson());
     
     // Log activity

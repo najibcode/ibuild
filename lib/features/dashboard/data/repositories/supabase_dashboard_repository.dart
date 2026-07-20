@@ -214,16 +214,36 @@ class SupabaseDashboardRepository implements DashboardRepository {
         if (actionType.contains('added') || actionType.contains('created')) {
           title = 'Added $entityType';
           type = 'add';
-          if (details.containsKey('name')) subtitle = 'By $userName — ${details['name']}';
-          else if (details.containsKey('item_name')) subtitle = 'By $userName — ${details['item_name']}';
+          if (details.containsKey('name')) {
+            subtitle = 'By $userName — ${details['name']}';
+          } else if (details.containsKey('item_name')) {
+            subtitle = 'By $userName — ${details['item_name']}';
+          } else if (details.containsKey('bill_number')) {
+            subtitle = 'By $userName — #${details['bill_number']} (₹${details['amount'] ?? ''})';
+          } else if (details.containsKey('category') && details.containsKey('amount')) {
+            subtitle = 'By $userName — ${details['category']} (₹${details['amount']})';
+          }
         } else if (actionType.contains('updated')) {
           title = 'Updated $entityType';
           type = 'edit';
-          if (details.containsKey('name')) subtitle = 'By $userName — ${details['name']}';
-          else if (details.containsKey('item_name')) subtitle = 'By $userName — ${details['item_name']}';
+          if (details.containsKey('name')) {
+            subtitle = 'By $userName — ${details['name']}';
+          } else if (details.containsKey('item_name')) {
+            subtitle = 'By $userName — ${details['item_name']}';
+          } else if (details.containsKey('bill_number')) {
+            subtitle = 'By $userName — #${details['bill_number']} → ${details['status'] ?? ''}';
+          } else if (details.containsKey('morning_status')) {
+            final empName = details['employee_name'] ?? '';
+            subtitle = 'By $userName — $empName: ${details['morning_status']}/${details['evening_status']}';
+          } else if (details.containsKey('progress_percentage')) {
+            subtitle = 'By $userName — ${details['progress_percentage']}% complete';
+          }
         } else if (actionType.contains('deleted') || actionType.contains('archived')) {
           title = 'Removed $entityType';
           type = 'delete';
+          if (details.containsKey('name')) {
+            subtitle = 'By $userName — ${details['name']}';
+          }
         } else if (actionType.startsWith('inventory_')) {
           title = 'Inventory ${actionType.split('_').last}';
           type = 'inventory';
@@ -272,15 +292,6 @@ class SupabaseDashboardRepository implements DashboardRepository {
     }
   }
 
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  String _formatNum(dynamic value) {
-    final n = (value as num? ?? 0).toDouble();
-    if (n >= 10000000) return '${(n / 10000000).toStringAsFixed(1)}Cr';
-    if (n >= 100000) return '${(n / 100000).toStringAsFixed(1)}L';
-    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
-    return n.toStringAsFixed(0);
-  }
 }
 
 // ── Private data containers ─────────────────────────────────────────────────

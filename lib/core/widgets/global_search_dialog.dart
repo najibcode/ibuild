@@ -54,8 +54,8 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
 
       final Future<List<dynamic>> inventoryFuture = client
           .from('inventory')
-          .select('id, item_name, category')
-          .ilike('item_name', '%$query%')
+          .select('id, material_name, category')
+          .ilike('material_name', '%$query%')
           .limit(5);
 
       final Future<List<dynamic>> employeesFuture = client
@@ -83,7 +83,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
       for (var item in results[1]) {
         combinedResults.add({
           'type': 'Inventory',
-          'title': item['item_name'],
+          'title': item['material_name'],
           'subtitle': 'Category: ${item['category']}',
           'icon': Icons.inventory,
           'color': AppColors.secondary,

@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../models/project_model.dart';
-import '../../activities/data/repositories/supabase_activity_repository.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseProjectRepository implements ProjectRepository {
   final SupabaseClient _client;
@@ -70,6 +70,14 @@ class SupabaseProjectRepository implements ProjectRepository {
 
   @override
   Future<void> createProject(Project project) async {
+    // Validate
+    if (project.name.trim().isEmpty) {
+      throw ArgumentError('Project name cannot be empty.');
+    }
+    if (project.budget < 0) {
+      throw ArgumentError('Project budget cannot be negative.');
+    }
+
     await _client.from('projects').insert(project.toJson());
     
     // Log activity
@@ -110,13 +118,21 @@ class SupabaseProjectRepository implements ProjectRepository {
         .from('projects')
         .delete()
         .eq('id', id)
-        .select('id')
+        .select('id, name')
         .maybeSingle();
     if (deleted == null) {
       throw StateError(
         'Project was not found or you do not have permission to delete it.',
       );
     }
+
+    // Log activity
+    await _activityRepo.logActivity(
+      actionType: 'deleted_project',
+      entityType: 'Project',
+      entityId: id,
+      details: {'name': deleted['name'] ?? 'Unknown'},
+    );
   }
 
   @override
