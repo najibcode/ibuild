@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
-import '../models/site_ticket_model.dart';
-import '../models/ticket_message_model.dart';
-import '../repositories/supabase_ticket_message_repository.dart';
+import '../../data/models/site_ticket_model.dart';
+import '../../data/models/ticket_message_model.dart';
+import '../../data/repositories/supabase_ticket_message_repository.dart';
 
 final ticketMessagesProvider = FutureProvider.family<List<TicketMessage>, String>((ref, ticketId) async {
   final client = ref.watch(supabaseClientProvider);

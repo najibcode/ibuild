@@ -7,10 +7,12 @@ import '../../../employees/data/repositories/supabase_employee_repository.dart';
 import '../../../projects/data/models/project_model.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 
+import '../../../employees/presentation/controllers/employee_controller.dart';
+
 final supervisorListProvider = FutureProvider<List<Employee>>((ref) async {
-  final client = ref.watch(supabaseClientProvider);
-  final all = await SupabaseEmployeeRepository(client).fetchEmployees();
-  return all.where((e) => e.role.toLowerCase() == 'supervisor' || e.designation.toLowerCase().contains('supervisor')).toList();
+  final repo = ref.watch(employeeRepositoryProvider);
+  final all = await repo.getEmployees();
+  return all.where((e) => e.role.toLowerCase() == 'supervisor').toList();
 });
 
 class SupervisorManagementScreen extends ConsumerStatefulWidget {
@@ -101,8 +103,8 @@ class _SupervisorManagementScreenState extends ConsumerState<SupervisorManagemen
                       margin: const EdgeInsets.only(bottom: 8),
                       child: ListTile(
                         leading: const Icon(Icons.person_outline, color: AppColors.primary),
-                        title: Text(sup.fullName, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                        subtitle: Text('Mobile: ${sup.phone} • Email: ${sup.email ?? 'N/A'}\nAll Projects Access Enabled'),
+                        title: Text(sup.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                        subtitle: Text('Mobile: ${sup.phone} • Status: ${sup.status}\nAll Projects Access Enabled'),
                         isThreeLine: true,
                         trailing: Chip(
                           label: Text(sup.status, style: const TextStyle(fontSize: 10, color: Colors.white)),

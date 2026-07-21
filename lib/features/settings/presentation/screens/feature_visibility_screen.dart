@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
-import '../data/repositories/supabase_settings_repository.dart';
+import '../../data/repositories/supabase_settings_repository.dart';
 
 final featureVisibilityProvider = FutureProvider<Map<String, dynamic>>((ref) async {
   final client = ref.watch(supabaseClientProvider);
