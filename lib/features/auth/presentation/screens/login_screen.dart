@@ -199,8 +199,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       return null;
                     },
                   ),
-                  const SizedBox(height: 32),
-
                   // Submit Button
                   ElevatedButton(
                     onPressed: state.isLoading ? null : _onLogin,
@@ -230,9 +228,57 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                   ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 12),
+                  const Text(
+                    'Quick Role Login:',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      _buildRoleChip('Admin', 'admin@ibuild.in', 'admin@123', const Color(0xFFF44336)),
+                      _buildRoleChip('Owner', 'owner@ibuild.in', 'owner@123', const Color(0xFF2196F3)),
+                      _buildRoleChip('Supervisor', 'supervisor@ibuild.in', 'supervisor@123', const Color(0xFF4CAF50)),
+                    ],
+                  ),
                 ],
               ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleChip(String title, String email, String password, Color color) {
+    return InkWell(
+      onTap: () {
+        _emailController.text = email;
+        _passwordController.text = password;
+        _onLogin();
+      },
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: color.withValues(alpha: 0.3)),
+        ),
+        child: Text(
+          title,
+          style: TextStyle(
+            color: color,
+            fontWeight: FontWeight.bold,
+            fontSize: 12,
           ),
         ),
       ),

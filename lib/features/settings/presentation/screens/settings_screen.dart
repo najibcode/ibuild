@@ -121,6 +121,27 @@ class SettingsScreen extends ConsumerWidget {
                       },
                     ),
                   ),
+                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                  ListTile(
+                    leading: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.outline),
+                    title: const Text('Active Role (Simulator)', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text('Current: ${ref.watch(currentRoleProvider).toUpperCase()}'),
+                    trailing: DropdownButton<String>(
+                      value: ref.watch(currentRoleProvider) == 'unknown' ? 'admin' : ref.watch(currentRoleProvider),
+                      underline: const SizedBox(),
+                      items: const [
+                        DropdownMenuItem(value: 'admin', child: Text('ADMIN')),
+                        DropdownMenuItem(value: 'owner', child: Text('OWNER')),
+                        DropdownMenuItem(value: 'supervisor', child: Text('SUPERVISOR')),
+                      ],
+                      onChanged: (newRole) {
+                        if (newRole != null) {
+                          ref.read(selectedRoleOverrideProvider.notifier).state = newRole;
+                          ref.invalidate(userPermissionsProvider);
+                        }
+                      },
+                    ),
+                  ),
                   PermissionGuard(
                     permission: 'system.manage',
                     child: Column(
