@@ -18,6 +18,8 @@ import '../../../subcontractors/data/repositories/supabase_subcontractor_reposit
 import '../../../inventory/data/models/inventory_item_model.dart';
 import '../../../inventory/presentation/controllers/inventory_controller.dart';
 import '../../../attendance/domain/repositories/attendance_repository.dart';
+import '../../../attendance/presentation/controllers/attendance_controller.dart';
+import '../../../attendance/data/models/attendance_model.dart';
 
 // Providers
 final projectChecklistProvider = FutureProvider.family<List<ChecklistItem>, String>((ref, projectId) async {
@@ -139,21 +141,26 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
 
   // 1. Attendance Tab
   Widget _buildAttendanceTab() {
+    final attendanceState = ref.watch(attendanceControllerProvider);
+    final activeEmployees = attendanceState.activeEmployees;
+    final loggedAttendance = attendanceState.attendanceList;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Card(
-            color: AppColors.surfaceWhite,
+            color: AppColors.cardBg(context),
             child: ListTile(
-              leading: const Icon(Icons.badge_outlined, color: AppColors.primary),
-              title: const Text('Today\'s Project Attendance', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Daily morning/evening worker check-in log'),
+              leading: Icon(Icons.badge_outlined, color: AppColors.primaryColor(context)),
+              title: Text('Today\'s Project Attendance', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+              subtitle: Text(
+                'Active Staff: ${activeEmployees.length} • Marked Today: ${loggedAttendance.length}',
+                style: TextStyle(color: AppColors.mutedText(context)),
+              ),
               trailing: ElevatedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Attendance log refreshed')),
-                ),
+                onPressed: () => ref.read(attendanceControllerProvider.notifier).loadAttendanceForToday(),
                 icon: const Icon(Icons.refresh, size: 16),
                 label: const Text('Refresh'),
               ),
@@ -161,23 +168,56 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           ),
           const SizedBox(height: 16),
           Expanded(
-            child: ListView(
-              children: const [
-                ListTile(
-                  leading: CircleAvatar(child: Text('M')),
-                  title: Text('Masons & Labor Team'),
-                  subtitle: Text('12 Present • Morning Status Marked'),
-                  trailing: Icon(Icons.check_circle, color: AppColors.secondary),
-                ),
-                Divider(),
-                ListTile(
-                  leading: CircleAvatar(child: Text('E')),
-                  title: Text('Electrical Subcontractor Crew'),
-                  subtitle: Text('4 Present • Morning Status Marked'),
-                  trailing: Icon(Icons.check_circle, color: AppColors.secondary),
-                ),
-              ],
-            ),
+            child: attendanceState.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : activeEmployees.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No active employees found in database.',
+                          style: TextStyle(color: AppColors.mutedText(context)),
+                        ),
+                      )
+                    : ListView.builder(
+                        itemCount: activeEmployees.length,
+                        itemBuilder: (context, i) {
+                          final emp = activeEmployees[i];
+                          final record = loggedAttendance.firstWhere(
+                            (a) => a.employeeId == emp.id,
+                            orElse: () => Attendance(
+                              id: '',
+                              employeeId: emp.id,
+                              date: DateTime.now().toIso8601String().substring(0, 10),
+                              morningStatus: 'Absent',
+                              eveningStatus: 'Absent',
+                            ),
+                          );
+
+                          final isPresent = record.morningStatus == 'Present' || record.eveningStatus == 'Present';
+
+                          return Card(
+                            color: AppColors.cardBg(context),
+                            margin: const EdgeInsets.only(bottom: 8),
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: isPresent ? AppColors.secondary : AppColors.mutedText(context),
+                                child: Text(
+                                  emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'E',
+                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                              title: Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                              subtitle: Text(
+                                'Role: ${emp.role.toUpperCase()} • Morning: ${record.morningStatus} | Evening: ${record.eveningStatus}',
+                                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                              ),
+                              trailing: Icon(
+                                isPresent ? Icons.check_circle : Icons.cancel_outlined,
+                                color: isPresent ? AppColors.secondary : AppColors.error,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
           ),
         ],
       ),
