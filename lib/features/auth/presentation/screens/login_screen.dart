@@ -47,8 +47,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
 
+    final primaryCol = AppColors.primaryColor(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: AppSpacing.containerMargin),
@@ -56,9 +58,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             constraints: const BoxConstraints(maxWidth: 400),
             padding: const EdgeInsets.all(AppSpacing.cardPadding),
             decoration: BoxDecoration(
-              color: AppColors.surfaceWhite,
+              color: AppColors.cardBg(context),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: AppColors.border(context)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x08000000),
@@ -74,30 +76,30 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // App Brand Logo/Icon
-                  const Center(
+                  Center(
                     child: Column(
                       children: [
                         Icon(
                           Icons.architecture,
                           size: 48,
-                          color: AppColors.primary,
+                          color: primaryCol,
                         ),
-                        SizedBox(height: 8),
+                        const SizedBox(height: 8),
                         Text(
                           'IBUILD',
                           style: TextStyle(
                             fontSize: 24,
                             fontWeight: FontWeight.w900,
-                            color: AppColors.primary,
+                            color: primaryCol,
                             letterSpacing: 1,
                           ),
                         ),
-                        SizedBox(height: 4),
+                        const SizedBox(height: 4),
                         Text(
                           'ERP Management Portal',
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppColors.textMuted,
+                            color: AppColors.mutedText(context),
                           ),
                         ),
                       ],

@@ -22,10 +22,6 @@ class WebSidebarItem {
 }
 
 /// Shared sidebar widget used by all web (desktop) screens.
-/// Lives in the MainRouterScreen shell — individual screens do not
-/// render their own sidebar.
-///
-/// Items are filtered based on the user's RBAC permissions.
 class WebSidebar extends ConsumerWidget {
   final int activeIndex;
   final ValueChanged<int> onTabSelected;
@@ -83,23 +79,21 @@ class WebSidebar extends ConsumerWidget {
       icon: Icons.settings_outlined,
       activeIcon: Icons.settings,
       label: 'Settings',
-      requiredPermission: 'settings.manage',
+      requiredPermission: null, // Settings is always visible
     ),
   ];
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final permsAsync = ref.watch(userPermissionsProvider);
-    final permissions = permsAsync.valueOrNull ?? <String>{};
+    final permissionsAsync = ref.watch(userPermissionsProvider);
+    final permissions = permissionsAsync.valueOrNull ?? {};
     final roleName = ref.watch(currentRoleProvider);
 
-    // Filter items based on user's permissions
     final visibleItems = allItems.where((item) {
       if (item.requiredPermission == null) return true;
       return permissions.contains(item.requiredPermission);
     }).toList();
 
-    // Resolve role display name
     String roleDisplay;
     switch (roleName) {
       case 'admin':
@@ -115,11 +109,14 @@ class WebSidebar extends ConsumerWidget {
         roleDisplay = 'User';
     }
 
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final primaryCol = AppColors.primaryColor(context);
+
     return Container(
       width: 260,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceWhite,
-        border: Border(right: BorderSide(color: AppColors.borderSubtle)),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        border: Border(right: BorderSide(color: AppColors.border(context))),
       ),
       child: Column(
         children: [
@@ -135,19 +132,19 @@ class WebSidebar extends ConsumerWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withValues(alpha: 0.1),
+                    color: primaryCol.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(Icons.architecture, color: AppColors.primary),
+                  child: Icon(Icons.architecture, color: primaryCol),
                 ),
                 const SizedBox(width: 12),
-                const Text(
+                Text(
                   'IBUILD',
                   style: TextStyle(
                     fontFamily: 'Inter',
                     fontSize: 22,
                     fontWeight: FontWeight.w900,
-                    color: AppColors.primary,
+                    color: primaryCol,
                   ),
                 ),
               ],
@@ -160,20 +157,18 @@ class WebSidebar extends ConsumerWidget {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               itemCount: visibleItems.length,
               itemBuilder: (context, index) {
-                // Insert a divider before Settings if it's the last item
-                if (index == visibleItems.length - 1 &&
-                    visibleItems[index].label == 'Settings') {
+                if (index == visibleItems.length - 1 && visibleItems[index].label == 'Settings') {
                   return Column(
                     children: [
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 8),
-                        child: Divider(color: AppColors.borderSubtle, height: 1),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Divider(color: AppColors.border(context), height: 1),
                       ),
-                      _buildNavItem(visibleItems, index),
+                      _buildNavItem(context, visibleItems, index),
                     ],
                   );
                 }
-                return _buildNavItem(visibleItems, index);
+                return _buildNavItem(context, visibleItems, index);
               },
             ),
           ),
@@ -184,13 +179,14 @@ class WebSidebar extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: isDark ? const Color(0xFF0F172A) : AppColors.background,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border(context)),
               ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    backgroundImage: const NetworkImage(
+                  const CircleAvatar(
+                    backgroundImage: NetworkImage(
                       'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc',
                     ),
                     radius: 20,
@@ -200,18 +196,18 @@ class WebSidebar extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'IBUILD User',
                           style: TextStyle(
                             fontWeight: FontWeight.bold,
                             fontSize: 13,
-                            color: AppColors.textMain,
+                            color: AppColors.text(context),
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
                         Text(
                           roleDisplay,
-                          style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                          style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
@@ -226,20 +222,21 @@ class WebSidebar extends ConsumerWidget {
     );
   }
 
-  Widget _buildNavItem(List<WebSidebarItem> visibleItems, int index) {
+  Widget _buildNavItem(BuildContext context, List<WebSidebarItem> visibleItems, int index) {
     final item = visibleItems[index];
     final bool isActive = activeIndex == index;
+    final primaryCol = AppColors.primaryColor(context);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 2),
       decoration: BoxDecoration(
         color: isActive
-            ? AppColors.primaryContainer.withValues(alpha: 0.08)
+            ? primaryCol.withValues(alpha: 0.12)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(10),
         border: isActive
-            ? const Border(
-                left: BorderSide(color: AppColors.primary, width: 3),
+            ? Border(
+                left: BorderSide(color: primaryCol, width: 3),
               )
             : null,
       ),
@@ -249,13 +246,13 @@ class WebSidebar extends ConsumerWidget {
         onTap: () => onTabSelected(index),
         leading: Icon(
           isActive ? item.activeIcon : item.icon,
-          color: isActive ? AppColors.primary : AppColors.textMuted,
+          color: isActive ? primaryCol : AppColors.mutedText(context),
           size: 20,
         ),
         title: Text(
           item.label,
           style: TextStyle(
-            color: isActive ? AppColors.primary : AppColors.textMain,
+            color: isActive ? primaryCol : AppColors.text(context),
             fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
             fontSize: 14,
           ),

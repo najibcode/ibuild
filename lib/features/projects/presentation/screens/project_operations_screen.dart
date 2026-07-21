@@ -98,22 +98,25 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
 
   @override
   Widget build(BuildContext context) {
+    final primaryCol = AppColors.primaryColor(context);
+    final mutedText = AppColors.mutedText(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(widget.projectName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-            const Text('Operations Hub', style: TextStyle(fontSize: 12, color: AppColors.textMuted)),
+            Text(widget.projectName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+            Text('Operations Hub', style: TextStyle(fontSize: 12, color: mutedText)),
           ],
         ),
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
-          labelColor: AppColors.primary,
-          unselectedLabelColor: AppColors.textMuted,
-          indicatorColor: AppColors.primary,
+          labelColor: primaryCol,
+          unselectedLabelColor: mutedText,
+          indicatorColor: primaryCol,
           tabs: _tabs.map((t) => Tab(text: t)).toList(),
         ),
       ),

@@ -49,15 +49,19 @@ class SettingsScreen extends ConsumerWidget {
     final gstin = profile?['gstin'] as String? ?? 'Not provided';
     final userEmail = authState.user?.email ?? 'Unknown';
 
+    final cardBg = AppColors.cardBg(context);
+    final borderCol = AppColors.border(context);
+    final mutedText = AppColors.mutedText(context);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
-        title: const Text(
+        title: Text(
           'Settings',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+            color: AppColors.primaryColor(context),
           ),
         ),
       ),
@@ -67,27 +71,27 @@ class SettingsScreen extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Company Profile Section
-            const Text(
+            Text(
               'COMPANY PROFILE',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: borderCol),
               ),
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.business, color: AppColors.outline),
+                    leading: Icon(Icons.business, color: mutedText),
                     title: const Text('Company Name', style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(companyName),
                   ),
-                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                  Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
-                    leading: const Icon(Icons.receipt_long_outlined, color: AppColors.outline),
+                    leading: Icon(Icons.receipt_long_outlined, color: mutedText),
                     title: const Text('GSTIN Number', style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(gstin),
                   ),
@@ -97,23 +101,23 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Preferences
-            const Text(
+            Text(
               'PREFERENCES',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: borderCol),
               ),
               child: Column(
                 children: [
                   ListTile(
-                    leading: const Icon(Icons.palette_outlined, color: AppColors.outline),
+                    leading: Icon(Icons.palette_outlined, color: mutedText),
                     title: const Text('Theme Mode', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(ref.watch(themeProvider) == ThemeMode.dark ? 'Dark Mode' : 'System default (Light Mode)'),
+                    subtitle: Text(ref.watch(themeProvider) == ThemeMode.dark ? 'Dark Mode' : 'Light Mode'),
                     trailing: Switch(
                       value: ref.watch(themeProvider) == ThemeMode.dark,
                       onChanged: (val) {
@@ -121,14 +125,15 @@ class SettingsScreen extends ConsumerWidget {
                       },
                     ),
                   ),
-                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                  Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
-                    leading: const Icon(Icons.admin_panel_settings_outlined, color: AppColors.outline),
+                    leading: Icon(Icons.admin_panel_settings_outlined, color: mutedText),
                     title: const Text('Active Role (Simulator)', style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text('Current: ${ref.watch(currentRoleProvider).toUpperCase()}'),
                     trailing: DropdownButton<String>(
                       value: ref.watch(currentRoleProvider) == 'unknown' ? 'admin' : ref.watch(currentRoleProvider),
                       underline: const SizedBox(),
+                      dropdownColor: cardBg,
                       items: const [
                         DropdownMenuItem(value: 'admin', child: Text('ADMIN')),
                         DropdownMenuItem(value: 'owner', child: Text('OWNER')),
@@ -145,12 +150,12 @@ class SettingsScreen extends ConsumerWidget {
                   PermissionGuard(
                     permission: 'system.manage',
                     child: Column(
-                      children: const [
-                        Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                      children: [
+                        Divider(height: 1, color: borderCol, indent: 52),
                         ListTile(
-                          leading: Icon(Icons.backup_outlined, color: AppColors.outline),
-                          title: Text('Backup Database', style: TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: Text('Last backed up: Today, 04:00 AM'),
+                          leading: Icon(Icons.backup_outlined, color: mutedText),
+                          title: const Text('Backup Database', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: const Text('Last backed up: Today, 04:00 AM'),
                         ),
                       ],
                     ),
@@ -161,33 +166,33 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Account & Support
-            const Text(
+            Text(
               'ABOUT',
-              style: TextStyle(fontSize: 11, color: AppColors.textMuted, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
+                color: cardBg,
                 borderRadius: BorderRadius.circular(AppRadius.md),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: borderCol),
               ),
               child: Column(
                 children: [
-                  const ListTile(
-                    leading: Icon(Icons.info_outline, color: AppColors.outline),
-                    title: Text('App Version', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('v1.0.0 (Phase 1 Build)'),
-                  ),
-                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
                   ListTile(
-                    leading: const Icon(Icons.help_outline, color: AppColors.outline),
+                    leading: Icon(Icons.info_outline, color: mutedText),
+                    title: const Text('App Version', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text('v1.0.0 (Phase 1 Build)'),
+                  ),
+                  Divider(height: 1, color: borderCol, indent: 52),
+                  ListTile(
+                    leading: Icon(Icons.help_outline, color: mutedText),
                     title: const Text('Logged in as', style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(userEmail),
                   ),
-                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                  Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
-                    leading: const Icon(Icons.shield_outlined, color: AppColors.outline),
+                    leading: Icon(Icons.shield_outlined, color: mutedText),
                     title: const Text('Role', style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(ref.watch(currentRoleProvider).toUpperCase()),
                   ),
@@ -202,7 +207,7 @@ class SettingsScreen extends ConsumerWidget {
               icon: const Icon(Icons.logout),
               label: const Text('Log Out from Portal'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.error.withOpacity(0.08),
+                backgroundColor: AppColors.error.withValues(alpha: 0.12),
                 foregroundColor: AppColors.error,
                 elevation: 0,
                 minimumSize: const Size(double.infinity, 52),

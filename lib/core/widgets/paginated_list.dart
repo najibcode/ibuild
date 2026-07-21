@@ -32,7 +32,7 @@ class PaginatedListView<T> extends StatelessWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: 16),
-            Text(errorMessage!, style: const TextStyle(color: AppColors.textMuted)),
+            Text(errorMessage!, style: TextStyle(color: AppColors.mutedText(context))),
             if (onRetry != null) ...[
               const SizedBox(height: 16),
               OutlinedButton.icon(
@@ -51,9 +51,9 @@ class PaginatedListView<T> extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.inbox_outlined, size: 64, color: AppColors.outline.withOpacity(0.3)),
+            Icon(Icons.inbox_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
             const SizedBox(height: 16),
-            Text(emptyMessage, style: const TextStyle(color: AppColors.textMuted, fontSize: 14)),
+            Text(emptyMessage, style: TextStyle(color: AppColors.mutedText(context), fontSize: 14)),
           ],
         ),
       );

@@ -25,6 +25,10 @@ class SearchFilterBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardColor = AppColors.cardBg(context);
+    final borderColor = AppColors.border(context);
+    final primaryCol = AppColors.primaryColor(context);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -32,25 +36,26 @@ class SearchFilterBar extends StatelessWidget {
         TextField(
           onChanged: onSearchChanged,
           textAlignVertical: TextAlignVertical.center,
+          style: TextStyle(color: AppColors.text(context)),
           decoration: InputDecoration(
             isDense: true,
             hintText: hintText,
-            hintStyle: const TextStyle(color: AppColors.textMuted, fontSize: 14),
-            prefixIcon: const Icon(Icons.search, color: AppColors.outline, size: 20),
+            hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 14),
+            prefixIcon: Icon(Icons.search, color: AppColors.mutedText(context), size: 20),
             prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
             filled: true,
-            fillColor: AppColors.surfaceWhite,
+            fillColor: cardColor,
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-              borderSide: const BorderSide(color: AppColors.borderSubtle),
+              borderSide: BorderSide(color: borderColor),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-              borderSide: const BorderSide(color: AppColors.borderSubtle),
+              borderSide: BorderSide(color: borderColor),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-              borderSide: const BorderSide(color: AppColors.primary, width: 2),
+              borderSide: BorderSide(color: primaryCol, width: 2),
             ),
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
@@ -67,8 +72,8 @@ class SearchFilterBar extends StatelessWidget {
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildChip('All', activeFilter == null, () => onFilterChanged?.call(null)),
-                          ...filterOptions!.map((f) => _buildChip(f, activeFilter == f, () => onFilterChanged?.call(f))),
+                          _buildChip(context, 'All', activeFilter == null, () => onFilterChanged?.call(null)),
+                          ...filterOptions!.map((f) => _buildChip(context, f, activeFilter == f, () => onFilterChanged?.call(f))),
                         ],
                       ),
                     ),
@@ -76,7 +81,7 @@ class SearchFilterBar extends StatelessWidget {
                 // Sort dropdown
                 if (sortOptions != null)
                   PopupMenuButton<String>(
-                    icon: const Icon(Icons.sort, size: 20, color: AppColors.outline),
+                    icon: Icon(Icons.sort, size: 20, color: AppColors.mutedText(context)),
                     onSelected: onSortChanged,
                     itemBuilder: (context) => sortOptions!
                         .map((s) => PopupMenuItem(value: s, child: Text(s)))
@@ -89,7 +94,8 @@ class SearchFilterBar extends StatelessWidget {
     );
   }
 
-  Widget _buildChip(String label, bool isActive, VoidCallback onTap) {
+  Widget _buildChip(BuildContext context, String label, bool isActive, VoidCallback onTap) {
+    final primaryCol = AppColors.primaryColor(context);
     return Padding(
       padding: const EdgeInsets.only(right: 6),
       child: FilterChip(
@@ -98,14 +104,14 @@ class SearchFilterBar extends StatelessWidget {
           style: TextStyle(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: isActive ? Colors.white : AppColors.textMain,
+            color: isActive ? Colors.white : AppColors.text(context),
           ),
         ),
         selected: isActive,
         onSelected: (_) => onTap(),
-        backgroundColor: AppColors.surfaceWhite,
-        selectedColor: AppColors.primary,
-        side: BorderSide(color: isActive ? AppColors.primary : AppColors.borderSubtle),
+        backgroundColor: AppColors.cardBg(context),
+        selectedColor: primaryCol,
+        side: BorderSide(color: isActive ? primaryCol : AppColors.border(context)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
         showCheckmark: false,
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
