@@ -20,6 +20,9 @@ import 'features/projects/presentation/screens/project_list_screen.dart';
 import 'features/inventory/presentation/screens/inventory_list_screen.dart';
 
 import 'web_dashboard.dart';
+import 'features/dashboard/presentation/screens/admin_dashboard.dart';
+import 'features/dashboard/presentation/screens/supervisor_dashboard.dart';
+import 'features/rbac/presentation/providers/permission_provider.dart';
 
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
@@ -69,20 +72,18 @@ enum MobileScreen {
   settings,
 }
 
-class MainRouterScreen extends StatefulWidget {
+class MainRouterScreen extends ConsumerStatefulWidget {
   const MainRouterScreen({super.key});
 
   @override
-  State<MainRouterScreen> createState() => _MainRouterScreenState();
+  ConsumerState<MainRouterScreen> createState() => _MainRouterScreenState();
 }
 
-class _MainRouterScreenState extends State<MainRouterScreen> {
+class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   // Navigation history stack for mobile view
   final List<MobileScreen> _mobileNavStack = [MobileScreen.dashboard];
 
-  // Active Web Screen selection — indexes match WebSidebar.items:
-  // 0: Dashboard, 1: Projects, 2: Attendance, 3: Employees,
-  // 4: Inventory, 5: Billing, 6: Expenses, 7: Settings
+  // Active Web Screen selection — now maps to filtered visible items
   int _activeWebTab = 0;
 
   // Push a new mobile screen
@@ -112,6 +113,11 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
   // Get current active mobile screen
   MobileScreen get _currentMobileScreen => _mobileNavStack.last;
 
+  /// Check if user has a specific permission
+  bool _hasPerm(String perm) {
+    return ref.watch(hasPermissionProvider(perm));
+  }
+
   @override
   Widget build(BuildContext context) {
     return ResponsiveLayout(
@@ -122,14 +128,24 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
 
   // --- MOBILE NAVIGATION & LAYOUT ---
   Widget _buildMobileLayout() {
+    final role = ref.watch(currentRoleProvider);
+
     Widget body;
     switch (_currentMobileScreen) {
       case MobileScreen.dashboard:
-        body = MobileDashboard(
-          onViewProjects: () => _pushMobile(MobileScreen.projectsList),
-          onViewTrack: () => _pushMobile(MobileScreen.budget),
-          onViewSupply: () => _pushMobile(MobileScreen.inventory),
-        );
+        // Route to role-specific dashboard
+        if (role == 'admin') {
+          body = const AdminDashboard();
+        } else if (role == 'supervisor') {
+          body = const SupervisorDashboard();
+        } else {
+          // Owner or unknown gets the default business dashboard
+          body = MobileDashboard(
+            onViewProjects: () => _pushMobile(MobileScreen.projectsList),
+            onViewTrack: () => _pushMobile(MobileScreen.budget),
+            onViewSupply: () => _pushMobile(MobileScreen.inventory),
+          );
+        }
         break;
       case MobileScreen.projectsList:
         body = const ProjectListScreen();
@@ -157,22 +173,73 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
         break;
     }
 
-    // Map current screen to bottom bar index
+    // Build bottom nav items based on permissions
+    final List<_MobileNavEntry> navEntries = [
+      _MobileNavEntry(
+        screen: MobileScreen.dashboard,
+        icon: Icons.home_outlined,
+        activeIcon: Icons.home,
+        label: 'Home',
+        permission: 'dashboard.view',
+      ),
+      if (_hasPerm('project.view'))
+        _MobileNavEntry(
+          screen: MobileScreen.projectsList,
+          icon: Icons.foundation_outlined,
+          activeIcon: Icons.foundation,
+          label: 'Projects',
+          permission: 'project.view',
+        ),
+      if (_hasPerm('attendance.view'))
+        _MobileNavEntry(
+          screen: MobileScreen.attendance,
+          icon: Icons.pending_actions_outlined,
+          activeIcon: Icons.pending_actions,
+          label: 'Attendance',
+          permission: 'attendance.view',
+        ),
+      if (_hasPerm('employee.view'))
+        _MobileNavEntry(
+          screen: MobileScreen.employees,
+          icon: Icons.people_outline,
+          activeIcon: Icons.people,
+          label: 'Employees',
+          permission: 'employee.view',
+        ),
+      // "More" tab is always visible
+      _MobileNavEntry(
+        screen: MobileScreen.settings, // placeholder
+        icon: Icons.more_horiz_outlined,
+        activeIcon: Icons.more_horiz,
+        label: 'More',
+        permission: null,
+        isMoreTab: true,
+      ),
+    ];
+
+    // Find the active bottom bar index
     int bottomBarIndex = 0;
-    if (_currentMobileScreen == MobileScreen.dashboard) {
+    for (int i = 0; i < navEntries.length; i++) {
+      if (navEntries[i].isMoreTab) continue;
+      if (_currentMobileScreen == navEntries[i].screen) {
+        bottomBarIndex = i;
+        break;
+      }
+      // Check if current screen is a sub-screen of "More"
+      if (_currentMobileScreen == MobileScreen.billing ||
+          _currentMobileScreen == MobileScreen.expenses ||
+          _currentMobileScreen == MobileScreen.settings ||
+          _currentMobileScreen == MobileScreen.budget ||
+          _currentMobileScreen == MobileScreen.inventory) {
+        // Find the "More" tab index
+        final moreIdx = navEntries.indexWhere((e) => e.isMoreTab);
+        if (moreIdx >= 0) bottomBarIndex = moreIdx;
+      }
+    }
+
+    // Clamp to valid range
+    if (bottomBarIndex >= navEntries.length) {
       bottomBarIndex = 0;
-    } else if (_currentMobileScreen == MobileScreen.projectsList ||
-        _currentMobileScreen == MobileScreen.budget ||
-        _currentMobileScreen == MobileScreen.inventory) {
-      bottomBarIndex = 1;
-    } else if (_currentMobileScreen == MobileScreen.attendance) {
-      bottomBarIndex = 2;
-    } else if (_currentMobileScreen == MobileScreen.employees) {
-      bottomBarIndex = 3;
-    } else if (_currentMobileScreen == MobileScreen.billing ||
-        _currentMobileScreen == MobileScreen.expenses ||
-        _currentMobileScreen == MobileScreen.settings) {
-      bottomBarIndex = 4;
     }
 
     return Scaffold(
@@ -189,45 +256,22 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
         ),
         unselectedLabelStyle: const TextStyle(fontSize: 12),
         onTap: (index) {
-          if (index == 0) {
-            _setMobileTab(MobileScreen.dashboard);
-          } else if (index == 1) {
-            _setMobileTab(MobileScreen.projectsList);
-          } else if (index == 2) {
-            _setMobileTab(MobileScreen.attendance);
-          } else if (index == 3) {
-            _setMobileTab(MobileScreen.employees);
-          } else if (index == 4) {
-            _showMoreMenu(context);
+          if (index < navEntries.length) {
+            final entry = navEntries[index];
+            if (entry.isMoreTab) {
+              _showMoreMenu(context);
+            } else {
+              _setMobileTab(entry.screen);
+            }
           }
         },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.foundation_outlined),
-            activeIcon: Icon(Icons.foundation),
-            label: 'Projects',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.pending_actions_outlined),
-            activeIcon: Icon(Icons.pending_actions),
-            label: 'Attendance',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people_outline),
-            activeIcon: Icon(Icons.people),
-            label: 'Employees',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.more_horiz_outlined),
-            activeIcon: Icon(Icons.more_horiz),
-            label: 'More',
-          ),
-        ],
+        items: navEntries
+            .map((e) => BottomNavigationBarItem(
+                  icon: Icon(e.icon),
+                  activeIcon: Icon(e.activeIcon),
+                  label: e.label,
+                ))
+            .toList(),
       ),
     );
   }
@@ -254,35 +298,38 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                ListTile(
-                  leading: const Icon(
-                    Icons.receipt_long_outlined,
-                    color: AppColors.primary,
+                if (_hasPerm('billing.view'))
+                  ListTile(
+                    leading: const Icon(
+                      Icons.receipt_long_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Billing',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.billing);
+                    },
                   ),
-                  title: const Text(
-                    'Billing',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                if (_hasPerm('expense.view'))
+                  ListTile(
+                    leading: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Expenses',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.expenses);
+                    },
                   ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.billing);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.account_balance_wallet_outlined,
-                    color: AppColors.primary,
-                  ),
-                  title: const Text(
-                    'Expenses',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.expenses);
-                  },
-                ),
-                const Divider(),
+                if (_hasPerm('billing.view') || _hasPerm('expense.view'))
+                  const Divider(),
                 ListTile(
                   leading: const Icon(
                     Icons.settings_outlined,
@@ -337,26 +384,75 @@ class _MainRouterScreenState extends State<MainRouterScreen> {
   }
 
   /// Returns the content widget for the currently active web tab.
+  /// Maps visible sidebar items (filtered by permissions) to actual screens.
   Widget _buildWebContent() {
-    switch (_activeWebTab) {
-      case 0:
-        return const WebDashboard();
-      case 1:
+    final permsAsync = ref.watch(userPermissionsProvider);
+    final permissions = permsAsync.valueOrNull ?? <String>{};
+    final role = ref.watch(currentRoleProvider);
+
+    // Build the same filtered list that WebSidebar uses
+    final visibleItems = WebSidebar.allItems.where((item) {
+      if (item.requiredPermission == null) return true;
+      return permissions.contains(item.requiredPermission);
+    }).toList();
+
+    if (_activeWebTab >= visibleItems.length) {
+      // Fallback to dashboard
+      return _getDashboardForRole(role);
+    }
+
+    final selectedItem = visibleItems[_activeWebTab];
+    switch (selectedItem.label) {
+      case 'Dashboard':
+        return _getDashboardForRole(role);
+      case 'Projects':
         return const ProjectListScreen();
-      case 2:
+      case 'Attendance':
         return const AttendanceScreen();
-      case 3:
+      case 'Employees':
         return const EmployeeListScreen();
-      case 4:
+      case 'Inventory':
         return const InventoryListScreen();
-      case 5:
+      case 'Billing':
         return const BillingListScreen();
-      case 6:
+      case 'Expenses':
         return const ExpenseListScreen();
-      case 7:
+      case 'Settings':
         return const SettingsScreen();
       default:
+        return _getDashboardForRole(role);
+    }
+  }
+
+  /// Returns the appropriate dashboard widget based on the user's role.
+  Widget _getDashboardForRole(String role) {
+    switch (role) {
+      case 'admin':
+        return const AdminDashboard();
+      case 'supervisor':
+        return const SupervisorDashboard();
+      default:
+        // Owner or unknown — use the existing business dashboard
         return const WebDashboard();
     }
   }
+}
+
+/// Internal helper class for mobile bottom nav entries.
+class _MobileNavEntry {
+  final MobileScreen screen;
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+  final String? permission;
+  final bool isMoreTab;
+
+  _MobileNavEntry({
+    required this.screen,
+    required this.icon,
+    required this.activeIcon,
+    required this.label,
+    this.permission,
+    this.isMoreTab = false,
+  });
 }

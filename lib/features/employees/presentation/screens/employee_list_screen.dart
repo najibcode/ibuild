@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../controllers/employee_controller.dart';
 import 'employee_detail_screen.dart';
 import 'employee_form_screen.dart';
@@ -92,16 +93,19 @@ class EmployeeListScreen extends ConsumerWidget {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error loading employees: $e')),
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => const EmployeeFormScreen(),
+      floatingActionButton: PermissionGuard(
+        permission: 'employee.create',
+        child: FloatingActionButton(
+          onPressed: () => Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const EmployeeFormScreen(),
+            ),
           ),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+          child: const Icon(Icons.add),
         ),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        child: const Icon(Icons.add),
       ),
     );
   }

@@ -1,8 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/supabase/supabase_client.provider.dart';
-import '../../data/repositories/auth_repository_impl.dart';
-import '../../domain/repositories/auth_repository.dart';
+import 'package:ibuild/core/supabase/supabase_client.provider.dart';
+import 'package:ibuild/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:ibuild/features/auth/domain/repositories/auth_repository.dart';
+import 'package:ibuild/features/rbac/presentation/providers/permission_provider.dart';
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
@@ -41,8 +42,9 @@ class AuthState {
 
 class AuthController extends StateNotifier<AuthState> {
   final AuthRepository _repository;
+  final Ref _ref;
 
-  AuthController(this._repository) : super(AuthState.initial()) {
+  AuthController(this._repository, this._ref) : super(AuthState.initial()) {
     _checkInitialSession();
   }
 
@@ -56,19 +58,46 @@ class AuthController extends StateNotifier<AuthState> {
         user: session.user,
         profile: profile,
       );
+      // Trigger RBAC permission loading
+      _ref.invalidate(userRoleProvider);
+      _ref.invalidate(userPermissionsProvider);
     }
   }
 
   Future<bool> signIn(String email, String password) async {
     state = state.copyWith(isLoading: true);
     try {
-      final response = await _repository.signIn(email: email, password: password);
-      final profile = await _repository.getUserProfile(uid: response.user!.id);
+      AuthResponse response;
+      try {
+        response = await _repository.signIn(email: email, password: password);
+      } catch (signInErr) {
+        // If signIn fails (e.g. user hasn't registered in Supabase Auth yet), attempt auto signUp
+        try {
+          response = await _repository.signUp(email: email, password: password);
+          if (response.session == null) {
+            // Attempt signIn after signUp if session wasn't returned immediately
+            response = await _repository.signIn(email: email, password: password);
+          }
+        } catch (_) {
+          // If signUp fails too (e.g. user exists but wrong password), throw original error
+          rethrow;
+        }
+      }
+
+      final user = response.user;
+      if (user == null) {
+        throw Exception('Authentication failed.');
+      }
+
+      final profile = await _repository.getUserProfile(uid: user.id);
       state = state.copyWith(
         isLoading: false,
-        user: response.user,
+        user: user,
         profile: profile,
       );
+      // Trigger fresh RBAC permission loading after login
+      _ref.invalidate(userRoleProvider);
+      _ref.invalidate(userPermissionsProvider);
       return true;
     } catch (e) {
       state = state.copyWith(
@@ -82,6 +111,9 @@ class AuthController extends StateNotifier<AuthState> {
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
     await _repository.signOut();
+    // Clear cached RBAC data
+    _ref.invalidate(userRoleProvider);
+    _ref.invalidate(userPermissionsProvider);
     state = AuthState.initial();
   }
 
@@ -103,5 +135,5 @@ class AuthController extends StateNotifier<AuthState> {
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);
-  return AuthController(repository);
+  return AuthController(repository, ref);
 });

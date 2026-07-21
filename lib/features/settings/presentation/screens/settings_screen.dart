@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
+import '../../../../features/rbac/presentation/providers/permission_provider.dart';
+import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -119,11 +121,18 @@ class SettingsScreen extends ConsumerWidget {
                       },
                     ),
                   ),
-                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
-                  const ListTile(
-                    leading: Icon(Icons.backup_outlined, color: AppColors.outline),
-                    title: Text('Backup Database', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Last backed up: Today, 04:00 AM'),
+                  PermissionGuard(
+                    permission: 'system.manage',
+                    child: Column(
+                      children: const [
+                        Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                        ListTile(
+                          leading: Icon(Icons.backup_outlined, color: AppColors.outline),
+                          title: Text('Backup Database', style: TextStyle(fontWeight: FontWeight.bold)),
+                          subtitle: Text('Last backed up: Today, 04:00 AM'),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -154,6 +163,12 @@ class SettingsScreen extends ConsumerWidget {
                     leading: const Icon(Icons.help_outline, color: AppColors.outline),
                     title: const Text('Logged in as', style: TextStyle(fontWeight: FontWeight.bold)),
                     subtitle: Text(userEmail),
+                  ),
+                  const Divider(height: 1, color: AppColors.borderSubtle, indent: 52),
+                  ListTile(
+                    leading: const Icon(Icons.shield_outlined, color: AppColors.outline),
+                    title: const Text('Role', style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: Text(ref.watch(currentRoleProvider).toUpperCase()),
                   ),
                 ],
               ),

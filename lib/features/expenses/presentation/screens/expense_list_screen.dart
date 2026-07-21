@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/expense_model.dart';
 import '../controllers/expense_controller.dart';
 import 'expense_form_screen.dart';
@@ -56,19 +57,22 @@ class ExpenseListScreen extends ConsumerWidget {
         ],
       ),
       body: _buildBody(context, ref, state),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
-          );
-          ref.read(expenseControllerProvider.notifier).loadExpenses();
-        },
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+      floatingActionButton: PermissionGuard(
+        permission: 'expense.create',
+        child: FloatingActionButton(
+          onPressed: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
+            );
+            ref.read(expenseControllerProvider.notifier).loadExpenses();
+          },
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: const Icon(Icons.add),
         ),
-        child: const Icon(Icons.add),
       ),
     );
   }

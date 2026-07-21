@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
+import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_detail_screen.dart';
@@ -94,17 +95,20 @@ class ProjectListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        tooltip: 'Add project',
-        onPressed: () => Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => const ProjectFormScreen())),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+      floatingActionButton: PermissionGuard(
+        permission: 'project.create',
+        child: FloatingActionButton(
+          tooltip: 'Add project',
+          onPressed: () => Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const ProjectFormScreen())),
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: const Icon(Icons.add),
         ),
-        child: const Icon(Icons.add),
       ),
     );
   }

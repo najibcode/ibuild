@@ -15,6 +15,14 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<AuthResponse> signUp({required String email, required String password}) async {
+    return await _client.auth.signUp(
+      email: email,
+      password: password,
+    );
+  }
+
+  @override
   Future<void> signOut() async {
     await _client.auth.signOut();
   }
@@ -37,6 +45,22 @@ class AuthRepositoryImpl implements AuthRepository {
           .select()
           .eq('id', uid)
           .maybeSingle();
+
+      if (response == null) {
+        final user = _client.auth.currentUser;
+        final email = user?.email ?? 'User';
+        final name = email.contains('@') ? email.split('@').first : 'User';
+        final newProfile = {
+          'id': uid,
+          'company_name': 'IBUILD Construction',
+          'gstin': '27AAAAA0000A1Z5',
+          'full_name': name,
+        };
+        try {
+          await _client.from('profiles').upsert(newProfile);
+        } catch (_) {}
+        return newProfile;
+      }
       return response;
     } catch (e) {
       return null;

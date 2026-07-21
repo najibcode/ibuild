@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
+import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../controllers/inventory_controller.dart';
 import 'inventory_form_screen.dart';
@@ -71,17 +72,20 @@ class InventoryListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const InventoryFormScreen()),
-          );
-          ref.read(inventoryControllerProvider.notifier).loadItems();
-        },
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        child: const Icon(Icons.add),
+      floatingActionButton: PermissionGuard(
+        permission: 'inventory.create',
+        child: FloatingActionButton(
+          onPressed: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const InventoryFormScreen()),
+            );
+            ref.read(inventoryControllerProvider.notifier).loadItems();
+          },
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
+          child: const Icon(Icons.add),
+        ),
       ),
     );
   }

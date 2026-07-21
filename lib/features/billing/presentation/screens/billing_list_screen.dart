@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/bill_model.dart';
 import '../controllers/billing_controller.dart';
 import 'billing_form_screen.dart';
@@ -50,19 +51,22 @@ class BillingListScreen extends ConsumerWidget {
         ],
       ),
       body: _buildBody(context, ref, state),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const BillingFormScreen()),
-          );
-          ref.read(billingControllerProvider.notifier).loadBills();
-        },
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+      floatingActionButton: PermissionGuard(
+        permission: 'billing.create',
+        child: FloatingActionButton(
+          onPressed: () async {
+            await Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const BillingFormScreen()),
+            );
+            ref.read(billingControllerProvider.notifier).loadBills();
+          },
+          backgroundColor: AppColors.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+          ),
+          child: const Icon(Icons.add),
         ),
-        child: const Icon(Icons.add),
       ),
     );
   }
