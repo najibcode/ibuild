@@ -24,6 +24,16 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
   late final TextEditingController _estimatedCtrl;
   late final TextEditingController _descriptionCtrl;
   late final TextEditingController _notesCtrl;
+
+  // Extended Site Controllers (Pojo Infra360 Alignment)
+  late final TextEditingController _builtUpCtrl;
+  late final TextEditingController _flatAreaCtrl;
+  late final TextEditingController _durationCtrl;
+  late final TextEditingController _customerMobileCtrl;
+  late final TextEditingController _customerEmailCtrl;
+  late final TextEditingController _customerAddressCtrl;
+  late final TextEditingController _imageUrlCtrl;
+
   late String _status;
   bool _isSaving = false;
   DateTime? _startDate;
@@ -34,20 +44,25 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     super.initState();
     final p = widget.project;
     _nameCtrl = TextEditingController(text: p?.name ?? '');
-    _clientCtrl = TextEditingController(text: p?.clientName ?? '');
+    _clientCtrl = TextEditingController(text: p?.clientName ?? p?.customerName ?? '');
     _codeCtrl = TextEditingController(text: p?.projectCode ?? '');
     _addressCtrl = TextEditingController(text: p?.address ?? '');
-    _budgetCtrl = TextEditingController(text: p?.budget.toString() ?? '');
-    _estimatedCtrl = TextEditingController(
-      text: p?.estimatedCost.toString() ?? '',
-    );
+    _budgetCtrl = TextEditingController(text: p != null ? p.budget.toString() : '');
+    _estimatedCtrl = TextEditingController(text: p != null ? p.estimatedCost.toString() : '');
     _descriptionCtrl = TextEditingController(text: p?.description ?? '');
     _notesCtrl = TextEditingController(text: p?.notes ?? '');
+
+    _builtUpCtrl = TextEditingController(text: p != null && p.builtUpArea > 0 ? p.builtUpArea.toString() : '');
+    _flatAreaCtrl = TextEditingController(text: p != null && p.flatArea > 0 ? p.flatArea.toString() : '');
+    _durationCtrl = TextEditingController(text: p?.duration ?? '');
+    _customerMobileCtrl = TextEditingController(text: p?.customerMobile ?? '');
+    _customerEmailCtrl = TextEditingController(text: p?.customerEmail ?? '');
+    _customerAddressCtrl = TextEditingController(text: p?.customerAddress ?? '');
+    _imageUrlCtrl = TextEditingController(text: p?.imageUrl ?? '');
+
     _status = p?.status ?? 'planning';
     _startDate = p?.startDate != null ? DateTime.tryParse(p!.startDate!) : null;
-    _expectedCompletion = p?.expectedCompletion != null
-        ? DateTime.tryParse(p!.expectedCompletion!)
-        : null;
+    _expectedCompletion = p?.expectedCompletion != null ? DateTime.tryParse(p!.expectedCompletion!) : null;
   }
 
   @override
@@ -60,14 +75,20 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     _estimatedCtrl.dispose();
     _descriptionCtrl.dispose();
     _notesCtrl.dispose();
+    _builtUpCtrl.dispose();
+    _flatAreaCtrl.dispose();
+    _durationCtrl.dispose();
+    _customerMobileCtrl.dispose();
+    _customerEmailCtrl.dispose();
+    _customerAddressCtrl.dispose();
+    _imageUrlCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _pickDate(bool isStart) async {
     final picked = await showDatePicker(
       context: context,
-      initialDate:
-          (isStart ? _startDate : _expectedCompletion) ?? DateTime.now(),
+      initialDate: (isStart ? _startDate : _expectedCompletion) ?? DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime(2035),
     );
@@ -85,9 +106,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
   Future<void> _save() async {
     if (_isSaving || !_formKey.currentState!.validate()) return;
 
-    if (_startDate != null &&
-        _expectedCompletion != null &&
-        _expectedCompletion!.isBefore(_startDate!)) {
+    if (_startDate != null && _expectedCompletion != null && _expectedCompletion!.isBefore(_startDate!)) {
       _showError('Expected completion must be on or after the start date.');
       return;
     }
@@ -95,26 +114,26 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     final project = Project(
       id: widget.project?.id ?? '',
       name: _nameCtrl.text.trim(),
-      clientName: _clientCtrl.text.trim().isEmpty
-          ? null
-          : _clientCtrl.text.trim(),
+      clientName: _clientCtrl.text.trim().isEmpty ? null : _clientCtrl.text.trim(),
+      customerName: _clientCtrl.text.trim().isEmpty ? null : _clientCtrl.text.trim(),
       projectCode: _codeCtrl.text.trim().isEmpty ? null : _codeCtrl.text.trim(),
-      address: _addressCtrl.text.trim().isEmpty
-          ? null
-          : _addressCtrl.text.trim(),
+      address: _addressCtrl.text.trim().isEmpty ? null : _addressCtrl.text.trim(),
       budget: double.tryParse(_budgetCtrl.text.replaceAll(',', '')) ?? 0,
-      estimatedCost:
-          double.tryParse(_estimatedCtrl.text.replaceAll(',', '')) ?? 0,
+      estimatedCost: double.tryParse(_estimatedCtrl.text.replaceAll(',', '')) ?? 0,
       currentCost: widget.project?.currentCost ?? 0,
       spent: widget.project?.spent ?? 0,
       status: _status,
       startDate: _startDate?.toIso8601String().substring(0, 10),
-      expectedCompletion: _expectedCompletion?.toIso8601String().substring(
-        0,
-        10,
-      ),
+      expectedCompletion: _expectedCompletion?.toIso8601String().substring(0, 10),
       description: _emptyToNull(_descriptionCtrl.text),
       notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
+      builtUpArea: double.tryParse(_builtUpCtrl.text.replaceAll(',', '')) ?? 0.0,
+      flatArea: double.tryParse(_flatAreaCtrl.text.replaceAll(',', '')) ?? 0.0,
+      duration: _emptyToNull(_durationCtrl.text),
+      customerMobile: _emptyToNull(_customerMobileCtrl.text),
+      customerEmail: _emptyToNull(_customerEmailCtrl.text),
+      customerAddress: _emptyToNull(_customerAddressCtrl.text),
+      imageUrl: _emptyToNull(_imageUrlCtrl.text),
     );
 
     setState(() => _isSaving = true);
@@ -130,9 +149,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            widget.project == null ? 'Project created' : 'Project updated',
-          ),
+          content: Text(widget.project == null ? 'Project created' : 'Project updated'),
           backgroundColor: AppColors.secondary,
         ),
       );
@@ -169,68 +186,50 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 _field('Project Name *', _nameCtrl, validator: _required),
-                _field('Client Name', _clientCtrl),
+                _field('Client / Customer Name', _clientCtrl),
+                Row(
+                  children: [
+                    Expanded(child: _field('Customer Phone', _customerMobileCtrl, keyboard: TextInputType.phone)),
+                    const SizedBox(width: 16),
+                    Expanded(child: _field('Customer Email', _customerEmailCtrl, keyboard: TextInputType.emailAddress)),
+                  ],
+                ),
+                _field('Customer Address', _customerAddressCtrl, maxLines: 2),
                 _field('Project Code', _codeCtrl),
-                _field('Address', _addressCtrl, maxLines: 2),
-                _field(
-                  'Budget (₹) *',
-                  _budgetCtrl,
-                  keyboard: TextInputType.number,
-                  validator: _numRequired,
+                _field('Site Address', _addressCtrl, maxLines: 2),
+                Row(
+                  children: [
+                    Expanded(child: _field('Built-up Area (sq ft)', _builtUpCtrl, keyboard: TextInputType.number)),
+                    const SizedBox(width: 16),
+                    Expanded(child: _field('Flat Area (sq ft)', _flatAreaCtrl, keyboard: TextInputType.number)),
+                  ],
                 ),
-                _field(
-                  'Estimated Cost (₹)',
-                  _estimatedCtrl,
-                  keyboard: TextInputType.number,
-                ),
+                _field('Duration (e.g. 12 Months)', _durationCtrl),
+                _field('Budget (₹) *', _budgetCtrl, keyboard: TextInputType.number, validator: _numRequired),
+                _field('Estimated Cost (₹)', _estimatedCtrl, keyboard: TextInputType.number),
+                _field('Image URL', _imageUrlCtrl),
                 _field('Project Scope', _descriptionCtrl, maxLines: 3),
-                // Status
-                const Text(
-                  'Status',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                ),
+                const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                 const SizedBox(height: 8),
                 DropdownButtonFormField<String>(
                   initialValue: _status,
                   decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 10,
-                    ),
+                    contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                   ),
                   items: const [
-                    DropdownMenuItem(
-                      value: 'planning',
-                      child: Text('Planning'),
-                    ),
+                    DropdownMenuItem(value: 'planning', child: Text('Planning')),
                     DropdownMenuItem(value: 'active', child: Text('Active')),
-                    DropdownMenuItem(
-                      value: 'completed',
-                      child: Text('Completed'),
-                    ),
+                    DropdownMenuItem(value: 'completed', child: Text('Completed')),
                     DropdownMenuItem(value: 'delayed', child: Text('Delayed')),
                   ],
                   onChanged: (v) => setState(() => _status = v ?? 'planning'),
                 ),
                 const SizedBox(height: 20),
-                // Dates
                 Row(
                   children: [
-                    Expanded(
-                      child: _dateField(
-                        'Start Date',
-                        _startDate,
-                        () => _pickDate(true),
-                      ),
-                    ),
+                    Expanded(child: _dateField('Start Date', _startDate, () => _pickDate(true))),
                     const SizedBox(width: 16),
-                    Expanded(
-                      child: _dateField(
-                        'Expected Completion',
-                        _expectedCompletion,
-                        () => _pickDate(false),
-                      ),
-                    ),
+                    Expanded(child: _dateField('Expected Completion', _expectedCompletion, () => _pickDate(false))),
                   ],
                 ),
                 const SizedBox(height: 20),
@@ -243,26 +242,18 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
                     foregroundColor: Colors.white,
                     minimumSize: const Size(double.infinity, 54),
                     shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(
-                        AppRadius.defaultValue,
-                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.defaultValue),
                     ),
                   ),
                   child: _isSaving
                       ? const SizedBox(
                           width: 20,
                           height: 20,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2,
-                            color: Colors.white,
-                          ),
+                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                         )
                       : Text(
                           isEditing ? 'Update Project' : 'Create Project',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                 ),
               ],
@@ -285,10 +276,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-          ),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 8),
           TextFormField(
             controller: ctrl,
@@ -305,10 +293,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-        ),
+        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
         const SizedBox(height: 8),
         InkWell(
           onTap: onTap,
@@ -322,21 +307,13 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
               children: [
                 Expanded(
                   child: Text(
-                    value != null
-                        ? DateFormat('dd MMM yyyy').format(value)
-                        : 'Select date',
+                    value != null ? DateFormat('dd MMM yyyy').format(value) : 'Select date',
                     style: TextStyle(
-                      color: value != null
-                          ? AppColors.textMain
-                          : AppColors.textMuted,
+                      color: value != null ? AppColors.textMain : AppColors.textMuted,
                     ),
                   ),
                 ),
-                const Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: AppColors.outline,
-                ),
+                const Icon(Icons.calendar_today, size: 16, color: AppColors.outline),
               ],
             ),
           ),
@@ -345,15 +322,10 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     );
   }
 
-  String? _required(String? v) =>
-      (v == null || v.trim().isEmpty) ? 'Required' : null;
+  String? _required(String? v) => (v == null || v.trim().isEmpty) ? 'Required' : null;
   String? _numRequired(String? v) {
-    if (v == null || v.trim().isEmpty) {
-      return 'Required';
-    }
-    if (double.tryParse(v.replaceAll(',', '')) == null) {
-      return 'Enter a valid number';
-    }
+    if (v == null || v.trim().isEmpty) return 'Required';
+    if (double.tryParse(v.replaceAll(',', '')) == null) return 'Enter a valid number';
     return null;
   }
 
@@ -371,14 +343,10 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
   String _saveErrorMessage(Object error) {
     if (error is PostgrestException) {
       final detail = error.details?.toString().trim();
-      if (detail != null && detail.isNotEmpty) {
-        return '${error.message}: $detail';
-      }
+      if (detail != null && detail.isNotEmpty) return '${error.message}: $detail';
       return error.message;
     }
-    if (error is AuthException) {
-      return error.message;
-    }
+    if (error is AuthException) return error.message;
     return 'Could not save the project. Please try again.';
   }
 }

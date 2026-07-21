@@ -5,6 +5,7 @@ import '../../../../core/widgets/stat_card.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
+import 'project_operations_screen.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 
 final projectDetailProvider = FutureProvider.family<Project?, String>((
@@ -213,9 +214,14 @@ class _ProjectDetailBody extends ConsumerWidget {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  _infoRow('Client', project.clientName ?? '-'),
+                  _infoRow('Client', project.clientName ?? project.customerName ?? '-'),
+                  if (project.customerMobile != null) _infoRow('Customer Mobile', project.customerMobile!),
+                  if (project.customerEmail != null) _infoRow('Customer Email', project.customerEmail!),
                   _infoRow('Code', project.projectCode ?? '-'),
                   _infoRow('Address', project.address ?? '-'),
+                  if (project.builtUpArea > 0) _infoRow('Built-up Area', '${project.builtUpArea.toInt()} sq ft'),
+                  if (project.flatArea > 0) _infoRow('Flat Area', '${project.flatArea.toInt()} sq ft'),
+                  if (project.duration != null) _infoRow('Duration', project.duration!),
                   _infoRow('Start Date', project.startDate ?? '-'),
                   _infoRow(
                     'Expected Completion',
@@ -233,28 +239,54 @@ class _ProjectDetailBody extends ConsumerWidget {
             const SizedBox(height: AppSpacing.containerMargin),
 
             // Action Buttons
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: () => Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => DailyProgressScreen(
-                      projectId: project.id,
-                      projectName: project.name,
+            Column(
+              children: [
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => ProjectOperationsScreen(
+                          projectId: project.id,
+                          projectName: project.name,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.hub_outlined),
+                    label: const Text('Project Operations Hub'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                      ),
                     ),
                   ),
                 ),
-                icon: const Icon(Icons.camera_alt),
-                label: const Text('Daily Site Progress'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => DailyProgressScreen(
+                          projectId: project.id,
+                          projectName: project.name,
+                        ),
+                      ),
+                    ),
+                    icon: const Icon(Icons.camera_alt_outlined),
+                    label: const Text('Daily Site Progress'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 50),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             ),
           ],
         ),

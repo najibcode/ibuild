@@ -18,6 +18,17 @@ class Project {
   final String? deadline;
   final String? createdAt;
 
+  // Extended Site-Centered Attributes (Pojo Infra360 Alignment)
+  final double builtUpArea;
+  final double flatArea;
+  final String? duration;
+  final String? customerName;
+  final String? customerMobile;
+  final String? customerEmail;
+  final String? customerDob;
+  final String? customerAddress;
+  final String? imageUrl;
+
   Project({
     required this.id,
     required this.name,
@@ -37,6 +48,15 @@ class Project {
     this.isArchived = false,
     this.deadline,
     this.createdAt,
+    this.builtUpArea = 0.0,
+    this.flatArea = 0.0,
+    this.duration,
+    this.customerName,
+    this.customerMobile,
+    this.customerEmail,
+    this.customerDob,
+    this.customerAddress,
+    this.imageUrl,
   });
 
   factory Project.fromJson(Map<String, dynamic> json) {
@@ -59,6 +79,15 @@ class Project {
       isArchived: json['is_archived'] as bool? ?? false,
       deadline: json['deadline'] as String?,
       createdAt: json['created_at'] as String?,
+      builtUpArea: (json['built_up_area'] as num?)?.toDouble() ?? 0.0,
+      flatArea: (json['flat_area'] as num?)?.toDouble() ?? 0.0,
+      duration: json['duration'] as String?,
+      customerName: json['customer_name'] as String?,
+      customerMobile: json['customer_mobile'] as String?,
+      customerEmail: json['customer_email'] as String?,
+      customerDob: json['customer_dob'] as String?,
+      customerAddress: json['customer_address'] as String?,
+      imageUrl: json['image_url'] as String?,
     );
   }
 
@@ -80,6 +109,15 @@ class Project {
       'description': description,
       'is_archived': isArchived,
       'deadline': deadline,
+      'built_up_area': builtUpArea,
+      'flat_area': flatArea,
+      'duration': duration,
+      'customer_name': customerName,
+      'customer_mobile': customerMobile,
+      'customer_email': customerEmail,
+      'customer_dob': customerDob,
+      'customer_address': customerAddress,
+      'image_url': imageUrl,
     };
   }
 
@@ -101,6 +139,15 @@ class Project {
     String? description,
     bool? isArchived,
     String? deadline,
+    double? builtUpArea,
+    double? flatArea,
+    String? duration,
+    String? customerName,
+    String? customerMobile,
+    String? customerEmail,
+    String? customerDob,
+    String? customerAddress,
+    String? imageUrl,
   }) {
     return Project(
       id: id ?? this.id,
@@ -120,8 +167,18 @@ class Project {
       description: description ?? this.description,
       isArchived: isArchived ?? this.isArchived,
       deadline: deadline ?? this.deadline,
+      builtUpArea: builtUpArea ?? this.builtUpArea,
+      flatArea: flatArea ?? this.flatArea,
+      duration: duration ?? this.duration,
+      customerName: customerName ?? this.customerName,
+      customerMobile: customerMobile ?? this.customerMobile,
+      customerEmail: customerEmail ?? this.customerEmail,
+      customerDob: customerDob ?? this.customerDob,
+      customerAddress: customerAddress ?? this.customerAddress,
+      imageUrl: imageUrl ?? this.imageUrl,
     );
   }
 
   double get budgetUtilization => budget > 0 ? (spent / budget).clamp(0.0, 2.0) : 0.0;
+  double get remainingBalance => budget - spent;
 }
