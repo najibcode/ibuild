@@ -32,7 +32,10 @@ class ProjectDetailScreen extends ConsumerWidget {
             body: const Center(child: Text('Project not found')),
           );
         }
-        return _ProjectDetailBody(project: project);
+        return ProjectOperationsScreen(
+          projectId: project.id,
+          projectName: project.name,
+        );
       },
       loading: () =>
           const Scaffold(body: Center(child: CircularProgressIndicator())),

@@ -18,6 +18,7 @@ import '../../../inventory/presentation/controllers/inventory_controller.dart';
 import '../../../attendance/domain/repositories/attendance_repository.dart';
 import '../../../attendance/presentation/controllers/attendance_controller.dart';
 import '../../../attendance/data/models/attendance_model.dart';
+import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 
@@ -71,40 +72,36 @@ class ProjectOperationsScreen extends ConsumerStatefulWidget {
   ConsumerState<ProjectOperationsScreen> createState() => _ProjectOperationsScreenState();
 }
 
-class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScreen> with SingleTickerProviderStateMixin {
-  late TabController _tabController;
+class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScreen> {
+  int _activeSection = 0; // 0 = Overview Grid, 1 = Attendance, 2 = Materials, 3 = SubContractor, 4 = Payments, 5 = Checklist, 6 = Drawings, 7 = Sales Bills, 8 = Site Images, 9 = About Site
 
-  final List<String> _tabs = [
-    'Overview & Cards',
-    'Today Attendance',
-    'Materials',
-    'SubContractor',
-    'Payment Status',
-    'Check List',
-    'Drawing',
-    'Sales Bill',
-    'About Site',
-  ];
+  final Map<int, String> _sectionTitles = {
+    0: 'Site Details',
+    1: 'Today Attendance',
+    2: 'Materials Inventory',
+    3: 'Subcontractor / Trade Partners',
+    4: 'Payment Ledger Status',
+    5: 'Checklist Inspection',
+    6: 'Site Drawings & Blueprints',
+    7: 'Sales Bills & Client Invoices',
+    8: 'Site Progress Images',
+    9: 'About Site Specifications',
+  };
 
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+  void _openSection(int section) {
+    setState(() {
+      _activeSection = section;
+    });
   }
 
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _openTab(int index) {
-    _tabController.animateTo(index);
+  void _returnToGrid() {
+    setState(() {
+      _activeSection = 0;
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    final primaryCol = AppColors.primaryColor(context);
     final mutedText = AppColors.mutedText(context);
 
     return Scaffold(
@@ -114,7 +111,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.projectName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
-            Text('Site Operations Hub', style: TextStyle(fontSize: 12, color: mutedText)),
+            Text(_sectionTitles[_activeSection] ?? 'Site Operations', style: TextStyle(fontSize: 12, color: mutedText)),
           ],
         ),
         actions: [
@@ -133,33 +130,68 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             ),
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          isScrollable: true,
-          labelColor: primaryCol,
-          unselectedLabelColor: mutedText,
-          indicatorColor: primaryCol,
-          tabs: _tabs.map((t) => Tab(text: t)).toList(),
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
+      body: Column(
         children: [
-          _buildOverviewGridTab(),
-          _buildAttendanceTab(),
-          _buildMaterialsTab(),
-          _buildSubcontractorsTab(),
-          _buildPaymentsTab(),
-          _buildChecklistTab(),
-          _buildDrawingsTab(),
-          _buildSalesBillsTab(),
-          _buildAboutSiteTab(),
+          // If viewing a sub-section (not the main Grid), show a clean Back to Site Operations bar
+          if (_activeSection != 0)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: AppColors.cardBg(context),
+              child: Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _returnToGrid,
+                    icon: const Icon(Icons.arrow_back, size: 16),
+                    label: const Text('Back to Site Operations Grid'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryColor(context),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Text(
+                    _sectionTitles[_activeSection] ?? '',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context)),
+                  ),
+                ],
+              ),
+            ),
+
+          Expanded(child: _buildActiveContent()),
         ],
       ),
     );
   }
 
-  // 0. Overview Grid (Pojo Infra360 Reference Image Inspired Grid)
+  Widget _buildActiveContent() {
+    switch (_activeSection) {
+      case 0:
+        return _buildOverviewGridTab();
+      case 1:
+        return _buildAttendanceTab();
+      case 2:
+        return _buildMaterialsTab();
+      case 3:
+        return _buildSubcontractorsTab();
+      case 4:
+        return _buildPaymentsTab();
+      case 5:
+        return _buildChecklistTab();
+      case 6:
+        return _buildDrawingsTab();
+      case 7:
+        return _buildSalesBillsTab();
+      case 8:
+        return DailyProgressScreen(projectId: widget.projectId, projectName: widget.projectName);
+      case 9:
+        return _buildAboutSiteTab();
+      default:
+        return _buildOverviewGridTab();
+    }
+  }
+
+  // 0. Overview Grid (Pure Icon Cards Navigation View - No Top TabBar)
   Widget _buildOverviewGridTab() {
     final projectAsync = ref.watch(projectDetailByIdProvider(widget.projectId));
 
@@ -168,75 +200,64 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Breadcrumb & Title Header
+          // Breadcrumb Header
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  Icon(Icons.home_outlined, size: 20, color: AppColors.mutedText(context)),
-                  const SizedBox(width: 8),
-                  Text('>', style: TextStyle(color: AppColors.mutedText(context))),
-                  const SizedBox(width: 8),
-                  Text('Site', style: TextStyle(color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
-                  const SizedBox(width: 8),
-                  Text('>', style: TextStyle(color: AppColors.mutedText(context))),
-                  const SizedBox(width: 8),
-                  Text(widget.projectName, style: TextStyle(color: AppColors.primaryColor(context), fontWeight: FontWeight.bold)),
-                ],
-              ),
+              Icon(Icons.home_outlined, size: 18, color: AppColors.mutedText(context)),
+              const SizedBox(width: 6),
+              Text('>', style: TextStyle(color: AppColors.mutedText(context), fontSize: 13)),
+              const SizedBox(width: 6),
+              Text('Site', style: TextStyle(color: AppColors.mutedText(context), fontWeight: FontWeight.w600, fontSize: 13)),
+              const SizedBox(width: 6),
+              Text('>', style: TextStyle(color: AppColors.mutedText(context), fontSize: 13)),
+              const SizedBox(width: 6),
+              Text(widget.projectName, style: TextStyle(color: AppColors.primaryColor(context), fontWeight: FontWeight.bold, fontSize: 13)),
             ],
           ),
           const SizedBox(height: 24),
 
-          // Operational Cards Grid (Ref: Reference Image Grid)
+          // Pure Visual Operation Cards Grid (Ref: Reference Image Grid)
           Wrap(
             spacing: 20,
             runSpacing: 20,
             children: [
-              _buildRefCard('Today\nAttendance', Icons.calendar_today_outlined, AppColors.primary, () => _openTab(1)),
-              _buildRefCard('Materials', Icons.inventory_2_outlined, Colors.orange, () => _openTab(2)),
-              _buildRefCard('SubContractor', Icons.groups_outlined, Colors.amber.shade700, () => _openTab(3)),
-              _buildRefCard('Payment\nStatus', Icons.account_balance_wallet_outlined, Colors.green, () => _openTab(4)),
-              _buildRefCard('Check List', Icons.assignment_turned_in_outlined, Colors.blue, () => _openTab(5)),
-              _buildRefCard('Drawing', Icons.architecture_outlined, Colors.indigo, () => _openTab(6)),
-              _buildRefCard('Sales Bill', Icons.receipt_long_outlined, Colors.teal, () => _openTab(7)),
-              _buildRefCard('About Site', Icons.info_outline, Colors.purple, () => _openTab(8)),
+              _buildRefCard('Today\nAttendance', Icons.calendar_today_outlined, AppColors.primary, () => _openSection(1)),
+              _buildRefCard('Materials', Icons.inventory_2_outlined, Colors.orange, () => _openSection(2)),
+              _buildRefCard('SubContractor', Icons.groups_outlined, Colors.amber.shade700, () => _openSection(3)),
+              _buildRefCard('Payment\nStatus', Icons.account_balance_wallet_outlined, Colors.green, () => _openSection(4)),
+              _buildRefCard('Check List', Icons.assignment_turned_in_outlined, Colors.blue, () => _openSection(5)),
+              _buildRefCard('Drawing', Icons.architecture_outlined, Colors.indigo, () => _openSection(6)),
+              _buildRefCard('Sales Bill', Icons.receipt_long_outlined, Colors.teal, () => _openSection(7)),
+              _buildRefCard('Site Images', Icons.add_a_photo_outlined, Colors.pink, () => _openSection(8)),
+              _buildRefCard('About Site', Icons.info_outline, Colors.purple, () => _openSection(9)),
             ],
           ),
 
           const SizedBox(height: 32),
 
-          // Site Summary Card
+          // Compact Site Summary Bar
           projectAsync.when(
             data: (p) {
               if (p == null) return const SizedBox.shrink();
               return Container(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 decoration: BoxDecoration(
                   color: AppColors.cardBg(context),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: AppColors.border(context)),
                 ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    Text('Site Overview: ${p.name}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _metricCol('Budget', '₹${p.budget.toInt()}'),
-                        _metricCol('Spent', '₹${p.spent.toInt()}'),
-                        _metricCol('Address', (p.address != null && p.address!.isNotEmpty) ? p.address! : 'N/A'),
-                        _metricCol('Customer', p.customerName ?? 'Direct'),
-                      ],
-                    ),
+                    _metricCol('Budget', '₹${p.budget.toInt()}'),
+                    _metricCol('Spent', '₹${p.spent.toInt()}'),
+                    _metricCol('Customer', p.customerName ?? 'Direct Client'),
+                    _metricCol('Status', p.status.toUpperCase()),
                   ],
                 ),
               );
             },
-            loading: () => const CircularProgressIndicator(),
+            loading: () => const SizedBox.shrink(),
             error: (e, s) => const SizedBox.shrink(),
           ),
         ],
@@ -250,7 +271,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       borderRadius: BorderRadius.circular(16),
       child: Container(
         width: 140,
-        height: 160,
+        height: 155,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: AppColors.cardBg(context),
@@ -258,9 +279,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           border: Border.all(color: AppColors.border(context)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.03),
-              blurRadius: 10,
-              offset: const Offset(0, 4),
+              color: Colors.black.withValues(alpha: 0.02),
+              blurRadius: 8,
+              offset: const Offset(0, 3),
             ),
           ],
         ),
@@ -273,9 +294,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 color: iconColor.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: 36, color: iconColor),
+              child: Icon(icon, size: 34, color: iconColor),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 12),
             Text(
               title,
               textAlign: TextAlign.center,
@@ -297,7 +318,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       children: [
         Text(label, style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.text(context))),
       ],
     );
   }
@@ -669,8 +690,8 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 const Divider(height: 24),
                 Text('Site Engineering Metrics', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
                 const SizedBox(height: 8),
-                _infoTile('Built-Up Area', p.builtUpArea != null ? '${p.builtUpArea} sqft' : 'N/A'),
-                _infoTile('Flat Area', p.flatArea != null ? '${p.flatArea} sqft' : 'N/A'),
+                _infoTile('Built-Up Area', p.builtUpArea > 0 ? '${p.builtUpArea.toInt()} sqft' : 'N/A'),
+                _infoTile('Flat Area', p.flatArea > 0 ? '${p.flatArea.toInt()} sqft' : 'N/A'),
                 _infoTile('Project Duration', p.duration != null ? '${p.duration} Months' : 'N/A'),
                 _infoTile('Assigned Supervisor', p.supervisorId ?? 'Unassigned'),
                 _infoTile('Total Budget Amount', '₹${p.budget.toInt()}'),
