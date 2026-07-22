@@ -53,8 +53,7 @@ class AttendanceScreen extends ConsumerWidget {
                               id: '',
                               employeeId: employee.id,
                               date: '',
-                              morningStatus: 'absent',
-                              eveningStatus: 'absent',
+                              status: 'Absent',
                             ),
                           );
 
@@ -77,43 +76,22 @@ class AttendanceScreen extends ConsumerWidget {
                                   const SizedBox(height: 16),
                                   
                                   // Morning Status
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Morning Shift:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                      _buildStatusToggle(
-                                        context: context,
-                                        activeStatus: logged.morningStatus,
-                                        onSelected: (status) {
-                                          ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                            employeeId: employee.id,
-                                            morningStatus: status,
-                                            eveningStatus: logged.eveningStatus,
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 12),
-                                  
-                                  // Evening Status
-                                  Row(
-                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      const Text('Evening Shift:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                      _buildStatusToggle(
-                                        context: context,
-                                        activeStatus: logged.eveningStatus,
-                                        onSelected: (status) {
-                                          ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                            employeeId: employee.id,
-                                            morningStatus: logged.morningStatus,
-                                            eveningStatus: status,
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
+                                   Row(
+                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                     children: [
+                                       const Text('Single-Day Status:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                       _buildStatusToggle(
+                                         context: context,
+                                         activeStatus: logged.status,
+                                         onSelected: (status) {
+                                           ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                             employeeId: employee.id,
+                                             status: status,
+                                           );
+                                         },
+                                       ),
+                                     ],
+                                   ),
                                 ],
                               ),
                             ),

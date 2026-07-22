@@ -74,16 +74,16 @@ class AttendanceController extends StateNotifier<AttendanceState> {
 
   Future<void> markAttendance({
     required String employeeId,
-    required String morningStatus,
-    required String eveningStatus,
+    required String status,
+    String? morningStatus,
+    String? eveningStatus,
   }) async {
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
     final attendance = Attendance(
       id: '',
       employeeId: employeeId,
       date: todayStr,
-      morningStatus: morningStatus,
-      eveningStatus: eveningStatus,
+      status: status,
     );
 
     try {

@@ -3,7 +3,7 @@ class Employee {
   final String name;
   final String phone;
   final String role;
-  final double salary;
+  final double salary; // Daily Rate in ₹/day
   final String status;
   final String? photoUrl;
 
@@ -17,14 +17,18 @@ class Employee {
     this.photoUrl,
   });
 
+  // Daily Wage getters
+  double get dailyRate => salary;
+  double calculateTotalEarnings(int daysPresent) => daysPresent * dailyRate;
+
   factory Employee.fromJson(Map<String, dynamic> json) {
     return Employee(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      phone: json['phone'] as String,
-      role: json['role'] as String,
-      salary: (json['salary'] as num).toDouble(),
-      status: json['status'] as String,
+      id: json['id'] as String? ?? '',
+      name: json['name'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      role: json['role'] as String? ?? 'Labor',
+      salary: (json['salary'] as num?)?.toDouble() ?? 0.0,
+      status: json['status'] as String? ?? 'active',
       photoUrl: json['photo_url'] as String?,
     );
   }

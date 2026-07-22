@@ -9,8 +9,6 @@ import '../../../sales_bills/data/models/sales_bill_model.dart';
 import '../../../sales_bills/data/repositories/supabase_sales_bill_repository.dart';
 import '../../../payments/data/models/payment_model.dart';
 import '../../../payments/data/repositories/supabase_payment_repository.dart';
-import '../../../tickets/data/models/site_ticket_model.dart';
-import '../../../tickets/data/repositories/supabase_ticket_repository.dart';
 import '../../../drawings/data/models/site_drawing_model.dart';
 import '../../../drawings/data/repositories/supabase_drawing_repository.dart';
 import '../../../subcontractors/data/models/subcontractor_model.dart';
@@ -20,6 +18,8 @@ import '../../../inventory/presentation/controllers/inventory_controller.dart';
 import '../../../attendance/domain/repositories/attendance_repository.dart';
 import '../../../attendance/presentation/controllers/attendance_controller.dart';
 import '../../../attendance/data/models/attendance_model.dart';
+import '../../data/models/project_model.dart';
+import '../controllers/project_controller.dart';
 
 // Providers
 final projectChecklistProvider = FutureProvider.family<List<ChecklistItem>, String>((ref, projectId) async {
@@ -37,11 +37,6 @@ final projectPaymentsProvider = FutureProvider.family<List<ProjectPayment>, Stri
   return await SupabasePaymentRepository(client).fetchPaymentsForProject(projectId);
 });
 
-final projectTicketsProvider = FutureProvider.family<List<SiteTicket>, String>((ref, projectId) async {
-  final client = ref.watch(supabaseClientProvider);
-  return await SupabaseTicketRepository(client).fetchTicketsForProject(projectId);
-});
-
 final projectDrawingsProvider = FutureProvider.family<List<SiteDrawing>, String>((ref, projectId) async {
   final client = ref.watch(supabaseClientProvider);
   return await SupabaseDrawingRepository(client).fetchDrawingsForProject(projectId);
@@ -55,6 +50,11 @@ final projectSubcontractorsProvider = FutureProvider<List<Subcontractor>>((ref) 
 final projectInventoryProvider = FutureProvider<List<InventoryItem>>((ref) async {
   final repo = ref.watch(inventoryRepositoryProvider);
   return await repo.getItems();
+});
+
+final projectDetailByIdProvider = FutureProvider.family<Project?, String>((ref, id) async {
+  final repo = ref.watch(projectRepositoryProvider);
+  return await repo.getProjectById(id);
 });
 
 class ProjectOperationsScreen extends ConsumerStatefulWidget {
@@ -75,15 +75,15 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
   late TabController _tabController;
 
   final List<String> _tabs = [
-    'Attendance',
+    'Overview & Cards',
+    'Today Attendance',
     'Materials',
-    'Subcontractors',
-    'Payments',
-    'Checklist',
-    'Tickets',
-    'Drawings',
-    'Sales Bills',
-    'Reports',
+    'SubContractor',
+    'Payment Status',
+    'Check List',
+    'Drawing',
+    'Sales Bill',
+    'About Site',
   ];
 
   @override
@@ -98,6 +98,10 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     super.dispose();
   }
 
+  void _openTab(int index) {
+    _tabController.animateTo(index);
+  }
+
   @override
   Widget build(BuildContext context) {
     final primaryCol = AppColors.primaryColor(context);
@@ -110,9 +114,25 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(widget.projectName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
-            Text('Operations Hub', style: TextStyle(fontSize: 12, color: mutedText)),
+            Text('Site Operations Hub', style: TextStyle(fontSize: 12, color: mutedText)),
           ],
         ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16.0),
+            child: ElevatedButton.icon(
+              onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Downloading Full Site Report (PDF)...'), backgroundColor: AppColors.secondary),
+              ),
+              icon: const Icon(Icons.description_outlined, size: 16),
+              label: const Text('Download Full Report'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+              ),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           isScrollable: true,
@@ -125,21 +145,164 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       body: TabBarView(
         controller: _tabController,
         children: [
+          _buildOverviewGridTab(),
           _buildAttendanceTab(),
           _buildMaterialsTab(),
           _buildSubcontractorsTab(),
           _buildPaymentsTab(),
           _buildChecklistTab(),
-          _buildTicketsTab(),
           _buildDrawingsTab(),
           _buildSalesBillsTab(),
-          _buildReportsTab(),
+          _buildAboutSiteTab(),
         ],
       ),
     );
   }
 
-  // 1. Attendance Tab
+  // 0. Overview Grid (Pojo Infra360 Reference Image Inspired Grid)
+  Widget _buildOverviewGridTab() {
+    final projectAsync = ref.watch(projectDetailByIdProvider(widget.projectId));
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Breadcrumb & Title Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Icon(Icons.home_outlined, size: 20, color: AppColors.mutedText(context)),
+                  const SizedBox(width: 8),
+                  Text('>', style: TextStyle(color: AppColors.mutedText(context))),
+                  const SizedBox(width: 8),
+                  Text('Site', style: TextStyle(color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+                  const SizedBox(width: 8),
+                  Text('>', style: TextStyle(color: AppColors.mutedText(context))),
+                  const SizedBox(width: 8),
+                  Text(widget.projectName, style: TextStyle(color: AppColors.primaryColor(context), fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          // Operational Cards Grid (Ref: Reference Image Grid)
+          Wrap(
+            spacing: 20,
+            runSpacing: 20,
+            children: [
+              _buildRefCard('Today\nAttendance', Icons.calendar_today_outlined, AppColors.primary, () => _openTab(1)),
+              _buildRefCard('Materials', Icons.inventory_2_outlined, Colors.orange, () => _openTab(2)),
+              _buildRefCard('SubContractor', Icons.groups_outlined, Colors.amber.shade700, () => _openTab(3)),
+              _buildRefCard('Payment\nStatus', Icons.account_balance_wallet_outlined, Colors.green, () => _openTab(4)),
+              _buildRefCard('Check List', Icons.assignment_turned_in_outlined, Colors.blue, () => _openTab(5)),
+              _buildRefCard('Drawing', Icons.architecture_outlined, Colors.indigo, () => _openTab(6)),
+              _buildRefCard('Sales Bill', Icons.receipt_long_outlined, Colors.teal, () => _openTab(7)),
+              _buildRefCard('About Site', Icons.info_outline, Colors.purple, () => _openTab(8)),
+            ],
+          ),
+
+          const SizedBox(height: 32),
+
+          // Site Summary Card
+          projectAsync.when(
+            data: (p) {
+              if (p == null) return const SizedBox.shrink();
+              return Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border(context)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Site Overview: ${p.name}', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    const SizedBox(height: 12),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        _metricCol('Budget', '₹${p.budget.toInt()}'),
+                        _metricCol('Spent', '₹${p.spent.toInt()}'),
+                        _metricCol('Address', (p.address != null && p.address!.isNotEmpty) ? p.address! : 'N/A'),
+                        _metricCol('Customer', p.customerName ?? 'Direct'),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            },
+            loading: () => const CircularProgressIndicator(),
+            error: (e, s) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildRefCard(String title, IconData icon, Color iconColor, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        width: 140,
+        height: 160,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.cardBg(context),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border(context)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: iconColor.withValues(alpha: 0.1),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: 36, color: iconColor),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+                color: AppColors.text(context),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _metricCol(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+        const SizedBox(height: 2),
+        Text(value, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+      ],
+    );
+  }
+
+  // 1. Single-Day Attendance Logger Tab (Present, Absent, Leave)
   Widget _buildAttendanceTab() {
     final attendanceState = ref.watch(attendanceControllerProvider);
     final activeEmployees = attendanceState.activeEmployees;
@@ -154,9 +317,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             color: AppColors.cardBg(context),
             child: ListTile(
               leading: Icon(Icons.badge_outlined, color: AppColors.primaryColor(context)),
-              title: Text('Today\'s Project Attendance', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+              title: Text('Today\'s Single-Day Worker Attendance', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
               subtitle: Text(
-                'Active Staff: ${activeEmployees.length} • Marked Today: ${loggedAttendance.length}',
+                'Active Staff: ${activeEmployees.length} • Logged Today: ${loggedAttendance.length}',
                 style: TextStyle(color: AppColors.mutedText(context)),
               ),
               trailing: ElevatedButton.icon(
@@ -187,19 +350,18 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                               id: '',
                               employeeId: emp.id,
                               date: DateTime.now().toIso8601String().substring(0, 10),
-                              morningStatus: 'Absent',
-                              eveningStatus: 'Absent',
+                              status: 'Absent',
                             ),
                           );
-
-                          final isPresent = record.morningStatus == 'Present' || record.eveningStatus == 'Present';
 
                           return Card(
                             color: AppColors.cardBg(context),
                             margin: const EdgeInsets.only(bottom: 8),
                             child: ListTile(
                               leading: CircleAvatar(
-                                backgroundColor: isPresent ? AppColors.secondary : AppColors.mutedText(context),
+                                backgroundColor: record.status == 'Present'
+                                    ? AppColors.secondary
+                                    : (record.status == 'Leave' ? Colors.amber : AppColors.mutedText(context)),
                                 child: Text(
                                   emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'E',
                                   style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
@@ -207,12 +369,38 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                               ),
                               title: Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                               subtitle: Text(
-                                'Role: ${emp.role.toUpperCase()} • Morning: ${record.morningStatus} | Evening: ${record.eveningStatus}',
+                                'Role: ${emp.role.toUpperCase()} • Daily Rate: ₹${emp.salary.toInt()}/day',
                                 style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
                               ),
-                              trailing: Icon(
-                                isPresent ? Icons.check_circle : Icons.cancel_outlined,
-                                color: isPresent ? AppColors.secondary : AppColors.error,
+                              trailing: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  ChoiceChip(
+                                    label: const Text('Present', style: TextStyle(fontSize: 11)),
+                                    selected: record.status == 'Present',
+                                    selectedColor: AppColors.secondary,
+                                    labelStyle: TextStyle(color: record.status == 'Present' ? Colors.white : AppColors.text(context)),
+                                    onSelected: (_) {
+                                      ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                        employeeId: emp.id,
+                                        status: 'Present',
+                                      );
+                                    },
+                                  ),
+                                  const SizedBox(width: 4),
+                                  ChoiceChip(
+                                    label: const Text('Absent', style: TextStyle(fontSize: 11)),
+                                    selected: record.status == 'Absent',
+                                    selectedColor: AppColors.error,
+                                    labelStyle: TextStyle(color: record.status == 'Absent' ? Colors.white : AppColors.text(context)),
+                                    onSelected: (_) {
+                                      ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                        employeeId: emp.id,
+                                        status: 'Absent',
+                                      );
+                                    },
+                                  ),
+                                ],
                               ),
                             ),
                           );
@@ -235,14 +423,15 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
         itemBuilder: (context, i) {
           final item = items[i];
           return Card(
+            color: AppColors.cardBg(context),
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: const Icon(Icons.category_outlined, color: AppColors.primary),
-              title: Text(item.materialName, style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(item.materialName, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
               subtitle: Text('Category: ${item.category} • Unit: ${item.unit}'),
               trailing: Text(
                 'Qty: ${item.availableStock.toInt()}',
-                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context)),
               ),
             ),
           );
@@ -264,16 +453,17 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
         itemBuilder: (context, i) {
           final sub = subs[i];
           return Card(
+            color: AppColors.cardBg(context),
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
               leading: const Icon(Icons.engineering_outlined, color: AppColors.primary),
-              title: Text(sub.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+              title: Text(sub.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
               subtitle: Text('Trade: ${sub.specialization ?? 'General'} • Phone: ${sub.phone ?? 'N/A'}'),
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('₹${sub.contractValue.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                  Text('₹${sub.contractValue.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                   Text(sub.status, style: TextStyle(color: sub.status == 'Active' ? AppColors.secondary : AppColors.textMuted, fontSize: 11)),
                 ],
               ),
@@ -302,13 +492,14 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             final p = payments[i];
             final isRec = p.paymentType == 'Received';
             return Card(
+              color: AppColors.cardBg(context),
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 leading: Icon(
                   isRec ? Icons.arrow_downward : Icons.arrow_upward,
                   color: isRec ? AppColors.secondary : AppColors.error,
                 ),
-                title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(p.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                 subtitle: Text('Method: ${p.paymentMethod} • Ref: ${p.referenceNo ?? 'N/A'}'),
                 trailing: Text(
                   '${isRec ? '+' : '-'}₹${p.amount.toInt()}',
@@ -342,6 +533,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           itemBuilder: (context, i) {
             final item = items[i];
             return Card(
+              color: AppColors.cardBg(context),
               margin: const EdgeInsets.only(bottom: 12),
               child: CheckboxListTile(
                 value: item.isCompleted,
@@ -349,10 +541,11 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                   item.title,
                   style: TextStyle(
                     fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
                     decoration: item.isCompleted ? TextDecoration.lineThrough : null,
                   ),
                 ),
-                subtitle: Text(item.category),
+                subtitle: Text('Phase: ${item.phaseGroup} • Status: ${item.approvalStatus}'),
                 onChanged: (val) async {
                   if (val != null) {
                     final client = ref.read(supabaseClientProvider);
@@ -370,41 +563,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     );
   }
 
-  // 6. Tickets Tab
-  Widget _buildTicketsTab() {
-    final tixAsync = ref.watch(projectTicketsProvider(widget.projectId));
-
-    return tixAsync.when(
-      data: (tickets) {
-        if (tickets.isEmpty) {
-          return _emptyState('No site tickets', 'Site issues and problem reports will appear here');
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: tickets.length,
-          itemBuilder: (context, i) {
-            final t = tickets[i];
-            return Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: const Icon(Icons.confirmation_number_outlined, color: AppColors.primary),
-                title: Text(t.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                subtitle: Text('Ticket: #${t.ticketNumber} • Priority: ${t.priority}'),
-                trailing: Chip(
-                  label: Text(t.status, style: const TextStyle(fontSize: 10, color: Colors.white)),
-                  backgroundColor: t.status == 'Open' ? AppColors.warning : AppColors.secondary,
-                ),
-              ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error loading tickets: $e')),
-    );
-  }
-
-  // 7. Drawings Tab
+  // 6. Drawings Tab
   Widget _buildDrawingsTab() {
     final dwgAsync = ref.watch(projectDrawingsProvider(widget.projectId));
 
@@ -419,10 +578,11 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           itemBuilder: (context, i) {
             final d = drawings[i];
             return Card(
+              color: AppColors.cardBg(context),
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 leading: const Icon(Icons.draw_outlined, color: AppColors.primary),
-                title: Text(d.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text(d.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                 subtitle: Text('Category: ${d.category} • Version: ${d.version}'),
                 trailing: const Icon(Icons.download, color: AppColors.primary),
               ),
@@ -435,7 +595,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     );
   }
 
-  // 8. Sales Bills Tab
+  // 7. Sales Bills Tab
   Widget _buildSalesBillsTab() {
     final billsAsync = ref.watch(projectSalesBillsProvider(widget.projectId));
 
@@ -450,16 +610,17 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           itemBuilder: (context, i) {
             final b = bills[i];
             return Card(
+              color: AppColors.cardBg(context),
               margin: const EdgeInsets.only(bottom: 12),
               child: ListTile(
                 leading: const Icon(Icons.receipt_outlined, color: AppColors.primary),
-                title: Text('Bill #${b.billNumber}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                title: Text('Bill #${b.billNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                 subtitle: Text('Client: ${b.clientName}'),
                 trailing: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text('₹${b.totalAmount.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                     Text(b.status, style: TextStyle(color: b.status == 'Paid' ? AppColors.secondary : AppColors.error, fontSize: 11)),
                   ],
                 ),
@@ -473,26 +634,69 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     );
   }
 
-  // 9. Reports Tab
-  Widget _buildReportsTab() {
-    return Padding(
+  // 8. About Site Tab (Detailed Information about Address, Owner/Customer, Area, Duration)
+  Widget _buildAboutSiteTab() {
+    final projectAsync = ref.watch(projectDetailByIdProvider(widget.projectId));
+
+    return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: [
-          Card(
-            color: AppColors.surfaceWhite,
-            child: ListTile(
-              leading: const Icon(Icons.assessment_outlined, color: AppColors.primary),
-              title: const Text('Project Operational Summary Report', style: TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: const Text('Complete audit log of expenses, materials, and labor'),
-              trailing: ElevatedButton.icon(
-                onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Downloading Full Project Report...')),
-                ),
-                icon: const Icon(Icons.download, size: 16),
-                label: const Text('Download PDF'),
-              ),
+      child: projectAsync.when(
+        data: (p) {
+          if (p == null) return _emptyState('Site Not Found', 'Could not load site details');
+          return Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg(context),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppColors.border(context)),
             ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Detailed Site Specifications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                const Divider(height: 24),
+                _infoTile('Site Name', p.name),
+                _infoTile('Site Address & Location', (p.address != null && p.address!.isNotEmpty) ? p.address! : 'N/A'),
+                _infoTile('Project Status', p.status.toUpperCase()),
+                const Divider(height: 24),
+                Text('Customer / Owner Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                const SizedBox(height: 8),
+                _infoTile('Customer Name', p.customerName ?? 'Direct Client'),
+                _infoTile('Customer Mobile', p.customerMobile ?? 'N/A'),
+                _infoTile('Customer Email', p.customerEmail ?? 'N/A'),
+                _infoTile('Customer Address', p.customerAddress ?? 'N/A'),
+                _infoTile('Customer Date of Birth', p.customerDob ?? 'N/A'),
+                const Divider(height: 24),
+                Text('Site Engineering Metrics', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                const SizedBox(height: 8),
+                _infoTile('Built-Up Area', p.builtUpArea != null ? '${p.builtUpArea} sqft' : 'N/A'),
+                _infoTile('Flat Area', p.flatArea != null ? '${p.flatArea} sqft' : 'N/A'),
+                _infoTile('Project Duration', p.duration != null ? '${p.duration} Months' : 'N/A'),
+                _infoTile('Assigned Supervisor', p.supervisorId ?? 'Unassigned'),
+                _infoTile('Total Budget Amount', '₹${p.budget.toInt()}'),
+                _infoTile('Total Amount Spent', '₹${p.spent.toInt()}'),
+              ],
+            ),
+          );
+        },
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (e, s) => Center(child: Text('Error loading site info: $e')),
+      ),
+    );
+  }
+
+  Widget _infoTile(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12.0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 180,
+            child: Text(label, style: TextStyle(fontSize: 13, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+          ),
+          Expanded(
+            child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.text(context))),
           ),
         ],
       ),
@@ -506,9 +710,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
         children: [
           const Icon(Icons.inbox_outlined, size: 48, color: AppColors.outline),
           const SizedBox(height: 12),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
           const SizedBox(height: 4),
-          Text(subtitle, style: const TextStyle(color: AppColors.textMuted, fontSize: 12)),
+          Text(subtitle, style: TextStyle(color: AppColors.mutedText(context), fontSize: 12)),
         ],
       ),
     );
