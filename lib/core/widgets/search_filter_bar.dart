@@ -73,7 +73,7 @@ class SearchFilterBar extends StatelessWidget {
                       child: Row(
                         children: [
                           _buildChip(context, 'All', activeFilter == null, () => onFilterChanged?.call(null)),
-                          ...filterOptions!.map((f) => _buildChip(context, f, activeFilter == f, () => onFilterChanged?.call(f))),
+                          ...filterOptions!.map((f) => _buildChip(context, _capitalize(f), activeFilter == f, () => onFilterChanged?.call(f))),
                         ],
                       ),
                     ),
@@ -117,5 +117,10 @@ class SearchFilterBar extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
     );
+  }
+
+  String _capitalize(String s) {
+    if (s.isEmpty) return s;
+    return s[0].toUpperCase() + s.substring(1);
   }
 }

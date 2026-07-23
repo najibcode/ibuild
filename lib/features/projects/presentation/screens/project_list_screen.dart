@@ -50,8 +50,9 @@ class ProjectListScreen extends ConsumerWidget {
               onSearchChanged: (q) =>
                   ref.read(projectControllerProvider.notifier).setSearch(q),
               filterOptions: const [
-                'planning',
                 'active',
+                'inactive',
+                'planning',
                 'completed',
                 'delayed',
               ],

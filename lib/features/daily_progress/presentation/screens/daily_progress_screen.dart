@@ -23,126 +23,126 @@ class DailyProgressScreen extends ConsumerWidget {
     final progressAsync = ref.watch(dailyProgressListProvider(projectId));
 
     final Widget bodyContent = progressAsync.when(
-        data: (entries) {
-          final int totalEntries = entries.length;
-          final int latestPercentage = entries.isNotEmpty ? entries.first.progressPercentage : 0;
+      data: (entries) {
+        final int totalEntries = entries.length;
+        final int latestPercentage = entries.isNotEmpty ? entries.first.progressPercentage : 0;
 
-          return Column(
-            children: [
-              // Summary Banner Card
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(16),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBg(context),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.border(context)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.03),
-                      blurRadius: 10,
-                      offset: const Offset(0, 4),
-                    ),
-                  ],
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Overall Site Completion',
-                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$latestPercentage%',
-                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
-                            ),
-                          ],
-                        ),
-                        ElevatedButton.icon(
-                          onPressed: () => _openForm(context, ref, null),
-                          icon: const Icon(Icons.add_a_photo, size: 16),
-                          label: const Text('Log Today\'s Progress'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.secondary,
-                            foregroundColor: Colors.white,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        return Column(
+          children: [
+            // Summary Banner Card
+            Container(
+              width: double.infinity,
+              margin: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBg(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border(context)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.03),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Overall Site Completion',
+                            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(4),
-                      child: LinearProgressIndicator(
-                        value: latestPercentage / 100,
-                        backgroundColor: AppColors.border(context),
-                        valueColor: const AlwaysStoppedAnimation(AppColors.secondary),
-                        minHeight: 8,
+                          const SizedBox(height: 4),
+                          Text(
+                            '$latestPercentage%',
+                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                          ),
+                        ],
                       ),
+                      ElevatedButton.icon(
+                        onPressed: () => _openForm(context, ref, null),
+                        icon: const Icon(Icons.add_a_photo, size: 16),
+                        label: const Text('Log Daily Progress'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.secondary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: latestPercentage / 100,
+                      backgroundColor: AppColors.border(context),
+                      valueColor: const AlwaysStoppedAnimation(AppColors.secondary),
+                      minHeight: 8,
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Past Progress Logs: $totalEntries Record${totalEntries == 1 ? '' : 's'} Available',
-                      style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Daily Site Progress History: $totalEntries Record${totalEntries == 1 ? '' : 's'} Logged',
+                    style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                  ),
+                ],
               ),
+            ),
 
-              // Progress Entries Feed
-              Expanded(
-                child: entries.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.camera_enhance_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
-                            const SizedBox(height: 16),
-                            Text(
-                              'No site progress logs recorded yet.',
-                              style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 16),
+            // Daily Progress Feed
+            Expanded(
+              child: entries.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.camera_enhance_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No daily progress updates recorded yet.',
+                            style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 16),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Upload site photos and daily work notes to track construction progress.',
+                            style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                          ),
+                          const SizedBox(height: 20),
+                          ElevatedButton.icon(
+                            onPressed: () => _openForm(context, ref, null),
+                            icon: const Icon(Icons.add_a_photo),
+                            label: const Text('Log First Daily Progress'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primary,
+                              foregroundColor: Colors.white,
                             ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Upload Before & After photos and work notes to build site history.',
-                              style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
-                            ),
-                            const SizedBox(height: 20),
-                            ElevatedButton.icon(
-                              onPressed: () => _openForm(context, ref, null),
-                              icon: const Icon(Icons.add_a_photo),
-                              label: const Text('Log First Work Evidence'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primary,
-                                foregroundColor: Colors.white,
-                              ),
-                            ),
-                          ],
-                        ),
-                      )
-                    : ListView.builder(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        itemCount: entries.length,
-                        itemBuilder: (context, index) => _ProgressCard(
-                          entry: entries[index],
-                          onEdit: entries[index].isToday ? () => _openForm(context, ref, entries[index]) : null,
-                        ),
+                          ),
+                        ],
                       ),
-              ),
-            ],
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error loading progress logs: $e')),
-      );
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: entries.length,
+                      itemBuilder: (context, index) => _ProgressCard(
+                        entry: entries[index],
+                        onEdit: entries[index].isToday ? () => _openForm(context, ref, entries[index]) : null,
+                      ),
+                    ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error loading progress logs: $e')),
+    );
 
     if (!showAppBar) {
       return bodyContent;
@@ -151,11 +151,11 @@ class DailyProgressScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        title: Text('Site Progress Log: $projectName'),
+        title: Text('Daily Progress: $projectName'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
-            tooltip: 'Refresh Progress Feed',
+            tooltip: 'Refresh Daily Progress Feed',
             onPressed: () => ref.invalidate(dailyProgressListProvider(projectId)),
           ),
         ],
@@ -222,6 +222,12 @@ class _ProgressCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isReadOnly = onEdit == null;
+    final images = entry.allImageUrls;
+    final notesList = entry.allNotes;
+
+    final bool hasMorningAndEvening = entry.morningImageUrl != null &&
+        entry.eveningImageUrl != null &&
+        entry.morningImageUrl != entry.eveningImageUrl;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
@@ -234,7 +240,7 @@ class _ProgressCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Date & Progress Header
+          // Date & Progress Completion Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -243,7 +249,7 @@ class _ProgressCard extends StatelessWidget {
                   Icon(Icons.event_note_outlined, size: 18, color: AppColors.primaryColor(context)),
                   const SizedBox(width: 8),
                   Text(
-                    'Log Date: ${entry.date}',
+                    'Date: ${entry.date}',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context)),
                   ),
                 ],
@@ -266,7 +272,7 @@ class _ProgressCard extends StatelessWidget {
                     IconButton(
                       icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
                       onPressed: onEdit,
-                      tooltip: 'Edit Today\'s Progress Log',
+                      tooltip: 'Edit Today\'s Progress Record',
                     ),
                   ],
                 ],
@@ -275,30 +281,142 @@ class _ProgressCard extends StatelessWidget {
           ),
           const SizedBox(height: 16),
 
-          // Before & After Evidence Grid
-          Row(
-            children: [
-              Expanded(
-                child: _evidencePhotoCard(
-                  context,
-                  badgeLabel: 'BEFORE WORK',
-                  badgeColor: Colors.orange,
-                  imageUrl: entry.morningImageUrl,
-                  notes: entry.morningNotes,
+          // Photos & Evidence Section
+          if (hasMorningAndEvening)
+            Row(
+              children: [
+                Expanded(
+                  child: _evidencePhotoCard(
+                    context,
+                    badgeLabel: 'BEFORE WORK',
+                    badgeColor: Colors.orange,
+                    imageUrl: entry.morningImageUrl,
+                    notes: entry.morningNotes,
+                  ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _evidencePhotoCard(
-                  context,
-                  badgeLabel: 'AFTER WORK',
-                  badgeColor: AppColors.secondary,
-                  imageUrl: entry.eveningImageUrl,
-                  notes: entry.eveningNotes,
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _evidencePhotoCard(
+                    context,
+                    badgeLabel: 'AFTER WORK',
+                    badgeColor: AppColors.secondary,
+                    imageUrl: entry.eveningImageUrl,
+                    notes: entry.eveningNotes,
+                  ),
                 ),
+              ],
+            )
+          else if (images.isNotEmpty)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'SITE WORK PHOTO EVIDENCE',
+                    style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 140,
+                  child: ListView.builder(
+                    scrollDirection: Axis.horizontal,
+                    itemCount: images.length,
+                    itemBuilder: (context, idx) {
+                      final url = images[idx];
+                      return Container(
+                        margin: const EdgeInsets.only(right: 12),
+                        width: 180,
+                        child: InkWell(
+                          onTap: () => _showImagePreview(context, url, 'Site Progress Photo ${idx + 1}'),
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            decoration: BoxDecoration(
+                              color: AppColors.bg(context),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: AppColors.border(context)),
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                CachedNetworkImage(
+                                  imageUrl: url,
+                                  fit: BoxFit.cover,
+                                  placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                                  errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image, color: AppColors.outline)),
+                                ),
+                                Positioned(
+                                  right: 6,
+                                  bottom: 6,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(alpha: 0.6),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            )
+          else
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.bg(context),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border(context)),
               ),
-            ],
-          ),
+              child: Row(
+                children: [
+                  Icon(Icons.photo_library_outlined, size: 20, color: AppColors.mutedText(context)),
+                  const SizedBox(width: 8),
+                  Text('No site photos attached for this entry', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                ],
+              ),
+            ),
+
+          // Display Work Notes / Logs
+          if (notesList.isNotEmpty && !hasMorningAndEvening) ...[
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: AppColors.bg(context),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border(context)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Daily Work Description & Activity Log',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context)),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    notesList.join('\n\n'),
+                    style: TextStyle(fontSize: 12, color: AppColors.text(context), height: 1.4),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

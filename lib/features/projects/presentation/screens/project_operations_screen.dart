@@ -85,7 +85,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     5: 'Checklist Inspection',
     6: 'Site Drawings & Blueprints',
     7: 'Sales Bills & Client Invoices',
-    8: 'Site Progress Log & Work Evidence',
+    8: 'Daily Progress & Site Updates',
     9: 'About Site Specifications',
     10: 'Full Site Reports & Export',
   };
@@ -189,13 +189,13 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
 
     final cards = [
       _CardData('Today\nAttendance', Icons.calendar_today_outlined, AppColors.primary, 1),
+      _CardData('Daily Progress', Icons.analytics_outlined, Colors.pink, 8),
       _CardData('Materials', Icons.inventory_2_outlined, Colors.orange, 2),
       _CardData('SubContractor', Icons.groups_outlined, Colors.amber.shade700, 3),
       _CardData('Payment\nStatus', Icons.account_balance_wallet_outlined, Colors.green, 4),
       _CardData('Check List', Icons.assignment_turned_in_outlined, Colors.blue, 5),
       _CardData('Drawing', Icons.architecture_outlined, Colors.indigo, 6),
       _CardData('Sales Bill', Icons.receipt_long_outlined, Colors.teal, 7),
-      _CardData('Progress Log', Icons.analytics_outlined, Colors.pink, 8),
       _CardData('About Site', Icons.info_outline, Colors.purple, 9),
       _CardData('Site Report', Icons.summarize_outlined, Colors.deepOrange, 10),
     ];
