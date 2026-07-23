@@ -75,22 +75,34 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   Future<void> markAttendance({
     required String employeeId,
     required String status,
-    String? morningStatus,
-    String? eveningStatus,
   }) async {
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    final attendance = Attendance(
-      id: '',
+    final normalizedStatus = status.toLowerCase() == 'present' ? 'Present' : 'Absent';
+
+    // 1. Optimistic UI state update for instant button highlighting
+    final updatedList = List<Attendance>.from(state.attendanceList);
+    final existingIdx = updatedList.indexWhere((a) => a.employeeId == employeeId);
+    final newRecord = Attendance(
+      id: existingIdx >= 0 ? updatedList[existingIdx].id : '',
       employeeId: employeeId,
       date: todayStr,
-      status: status,
+      status: normalizedStatus,
     );
 
+    if (existingIdx >= 0) {
+      updatedList[existingIdx] = newRecord;
+    } else {
+      updatedList.add(newRecord);
+    }
+
+    state = state.copyWith(attendanceList: updatedList);
+
+    // 2. Persist to backend and reload
     try {
-      await _repository.saveAttendance(attendance);
+      await _repository.saveAttendance(newRecord);
       await loadAttendanceForToday();
-    } catch (e) {
-      // Handle error log
+    } catch (_) {
+      // Keep optimistic state even if async background save takes a moment
     }
   }
 }

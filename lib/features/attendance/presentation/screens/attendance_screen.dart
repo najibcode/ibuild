@@ -72,29 +72,32 @@ class AttendanceScreen extends ConsumerWidget {
                                       color: AppColors.textMain,
                                     ),
                                   ),
-                                  Text(employee.role, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                                  Text(
+                                    '${employee.role.toUpperCase()} • Daily Rate: ₹${employee.salary.toInt()}/day',
+                                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                                  ),
                                   const SizedBox(height: 16),
                                   
-                                  // Morning Status
-                                   Wrap(
-                                     alignment: WrapAlignment.spaceBetween,
-                                     crossAxisAlignment: WrapCrossAlignment.center,
-                                     spacing: 8,
-                                     runSpacing: 8,
-                                     children: [
-                                       const Text('Single-Day Status:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
-                                       _buildStatusToggle(
-                                         context: context,
-                                         activeStatus: logged.status,
-                                         onSelected: (status) {
-                                           ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                             employeeId: employee.id,
-                                             status: status,
-                                           );
-                                         },
-                                       ),
-                                     ],
-                                   ),
+                                  // Status Toggle
+                                  Wrap(
+                                    alignment: WrapAlignment.spaceBetween,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 8,
+                                    children: [
+                                      const Text('Single-Day Status:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+                                      _buildStatusToggle(
+                                        context: context,
+                                        activeStatus: logged.status,
+                                        onSelected: (status) {
+                                          ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                            employeeId: employee.id,
+                                            status: status,
+                                          );
+                                        },
+                                      ),
+                                    ],
+                                  ),
                                 ],
                               ),
                             ),
@@ -108,10 +111,8 @@ class AttendanceScreen extends ConsumerWidget {
   }
 
   Widget _buildSummaryCard(List<Attendance> logged, int totalActive) {
-    final int marked = logged.length;
-    final int present = logged.where((a) => a.morningStatus == 'present').length;
-    final int absent = logged.where((a) => a.morningStatus == 'absent').length;
-    final int leave = logged.where((a) => a.morningStatus == 'leave').length;
+    final int present = logged.where((a) => a.status.toLowerCase() == 'present').length;
+    final int absent = totalActive - present;
 
     return Container(
       margin: const EdgeInsets.all(AppSpacing.containerMargin),
@@ -124,10 +125,9 @@ class AttendanceScreen extends ConsumerWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildSummaryCol('Active', '$totalActive', AppColors.primary),
+          _buildSummaryCol('Active Staff', '$totalActive', AppColors.primary),
           _buildSummaryCol('Present', '$present', AppColors.secondary),
           _buildSummaryCol('Absent', '$absent', AppColors.error),
-          _buildSummaryCol('Leave', '$leave', AppColors.warning),
         ],
       ),
     );
@@ -149,12 +149,11 @@ class AttendanceScreen extends ConsumerWidget {
     required Function(String status) onSelected,
   }) {
     return Wrap(
-      spacing: 6,
+      spacing: 8,
       runSpacing: 6,
       children: [
         _buildToggleButton('Present', 'Present', activeStatus, AppColors.secondary, onSelected),
         _buildToggleButton('Absent', 'Absent', activeStatus, AppColors.error, onSelected),
-        _buildToggleButton('Leave', 'Leave', activeStatus, AppColors.warning, onSelected),
       ],
     );
   }
@@ -166,12 +165,12 @@ class AttendanceScreen extends ConsumerWidget {
     Color activeColor,
     Function(String status) onSelected,
   ) {
-    final bool isActive = activeStatus == status;
+    final bool isActive = activeStatus.toLowerCase() == status.toLowerCase();
     return GestureDetector(
       onTap: () => onSelected(status),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? activeColor : activeColor.withOpacity(0.08),
           border: Border.all(color: isActive ? activeColor : activeColor.withOpacity(0.3)),
@@ -181,7 +180,7 @@ class AttendanceScreen extends ConsumerWidget {
           label,
           style: TextStyle(
             color: isActive ? Colors.white : activeColor,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.bold,
             fontSize: 13,
           ),
         ),
