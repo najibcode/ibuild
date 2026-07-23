@@ -57,7 +57,7 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
     final storage = ref.read(storageServiceProvider);
     final repo = ref.read(dailyProgressRepositoryProvider);
 
-    // Upload morning image if pending
+    // Upload before/morning image if pending
     if (_morningPendingBytes != null) {
       final url = await storage.uploadImage(
         bucket: 'progress-images',
@@ -68,7 +68,7 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
       if (url != null) _morningImageUrl = url;
     }
 
-    // Upload evening image if pending
+    // Upload after/evening image if pending
     if (_eveningPendingBytes != null) {
       final url = await storage.uploadImage(
         bucket: 'progress-images',
@@ -96,13 +96,13 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Progress saved'), backgroundColor: AppColors.secondary),
+          const SnackBar(content: Text('Site progress log saved successfully'), backgroundColor: AppColors.secondary),
         );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save: $e'), backgroundColor: AppColors.error),
+          SnackBar(content: Text('Failed to save progress log: $e'), backgroundColor: AppColors.error),
         );
       }
     } finally {
@@ -113,20 +113,22 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
-      appBar: AppBar(title: Text(widget.existing != null ? 'Edit Progress' : 'Add Progress')),
+      backgroundColor: AppColors.bg(context),
+      appBar: AppBar(
+        title: Text(widget.existing != null ? 'Edit Site Progress Log' : 'Log Site Work Progress'),
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.containerMargin),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Progress Slider
+            // Overall Site Completion Percentage Card
             Container(
-              padding: const EdgeInsets.all(AppSpacing.cardPadding),
+              padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
-                borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.borderSubtle),
+                color: AppColors.cardBg(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border(context)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,16 +136,23 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Progress Percentage', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      Text('$_progress%', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primary)),
+                      Text(
+                        'Site Completion Progress',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
+                      ),
+                      Text(
+                        '$_progress%',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.primaryColor(context)),
+                      ),
                     ],
                   ),
+                  const SizedBox(height: 8),
                   Slider(
                     value: _progress.toDouble(),
                     min: 0,
                     max: 100,
                     divisions: 20,
-                    activeColor: AppColors.primary,
+                    activeColor: AppColors.primaryColor(context),
                     onChanged: (v) => setState(() => _progress = v.round()),
                   ),
                 ],
@@ -151,12 +160,26 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
             ),
             const SizedBox(height: 24),
 
-            // Morning Section
-            const Text('MORNING', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
+            // BEFORE WORK EVIDENCE SECTION
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'BEFORE WORK EVIDENCE',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.orange, letterSpacing: 0.5),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             ImageUploadCard(
               existingUrl: _morningImageUrl,
-              label: 'Tap to add morning photo',
+              label: 'Tap to upload BEFORE-work photo (Initial Condition)',
               onImagePicked: (bytes, ext) {
                 _morningPendingBytes = bytes;
                 _morningPendingExt = ext;
@@ -166,19 +189,36 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
             TextField(
               controller: _morningNotesCtrl,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Morning notes...',
-                border: OutlineInputBorder(),
+              style: TextStyle(color: AppColors.text(context)),
+              decoration: InputDecoration(
+                labelText: 'Before-Work Site Description / Preparation Notes',
+                hintText: 'e.g. Initial site setup before brick wall construction on east wing...',
+                hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                border: const OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 24),
+            const SizedBox(height: 28),
 
-            // Evening Section
-            const Text('EVENING', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
+            // AFTER WORK EVIDENCE SECTION
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Text(
+                    'AFTER WORK EVIDENCE',
+                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary, letterSpacing: 0.5),
+                  ),
+                ),
+              ],
+            ),
             const SizedBox(height: 8),
             ImageUploadCard(
               existingUrl: _eveningImageUrl,
-              label: 'Tap to add evening photo',
+              label: 'Tap to upload AFTER-work photo (Completed Execution)',
               onImagePicked: (bytes, ext) {
                 _eveningPendingBytes = bytes;
                 _eveningPendingExt = ext;
@@ -188,25 +228,28 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
             TextField(
               controller: _eveningNotesCtrl,
               maxLines: 3,
-              decoration: const InputDecoration(
-                hintText: 'Evening notes...',
-                border: OutlineInputBorder(),
+              style: TextStyle(color: AppColors.text(context)),
+              decoration: InputDecoration(
+                labelText: 'Completed Work Description & Activity Log',
+                hintText: 'e.g. Built 10ft brick wall, fitted conduit pipes, prepped for plastering tomorrow...',
+                hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                border: const OutlineInputBorder(),
               ),
             ),
             const SizedBox(height: 32),
 
-            // Save Button
+            // Save Progress Entry Button
             ElevatedButton(
               onPressed: _isSaving ? null : _save,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AppColors.primaryColor(context),
                 foregroundColor: Colors.white,
                 minimumSize: const Size(double.infinity, 54),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.defaultValue)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: _isSaving
                   ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                  : const Text('Save Progress', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  : const Text('Save Progress & Evidence Log', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ],
         ),

@@ -21,60 +21,137 @@ class DailyProgressScreen extends ConsumerWidget {
     final progressAsync = ref.watch(dailyProgressListProvider(projectId));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        title: Text('Progress: $projectName'),
+        title: Text('Site Progress Log: $projectName'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
+            tooltip: 'Refresh Progress Feed',
             onPressed: () => ref.invalidate(dailyProgressListProvider(projectId)),
           ),
         ],
       ),
       body: progressAsync.when(
         data: (entries) {
-          if (entries.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.camera_alt_outlined, size: 64, color: AppColors.outline.withOpacity(0.3)),
-                  const SizedBox(height: 16),
-                  const Text('No progress entries yet.', style: TextStyle(color: AppColors.textMuted)),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () => _openForm(context, ref, null),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Add Today\'s Progress'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
+          final int totalEntries = entries.length;
+          final int latestPercentage = entries.isNotEmpty ? entries.first.progressPercentage : 0;
+
+          return Column(
+            children: [
+              // Summary Banner Card
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border(context)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.03),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
                     ),
-                  ),
-                ],
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Overall Site Completion',
+                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '$latestPercentage%',
+                              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                            ),
+                          ],
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () => _openForm(context, ref, null),
+                          icon: const Icon(Icons.add_a_photo, size: 16),
+                          label: const Text('Log Today\'s Progress'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            foregroundColor: Colors.white,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(4),
+                      child: LinearProgressIndicator(
+                        value: latestPercentage / 100,
+                        backgroundColor: AppColors.border(context),
+                        valueColor: const AlwaysStoppedAnimation(AppColors.secondary),
+                        minHeight: 8,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Past Progress Logs: $totalEntries Record${totalEntries == 1 ? '' : 's'} Available',
+                      style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                    ),
+                  ],
+                ),
               ),
-            );
-          }
-          return ListView.builder(
-            padding: const EdgeInsets.all(AppSpacing.containerMargin),
-            itemCount: entries.length,
-            itemBuilder: (context, index) => _ProgressCard(
-              entry: entries[index],
-              onEdit: entries[index].isToday
-                  ? () => _openForm(context, ref, entries[index])
-                  : null,
-            ),
+
+              // Progress Entries Feed
+              Expanded(
+                child: entries.isEmpty
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.camera_enhance_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                            const SizedBox(height: 16),
+                            Text(
+                              'No site progress logs recorded yet.',
+                              style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Upload Before & After photos and work notes to build site history.',
+                              style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                            ),
+                            const SizedBox(height: 20),
+                            ElevatedButton.icon(
+                              onPressed: () => _openForm(context, ref, null),
+                              icon: const Icon(Icons.add_a_photo),
+                              label: const Text('Log First Work Evidence'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        itemCount: entries.length,
+                        itemBuilder: (context, index) => _ProgressCard(
+                          entry: entries[index],
+                          onEdit: entries[index].isToday ? () => _openForm(context, ref, entries[index]) : null,
+                        ),
+                      ),
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Error: $e')),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openForm(context, ref, null),
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
-        child: const Icon(Icons.add_a_photo),
+        error: (e, _) => Center(child: Text('Error loading progress logs: $e')),
       ),
     );
   }
@@ -98,80 +175,120 @@ class _ProgressCard extends StatelessWidget {
 
   const _ProgressCard({required this.entry, this.onEdit});
 
+  void _showImagePreview(BuildContext context, String imageUrl, String title) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+              color: Colors.black.withValues(alpha: 0.8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.of(context).pop(),
+                  ),
+                ],
+              ),
+            ),
+            InteractiveViewer(
+              child: CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.contain,
+                placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
+                errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white, size: 48),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isReadOnly = onEdit == null;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: AppSpacing.gutter),
+      margin: const EdgeInsets.only(bottom: 16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderSubtle),
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
+          // Date & Progress Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Row(
                 children: [
-                  const Icon(Icons.calendar_today, size: 14, color: AppColors.outline),
-                  const SizedBox(width: 6),
-                  Text(entry.date, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textMain)),
+                  Icon(Icons.event_note_outlined, size: 18, color: AppColors.primaryColor(context)),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Log Date: ${entry.date}',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context)),
+                  ),
                 ],
               ),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(AppRadius.full),
+                      color: AppColors.secondary.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
-                      '${entry.progressPercentage}%',
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 12),
+                      '${entry.progressPercentage}% Completed',
+                      style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 12),
                     ),
                   ),
                   if (!isReadOnly) ...[
                     const SizedBox(width: 8),
-                    InkWell(
-                      onTap: onEdit,
-                      child: const Icon(Icons.edit, size: 18, color: AppColors.primary),
+                    IconButton(
+                      icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
+                      onPressed: onEdit,
+                      tooltip: 'Edit Today\'s Progress Log',
                     ),
-                  ],
-                  if (isReadOnly) ...[
-                    const SizedBox(width: 8),
-                    const Icon(Icons.lock_outline, size: 14, color: AppColors.textMuted),
                   ],
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
-
-          // Progress bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(4),
-            child: LinearProgressIndicator(
-              value: entry.progressPercentage / 100,
-              backgroundColor: AppColors.background,
-              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
-              minHeight: 6,
-            ),
-          ),
           const SizedBox(height: 16),
 
-          // Side-by-side images
+          // Before & After Evidence Grid
           Row(
             children: [
-              Expanded(child: _imageColumn('Morning', entry.morningImageUrl, entry.morningNotes)),
+              Expanded(
+                child: _evidencePhotoCard(
+                  context,
+                  badgeLabel: 'BEFORE WORK',
+                  badgeColor: Colors.orange,
+                  imageUrl: entry.morningImageUrl,
+                  notes: entry.morningNotes,
+                ),
+              ),
               const SizedBox(width: 12),
-              Expanded(child: _imageColumn('Evening', entry.eveningImageUrl, entry.eveningNotes)),
+              Expanded(
+                child: _evidencePhotoCard(
+                  context,
+                  badgeLabel: 'AFTER WORK',
+                  badgeColor: AppColors.secondary,
+                  imageUrl: entry.eveningImageUrl,
+                  notes: entry.eveningNotes,
+                ),
+              ),
             ],
           ),
         ],
@@ -179,33 +296,94 @@ class _ProgressCard extends StatelessWidget {
     );
   }
 
-  Widget _imageColumn(String label, String? imageUrl, String? notes) {
+  Widget _evidencePhotoCard(
+    BuildContext context, {
+    required String badgeLabel,
+    required Color badgeColor,
+    required String? imageUrl,
+    required String? notes,
+  }) {
+    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.textMuted)),
-        const SizedBox(height: 6),
         Container(
-          height: 120,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
           decoration: BoxDecoration(
-            color: AppColors.background,
-            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-            border: Border.all(color: AppColors.borderSubtle),
+            color: badgeColor.withValues(alpha: 0.15),
+            borderRadius: BorderRadius.circular(6),
           ),
-          clipBehavior: Clip.antiAlias,
-          child: imageUrl != null && imageUrl.isNotEmpty
-              ? CachedNetworkImage(
-                  imageUrl: imageUrl,
-                  fit: BoxFit.cover,
-                  width: double.infinity,
-                  placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                  errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image, color: AppColors.outline)),
-                )
-              : const Center(child: Icon(Icons.image_not_supported_outlined, color: AppColors.outline, size: 28)),
+          child: Text(
+            badgeLabel,
+            style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5),
+          ),
+        ),
+        const SizedBox(height: 8),
+        InkWell(
+          onTap: hasImage ? () => _showImagePreview(context, imageUrl, badgeLabel) : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            height: 130,
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: AppColors.bg(context),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border(context)),
+            ),
+            clipBehavior: Clip.antiAlias,
+            child: hasImage
+                ? Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      CachedNetworkImage(
+                        imageUrl: imageUrl,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
+                        errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image, color: AppColors.outline)),
+                      ),
+                      Positioned(
+                        right: 6,
+                        bottom: 6,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.6),
+                            shape: BoxShape.circle,
+                          ),
+                          child: const Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                        ),
+                      ),
+                    ],
+                  )
+                : Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.image_not_supported_outlined, color: AppColors.mutedText(context), size: 28),
+                        const SizedBox(height: 4),
+                        Text('No Image', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context))),
+                      ],
+                    ),
+                  ),
+          ),
         ),
         if (notes != null && notes.isNotEmpty) ...[
-          const SizedBox(height: 4),
-          Text(notes, style: const TextStyle(fontSize: 11, color: AppColors.textMuted), maxLines: 2, overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 8),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: AppColors.bg(context),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border(context)),
+            ),
+            child: Text(
+              notes,
+              style: TextStyle(fontSize: 11, color: AppColors.text(context), height: 1.3),
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ],
     );
