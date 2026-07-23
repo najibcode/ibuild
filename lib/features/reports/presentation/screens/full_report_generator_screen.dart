@@ -4,7 +4,8 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 
 class FullReportGeneratorScreen extends ConsumerStatefulWidget {
-  const FullReportGeneratorScreen({super.key});
+  final bool showAppBar;
+  const FullReportGeneratorScreen({super.key, this.showAppBar = true});
 
   @override
   ConsumerState<FullReportGeneratorScreen> createState() => _FullReportGeneratorScreenState();
@@ -32,12 +33,7 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
     final projectState = ref.watch(projectControllerProvider);
     final projects = projectState.projects;
 
-    return Scaffold(
-      backgroundColor: AppColors.bg(context),
-      appBar: AppBar(
-        title: const Text('Reports & Audit Generator'),
-      ),
-      body: SingleChildScrollView(
+    final Widget bodyContent = SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
         child: Container(
           padding: const EdgeInsets.all(AppSpacing.cardPadding),
@@ -150,7 +146,18 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
             ],
           ),
         ),
+      );
+
+    if (!widget.showAppBar) {
+      return bodyContent;
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.bg(context),
+      appBar: AppBar(
+        title: const Text('Reports & Audit Generator'),
       ),
+      body: bodyContent,
     );
   }
 }

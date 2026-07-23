@@ -34,19 +34,51 @@ class SupabaseDailyProgressRepository implements DailyProgressRepository {
 
   @override
   Future<void> upsertProgress(DailyProgress progress) async {
-    await _client.from('daily_progress').upsert(progress.toJson());
+    final Map<String, dynamic> payload = progress.toJson();
+    if (progress.id.isEmpty) {
+      payload.remove('id');
+    }
+
+    final columnRegex = RegExp(r"Could not find the '([^']+)' column");
+
+    bool success = false;
+    int attempts = 0;
+
+    while (!success && attempts < 10) {
+      attempts++;
+      try {
+        await _client.from('daily_progress').upsert(payload);
+        success = true;
+      } on PostgrestException catch (e) {
+        if (e.code == 'PGRST204' || e.message.contains('Could not find the')) {
+          final match = columnRegex.firstMatch(e.message);
+          if (match != null) {
+            final missingColumn = match.group(1);
+            if (missingColumn != null && payload.containsKey(missingColumn)) {
+              payload.remove(missingColumn);
+              continue; // Retry upserting with missing column pruned
+            }
+          }
+        }
+        rethrow;
+      }
+    }
 
     // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'updated_progress',
-      entityType: 'Site Progress',
-      entityId: progress.projectId,
-      details: {
-        'date': progress.date,
-        'progress_percentage': progress.progressPercentage,
-        'has_morning_image': progress.morningImageUrl != null,
-        'has_evening_image': progress.eveningImageUrl != null,
-      },
-    );
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'updated_progress',
+        entityType: 'Site Progress',
+        entityId: progress.projectId,
+        details: {
+          'date': progress.date,
+          'progress_percentage': progress.progressPercentage,
+          'has_morning_image': progress.morningImageUrl != null,
+          'has_evening_image': progress.eveningImageUrl != null,
+        },
+      );
+    } catch (_) {
+      // Ignore non-critical activity log failures
+    }
   }
 }

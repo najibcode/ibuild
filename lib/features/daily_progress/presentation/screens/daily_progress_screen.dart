@@ -9,30 +9,20 @@ import 'daily_progress_form_screen.dart';
 class DailyProgressScreen extends ConsumerWidget {
   final String projectId;
   final String projectName;
+  final bool showAppBar;
 
   const DailyProgressScreen({
     super.key,
     required this.projectId,
     required this.projectName,
+    this.showAppBar = true,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final progressAsync = ref.watch(dailyProgressListProvider(projectId));
 
-    return Scaffold(
-      backgroundColor: AppColors.bg(context),
-      appBar: AppBar(
-        title: Text('Site Progress Log: $projectName'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
-            tooltip: 'Refresh Progress Feed',
-            onPressed: () => ref.invalidate(dailyProgressListProvider(projectId)),
-          ),
-        ],
-      ),
-      body: progressAsync.when(
+    final Widget bodyContent = progressAsync.when(
         data: (entries) {
           final int totalEntries = entries.length;
           final int latestPercentage = entries.isNotEmpty ? entries.first.progressPercentage : 0;
@@ -152,7 +142,25 @@ class DailyProgressScreen extends ConsumerWidget {
         },
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error loading progress logs: $e')),
+      );
+
+    if (!showAppBar) {
+      return bodyContent;
+    }
+
+    return Scaffold(
+      backgroundColor: AppColors.bg(context),
+      appBar: AppBar(
+        title: Text('Site Progress Log: $projectName'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            tooltip: 'Refresh Progress Feed',
+            onPressed: () => ref.invalidate(dailyProgressListProvider(projectId)),
+          ),
+        ],
       ),
+      body: bodyContent,
     );
   }
 

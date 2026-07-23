@@ -173,11 +173,11 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       case 7:
         return _buildSalesBillsTab();
       case 8:
-        return DailyProgressScreen(projectId: widget.projectId, projectName: widget.projectName);
+        return DailyProgressScreen(projectId: widget.projectId, projectName: widget.projectName, showAppBar: false);
       case 9:
         return _buildAboutSiteTab();
       case 10:
-        return const FullReportGeneratorScreen();
+        return const FullReportGeneratorScreen(showAppBar: false);
       default:
         return _buildOverviewGridTab();
     }

@@ -24,15 +24,20 @@ class DailyProgress {
   });
 
   factory DailyProgress.fromJson(Map<String, dynamic> json) {
+    final morningImg = json['morning_image_url'] as String? ?? json['image_url'] as String? ?? json['photo_url'] as String?;
+    final morningTxt = json['morning_notes'] as String? ?? json['notes'] as String? ?? json['description'] as String?;
+    final eveningImg = json['evening_image_url'] as String? ?? json['image_url'] as String?;
+    final eveningTxt = json['evening_notes'] as String? ?? json['notes'] as String?;
+
     return DailyProgress(
-      id: json['id'] as String,
-      projectId: json['project_id'] as String,
-      date: json['date'] as String,
-      morningImageUrl: json['morning_image_url'] as String?,
-      morningNotes: json['morning_notes'] as String?,
-      eveningImageUrl: json['evening_image_url'] as String?,
-      eveningNotes: json['evening_notes'] as String?,
-      progressPercentage: json['progress_percentage'] as int? ?? 0,
+      id: json['id'] as String? ?? '',
+      projectId: json['project_id'] as String? ?? '',
+      date: json['date'] as String? ?? DateTime.now().toIso8601String().substring(0, 10),
+      morningImageUrl: morningImg,
+      morningNotes: morningTxt,
+      eveningImageUrl: eveningImg,
+      eveningNotes: eveningTxt,
+      progressPercentage: (json['progress_percentage'] as num?)?.toInt() ?? 0,
       supervisorId: json['supervisor_id'] as String?,
       createdAt: json['created_at'] as String?,
     );
@@ -40,14 +45,29 @@ class DailyProgress {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id.isNotEmpty) 'id': id,
       'project_id': projectId,
       'date': date,
       'morning_image_url': morningImageUrl,
       'morning_notes': morningNotes,
       'evening_image_url': eveningImageUrl,
       'evening_notes': eveningNotes,
+      'image_url': eveningImageUrl ?? morningImageUrl,
+      'notes': eveningNotes ?? morningNotes,
       'progress_percentage': progressPercentage,
-      'supervisor_id': supervisorId,
+      if (supervisorId != null && supervisorId!.isNotEmpty) 'supervisor_id': supervisorId,
+    };
+  }
+
+  Map<String, dynamic> toLegacyJson() {
+    return {
+      if (id.isNotEmpty) 'id': id,
+      'project_id': projectId,
+      'date': date,
+      'image_url': eveningImageUrl ?? morningImageUrl,
+      'notes': eveningNotes ?? morningNotes,
+      'progress_percentage': progressPercentage,
+      if (supervisorId != null && supervisorId!.isNotEmpty) 'supervisor_id': supervisorId,
     };
   }
 
