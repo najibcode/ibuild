@@ -76,8 +76,11 @@ class AttendanceScreen extends ConsumerWidget {
                                   const SizedBox(height: 16),
                                   
                                   // Morning Status
-                                   Row(
-                                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                   Wrap(
+                                     alignment: WrapAlignment.spaceBetween,
+                                     crossAxisAlignment: WrapCrossAlignment.center,
+                                     spacing: 8,
+                                     runSpacing: 8,
                                      children: [
                                        const Text('Single-Day Status:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                        _buildStatusToggle(
@@ -145,14 +148,13 @@ class AttendanceScreen extends ConsumerWidget {
     required String activeStatus,
     required Function(String status) onSelected,
   }) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: [
-        _buildToggleButton('Present', 'present', activeStatus, AppColors.secondary, onSelected),
-        const SizedBox(width: 8),
-        _buildToggleButton('Absent', 'absent', activeStatus, AppColors.error, onSelected),
-        const SizedBox(width: 8),
-        _buildToggleButton('Leave', 'leave', activeStatus, AppColors.warning, onSelected),
+        _buildToggleButton('Present', 'Present', activeStatus, AppColors.secondary, onSelected),
+        _buildToggleButton('Absent', 'Absent', activeStatus, AppColors.error, onSelected),
+        _buildToggleButton('Leave', 'Leave', activeStatus, AppColors.warning, onSelected),
       ],
     );
   }

@@ -396,48 +396,89 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                           return Card(
                             color: AppColors.cardBg(context),
                             margin: const EdgeInsets.only(bottom: 8),
-                            child: ListTile(
-                              leading: CircleAvatar(
-                                backgroundColor: record.status == 'Present'
-                                    ? AppColors.secondary
-                                    : (record.status == 'Leave' ? Colors.amber : AppColors.mutedText(context)),
-                                child: Text(
-                                  emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'E',
-                                  style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
-                                ),
-                              ),
-                              title: Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                              subtitle: Text(
-                                'Role: ${emp.role.toUpperCase()} • Daily Rate: ₹${emp.salary.toInt()}/day',
-                                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
-                              ),
-                              trailing: Row(
-                                mainAxisSize: MainAxisSize.min,
+                            child: Padding(
+                              padding: const EdgeInsets.all(12.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  ChoiceChip(
-                                    label: const Text('Present', style: TextStyle(fontSize: 11)),
-                                    selected: record.status == 'Present',
-                                    selectedColor: AppColors.secondary,
-                                    labelStyle: TextStyle(color: record.status == 'Present' ? Colors.white : AppColors.text(context)),
-                                    onSelected: (_) {
-                                      ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                        employeeId: emp.id,
-                                        status: 'Present',
-                                      );
-                                    },
+                                  Row(
+                                    children: [
+                                      CircleAvatar(
+                                        backgroundColor: record.status == 'Present'
+                                            ? AppColors.secondary
+                                            : (record.status == 'Leave' ? Colors.amber : AppColors.mutedText(context)),
+                                        radius: 18,
+                                        child: Text(
+                                          emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'E',
+                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context))),
+                                            Text(
+                                              '${emp.role.toUpperCase()} • ₹${emp.salary.toInt()}/day',
+                                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                  const SizedBox(width: 4),
-                                  ChoiceChip(
-                                    label: const Text('Absent', style: TextStyle(fontSize: 11)),
-                                    selected: record.status == 'Absent',
-                                    selectedColor: AppColors.error,
-                                    labelStyle: TextStyle(color: record.status == 'Absent' ? Colors.white : AppColors.text(context)),
-                                    onSelected: (_) {
-                                      ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                        employeeId: emp.id,
-                                        status: 'Absent',
-                                      );
-                                    },
+                                  const SizedBox(height: 10),
+                                  Wrap(
+                                    alignment: WrapAlignment.spaceBetween,
+                                    crossAxisAlignment: WrapCrossAlignment.center,
+                                    spacing: 8,
+                                    runSpacing: 6,
+                                    children: [
+                                      Text('Single-Day Status:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedText(context))),
+                                      Wrap(
+                                        spacing: 6,
+                                        runSpacing: 6,
+                                        children: [
+                                          ChoiceChip(
+                                            label: const Text('Present', style: TextStyle(fontSize: 11)),
+                                            selected: record.status == 'Present',
+                                            selectedColor: AppColors.secondary,
+                                            labelStyle: TextStyle(color: record.status == 'Present' ? Colors.white : AppColors.text(context)),
+                                            onSelected: (_) {
+                                              ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                                employeeId: emp.id,
+                                                status: 'Present',
+                                              );
+                                            },
+                                          ),
+                                          ChoiceChip(
+                                            label: const Text('Absent', style: TextStyle(fontSize: 11)),
+                                            selected: record.status == 'Absent',
+                                            selectedColor: AppColors.error,
+                                            labelStyle: TextStyle(color: record.status == 'Absent' ? Colors.white : AppColors.text(context)),
+                                            onSelected: (_) {
+                                              ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                                employeeId: emp.id,
+                                                status: 'Absent',
+                                              );
+                                            },
+                                          ),
+                                          ChoiceChip(
+                                            label: const Text('Leave', style: TextStyle(fontSize: 11)),
+                                            selected: record.status == 'Leave',
+                                            selectedColor: Colors.amber.shade700,
+                                            labelStyle: TextStyle(color: record.status == 'Leave' ? Colors.white : AppColors.text(context)),
+                                            onSelected: (_) {
+                                              ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                                employeeId: emp.id,
+                                                status: 'Leave',
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ],
                                   ),
                                 ],
                               ),
