@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../controllers/attendance_controller.dart';
 import '../../data/models/attendance_model.dart';
+import '../../../projects/presentation/controllers/project_controller.dart';
+import '../../../projects/data/models/project_model.dart';
 
 class AttendanceScreen extends ConsumerWidget {
   const AttendanceScreen({super.key});
@@ -10,13 +12,15 @@ class AttendanceScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(attendanceControllerProvider);
+    final projectState = ref.watch(projectControllerProvider);
+    final projects = projectState.projects;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
         title: const Text(
-          'Daily Attendance',
+          'Daily Attendance & Site Deployment',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primary,
@@ -25,7 +29,10 @@ class AttendanceScreen extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: () => ref.read(attendanceControllerProvider.notifier).loadAttendanceForToday(),
+            onPressed: () {
+              ref.read(attendanceControllerProvider.notifier).loadAttendanceForToday();
+              ref.read(projectControllerProvider.notifier).loadProjects();
+            },
           ),
         ],
       ),
@@ -64,28 +71,49 @@ class AttendanceScreen extends ConsumerWidget {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(
-                                    employee.name,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 16,
-                                      color: AppColors.textMain,
-                                    ),
-                                  ),
-                                  Text(
-                                    '${employee.role.toUpperCase()} • Daily Rate: ₹${employee.salary.toInt()}/day',
-                                    style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            employee.name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 16,
+                                              color: AppColors.textMain,
+                                            ),
+                                          ),
+                                          Text(
+                                            '${employee.role.toUpperCase()} • Rate: ₹${employee.salary.toInt()}/day',
+                                            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+                                          ),
+                                        ],
+                                      ),
+                                      if (logged.projectName != null && logged.projectName!.isNotEmpty)
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primary.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Text(
+                                            'Site: ${logged.projectName}',
+                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                          ),
+                                        ),
+                                    ],
                                   ),
                                   const SizedBox(height: 16),
                                   
-                                  // Status Toggle
+                                  // Status & Daily Project Assignment Controls
                                   Wrap(
                                     alignment: WrapAlignment.spaceBetween,
                                     crossAxisAlignment: WrapCrossAlignment.center,
-                                    spacing: 8,
-                                    runSpacing: 8,
+                                    spacing: 12,
+                                    runSpacing: 10,
                                     children: [
-                                      const Text('Single-Day Status:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
                                       _buildStatusToggle(
                                         context: context,
                                         activeStatus: logged.status,
@@ -93,6 +121,19 @@ class AttendanceScreen extends ConsumerWidget {
                                           ref.read(attendanceControllerProvider.notifier).markAttendance(
                                             employeeId: employee.id,
                                             status: status,
+                                            projectId: logged.projectId,
+                                          );
+                                        },
+                                      ),
+                                      _buildSiteAssignmentDropdown(
+                                        context: context,
+                                        projects: projects,
+                                        currentProjectId: logged.projectId,
+                                        onProjectSelected: (projId) {
+                                          ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                            employeeId: employee.id,
+                                            status: logged.status == 'Absent' ? 'Present' : logged.status,
+                                            projectId: projId,
                                           );
                                         },
                                       ),
@@ -170,7 +211,7 @@ class AttendanceScreen extends ConsumerWidget {
       onTap: () => onSelected(status),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isActive ? activeColor : activeColor.withOpacity(0.08),
           border: Border.all(color: isActive ? activeColor : activeColor.withOpacity(0.3)),
@@ -184,6 +225,51 @@ class AttendanceScreen extends ConsumerWidget {
             fontSize: 13,
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildSiteAssignmentDropdown({
+    required BuildContext context,
+    required List<Project> projects,
+    required String? currentProjectId,
+    required Function(String? projectId) onProjectSelected,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceWhite,
+        borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.location_on_outlined, size: 14, color: AppColors.primary),
+          const SizedBox(width: 4),
+          DropdownButton<String>(
+            value: (currentProjectId != null && projects.any((p) => p.id == currentProjectId))
+                ? currentProjectId
+                : null,
+            hint: const Text(
+              'Assign Site',
+              style: TextStyle(fontSize: 12, color: AppColors.textMuted, fontWeight: FontWeight.w600),
+            ),
+            underline: const SizedBox(),
+            isDense: true,
+            icon: const Icon(Icons.arrow_drop_down, size: 18),
+            items: projects
+                .map((p) => DropdownMenuItem<String>(
+                      value: p.id,
+                      child: Text(
+                        p.name,
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.textMain),
+                      ),
+                    ))
+                .toList(),
+            onChanged: onProjectSelected,
+          ),
+        ],
       ),
     );
   }

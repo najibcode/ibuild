@@ -111,6 +111,18 @@ class InventoryController extends StateNotifier<InventoryListState> {
     try { await _repository.updateItem(item); await loadItems(); return true; } catch (_) { return false; }
   }
 
+  Future<bool> adjustStock(InventoryItem item, double delta) async {
+    final newStock = (item.availableStock + delta).clamp(0.0, 999999.0);
+    final updated = item.copyWith(availableStock: newStock);
+    try {
+      await _repository.updateItem(updated);
+      await loadItems();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> removeItem(String id) async {
     try { await _repository.deleteItem(id); await loadItems(); return true; } catch (_) { return false; }
   }

@@ -11,24 +11,50 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<List<Attendance>> getAttendanceForDate(String date) async {
-    final response = await _client
-        .from('attendance')
-        .select('*, employees(name)')
-        .eq('date', date);
-    
-    return (response as List).map((json) {
-      final employeeName = (json['employees'] as Map?)?['name'] as String?;
-      return Attendance.fromJson(json, employeeName: employeeName);
-    }).toList();
+    try {
+      final response = await _client
+          .from('attendance')
+          .select('*, employees(name), projects(name)')
+          .eq('date', date);
+      
+      return (response as List).map((json) {
+        final employeeName = (json['employees'] as Map?)?['name'] as String?;
+        final projectName = (json['projects'] as Map?)?['name'] as String?;
+        return Attendance.fromJson(json, employeeName: employeeName, projectName: projectName);
+      }).toList();
+    } catch (_) {
+      final response = await _client
+          .from('attendance')
+          .select('*, employees(name)')
+          .eq('date', date);
+      
+      return (response as List).map((json) {
+        final employeeName = (json['employees'] as Map?)?['name'] as String?;
+        return Attendance.fromJson(json, employeeName: employeeName);
+      }).toList();
+    }
   }
 
   @override
   Future<void> saveAttendance(Attendance attendance) async {
-    // Upsert logic based on unique constraint (employee_id, date)
-    await _client.from('attendance').upsert(
-      attendance.toJson(),
-      onConflict: 'employee_id,date',
-    );
+    final payload = attendance.toJson();
+
+    try {
+      await _client.from('attendance').upsert(
+        payload,
+        onConflict: 'employee_id,date',
+      );
+    } catch (e) {
+      if (e.toString().contains("Could not find the 'project_id' column")) {
+        final pruned = Map<String, dynamic>.from(payload)..remove('project_id');
+        await _client.from('attendance').upsert(
+          pruned,
+          onConflict: 'employee_id,date',
+        );
+      } else {
+        rethrow;
+      }
+    }
 
     // Log activity
     await _activityRepo.logActivity(
@@ -37,8 +63,8 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
       entityId: attendance.employeeId,
       details: {
         'date': attendance.date,
-        'morning_status': attendance.morningStatus,
-        'evening_status': attendance.eveningStatus,
+        'status': attendance.status,
+        'project_id': attendance.projectId ?? '',
         'employee_name': attendance.employeeName ?? '',
       },
     );

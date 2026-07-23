@@ -57,6 +57,30 @@ class InventoryItem {
 
   bool get isLowStock => availableStock <= minimumStock && minimumStock > 0;
 
+  /// Automated Reorder Quantity Recommendation
+  double get recommendedReorderQty {
+    final target = minimumStock > 0 ? minimumStock * 2 : 50.0;
+    return (target - availableStock).clamp(0.0, 999999.0);
+  }
+
+  /// Estimated Daily Consumption (Burn Rate)
+  double get estimatedDailyBurnRate {
+    if (quantity <= 0) return 2.0;
+    return (quantity / 14).clamp(0.5, 100.0);
+  }
+
+  /// Estimated Days of Stock Remaining (Runway)
+  int get stockRunwayDays {
+    if (estimatedDailyBurnRate <= 0) return 999;
+    return (availableStock / estimatedDailyBurnRate).round();
+  }
+
+  /// Total Valuation in ₹
+  double get totalValuation => availableStock * purchasePrice;
+
+  /// Estimated Reorder Cost in ₹
+  double get estimatedReorderCost => recommendedReorderQty * purchasePrice;
+
   InventoryItem copyWith({
     String? materialName,
     String? category,

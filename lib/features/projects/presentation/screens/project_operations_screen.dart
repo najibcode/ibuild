@@ -440,6 +440,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                                               ref.read(attendanceControllerProvider.notifier).markAttendance(
                                                 employeeId: emp.id,
                                                 status: 'Present',
+                                                projectId: widget.projectId,
                                               );
                                             },
                                           ),
@@ -476,26 +477,168 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     final invAsync = ref.watch(projectInventoryProvider);
 
     return invAsync.when(
-      data: (items) => ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: items.length,
-        itemBuilder: (context, i) {
-          final item = items[i];
-          return Card(
-            color: AppColors.cardBg(context),
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: const Icon(Icons.category_outlined, color: AppColors.primary),
-              title: Text(item.materialName, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-              subtitle: Text('Category: ${item.category} • Unit: ${item.unit}'),
-              trailing: Text(
-                'Qty: ${item.availableStock.toInt()}',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context)),
+      data: (items) {
+        if (items.isEmpty) {
+          return _emptyState('No materials in stock', 'Register or assign site inventory for this project');
+        }
+
+        final double totalValuation = items.fold(0.0, (sum, i) => sum + (i.availableStock * i.purchasePrice));
+        final int lowStockCount = items.where((i) => i.isLowStock).length;
+
+        return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+            // Site Inventory Financial Summary
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.only(bottom: 16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBg(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border(context)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('Site Material Valuation', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 4),
+                      Text('₹${totalValuation.toInt()}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context))),
+                      const SizedBox(height: 2),
+                      Text('${items.length} Material Types Tracked', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                    ],
+                  ),
+                  if (lowStockCount > 0)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
+                          const SizedBox(width: 4),
+                          Text('$lowStockCount Low Stock', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                ],
               ),
             ),
-          );
-        },
-      ),
+
+            // Material Cards
+            ...items.map((item) {
+              final double valuation = item.totalValuation;
+              final int runwayDays = item.stockRunwayDays;
+              final Color runwayColor = runwayDays < 3
+                  ? AppColors.error
+                  : (runwayDays <= 7 ? Colors.orange : AppColors.secondary);
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg(context),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: item.isLowStock ? AppColors.error.withOpacity(0.4) : AppColors.border(context)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            item.category.toUpperCase(),
+                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          ),
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: runwayColor.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                runwayDays > 90 ? 'Runway: 90+ Days' : 'Runway: $runwayDays Days',
+                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: runwayColor),
+                              ),
+                            ),
+                            if (item.isLowStock) ...[
+                              const SizedBox(width: 6),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: const Text('LOW STOCK', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.error)),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(item.materialName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context))),
+                            const SizedBox(height: 2),
+                            Text('Burn Rate: ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day • Rate: ₹${item.purchasePrice.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                          ],
+                        ),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text('₹${valuation.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryColor(context))),
+                            Text('Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                          ],
+                        ),
+                      ],
+                    ),
+                    if (item.isLowStock) ...[
+                      const SizedBox(height: 10),
+                      Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.bolt, size: 14, color: Colors.amber),
+                            const SizedBox(width: 6),
+                            Text(
+                              'Auto Reorder Suggestion: Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est ₹${item.estimatedReorderCost.toInt()})',
+                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              );
+            }),
+          ],
+        );
+      },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, s) => Center(child: Text('Error loading inventory: $e')),
     );
