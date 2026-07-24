@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/bill_model.dart';
 import '../controllers/billing_controller.dart';
@@ -15,64 +17,159 @@ class BillingListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(billingControllerProvider);
 
+    // Calculate Financial Summary Metrics for Client Billing (Revenue Inflow)
+    final double totalBilled = state.bills.fold(0.0, (sum, b) => sum + b.amount);
+    final double totalPaid = state.bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.amount);
+    final double totalPending = state.bills.where((b) => b.status.toLowerCase() == 'pending' || b.status.toLowerCase() == 'overdue').fold(0.0, (sum, b) => sum + b.amount);
+
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
+        titleSpacing: 16,
         title: const Text(
-          'Billing',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
+          'Client Invoicing & Billing (Revenue)',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
         actions: [
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.filter_list, color: AppColors.primary),
-            onSelected: (value) {
-              ref
-                  .read(billingControllerProvider.notifier)
-                  .setStatusFilter(value == 'all' ? null : value);
-            },
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'all', child: Text('All Statuses')),
-              ..._statuses.map(
-                (s) => PopupMenuItem(
-                  value: s,
-                  child: Text(s[0].toUpperCase() + s.substring(1)),
-                ),
-              ),
-            ],
-          ),
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
-            onPressed: () =>
-                ref.read(billingControllerProvider.notifier).loadBills(),
+            onPressed: () => ref.read(billingControllerProvider.notifier).loadBills(),
           ),
         ],
       ),
-      body: _buildBody(context, ref, state),
+      body: Column(
+        children: [
+          // Financial Summary Header Cards (Client Receivables & Revenue)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            child: Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    context,
+                    title: 'Total Invoiced',
+                    value: '₹${totalBilled.toInt()}',
+                    subtitle: '${state.bills.length} Client Bills',
+                    icon: Icons.receipt_long_outlined,
+                    color: AppColors.primary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    context,
+                    title: 'Collected (Paid)',
+                    value: '+₹${totalPaid.toInt()}',
+                    subtitle: 'Revenue Received',
+                    icon: Icons.check_circle_outline,
+                    color: AppColors.secondary,
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: _buildMetricCard(
+                    context,
+                    title: 'Pending Due',
+                    value: '₹${totalPending.toInt()}',
+                    subtitle: 'Client Receivables',
+                    icon: Icons.pending_actions,
+                    color: totalPending > 0 ? AppColors.warning : AppColors.secondary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Search & Status Filter Bar
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: SearchFilterBar(
+              hintText: 'Search bill #, project, notes...',
+              onSearchChanged: (q) => ref.read(billingControllerProvider.notifier).setSearch(q),
+              filterOptions: _statuses,
+              activeFilter: state.statusFilter,
+              onFilterChanged: (f) => ref.read(billingControllerProvider.notifier).setStatusFilter(f),
+              sortOptions: const ['Bill Date', 'Amount', 'Status'],
+              onSortChanged: (s) {
+                final map = {'Bill Date': 'bill_date', 'Amount': 'amount', 'Status': 'status'};
+                ref.read(billingControllerProvider.notifier).setSort(map[s] ?? 'created_at');
+              },
+            ),
+          ),
+          const SizedBox(height: 8),
+
+          // Invoice List
+          Expanded(
+            child: _buildBody(context, ref, state),
+          ),
+        ],
+      ),
       floatingActionButton: PermissionGuard(
         permission: 'billing.create',
-        child: FloatingActionButton(
+        child: FloatingActionButton.extended(
           onPressed: () async {
             await Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const BillingFormScreen()),
             );
             ref.read(billingControllerProvider.notifier).loadBills();
           },
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.secondary,
           foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: const Icon(Icons.add),
+          icon: const Icon(Icons.add),
+          label: const Text('Create Bill'),
         ),
       ),
     );
   }
 
-  Widget _buildBody(
-      BuildContext context, WidgetRef ref, BillingListState state) {
+  Widget _buildMetricCard(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              Icon(icon, size: 16, color: color),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(
+            value,
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            subtitle,
+            style: TextStyle(fontSize: 9, color: AppColors.mutedText(context)),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, WidgetRef ref, BillingListState state) {
     if (state.isLoading && state.bills.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -82,15 +179,12 @@ class BillingListScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline,
-                size: 48, color: AppColors.error.withOpacity(0.5)),
+            Icon(Icons.error_outline, size: 48, color: AppColors.error.withOpacity(0.5)),
             const SizedBox(height: 16),
-            Text('Error: ${state.errorMessage}',
-                style: const TextStyle(color: AppColors.textMuted)),
+            Text('Error: ${state.errorMessage}', style: TextStyle(color: AppColors.mutedText(context))),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () =>
-                  ref.read(billingControllerProvider.notifier).loadBills(),
+              onPressed: () => ref.read(billingControllerProvider.notifier).loadBills(),
               child: const Text('Retry'),
             ),
           ],
@@ -103,18 +197,18 @@ class BillingListScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined,
-                size: 64, color: AppColors.outline.withOpacity(0.3)),
+            Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.mutedText(context).withOpacity(0.4)),
             const SizedBox(height: 16),
-            const Text('No bills found.',
-                style: TextStyle(color: AppColors.textMuted)),
+            Text('No client bills recorded.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+            const SizedBox(height: 4),
+            Text('Create client invoices to track sales revenue and receivables.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
           ],
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(AppSpacing.containerMargin),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       itemCount: state.bills.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
         if (index == state.bills.length) {
@@ -131,11 +225,15 @@ class BillingListScreen extends ConsumerWidget {
           onEdit: () async {
             await Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) =>
-                    BillingFormScreen(bill: state.bills[index]),
+                builder: (_) => BillingFormScreen(bill: state.bills[index]),
               ),
             );
             ref.read(billingControllerProvider.notifier).loadBills();
+          },
+          onTogglePaid: () async {
+            final newStatus = state.bills[index].status.toLowerCase() == 'paid' ? 'pending' : 'paid';
+            final updated = state.bills[index].copyWith(status: newStatus);
+            await ref.read(billingControllerProvider.notifier).editBill(updated);
           },
         );
       },
@@ -146,11 +244,12 @@ class BillingListScreen extends ConsumerWidget {
 class _BillCard extends StatelessWidget {
   final Bill bill;
   final VoidCallback onEdit;
+  final VoidCallback onTogglePaid;
 
-  const _BillCard({required this.bill, required this.onEdit});
+  const _BillCard({required this.bill, required this.onEdit, required this.onTogglePaid});
 
   Color _statusColor(String status) {
-    switch (status) {
+    switch (status.toLowerCase()) {
       case 'paid':
         return AppColors.secondary;
       case 'pending':
@@ -158,111 +257,153 @@ class _BillCard extends StatelessWidget {
       case 'overdue':
         return AppColors.error;
       case 'cancelled':
-        return AppColors.outline;
+        return Colors.grey;
       default:
-        return AppColors.textMuted;
+        return AppColors.primary;
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final statusColor = _statusColor(bill.status);
+    final isPaid = bill.status.toLowerCase() == 'paid';
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: AppSpacing.stackSm),
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isPaid ? AppColors.secondary.withOpacity(0.3) : AppColors.border(context)),
+      ),
       child: InkWell(
         onTap: onEdit,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(16),
         child: Padding(
           padding: const EdgeInsets.all(16),
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Icon
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.08),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(
-                  Icons.receipt_outlined,
-                  color: AppColors.primary,
-                  size: 22,
-                ),
-              ),
-              const SizedBox(width: 14),
-              // Info
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              // Client Invoice Badge & Status Tag
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AppColors.secondary.withOpacity(0.12),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
                       children: [
-                        Expanded(
-                          child: Text(
-                            'Bill #${bill.billNumber}',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppColors.textMain,
-                            ),
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 8, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor.withOpacity(0.1),
-                            borderRadius:
-                                BorderRadius.circular(AppRadius.full),
-                          ),
-                          child: Text(
-                            bill.status.toUpperCase(),
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 9,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
+                        const Icon(Icons.receipt_long_outlined, size: 14, color: AppColors.secondary),
+                        const SizedBox(width: 4),
+                        Text(
+                          'BILL #${bill.billNumber}',
+                          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 11),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      bill.projectName ?? 'Project',
-                      style: const TextStyle(
-                        color: AppColors.textMuted,
-                        fontSize: 12,
+                  ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      bill.status.toUpperCase(),
+                      style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Project Name & Financial Revenue Amount
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          bill.projectName ?? 'General Project',
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Bill Date: ${bill.billDate}',
+                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      Text(
+                        '₹${bill.amount.toStringAsFixed(2)}',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.secondary),
+                      ),
+                      Text(
+                        'Client Invoice',
+                        style: TextStyle(color: AppColors.mutedText(context), fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+
+              if (bill.notes != null && bill.notes!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                Text(
+                  'Notes: ${bill.notes}',
+                  style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontStyle: FontStyle.italic),
+                ),
+              ],
+              const SizedBox(height: 14),
+
+              // Action Buttons Row
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: onTogglePaid,
+                      icon: Icon(
+                        isPaid ? Icons.undo : Icons.check_circle,
+                        size: 16,
+                        color: isPaid ? AppColors.warning : AppColors.secondary,
+                      ),
+                      label: Text(
+                        isPaid ? 'Mark Pending' : '✓ Mark as Paid',
+                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: isPaid ? AppColors.warning : AppColors.secondary,
+                        side: BorderSide(color: isPaid ? AppColors.warning : AppColors.secondary),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                     ),
-                    const SizedBox(height: 2),
-                    Row(
-                      children: [
-                        Text(
-                          '₹${bill.amount.toStringAsFixed(2)}',
-                          style: const TextStyle(
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13,
-                            color: AppColors.textMain,
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          bill.billDate,
-                          style: const TextStyle(
-                            color: AppColors.textMuted,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.edit_outlined,
-                    size: 18, color: AppColors.outline),
-                onPressed: onEdit,
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.share_outlined, size: 20, color: AppColors.primary),
+                    onPressed: () {
+                      final invoiceText = "CLIENT INVOICE #${bill.billNumber}\nProject: ${bill.projectName}\nDate: ${bill.billDate}\nAmount: ₹${bill.amount.toStringAsFixed(2)}\nStatus: ${bill.status.toUpperCase()}";
+                      Clipboard.setData(ClipboardData(text: invoiceText));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Copied Invoice details to clipboard!')),
+                      );
+                    },
+                    tooltip: 'Share Invoice Details',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.outline),
+                    onPressed: onEdit,
+                    tooltip: 'Edit Invoice',
+                  ),
+                ],
               ),
             ],
           ),

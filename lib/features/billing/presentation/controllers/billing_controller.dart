@@ -105,6 +105,14 @@ class BillingController extends StateNotifier<BillingListState> {
     loadBills();
   }
 
+  void setSearch(String q) {
+    loadBills();
+  }
+
+  void setSort(String s) {
+    loadBills();
+  }
+
   Future<bool> addBill(Bill bill) async {
     try {
       await _repository.createBill(bill);

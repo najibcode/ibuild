@@ -101,6 +101,14 @@ class ExpenseController extends StateNotifier<ExpenseListState> {
     loadExpenses();
   }
 
+  void setSearch(String q) {
+    loadExpenses();
+  }
+
+  void setSort(String s) {
+    loadExpenses();
+  }
+
   Future<bool> addExpense(Expense expense) async {
     try {
       await _repository.createExpense(expense);
