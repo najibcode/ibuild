@@ -1,4 +1,5 @@
 import Flutter
+import FlutterFramework
 import UIKit
 
 @main
@@ -14,3 +15,4 @@ import UIKit
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
   }
 }
+
