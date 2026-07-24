@@ -169,7 +169,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
     final isEditing = widget.project != null;
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(title: Text(isEditing ? 'Edit Project' : 'New Project')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
@@ -178,9 +178,9 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
           child: Container(
             padding: const EdgeInsets.all(AppSpacing.cardPadding),
             decoration: BoxDecoration(
-              color: AppColors.surfaceWhite,
+              color: AppColors.cardBg(context),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: AppColors.border(context)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

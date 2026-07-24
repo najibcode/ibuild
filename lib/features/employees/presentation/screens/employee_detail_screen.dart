@@ -61,7 +61,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
         title: const Text('Employee Profile & Wages'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.edit, color: AppColors.primary),
+            icon: Icon(Icons.edit, color: AppColors.primaryColor(context)),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (context) => EmployeeFormScreen(employee: employee),
@@ -215,7 +215,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
                               ),
                             ),
                             title: Text('Date: ${log.date}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                            subtitle: Text('Status: ${log.status}'),
+                            subtitle: Text('Status: ${log.status}', style: TextStyle(color: AppColors.mutedText(context))),
                             trailing: Text(
                               isPresent ? '+₹${earnedToday.toInt()}' : '₹0',
                               style: TextStyle(

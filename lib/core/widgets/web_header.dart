@@ -25,9 +25,9 @@ class WebHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       height: 64,
-      decoration: const BoxDecoration(
-        color: AppColors.surfaceWhite,
-        border: Border(bottom: BorderSide(color: AppColors.borderSubtle)),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        border: Border(bottom: BorderSide(color: AppColors.border(context))),
       ),
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.containerMargin),
       child: Row(
@@ -45,7 +45,7 @@ class WebHeader extends StatelessWidget {
               constraints: const BoxConstraints(maxWidth: 420),
               height: 38,
               decoration: BoxDecoration(
-                color: AppColors.background,
+                color: AppColors.bg(context),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Row(
@@ -56,13 +56,13 @@ class WebHeader extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextField(
-                      style: const TextStyle(fontSize: 14),
+                      style: TextStyle(fontSize: 14, color: AppColors.text(context)),
                       textAlignVertical: TextAlignVertical.center,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: EdgeInsets.only(bottom: 15), // Adjust padding to match icon
+                        contentPadding: const EdgeInsets.only(bottom: 15),
                         hintText: 'Search projects, materials, or reports...',
-                        hintStyle: TextStyle(color: AppColors.textMuted, fontSize: 13),
+                        hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 13),
                         border: InputBorder.none,
                       ),
                       onSubmitted: (query) {
@@ -89,8 +89,8 @@ class WebHeader extends StatelessWidget {
                 tooltip: 'Help',
               ),
               if (trailing != null) ...[
-                const VerticalDivider(
-                  color: AppColors.borderSubtle,
+                VerticalDivider(
+                  color: AppColors.border(context),
                   width: 24,
                   indent: 18,
                   endIndent: 18,

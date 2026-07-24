@@ -179,7 +179,7 @@ class WebSidebar extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: isDark ? const Color(0xFF0F172A) : AppColors.background,
+                color: AppColors.bg(context),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.border(context)),
               ),

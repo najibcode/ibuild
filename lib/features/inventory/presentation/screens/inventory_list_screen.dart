@@ -163,9 +163,9 @@ class InventoryListScreen extends ConsumerWidget {
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 16,
-        title: const Text(
+        title: Text(
           'Automated Material Inventory ERP',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
           Padding(

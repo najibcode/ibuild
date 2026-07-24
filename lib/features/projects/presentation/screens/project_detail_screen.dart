@@ -205,9 +205,9 @@ class _ProjectDetailBody extends ConsumerWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(AppSpacing.cardPadding),
               decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
+                color: AppColors.cardBg(context),
                 borderRadius: BorderRadius.circular(AppRadius.lg),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: AppColors.border(context)),
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -217,25 +217,26 @@ class _ProjectDetailBody extends ConsumerWidget {
                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 16),
-                  _infoRow('Client', project.clientName ?? project.customerName ?? '-'),
-                  if (project.customerMobile != null) _infoRow('Customer Mobile', project.customerMobile!),
-                  if (project.customerEmail != null) _infoRow('Customer Email', project.customerEmail!),
-                  _infoRow('Code', project.projectCode ?? '-'),
-                  _infoRow('Address', project.address ?? '-'),
-                  if (project.builtUpArea > 0) _infoRow('Built-up Area', '${project.builtUpArea.toInt()} sq ft'),
-                  if (project.flatArea > 0) _infoRow('Flat Area', '${project.flatArea.toInt()} sq ft'),
-                  if (project.duration != null) _infoRow('Duration', project.duration!),
-                  _infoRow('Start Date', project.startDate ?? '-'),
+                  _infoRow(context, 'Client', project.clientName ?? project.customerName ?? '-'),
+                  if (project.customerMobile != null) _infoRow(context, 'Customer Mobile', project.customerMobile!),
+                  if (project.customerEmail != null) _infoRow(context, 'Customer Email', project.customerEmail!),
+                  _infoRow(context, 'Code', project.projectCode ?? '-'),
+                  _infoRow(context, 'Address', project.address ?? '-'),
+                  if (project.builtUpArea > 0) _infoRow(context, 'Built-up Area', '${project.builtUpArea.toInt()} sq ft'),
+                  if (project.flatArea > 0) _infoRow(context, 'Flat Area', '${project.flatArea.toInt()} sq ft'),
+                  if (project.duration != null) _infoRow(context, 'Duration', project.duration!),
+                  _infoRow(context, 'Start Date', project.startDate ?? '-'),
                   _infoRow(
+                    context,
                     'Expected Completion',
                     project.expectedCompletion ?? '-',
                   ),
-                  _infoRow('Status', project.status.toUpperCase()),
+                  _infoRow(context, 'Status', project.status.toUpperCase()),
                   if (project.description != null &&
                       project.description!.isNotEmpty)
-                    _infoRow('Scope', project.description!),
+                    _infoRow(context, 'Scope', project.description!),
                   if (project.notes != null && project.notes!.isNotEmpty)
-                    _infoRow('Notes', project.notes!),
+                    _infoRow(context, 'Notes', project.notes!),
                 ],
               ),
             ),
@@ -297,7 +298,7 @@ class _ProjectDetailBody extends ConsumerWidget {
     );
   }
 
-  Widget _infoRow(String label, String value) {
+  Widget _infoRow(BuildContext context, String label, String value) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: Row(
@@ -313,10 +314,10 @@ class _ProjectDetailBody extends ConsumerWidget {
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
-                color: AppColors.textMain,
+                color: AppColors.text(context),
               ),
             ),
           ),

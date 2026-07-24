@@ -1,197 +1,178 @@
 import 'package:flutter/material.dart';
-import 'theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'core/theme/app_colors.dart';
 
-class MaterialInventoryMobile extends StatefulWidget {
+class MaterialInventoryMobile extends ConsumerStatefulWidget {
   final VoidCallback onBack;
 
   const MaterialInventoryMobile({super.key, required this.onBack});
 
   @override
-  State<MaterialInventoryMobile> createState() =>
+  ConsumerState<MaterialInventoryMobile> createState() =>
       _MaterialInventoryMobileState();
 }
 
-class _MaterialInventoryMobileState extends State<MaterialInventoryMobile> {
-  int _activeCategory =
-      0; // 0: All, 1: Structural, 2: Finishing, 3: Electrical, 4: Plumbing
+class _MaterialInventoryMobileState
+    extends ConsumerState<MaterialInventoryMobile> {
+  int _activeCategoryIndex = 0;
+
+  final List<String> _categories = [
+    'All Materials',
+    'Cement & Steel',
+    'Aggregates',
+    'Finishing',
+  ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: Icon(Icons.arrow_back, color: AppColors.primaryColor(context)),
           onPressed: widget.onBack,
         ),
-        title: const Text(
-          'IBUILD: Inventory',
+        title: Text(
+          'Material Inventory & Supply',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+            color: AppColors.primaryColor(context),
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.containerMargin),
-            child: IconButton(
-              icon: const Icon(
-                Icons.notifications_none,
-                color: AppColors.primary,
-              ),
-              onPressed: () {},
-            ),
-          ),
-        ],
       ),
-      body: Column(
-        children: [
-          // Search & Filters Header
-          Padding(
-            padding: const EdgeInsets.all(AppSpacing.containerMargin),
-            child: Column(
-              children: [
-                // Search Bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceWhite,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                    boxShadow: const [
-                      BoxShadow(
-                        color: Color(0x08000000),
-                        offset: Offset(0, 4),
-                        blurRadius: 10,
+      body: SingleChildScrollView(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Search & Filters Header
+            Padding(
+              padding: const EdgeInsets.all(AppSpacing.containerMargin),
+              child: Column(
+                children: [
+                  // Search Bar
+                  Container(
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg(context),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(color: AppColors.border(context)),
+                    ),
+                    child: TextField(
+                      style: TextStyle(color: AppColors.text(context)),
+                      decoration: InputDecoration(
+                        hintText: 'Search materials...',
+                        hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                        prefixIcon: Icon(
+                          Icons.search,
+                          color: AppColors.mutedText(context),
+                        ),
+                        border: InputBorder.none,
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
                       ),
-                    ],
-                  ),
-                  child: const TextField(
-                    decoration: InputDecoration(
-                      hintText: 'Search materials...',
-                      hintStyle: TextStyle(color: Color(0x8F757684)),
-                      prefixIcon: Icon(Icons.search, color: AppColors.outline),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.symmetric(vertical: 14),
                     ),
                   ),
-                ),
-                const SizedBox(height: AppSpacing.stackMd),
-                // Horizontal Filters
-                SizedBox(
-                  height: 38,
-                  child: ListView(
+                  const SizedBox(height: 12),
+
+                  // Category Filter Chips
+                  SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
-                    children: [
-                      _buildCategoryChip('All', 0),
-                      _buildCategoryChip('Structural', 1),
-                      _buildCategoryChip('Finishing', 2),
-                      _buildCategoryChip('Electrical', 3),
-                      _buildCategoryChip('Plumbing', 4),
-                    ],
+                    child: Row(
+                      children: List.generate(
+                        _categories.length,
+                        (index) => _buildFilterChip(
+                          context,
+                          label: _categories[index],
+                          isActive: _activeCategoryIndex == index,
+                          onTap: () {
+                            setState(() {
+                              _activeCategoryIndex = index;
+                            });
+                          },
+                        ),
+                      ),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          // Inventory List
-          Expanded(
-            child: ListView(
+
+            // Material List Cards
+            Padding(
               padding: const EdgeInsets.symmetric(
                 horizontal: AppSpacing.containerMargin,
               ),
-              children: [
-                if (_activeCategory == 0 || _activeCategory == 1)
+              child: Column(
+                children: [
                   _buildInventoryCard(
-                    category: 'Structural',
-                    title: 'Cement Bag - Grade A',
+                    context: context,
+                    category: 'STRUCTURE & CONCRETE',
+                    title: 'Ultratech OPC 53 Grade Cement',
                     currentStock: 450,
-                    totalCapacity: 2000,
-                    unitName: 'Units',
-                    progress: 0.225,
-                    isLowStock: true,
-                    timeUpdated: 'Updated 14 mins ago',
-                    buttonText: 'Order More',
-                    buttonIcon: Icons.chevron_right,
-                  ),
-                if (_activeCategory == 0 || _activeCategory == 3) ...[
-                  const SizedBox(height: AppSpacing.gutter),
-                  _buildInventoryCard(
-                    category: 'Electrical',
-                    title: 'Copper Wire - 2.5mm',
-                    currentStock: 1200,
-                    totalCapacity: 1500,
-                    unitName: 'Rolls',
-                    progress: 0.80,
-                    isLowStock: false,
-                    timeUpdated: 'Updated 2 hours ago',
-                    buttonText: 'Log Usage',
-                    buttonIcon: Icons.history_edu,
-                  ),
-                ],
-                if (_activeCategory == 0 || _activeCategory == 2) ...[
-                  const SizedBox(height: AppSpacing.gutter),
-                  _buildInventoryCard(
-                    category: 'Finishing',
-                    title: 'Ceramic Tiles - White Gloss',
-                    currentStock: 850,
                     totalCapacity: 1000,
-                    unitName: 'Boxes',
-                    progress: 0.85,
-                    isLowStock: false,
-                    timeUpdated: 'Updated 5 hours ago',
-                    buttonText: 'Log Usage',
-                    buttonIcon: Icons.history_edu,
-                  ),
-                ],
-                if (_activeCategory == 0 || _activeCategory == 4) ...[
-                  const SizedBox(height: AppSpacing.gutter),
-                  _buildInventoryCard(
-                    category: 'Plumbing',
-                    title: 'PVC Pipe - 4 inch',
-                    currentStock: 45,
-                    totalCapacity: 300,
-                    unitName: 'Pieces',
-                    progress: 0.15,
+                    unitName: 'Bags',
+                    progress: 0.45,
                     isLowStock: true,
-                    timeUpdated: 'Updated Yesterday',
-                    buttonText: 'Order More',
-                    buttonIcon: Icons.chevron_right,
+                    timeUpdated: 'Updated 2h ago',
+                    buttonText: 'Order Supplies',
+                    buttonIcon: Icons.shopping_cart_outlined,
                   ),
+                  const SizedBox(height: 16),
+                  _buildInventoryCard(
+                    context: context,
+                    category: 'STEEL & REBAR',
+                    title: 'TMT Steel Bars (12mm)',
+                    currentStock: 8200,
+                    totalCapacity: 10000,
+                    unitName: 'Kg',
+                    progress: 0.82,
+                    isLowStock: false,
+                    timeUpdated: 'Updated 4h ago',
+                    buttonText: 'Stock Audit',
+                    buttonIcon: Icons.inventory_2_outlined,
+                  ),
+                  const SizedBox(height: 16),
+                  _buildInventoryCard(
+                    context: context,
+                    category: 'AGGREGATES & M-SAND',
+                    title: 'Crushed M-Sand (Fine)',
+                    currentStock: 120,
+                    totalCapacity: 500,
+                    unitName: 'Tons',
+                    progress: 0.24,
+                    isLowStock: true,
+                    timeUpdated: 'Updated 1d ago',
+                    buttonText: 'Order Supplies',
+                    buttonIcon: Icons.shopping_cart_outlined,
+                  ),
+                  const SizedBox(height: 24),
                 ],
-                const SizedBox(height: AppSpacing.sectionGap),
-              ],
+              ),
             ),
-          ),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {},
-        backgroundColor: AppColors.primary,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          ],
         ),
-        child: const Icon(Icons.add_box),
       ),
     );
   }
 
-  Widget _buildCategoryChip(String label, int index) {
-    final bool isActive = _activeCategory == index;
-    return Container(
-      margin: const EdgeInsets.only(right: AppSpacing.stackSm),
+  Widget _buildFilterChip(
+    BuildContext context, {
+    required String label,
+    required bool isActive,
+    required VoidCallback onTap,
+  }) {
+    final primaryCol = AppColors.primaryColor(context);
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
       child: OutlinedButton(
-        onPressed: () {
-          setState(() {
-            _activeCategory = index;
-          });
-        },
+        onPressed: onTap,
         style: OutlinedButton.styleFrom(
           backgroundColor: isActive
-              ? AppColors.primary
-              : AppColors.surfaceWhite,
+              ? primaryCol
+              : AppColors.cardBg(context),
           side: BorderSide(
-            color: isActive ? AppColors.primary : AppColors.borderSubtle,
+            color: isActive ? primaryCol : AppColors.border(context),
           ),
           padding: const EdgeInsets.symmetric(horizontal: 16),
           shape: RoundedRectangleBorder(
@@ -201,7 +182,7 @@ class _MaterialInventoryMobileState extends State<MaterialInventoryMobile> {
         child: Text(
           label,
           style: TextStyle(
-            color: isActive ? Colors.white : AppColors.textMain,
+            color: isActive ? Colors.white : AppColors.text(context),
             fontSize: 12,
             fontWeight: FontWeight.bold,
           ),
@@ -211,6 +192,7 @@ class _MaterialInventoryMobileState extends State<MaterialInventoryMobile> {
   }
 
   Widget _buildInventoryCard({
+    required BuildContext context,
     required String category,
     required String title,
     required int currentStock,
@@ -225,16 +207,9 @@ class _MaterialInventoryMobileState extends State<MaterialInventoryMobile> {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.cardPadding),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x08000000),
-            offset: Offset(0, 4),
-            blurRadius: 20,
-          ),
-        ],
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -242,119 +217,104 @@ class _MaterialInventoryMobileState extends State<MaterialInventoryMobile> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    category.toUpperCase(),
-                    style: const TextStyle(
-                      fontSize: 10,
-                      color: AppColors.textMuted,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.textMain,
-                    ),
-                  ),
-                ],
+              Text(
+                category,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.mutedText(context),
+                  letterSpacing: 0.5,
+                ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: isLowStock
-                      ? const Color(0xFFFEE2E2)
-                      : AppColors.secondaryContainer.withValues(alpha: 0.3),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (isLowStock) ...[
-                      const Icon(
-                        Icons.warning,
-                        color: AppColors.error,
-                        size: 12,
+              if (isLowStock)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.error.withOpacity(0.12),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline, size: 12, color: AppColors.error),
+                      SizedBox(width: 4),
+                      Text(
+                        'LOW STOCK',
+                        style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.error,
+                        ),
                       ),
-                      const SizedBox(width: 4),
                     ],
-                    Text(
-                      isLowStock ? 'Low Stock' : 'Optimal',
-                      style: TextStyle(
-                        color: isLowStock
-                            ? AppColors.error
-                            : AppColors.secondary,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
             ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            title,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(context),
+            ),
           ),
           const SizedBox(height: 16),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Current Stock',
-                style: TextStyle(fontSize: 12, color: AppColors.textMuted),
+              Text(
+                'Available: $currentStock / $totalCapacity $unitName',
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text(context),
+                ),
               ),
               Text(
-                '$currentStock / $totalCapacity $unitName',
-                style: const TextStyle(
-                  fontSize: 12,
+                '${(progress * 100).toInt()}%',
+                style: TextStyle(
+                  fontSize: 13,
                   fontWeight: FontWeight.bold,
-                  color: AppColors.textMain,
-                  fontFamily: 'JetBrains Mono',
+                  color: isLowStock ? AppColors.error : AppColors.secondary,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 8),
           ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.full),
+            borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: AppColors.background,
-              valueColor: AlwaysStoppedAnimation<Color>(
+              backgroundColor: AppColors.border(context),
+              valueColor: AlwaysStoppedAnimation(
                 isLowStock ? AppColors.error : AppColors.secondary,
               ),
-              minHeight: 8,
+              minHeight: 6,
             ),
           ),
           const SizedBox(height: 16),
-          const Divider(color: AppColors.borderSubtle, height: 1),
-          const SizedBox(height: 12),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
                 timeUpdated,
-                style: const TextStyle(
-                  fontSize: 11,
-                  color: AppColors.textMuted,
-                ),
+                style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
               ),
-              TextButton.icon(
+              ElevatedButton.icon(
                 onPressed: () {},
-                icon: Icon(buttonIcon, size: 16),
-                label: Text(
-                  buttonText,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
+                icon: Icon(buttonIcon, size: 14),
+                label: Text(buttonText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isLowStock
+                      ? Colors.deepOrange
+                      : AppColors.primaryColor(context),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 ),
               ),
             ],

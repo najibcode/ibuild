@@ -1,41 +1,29 @@
-import 'dart:math';
 import 'package:flutter/material.dart';
-import 'theme.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:fl_chart/fl_chart.dart';
+import 'core/theme/app_colors.dart';
 
-class BudgetUtilizationMobile extends StatelessWidget {
+class BudgetUtilizationMobile extends ConsumerWidget {
   final VoidCallback onBack;
 
   const BudgetUtilizationMobile({super.key, required this.onBack});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: Icon(Icons.arrow_back, color: AppColors.primaryColor(context)),
           onPressed: onBack,
         ),
-        title: const Text(
-          'IBUILD',
+        title: Text(
+          'Budget & Expenses',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+            color: AppColors.primaryColor(context),
           ),
         ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.containerMargin),
-            child: IconButton(
-              icon: const Icon(
-                Icons.notifications_none,
-                color: AppColors.primary,
-              ),
-              onPressed: () {},
-            ),
-          ),
-        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
@@ -43,17 +31,17 @@ class BudgetUtilizationMobile extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Headline
-            const Text(
+            Text(
               'Skyline Apartments: Budget',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textMain,
+                color: AppColors.text(context),
               ),
             ),
-            const Text(
-              'Q4 2024 Financial Overview',
-              style: TextStyle(fontSize: 14, color: AppColors.textMuted),
+            Text(
+              'Q4 Financial Overview & Outflows',
+              style: TextStyle(fontSize: 14, color: AppColors.mutedText(context)),
             ),
             const SizedBox(height: 16),
 
@@ -62,91 +50,81 @@ class BudgetUtilizationMobile extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(AppSpacing.cardPadding),
               decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
+                color: AppColors.cardBg(context),
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: AppColors.borderSubtle),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x08000000),
-                    offset: Offset(0, 4),
-                    blurRadius: 20,
-                  ),
-                ],
+                border: Border.all(color: AppColors.border(context)),
               ),
               child: Column(
                 children: [
-                  // Donut Chart
                   SizedBox(
-                    width: 200,
                     height: 200,
                     child: Stack(
+                      alignment: Alignment.center,
                       children: [
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: DonutChartPainter(
-                              segments: [
-                                ChartSegment(
-                                  0.45,
-                                  AppColors.primaryContainer,
-                                ), // Labor
-                                ChartSegment(
-                                  0.25,
-                                  AppColors.secondary,
-                                ), // Materials
-                                ChartSegment(
-                                  0.20,
-                                  AppColors.warning,
-                                ), // Equipment
-                                ChartSegment(
-                                  0.10,
-                                  AppColors.borderSubtle,
-                                ), // Others
-                              ],
-                            ),
-                          ),
-                        ),
-                        Center(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                '₹2.4Cr',
-                                style: Theme.of(context).textTheme.displayLarge
-                                    ?.copyWith(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppColors.textMain,
-                                    ),
+                        PieChart(
+                          PieChartData(
+                            sectionsSpace: 2,
+                            centerSpaceRadius: 65,
+                            sections: [
+                              PieChartSectionData(
+                                color: AppColors.primaryColor(context),
+                                value: 45,
+                                title: '',
+                                radius: 20,
                               ),
-                              const Text(
-                                'TOTAL UTILIZATION',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  color: AppColors.textMuted,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1,
-                                ),
+                              PieChartSectionData(
+                                color: AppColors.secondary,
+                                value: 30,
+                                title: '',
+                                radius: 20,
+                              ),
+                              PieChartSectionData(
+                                color: Colors.deepOrange,
+                                value: 15,
+                                title: '',
+                                radius: 20,
+                              ),
+                              PieChartSectionData(
+                                color: AppColors.mutedText(context).withOpacity(0.3),
+                                value: 10,
+                                title: '',
+                                radius: 20,
                               ),
                             ],
                           ),
                         ),
+                        Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '₹2.4Cr',
+                              style: TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                            Text(
+                              'TOTAL SPENT',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: AppColors.mutedText(context),
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1,
+                              ),
+                            ),
+                          ],
+                        ),
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
-                  // Legend
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    childAspectRatio: 3.5,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 8,
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildLegendItem('Labor', AppColors.primaryContainer),
-                      _buildLegendItem('Materials', AppColors.secondary),
-                      _buildLegendItem('Equipment', AppColors.warning),
-                      _buildLegendItem('Others', AppColors.borderSubtle),
+                      _buildLegendItem(context, 'Materials', AppColors.primaryColor(context)),
+                      _buildLegendItem(context, 'Labour', AppColors.secondary),
+                      _buildLegendItem(context, 'Equipment', Colors.deepOrange),
                     ],
                   ),
                 ],
@@ -154,125 +132,95 @@ class BudgetUtilizationMobile extends StatelessWidget {
             ),
             const SizedBox(height: 24),
 
-            // Budget Breakdown
-            const Text(
-              'BUDGET BREAKDOWN',
+            // Category Breakdown Section Header
+            Text(
+              'EXPENSE CATEGORY BREAKDOWN',
               style: TextStyle(
-                fontSize: 10,
-                color: AppColors.textMuted,
+                fontSize: 11,
                 fontWeight: FontWeight.bold,
-                letterSpacing: 1,
+                color: AppColors.mutedText(context),
+                letterSpacing: 0.5,
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
+
+            // Breakdown Card List
             Container(
               decoration: BoxDecoration(
-                color: AppColors.surfaceWhite,
+                color: AppColors.cardBg(context),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.borderSubtle),
+                border: Border.all(color: AppColors.border(context)),
               ),
               child: Column(
                 children: [
                   _buildBreakdownItem(
-                    icon: Icons.groups,
-                    iconColor: AppColors.primary,
-                    title: 'Labor',
-                    amount: '₹10,80,000',
+                    context: context,
+                    icon: Icons.inventory_2_outlined,
+                    iconColor: AppColors.primaryColor(context),
+                    title: 'Raw Materials & Cement',
+                    amount: '₹1,08,00,000',
                     percent: 0.45,
-                    progressBarColor: AppColors.primary,
+                    progressBarColor: AppColors.primaryColor(context),
                     showDivider: true,
                   ),
                   _buildBreakdownItem(
-                    icon: Icons.inventory_2,
+                    context: context,
+                    icon: Icons.engineering_outlined,
                     iconColor: AppColors.secondary,
-                    title: 'Materials',
-                    amount: '₹6,00,000',
-                    percent: 0.25,
+                    title: 'Subcontractor & Labour Wages',
+                    amount: '₹72,00,000',
+                    percent: 0.30,
                     progressBarColor: AppColors.secondary,
                     showDivider: true,
                   ),
                   _buildBreakdownItem(
-                    icon: Icons.precision_manufacturing,
-                    iconColor: AppColors.warning,
-                    title: 'Equipment',
-                    amount: '₹4,80,000',
-                    percent: 0.20,
-                    progressBarColor: AppColors.warning,
+                    context: context,
+                    icon: Icons.build_outlined,
+                    iconColor: Colors.deepOrange,
+                    title: 'Machinery Rental & Fuel',
+                    amount: '₹36,00,000',
+                    percent: 0.15,
+                    progressBarColor: Colors.deepOrange,
                     showDivider: true,
                   ),
                   _buildBreakdownItem(
-                    icon: Icons.description,
-                    iconColor: AppColors.outline,
-                    title: 'Permits',
-                    amount: '₹1,20,000',
-                    percent: 0.05,
-                    progressBarColor: AppColors.outline,
-                    showDivider: true,
-                  ),
-                  _buildBreakdownItem(
-                    icon: Icons.local_shipping,
-                    iconColor: AppColors.outline,
-                    title: 'Logistics',
-                    amount: '₹1,20,000',
-                    percent: 0.05,
-                    progressBarColor: AppColors.outline,
+                    context: context,
+                    icon: Icons.receipt_long_outlined,
+                    iconColor: AppColors.mutedText(context),
+                    title: 'Site Permits & Petty Cash',
+                    amount: '₹24,00,000',
+                    percent: 0.10,
+                    progressBarColor: AppColors.mutedText(context),
                     showDivider: false,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            // CTA Button
-            OutlinedButton(
-              onPressed: () {},
-              style: OutlinedButton.styleFrom(
-                minimumSize: const Size(double.infinity, 54),
-                side: const BorderSide(color: AppColors.borderSubtle),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
-                ),
-              ),
-              child: const Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    'View Full Report',
-                    style: TextStyle(
-                      color: AppColors.primary,
-                      fontSize: 14,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  SizedBox(width: 8),
-                  Icon(Icons.chevron_right, color: AppColors.primary, size: 20),
-                ],
-              ),
-            ),
-            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildLegendItem(String label, Color color) {
+  Widget _buildLegendItem(BuildContext context, String label, Color color) {
     return Row(
       children: [
         Container(
-          width: 12,
-          height: 12,
+          width: 10,
+          height: 10,
           decoration: BoxDecoration(color: color, shape: BoxShape.circle),
         ),
-        const SizedBox(width: 8),
+        const SizedBox(width: 6),
         Text(
           label,
-          style: const TextStyle(fontSize: 14, color: AppColors.textMain),
+          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context)),
         ),
       ],
     );
   }
 
   Widget _buildBreakdownItem({
+    required BuildContext context,
     required IconData icon,
     required Color iconColor,
     required String title,
@@ -296,10 +244,10 @@ class BudgetUtilizationMobile extends StatelessWidget {
                       const SizedBox(width: 12),
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textMain,
+                          color: AppColors.text(context),
                         ),
                       ),
                     ],
@@ -309,17 +257,17 @@ class BudgetUtilizationMobile extends StatelessWidget {
                     children: [
                       Text(
                         amount,
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.textMain,
+                          color: AppColors.text(context),
                         ),
                       ),
                       Text(
                         '${(percent * 100).toInt()}% of total',
-                        style: const TextStyle(
+                        style: TextStyle(
                           fontSize: 12,
-                          color: AppColors.textMuted,
+                          color: AppColors.mutedText(context),
                         ),
                       ),
                     ],
@@ -328,76 +276,19 @@ class BudgetUtilizationMobile extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.full),
+                borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: percent,
-                  backgroundColor: AppColors.background,
-                  valueColor: AlwaysStoppedAnimation<Color>(progressBarColor),
+                  backgroundColor: AppColors.border(context),
+                  valueColor: AlwaysStoppedAnimation(progressBarColor),
                   minHeight: 6,
                 ),
               ),
             ],
           ),
         ),
-        if (showDivider)
-          const Divider(
-            color: AppColors.borderSubtle,
-            height: 1,
-            indent: 16,
-            endIndent: 16,
-          ),
+        if (showDivider) Divider(height: 1, color: AppColors.border(context), indent: 16, endIndent: 16),
       ],
     );
   }
-}
-
-class ChartSegment {
-  final double sweepPercentage;
-  final Color color;
-
-  ChartSegment(this.sweepPercentage, this.color);
-}
-
-class DonutChartPainter extends CustomPainter {
-  final List<ChartSegment> segments;
-
-  DonutChartPainter({required this.segments});
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final double strokeWidth = size.width * 0.12;
-    final double radius = (size.width - strokeWidth) / 2;
-    final Offset center = Offset(size.width / 2, size.height / 2);
-
-    final Paint backgroundPaint = Paint()
-      ..color = AppColors.borderSubtle.withValues(alpha: 0.3)
-      ..strokeWidth = strokeWidth
-      ..style = PaintingStyle.stroke;
-
-    canvas.drawCircle(center, radius, backgroundPaint);
-
-    double startAngle = -pi / 2;
-
-    for (var segment in segments) {
-      final Paint segmentPaint = Paint()
-        ..color = segment.color
-        ..strokeWidth = strokeWidth
-        ..style = PaintingStyle.stroke
-        ..strokeCap = StrokeCap.butt;
-
-      final double sweepAngle = segment.sweepPercentage * 2 * pi;
-      canvas.drawArc(
-        Rect.fromCircle(center: center, radius: radius),
-        startAngle,
-        sweepAngle,
-        false,
-        segmentPaint,
-      );
-
-      startAngle += sweepAngle;
-    }
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

@@ -21,7 +21,7 @@ class MobileDashboard extends ConsumerWidget {
     final statsAsync = ref.watch(dashboardStatsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
         automaticallyImplyLeading: false,

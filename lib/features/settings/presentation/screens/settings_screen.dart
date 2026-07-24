@@ -7,6 +7,11 @@ import '../../../../features/auth/presentation/controllers/auth_controller.dart'
 import '../../../../features/rbac/presentation/providers/permission_provider.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 
+// State Provider to hold draft theme selection before user clicks Apply
+final draftThemeSelectionProvider = StateProvider<ThemeMode>((ref) {
+  return ref.watch(themeProvider);
+});
+
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
@@ -41,6 +46,114 @@ class SettingsScreen extends ConsumerWidget {
     }
   }
 
+  Widget _themeOptionCard(
+    BuildContext context,
+    WidgetRef ref, {
+    required ThemeMode mode,
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    final draftMode = ref.watch(draftThemeSelectionProvider);
+    final activeAppliedMode = ref.watch(themeProvider);
+    final isSelected = draftMode == mode;
+    final isCurrentlyActive = activeAppliedMode == mode;
+    final primaryColor = AppColors.primaryColor(context);
+
+    return InkWell(
+      onTap: () {
+        ref.read(draftThemeSelectionProvider.notifier).state = mode;
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: isSelected
+              ? primaryColor.withOpacity(0.12)
+              : AppColors.cardBg(context),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: isSelected ? primaryColor : AppColors.border(context),
+            width: isSelected ? 2 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: isSelected ? primaryColor : AppColors.border(context).withOpacity(0.3),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                icon,
+                color: isSelected ? Colors.white : AppColors.mutedText(context),
+                size: 20,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: AppColors.text(context),
+                        ),
+                      ),
+                      if (isCurrentlyActive) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Text(
+                            'ACTIVE',
+                            style: TextStyle(
+                              color: AppColors.secondary,
+                              fontSize: 9,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    description,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.mutedText(context),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Radio<ThemeMode>(
+              value: mode,
+              groupValue: draftMode,
+              activeColor: primaryColor,
+              onChanged: (val) {
+                if (val != null) {
+                  ref.read(draftThemeSelectionProvider.notifier).state = val;
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final authState = ref.watch(authControllerProvider);
@@ -52,6 +165,9 @@ class SettingsScreen extends ConsumerWidget {
     final cardBg = AppColors.cardBg(context);
     final borderCol = AppColors.border(context);
     final mutedText = AppColors.mutedText(context);
+    final draftMode = ref.watch(draftThemeSelectionProvider);
+    final activeThemeMode = ref.watch(themeProvider);
+    final hasUnsavedChanges = draftMode != activeThemeMode;
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -86,23 +202,110 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.business, color: mutedText),
-                    title: const Text('Company Name', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(companyName),
+                    title: Text('Company Name', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    subtitle: Text(companyName, style: TextStyle(color: mutedText)),
                   ),
                   Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
                     leading: Icon(Icons.receipt_long_outlined, color: mutedText),
-                    title: const Text('GSTIN Number', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(gstin),
+                    title: Text('GSTIN Number', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    subtitle: Text(gstin, style: TextStyle(color: mutedText)),
                   ),
                 ],
               ),
             ),
             const SizedBox(height: 24),
 
-            // Preferences
+            // Theme Calibration Section
             Text(
-              'PREFERENCES',
+              'APPEARANCE & THEME CALIBRATION',
+              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: borderCol),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _themeOptionCard(
+                    context,
+                    ref,
+                    mode: ThemeMode.light,
+                    title: 'Light Mode ☀️',
+                    description: 'Crisp high-contrast light theme for bright daylight environments.',
+                    icon: Icons.wb_sunny_outlined,
+                  ),
+                  const SizedBox(height: 10),
+                  _themeOptionCard(
+                    context,
+                    ref,
+                    mode: ThemeMode.dark,
+                    title: 'Dark Mode 🌙',
+                    description: 'Calibrated deep slate dark theme with enhanced text visibility.',
+                    icon: Icons.nightlight_round_outlined,
+                  ),
+                  const SizedBox(height: 10),
+                  _themeOptionCard(
+                    context,
+                    ref,
+                    mode: ThemeMode.system,
+                    title: 'System Default 💻',
+                    description: 'Automatically match device operating system theme settings.',
+                    icon: Icons.settings_brightness_outlined,
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Apply Selected Mode Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        ref.read(themeProvider.notifier).setMode(draftMode);
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              'Installed ${draftMode == ThemeMode.dark ? "Dark" : draftMode == ThemeMode.light ? "Light" : "System"} Mode across IBUILD ERP!',
+                            ),
+                            backgroundColor: AppColors.secondary,
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
+                      icon: Icon(
+                        hasUnsavedChanges ? Icons.bolt : Icons.check_circle,
+                        size: 18,
+                      ),
+                      label: Text(
+                        hasUnsavedChanges
+                            ? 'Install Selected Theme'
+                            : 'Theme Preference Applied',
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: hasUnsavedChanges
+                            ? AppColors.primaryColor(context)
+                            : AppColors.secondary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // Role Simulator
+            Text(
+              'ROLE SIMULATOR & PERMISSIONS',
               style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
             const SizedBox(height: 8),
@@ -115,29 +318,17 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(Icons.palette_outlined, color: mutedText),
-                    title: const Text('Theme Mode', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(ref.watch(themeProvider) == ThemeMode.dark ? 'Dark Mode' : 'Light Mode'),
-                    trailing: Switch(
-                      value: ref.watch(themeProvider) == ThemeMode.dark,
-                      onChanged: (val) {
-                        ref.read(themeProvider.notifier).toggleTheme();
-                      },
-                    ),
-                  ),
-                  Divider(height: 1, color: borderCol, indent: 52),
-                  ListTile(
                     leading: Icon(Icons.admin_panel_settings_outlined, color: mutedText),
-                    title: const Text('Active Role (Simulator)', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text('Current: ${ref.watch(currentRoleProvider).toUpperCase()}'),
+                    title: Text('Active Role (Simulator)', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    subtitle: Text('Current: ${ref.watch(currentRoleProvider).toUpperCase()}', style: TextStyle(color: mutedText)),
                     trailing: DropdownButton<String>(
                       value: ref.watch(currentRoleProvider) == 'unknown' ? 'admin' : ref.watch(currentRoleProvider),
                       underline: const SizedBox(),
                       dropdownColor: cardBg,
-                      items: const [
-                        DropdownMenuItem(value: 'admin', child: Text('ADMIN')),
-                        DropdownMenuItem(value: 'owner', child: Text('OWNER')),
-                        DropdownMenuItem(value: 'supervisor', child: Text('SUPERVISOR')),
+                      items: [
+                        DropdownMenuItem(value: 'admin', child: Text('ADMIN', style: TextStyle(color: AppColors.text(context)))),
+                        DropdownMenuItem(value: 'owner', child: Text('OWNER', style: TextStyle(color: AppColors.text(context)))),
+                        DropdownMenuItem(value: 'supervisor', child: Text('SUPERVISOR', style: TextStyle(color: AppColors.text(context)))),
                       ],
                       onChanged: (newRole) {
                         if (newRole != null) {
@@ -154,8 +345,8 @@ class SettingsScreen extends ConsumerWidget {
                         Divider(height: 1, color: borderCol, indent: 52),
                         ListTile(
                           leading: Icon(Icons.backup_outlined, color: mutedText),
-                          title: const Text('Backup Database', style: TextStyle(fontWeight: FontWeight.bold)),
-                          subtitle: const Text('Last backed up: Today, 04:00 AM'),
+                          title: Text('Backup Database', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                          subtitle: Text('Last backed up: Today, 04:00 AM', style: TextStyle(color: mutedText)),
                         ),
                       ],
                     ),
@@ -181,20 +372,20 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.info_outline, color: mutedText),
-                    title: const Text('App Version', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: const Text('v1.0.0 (Phase 1 Build)'),
+                    title: Text('App Version', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    subtitle: Text('v1.0.0 (Phase 1 Build)', style: TextStyle(color: mutedText)),
                   ),
                   Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
                     leading: Icon(Icons.help_outline, color: mutedText),
-                    title: const Text('Logged in as', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(userEmail),
+                    title: Text('Logged in as', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    subtitle: Text(userEmail, style: TextStyle(color: mutedText)),
                   ),
                   Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
                     leading: Icon(Icons.shield_outlined, color: mutedText),
-                    title: const Text('Role', style: TextStyle(fontWeight: FontWeight.bold)),
-                    subtitle: Text(ref.watch(currentRoleProvider).toUpperCase()),
+                    title: Text('Role', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    subtitle: Text(ref.watch(currentRoleProvider).toUpperCase(), style: TextStyle(color: mutedText)),
                   ),
                 ],
               ),

@@ -13,7 +13,7 @@ class SupervisorDashboard extends ConsumerWidget {
     final statsAsync = ref.watch(dashboardStatsProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       body: statsAsync.when(
         data: (stats) => SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.containerMargin),
@@ -70,9 +70,9 @@ class SupervisorDashboard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceWhite,
+                  color: AppColors.cardBg(context),
                   borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: Border.all(color: AppColors.borderSubtle),
+                  border: Border.all(color: AppColors.border(context)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -163,9 +163,9 @@ class SupervisorDashboard extends ConsumerWidget {
       width: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

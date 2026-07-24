@@ -18,14 +18,14 @@ class ProjectListScreen extends ConsumerWidget {
     final state = ref.watch(projectControllerProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
-        title: const Text(
+        title: Text(
           'Projects',
           style: TextStyle(
             fontWeight: FontWeight.bold,
-            color: AppColors.primary,
+            color: AppColors.primaryColor(context),
           ),
         ),
         actions: [
@@ -159,10 +159,10 @@ class _ProjectCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       project.name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontWeight: FontWeight.bold,
                         fontSize: 16,
-                        color: AppColors.textMain,
+                        color: AppColors.text(context),
                       ),
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -191,8 +191,8 @@ class _ProjectCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   project.clientName!,
-                  style: const TextStyle(
-                    color: AppColors.textMuted,
+                  style: TextStyle(
+                    color: AppColors.mutedText(context),
                     fontSize: 13,
                   ),
                 ),
@@ -204,9 +204,9 @@ class _ProjectCard extends StatelessWidget {
                 children: [
                   Text(
                     'Budget: ₹${_formatAmount(project.budget)}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
-                      color: AppColors.textMuted,
+                      color: AppColors.mutedText(context),
                     ),
                   ),
                   Text(
@@ -226,9 +226,9 @@ class _ProjectCard extends StatelessWidget {
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
                   value: utilization.clamp(0.0, 1.0),
-                  backgroundColor: AppColors.background,
+                  backgroundColor: AppColors.border(context),
                   valueColor: AlwaysStoppedAnimation(
-                    utilization > 0.9 ? AppColors.error : AppColors.primary,
+                    utilization > 0.9 ? AppColors.error : AppColors.primaryColor(context),
                   ),
                   minHeight: 4,
                 ),

@@ -114,7 +114,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-      backgroundColor: AppColors.surfaceWhite,
+      backgroundColor: AppColors.cardBg(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
         width: 600,
@@ -128,7 +128,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
                   child: Container(
                     height: 48,
                     decoration: BoxDecoration(
-                      color: AppColors.background,
+                      color: AppColors.bg(context),
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Row(

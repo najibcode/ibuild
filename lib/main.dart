@@ -355,7 +355,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   // --- DESKTOP NAVIGATION & LAYOUT ---
   Widget _buildDesktopLayout() {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       body: Row(
         children: [
           // ── Shared Sidebar ──

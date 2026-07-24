@@ -23,11 +23,11 @@ class AppColors {
   static const Color warning = Color(0xFFF59E0B);
   static const Color outline = Color(0xFF94A3B8);
 
-  // Dark Mode Palette
-  static const Color darkBackground = Color(0xFF0F172A);
-  static const Color darkSurface = Color(0xFF1E293B);
-  static const Color darkCard = Color(0xFF1E293B);
-  static const Color darkBorder = Color(0xFF334155);
+  // Dark Mode Palette - Deep Premium Dark Navy Slate
+  static const Color darkBackground = Color(0xFF0B132B);
+  static const Color darkSurface = Color(0xFF1C2541);
+  static const Color darkCard = Color(0xFF1C2541);
+  static const Color darkBorder = Color(0xFF2E3B55);
   static const Color darkTextMain = Color(0xFFF8FAFC);
   static const Color darkTextMuted = Color(0xFF94A3B8);
   static const Color darkPrimary = Color(0xFF60A5FA);

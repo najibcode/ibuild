@@ -42,7 +42,7 @@ class WebDashboard extends ConsumerWidget {
                   ),
                   Row(
                     children: [
-                      _buildOutlineButton(Icons.refresh, 'Refresh', onPressed: () {
+                      _buildOutlineButton(context, Icons.refresh, 'Refresh', onPressed: () {
                         ref.invalidate(dashboardStatsProvider);
                       }),
                     ],
@@ -166,23 +166,23 @@ class WebDashboard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Site Activity (Last 7 Days)',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
+                            color: AppColors.text(context),
                           ),
                         ),
                         const SizedBox(height: 12),
                         _buildVelocityChart(context, stats.weeklyProgressCounts),
                         const SizedBox(height: 32),
-                        const Text(
+                        Text(
                           'Quick Access',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
+                            color: AppColors.text(context),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -197,12 +197,12 @@ class WebDashboard extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Recent Activity',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
-                            color: AppColors.textMain,
+                            color: AppColors.text(context),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -301,18 +301,18 @@ class WebDashboard extends ConsumerWidget {
 
   // ── Widgets ───────────────────────────────────────────────────────────────
 
-  Widget _buildOutlineButton(IconData icon, String label,
+  Widget _buildOutlineButton(BuildContext context, IconData icon, String label,
       {VoidCallback? onPressed}) {
     return OutlinedButton.icon(
       onPressed: onPressed ?? () {},
-      icon: Icon(icon, size: 14, color: AppColors.textMain),
+      icon: Icon(icon, size: 14, color: AppColors.text(context)),
       label: Text(
         label,
-        style: const TextStyle(
-            color: AppColors.textMain, fontSize: 13, fontWeight: FontWeight.bold),
+        style: TextStyle(
+            color: AppColors.text(context), fontSize: 13, fontWeight: FontWeight.bold),
       ),
       style: OutlinedButton.styleFrom(
-        side: const BorderSide(color: AppColors.borderSubtle),
+        side: BorderSide(color: AppColors.border(context)),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       ),
@@ -331,16 +331,9 @@ class WebDashboard extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.cardPadding),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
+        color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x05000000),
-            offset: Offset(0, 4),
-            blurRadius: 10,
-          ),
-        ],
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,10 +344,10 @@ class WebDashboard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.05),
+                  color: AppColors.primaryColor(context).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: AppColors.primary, size: 20),
+                child: Icon(icon, color: AppColors.primaryColor(context), size: 20),
               ),
               Flexible(
                 child: Container(
@@ -379,24 +372,24 @@ class WebDashboard extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             label.toUpperCase(),
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 10,
-                color: AppColors.textMuted,
+                color: AppColors.mutedText(context),
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5),
           ),
           const SizedBox(height: 4),
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
                 fontSize: 28,
                 fontWeight: FontWeight.bold,
-                color: AppColors.textMain),
+                color: AppColors.text(context)),
           ),
           const SizedBox(height: 8),
           Text(
             subtitle,
-            style: const TextStyle(fontSize: 12, color: AppColors.textMuted),
+            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
           ),
         ],
       ),

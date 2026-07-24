@@ -19,7 +19,7 @@ class InventoryHistoryScreen extends ConsumerWidget {
     final historyAsync = ref.watch(inventoryHistoryProvider(item.id));
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(title: Text(item.materialName)),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,17 +29,17 @@ class InventoryHistoryScreen extends ConsumerWidget {
             margin: const EdgeInsets.all(AppSpacing.containerMargin),
             padding: const EdgeInsets.all(AppSpacing.cardPadding),
             decoration: BoxDecoration(
-              color: AppColors.surfaceWhite,
+              color: AppColors.cardBg(context),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: AppColors.border(context)),
             ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _summaryCol('Category', item.category),
-                _summaryCol('Available', '${item.availableStock.toStringAsFixed(1)} ${item.unit}'),
-                _summaryCol('Min Level', '${item.minimumStock.toStringAsFixed(1)} ${item.unit}'),
-                _summaryCol('Price', '₹${item.purchasePrice.toStringAsFixed(2)}'),
+                _summaryCol(context, 'Category', item.category),
+                _summaryCol(context, 'Available', '${item.availableStock.toStringAsFixed(1)} ${item.unit}'),
+                _summaryCol(context, 'Min Level', '${item.minimumStock.toStringAsFixed(1)} ${item.unit}'),
+                _summaryCol(context, 'Price', '₹${item.purchasePrice.toStringAsFixed(2)}'),
               ],
             ),
           ),
@@ -48,7 +48,7 @@ class InventoryHistoryScreen extends ConsumerWidget {
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Change History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.textMain)),
+                Text('Change History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
                 TextButton.icon(
                   onPressed: () => _showAddEntry(context, ref),
                   icon: const Icon(Icons.add, size: 16),
@@ -65,9 +65,9 @@ class InventoryHistoryScreen extends ConsumerWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.history, size: 48, color: AppColors.outline.withOpacity(0.3)),
+                        Icon(Icons.history, size: 48, color: AppColors.mutedText(context).withOpacity(0.4)),
                         const SizedBox(height: 12),
-                        const Text('No history entries yet.', style: TextStyle(color: AppColors.textMuted)),
+                        Text('No history entries yet.', style: TextStyle(color: AppColors.mutedText(context))),
                       ],
                     ),
                   );
@@ -87,12 +87,12 @@ class InventoryHistoryScreen extends ConsumerWidget {
     );
   }
 
-  Widget _summaryCol(String label, String value) {
+  Widget _summaryCol(BuildContext context, String label, String value) {
     return Column(
       children: [
-        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.textMain)),
+        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context))),
         const SizedBox(height: 4),
-        Text(label, style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+        Text(label, style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
       ],
     );
   }
@@ -200,9 +200,9 @@ class _HistoryTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 8),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Row(
         children: [
@@ -218,13 +218,13 @@ class _HistoryTile extends StatelessWidget {
                 ),
                 if (entry.notes != null) ...[
                   const SizedBox(height: 3),
-                  Text(entry.notes!, style: const TextStyle(fontSize: 12, color: AppColors.textMuted)),
+                  Text(entry.notes!, style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
                 ],
               ],
             ),
           ),
           if (entry.createdAt != null)
-            Text(entry.createdAt!.substring(0, 10), style: const TextStyle(fontSize: 11, color: AppColors.textMuted)),
+            Text(entry.createdAt!.substring(0, 10), style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
         ],
       ),
     );

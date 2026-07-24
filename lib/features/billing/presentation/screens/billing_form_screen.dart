@@ -119,7 +119,7 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
     final projectsState = ref.watch(projectControllerProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Bill' : 'Add Bill'),
       ),
@@ -133,9 +133,9 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
               Container(
                 padding: const EdgeInsets.all(AppSpacing.cardPadding),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceWhite,
+                  color: AppColors.cardBg(context),
                   borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: AppColors.borderSubtle),
+                  border: Border.all(color: AppColors.border(context)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,

@@ -35,7 +35,7 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
       controller: _menuController,
       onOpen: _fetchNotifications,
       style: MenuStyle(
-        backgroundColor: const WidgetStatePropertyAll(AppColors.surfaceWhite),
+        backgroundColor: WidgetStatePropertyAll(AppColors.cardBg(context)),
         elevation: const WidgetStatePropertyAll(8.0),
         shape: WidgetStatePropertyAll(
           RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -141,13 +141,13 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                             if (detail.isNotEmpty)
                               Text(
                                 detail,
-                                style: const TextStyle(color: AppColors.textMain, fontSize: 12),
+                                style: TextStyle(color: AppColors.text(context), fontSize: 12),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             Text(
                               'By ${n.userName ?? "Unknown"} • ${_timeAgo(n.createdAt)}',
-                              style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
+                              style: TextStyle(color: AppColors.mutedText(context), fontSize: 11),
                             ),
                           ],
                         ),

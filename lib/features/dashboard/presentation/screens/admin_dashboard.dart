@@ -12,7 +12,7 @@ class AdminDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
         child: Column(
@@ -85,9 +85,9 @@ class AdminDashboard extends ConsumerWidget {
       width: 200,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: AppColors.surfaceWhite,
+        color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.borderSubtle),
+        border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,9 +120,9 @@ class _RoleSummarySection extends ConsumerWidget {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.surfaceWhite,
+            color: AppColors.cardBg(context),
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.borderSubtle),
+            border: Border.all(color: AppColors.border(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,9 +235,9 @@ class _RecentActivitySection extends ConsumerWidget {
         return Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.surfaceWhite,
+            color: AppColors.cardBg(context),
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.borderSubtle),
+            border: Border.all(color: AppColors.border(context)),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

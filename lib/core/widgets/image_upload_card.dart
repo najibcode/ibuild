@@ -70,10 +70,10 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
       child: Container(
         height: 180,
         decoration: BoxDecoration(
-          color: AppColors.background,
+          color: AppColors.cardBg(context),
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: Border.all(
-            color: AppColors.borderSubtle,
+            color: AppColors.border(context),
             style: hasImage ? BorderStyle.solid : BorderStyle.none,
           ),
         ),
@@ -94,11 +94,11 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.outline.withOpacity(0.5)),
+                  Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.mutedText(context).withOpacity(0.5)),
                   const SizedBox(height: 8),
                   Text(
                     widget.label,
-                    style: const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                    style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
                   ),
                 ],
               ),
