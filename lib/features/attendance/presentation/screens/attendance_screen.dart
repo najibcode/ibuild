@@ -283,9 +283,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     double todayPayroll = 0;
     for (final l in logged) {
       if (l.status.toLowerCase() == 'present') {
-        final emp = employees.firstWhere((e) => e.id == l.employeeId, orElse: () => null);
-        if (emp != null) {
-          todayPayroll += emp.salary;
+        final matches = employees.where((e) => e.id == l.employeeId);
+        if (matches.isNotEmpty) {
+          todayPayroll += matches.first.salary;
         }
       }
     }

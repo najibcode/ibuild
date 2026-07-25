@@ -4,7 +4,6 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/models/sales_bill_model.dart';
 import '../../data/repositories/supabase_sales_bill_repository.dart';
-import '../../../projects/data/models/project_model.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 
 class SalesBillBuilderItem {

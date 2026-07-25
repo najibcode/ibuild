@@ -6,7 +6,6 @@ import '../../../../core/widgets/paginated_list.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
-import 'project_detail_screen.dart';
 import 'project_form_screen.dart';
 import 'project_operations_screen.dart';
 

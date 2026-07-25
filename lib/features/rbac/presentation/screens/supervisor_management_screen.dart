@@ -1,12 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../employees/data/models/employee_model.dart';
-import '../../../employees/data/repositories/supabase_employee_repository.dart';
-import '../../../projects/data/models/project_model.dart';
-import '../../../projects/presentation/controllers/project_controller.dart';
-
 import '../../../employees/presentation/controllers/employee_controller.dart';
 
 final supervisorListProvider = FutureProvider<List<Employee>>((ref) async {
@@ -55,7 +50,6 @@ class _SupervisorManagementScreenState extends ConsumerState<SupervisorManagemen
   @override
   Widget build(BuildContext context) {
     final supervisorsAsync = ref.watch(supervisorListProvider);
-    final projectsAsync = ref.watch(projectControllerProvider);
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),

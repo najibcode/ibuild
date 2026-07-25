@@ -49,6 +49,55 @@ class WebDashboard extends ConsumerWidget {
                   ),
                 ],
               ),
+              const SizedBox(height: 16),
+
+              // ── Quick Operations Launcher Bar ──
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg(context),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border(context)),
+                ),
+                child: Row(
+                  children: [
+                    Text(
+                      'QUICK ACTIONS:',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildQuickActionChip(context, Icons.add_circle_outline, 'Record Expense', AppColors.primaryColor(context), () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record Expense dialog')));
+                            }),
+                            _buildQuickActionChip(context, Icons.how_to_reg_outlined, 'Mark Attendance', AppColors.secondary, () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance module')));
+                            }),
+                            _buildQuickActionChip(context, Icons.camera_alt_outlined, 'Daily Progress Log', Colors.amber.shade800, () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Daily Progress Log')));
+                            }),
+                            _buildQuickActionChip(context, Icons.agriculture_outlined, 'Machinery Fleet', Colors.purple, () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Machinery Fleet module')));
+                            }),
+                            _buildQuickActionChip(context, Icons.assignment_ind_outlined, 'Subcontractors', Colors.indigo, () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subcontractors module')));
+                            }),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
               const SizedBox(height: 24),
 
               // ── KPI Cards Grid ──
@@ -665,4 +714,33 @@ class WebDashboard extends ConsumerWidget {
 
   static String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
+
+  Widget _buildQuickActionChip(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 8),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: color.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 14, color: color),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

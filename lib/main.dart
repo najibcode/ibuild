@@ -18,6 +18,9 @@ import 'features/billing/presentation/screens/billing_list_screen.dart';
 import 'features/expenses/presentation/screens/expense_list_screen.dart';
 import 'features/projects/presentation/screens/project_list_screen.dart';
 import 'features/inventory/presentation/screens/inventory_list_screen.dart';
+import 'features/equipment/presentation/screens/equipment_list_screen.dart';
+import 'features/vendors/presentation/screens/vendor_list_screen.dart';
+import 'features/reports/presentation/screens/full_report_generator_screen.dart';
 
 import 'web_dashboard.dart';
 import 'features/dashboard/presentation/screens/admin_dashboard.dart';
@@ -69,6 +72,9 @@ enum MobileScreen {
   employees,
   billing,
   expenses,
+  equipment,
+  vendors,
+  reports,
   settings,
 }
 
@@ -115,6 +121,10 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   /// Check if user has a specific permission
   bool _hasPerm(String perm) {
+    final role = ref.watch(currentRoleProvider);
+    final permsAsync = ref.watch(userPermissionsProvider);
+    final perms = permsAsync.valueOrNull ?? {};
+    if (role == 'owner' || role == 'admin' || perms.isEmpty) return true;
     return ref.watch(hasPermissionProvider(perm));
   }
 
@@ -167,6 +177,15 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         break;
       case MobileScreen.expenses:
         body = const ExpenseListScreen();
+        break;
+      case MobileScreen.equipment:
+        body = const EquipmentListScreen();
+        break;
+      case MobileScreen.vendors:
+        body = const VendorListScreen();
+        break;
+      case MobileScreen.reports:
+        body = const FullReportGeneratorScreen();
         break;
       case MobileScreen.settings:
         body = const SettingsScreen();
@@ -328,8 +347,49 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                       _setMobileTab(MobileScreen.expenses);
                     },
                   ),
-                if (_hasPerm('billing.view') || _hasPerm('expense.view'))
-                  const Divider(),
+                ListTile(
+                  leading: const Icon(
+                    Icons.agriculture_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Machinery Fleet',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.equipment);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.assignment_ind_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Subcontractors',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.vendors);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.assessment_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Reports & Export',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.reports);
+                  },
+                ),
+                const Divider(),
                 ListTile(
                   leading: const Icon(
                     Icons.settings_outlined,
@@ -393,6 +453,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     // Build the same filtered list that WebSidebar uses
     final visibleItems = WebSidebar.allItems.where((item) {
       if (item.requiredPermission == null) return true;
+      if (role == 'owner' || role == 'admin' || permissions.isEmpty) return true;
       return permissions.contains(item.requiredPermission);
     }).toList();
 
@@ -417,6 +478,12 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         return const BillingListScreen();
       case 'Expenses':
         return const ExpenseListScreen();
+      case 'Machinery Fleet':
+        return const EquipmentListScreen();
+      case 'Subcontractors':
+        return const VendorListScreen();
+      case 'Reports & Export':
+        return const FullReportGeneratorScreen();
       case 'Settings':
         return const SettingsScreen();
       default:

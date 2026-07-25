@@ -51,13 +51,15 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     loadAttendanceForToday();
   }
 
-  Future<void> loadAttendanceForToday() async {
-    state = state.copyWith(isLoading: true);
+  Future<void> loadAttendanceForToday({bool showLoading = true}) async {
+    if (showLoading && state.activeEmployees.isEmpty) {
+      state = state.copyWith(isLoading: true);
+    }
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
     try {
       // 1. Fetch active employees
       final employees = await _ref.read(employeeRepositoryProvider).getEmployees();
-      final active = employees.where((e) => e.status == 'active').toList();
+      final active = employees.where((e) => e.status.toLowerCase() == 'active').toList();
 
       // 2. Fetch logged attendance
       final logged = await _repository.getAttendanceForDate(todayStr);
@@ -101,10 +103,10 @@ class AttendanceController extends StateNotifier<AttendanceState> {
 
     state = state.copyWith(attendanceList: updatedList);
 
-    // 2. Persist to backend
+    // 2. Persist to backend without triggering full-screen loading spinner
     try {
       await _repository.saveAttendance(newRecord);
-      await loadAttendanceForToday();
+      await loadAttendanceForToday(showLoading: false);
     } catch (_) {
       // Keep optimistic state
     }

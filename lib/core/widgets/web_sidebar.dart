@@ -76,6 +76,24 @@ class WebSidebar extends ConsumerWidget {
       requiredPermission: 'expense.view',
     ),
     WebSidebarItem(
+      icon: Icons.agriculture_outlined,
+      activeIcon: Icons.agriculture,
+      label: 'Machinery Fleet',
+      requiredPermission: null,
+    ),
+    WebSidebarItem(
+      icon: Icons.assignment_ind_outlined,
+      activeIcon: Icons.assignment_ind,
+      label: 'Subcontractors',
+      requiredPermission: null,
+    ),
+    WebSidebarItem(
+      icon: Icons.assessment_outlined,
+      activeIcon: Icons.assessment,
+      label: 'Reports & Export',
+      requiredPermission: null,
+    ),
+    WebSidebarItem(
       icon: Icons.settings_outlined,
       activeIcon: Icons.settings,
       label: 'Settings',
@@ -91,6 +109,7 @@ class WebSidebar extends ConsumerWidget {
 
     final visibleItems = allItems.where((item) {
       if (item.requiredPermission == null) return true;
+      if (roleName == 'owner' || roleName == 'admin' || permissions.isEmpty) return true;
       return permissions.contains(item.requiredPermission);
     }).toList();
 
@@ -109,7 +128,6 @@ class WebSidebar extends ConsumerWidget {
         roleDisplay = 'User';
     }
 
-    final isDark = Theme.of(context).brightness == Brightness.dark;
     final primaryCol = AppColors.primaryColor(context);
 
     return Container(

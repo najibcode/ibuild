@@ -15,7 +15,6 @@ import '../../../subcontractors/data/models/subcontractor_model.dart';
 import '../../../subcontractors/data/repositories/supabase_subcontractor_repository.dart';
 import '../../../inventory/data/models/inventory_item_model.dart';
 import '../../../inventory/presentation/controllers/inventory_controller.dart';
-import '../../../attendance/domain/repositories/attendance_repository.dart';
 import '../../../attendance/presentation/controllers/attendance_controller.dart';
 import '../../../attendance/data/models/attendance_model.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
