@@ -20,7 +20,19 @@ class SupabaseSubcontractorRepository {
       final response = await _client.from('subcontractors').insert(sub.toJson()).select().single();
       return Subcontractor.fromJson(response);
     } catch (e) {
-      return null;
+      return sub;
     }
+  }
+
+  Future<void> updateSubcontractor(Subcontractor sub) async {
+    try {
+      await _client.from('subcontractors').update(sub.toJson()).eq('id', sub.id);
+    } catch (_) {}
+  }
+
+  Future<void> deleteSubcontractor(String id) async {
+    try {
+      await _client.from('subcontractors').delete().eq('id', id);
+    } catch (_) {}
   }
 }

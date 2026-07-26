@@ -1,10 +1,13 @@
 class Subcontractor {
   final String id;
   final String name;
+  final String? companyNameProp;
+  final String? contactPersonProp;
   final String? specialization;
   final String? phone;
   final String? email;
   final String? address;
+  final String? siteNameProp;
   final String? gstNumber;
   final double contractValue;
   final double paidAmount;
@@ -15,10 +18,13 @@ class Subcontractor {
   Subcontractor({
     required this.id,
     required this.name,
+    this.companyNameProp,
+    this.contactPersonProp,
     this.specialization,
     this.phone,
     this.email,
     this.address,
+    this.siteNameProp,
     this.gstNumber,
     required this.contractValue,
     required this.paidAmount,
@@ -27,33 +33,52 @@ class Subcontractor {
     required this.createdAt,
   });
 
+  String get companyName => (companyNameProp != null && companyNameProp!.isNotEmpty) ? companyNameProp! : name;
+  String get contactPerson => (contactPersonProp != null && contactPersonProp!.isNotEmpty) ? contactPersonProp! : name;
+  String get tradeSpecialization => specialization ?? 'General Contracting';
+  String get siteName => siteNameProp ?? 'Active Construction Sites';
+  double get contractAmount => contractValue;
+  double get retentionPending => contractValue > paidAmount ? (contractValue - paidAmount) : 0.0;
   double get outstandingAmount => contractValue > paidAmount ? (contractValue - paidAmount) : 0.0;
   bool get isOverpaid => paidAmount > contractValue && contractValue > 0;
 
   factory Subcontractor.fromJson(Map<String, dynamic> json) {
     return Subcontractor(
       id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? '',
-      specialization: json['specialization'] as String?,
+      name: json['name'] as String? ?? json['company_name'] as String? ?? '',
+      companyNameProp: json['company_name'] as String? ?? json['name'] as String?,
+      contactPersonProp: json['contact_person'] as String? ?? json['contactPerson'] as String?,
+      specialization: json['specialization'] as String? ?? json['trade_specialization'] as String?,
       phone: json['phone'] as String?,
       email: json['email'] as String?,
       address: json['address'] as String?,
+      siteNameProp: json['site_name'] as String? ?? json['siteName'] as String?,
       gstNumber: json['gst_number'] as String?,
-      contractValue: (json['contract_value'] as num?)?.toDouble() ?? 0.0,
-      paidAmount: (json['paid_amount'] as num?)?.toDouble() ?? 0.0,
+      contractValue: (json['contract_value'] as num?)?.toDouble() ??
+          (json['contractAmount'] as num?)?.toDouble() ??
+          0.0,
+      paidAmount: (json['paid_amount'] as num?)?.toDouble() ??
+          (json['paidAmount'] as num?)?.toDouble() ??
+          0.0,
       status: json['status'] as String? ?? 'Active',
       isArchived: json['is_archived'] as bool? ?? false,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      if (id.isNotEmpty) 'id': id,
       'name': name,
-      'specialization': specialization,
+      'company_name': companyName,
+      'contact_person': contactPerson,
+      'specialization': tradeSpecialization,
       'phone': phone,
       'email': email,
       'address': address,
+      'site_name': siteName,
       'gst_number': gstNumber,
       'contract_value': contractValue,
       'paid_amount': paidAmount,
@@ -65,10 +90,13 @@ class Subcontractor {
   Subcontractor copyWith({
     String? id,
     String? name,
+    String? companyNameProp,
+    String? contactPersonProp,
     String? specialization,
     String? phone,
     String? email,
     String? address,
+    String? siteNameProp,
     String? gstNumber,
     double? contractValue,
     double? paidAmount,
@@ -79,10 +107,13 @@ class Subcontractor {
     return Subcontractor(
       id: id ?? this.id,
       name: name ?? this.name,
+      companyNameProp: companyNameProp ?? this.companyNameProp,
+      contactPersonProp: contactPersonProp ?? this.contactPersonProp,
       specialization: specialization ?? this.specialization,
       phone: phone ?? this.phone,
       email: email ?? this.email,
       address: address ?? this.address,
+      siteNameProp: siteNameProp ?? this.siteNameProp,
       gstNumber: gstNumber ?? this.gstNumber,
       contractValue: contractValue ?? this.contractValue,
       paidAmount: paidAmount ?? this.paidAmount,
