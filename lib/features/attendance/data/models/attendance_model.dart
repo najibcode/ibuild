@@ -39,6 +39,7 @@ class Attendance {
 
   Map<String, dynamic> toJson() {
     return {
+      if (id.isNotEmpty) 'id': id,
       'employee_id': employeeId,
       'date': date,
       'status': status,

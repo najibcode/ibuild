@@ -45,29 +45,43 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         onConflict: 'employee_id,date',
       );
     } catch (e) {
-      if (e.toString().contains("Could not find the 'project_id' column")) {
-        final pruned = Map<String, dynamic>.from(payload)..remove('project_id');
+      final minimalPayload = <String, dynamic>{
+        if (attendance.id.isNotEmpty) 'id': attendance.id,
+        'employee_id': attendance.employeeId,
+        'date': attendance.date,
+        'status': attendance.status,
+      };
+      if (attendance.projectId != null && attendance.projectId!.isNotEmpty) {
+        minimalPayload['project_id'] = attendance.projectId;
+      }
+      try {
         await _client.from('attendance').upsert(
-          pruned,
+          minimalPayload,
           onConflict: 'employee_id,date',
         );
-      } else {
-        rethrow;
+      } catch (_) {
+        minimalPayload.remove('project_id');
+        await _client.from('attendance').upsert(
+          minimalPayload,
+          onConflict: 'employee_id,date',
+        );
       }
     }
 
     // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'updated_attendance',
-      entityType: 'Attendance',
-      entityId: attendance.employeeId,
-      details: {
-        'date': attendance.date,
-        'status': attendance.status,
-        'project_id': attendance.projectId ?? '',
-        'employee_name': attendance.employeeName ?? '',
-      },
-    );
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'updated_attendance',
+        entityType: 'Attendance',
+        entityId: attendance.employeeId,
+        details: {
+          'date': attendance.date,
+          'status': attendance.status,
+          'project_id': attendance.projectId ?? '',
+          'employee_name': attendance.employeeName ?? '',
+        },
+      );
+    } catch (_) {}
   }
 
   @override
