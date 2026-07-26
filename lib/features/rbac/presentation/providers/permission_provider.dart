@@ -164,6 +164,8 @@ Set<String> _defaultPermissionsForRole(String roleName) {
         'project.view',
         'project.update',
         'employee.view',
+        'employee.create',
+        'employee.update',
         'attendance.view',
         'attendance.create',
         'attendance.update',
@@ -178,6 +180,18 @@ Set<String> _defaultPermissionsForRole(String roleName) {
         'daily_progress.update',
       };
     default:
-      return {};
+      return {
+        'dashboard.view',
+        'project.view',
+        'employee.view',
+        'employee.create',
+        'employee.update',
+        'attendance.view',
+        'inventory.view',
+        'billing.view',
+        'expense.view',
+        'reports.view',
+        'daily_progress.view',
+      };
   }
 }

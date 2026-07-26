@@ -119,7 +119,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 24),
 
-            // Daily Wage Rate Card
+            // Daily Compensation & Tea Allowance Cards
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -127,24 +127,58 @@ class EmployeeDetailScreen extends ConsumerWidget {
                 borderRadius: BorderRadius.circular(AppRadius.md),
                 border: Border.all(color: AppColors.border(context)),
               ),
-              child: Row(
+              child: Column(
                 children: [
-                  const CircleAvatar(
-                    backgroundColor: AppColors.secondary,
-                    child: Icon(Icons.payments_outlined, color: Colors.white),
-                  ),
-                  const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
                     children: [
-                      Text('Daily Wage Salary Rate', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
-                      const SizedBox(height: 2),
-                      Text(
-                        '₹${employee.salary.toInt()} / day',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                      const CircleAvatar(
+                        backgroundColor: AppColors.secondary,
+                        child: Icon(Icons.payments_outlined, color: Colors.white),
                       ),
-                      Text('Mobile Phone: ${employee.phone}', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Base Salary (Worker Pay)', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                            const SizedBox(height: 2),
+                            Text(
+                              '₹${employee.salary.toInt()} / day',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Tea & Snacks Budget', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                            const SizedBox(height: 2),
+                            Text(
+                              '₹${employee.teaSnackAllowance.toInt()} / day',
+                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
+                  ),
+                  const Divider(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Total Employer Daily Cost:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                      Text(
+                        '₹${employee.totalDailyCost.toInt()} / day',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Mobile Phone: ${employee.phone}', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
                   ),
                 ],
               ),
@@ -152,7 +186,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Attendance History Log
-            Text('PAST ATTENDANCE LOGS & DAILY EARNINGS', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+            Text('PAST ATTENDANCE LOGS & COST BREAKDOWN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5)),
             const SizedBox(height: 8),
 
             attendanceHistoryAsync.when(
@@ -172,7 +206,9 @@ class EmployeeDetailScreen extends ConsumerWidget {
                 }
 
                 int presentDays = logs.where((l) => l.status == 'Present').length;
-                double totalEarned = presentDays * employee.salary;
+                double baseEarned = employee.calculateBaseEarnings(presentDays);
+                double teaCost = employee.calculateTeaSnackCost(presentDays);
+                double totalEmployerCost = employee.calculateTotalEmployerCost(presentDays);
 
                 return Column(
                   children: [
@@ -183,11 +219,31 @@ class EmployeeDetailScreen extends ConsumerWidget {
                         color: AppColors.primaryContainer.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      child: Column(
                         children: [
-                          Text('Present Days: $presentDays', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                          Text('Accumulated Wages: ₹${totalEarned.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context))),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Days Worked: $presentDays', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                              Text('Worker Pay: ₹${baseEarned.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Tea & Snacks Spent:', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                              Text('₹${teaCost.toInt()}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.secondary)),
+                            ],
+                          ),
+                          const Divider(height: 12),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Total Employer Cost:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.text(context))),
+                              Text('₹${totalEmployerCost.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryColor(context))),
+                            ],
+                          ),
                         ],
                       ),
                     ),
@@ -199,6 +255,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
                         final log = logs[i];
                         final isPresent = log.status == 'Present';
                         final earnedToday = isPresent ? employee.salary : 0.0;
+                        final teaToday = isPresent ? employee.teaSnackAllowance : 0.0;
 
                         return Card(
                           color: AppColors.cardBg(context),
@@ -215,12 +272,23 @@ class EmployeeDetailScreen extends ConsumerWidget {
                             ),
                             title: Text('Date: ${log.date}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                             subtitle: Text('Status: ${log.status}', style: TextStyle(color: AppColors.mutedText(context))),
-                            trailing: Text(
-                              isPresent ? '+₹${earnedToday.toInt()}' : '₹0',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                color: isPresent ? AppColors.secondary : AppColors.mutedText(context),
-                              ),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  isPresent ? '+₹${earnedToday.toInt()} pay' : '₹0',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: isPresent ? AppColors.secondary : AppColors.mutedText(context),
+                                  ),
+                                ),
+                                if (isPresent)
+                                  Text(
+                                    '+₹${teaToday.toInt()} tea',
+                                    style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                                  ),
+                              ],
                             ),
                           ),
                         );
@@ -229,6 +297,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
                   ],
                 );
               },
+
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, s) => Text('Error loading attendance logs: $e'),
             ),

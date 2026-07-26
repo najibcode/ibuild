@@ -154,3 +154,10 @@ To run schema changes without downtime or data corruption, follow this workflow:
 5.  **Rollback Plan**: For every migration script (e.g., `XXXX_up.sql`), write a companion rollback script (`XXXX_down.sql`).
     *   *Example Up*: `ALTER TABLE project ADD COLUMN is_archived BOOLEAN DEFAULT false;`
     *   *Example Down*: `ALTER TABLE project DROP COLUMN is_archived;`
+
+---
+
+## 5. Applied Migrations Log
+
+* **`008_tea_snack_allowance.sql`**: Adds `tea_snack_allowance NUMERIC(10, 2) DEFAULT 20.00` to the `employee` table to track daily tea and snacks expenditure incurred by the employer separate from worker base wages.
+

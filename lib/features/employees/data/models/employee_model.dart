@@ -3,7 +3,8 @@ class Employee {
   final String name;
   final String phone;
   final String role;
-  final double salary; // Daily Rate in ₹/day
+  final double salary; // Base Daily Rate in ₹/day
+  final double teaSnackAllowance; // Daily Tea & Snacks budget in ₹/day
   final String status;
   final String? photoUrl;
 
@@ -13,13 +14,21 @@ class Employee {
     required this.phone,
     required this.role,
     required this.salary,
+    this.teaSnackAllowance = 20.0,
     required this.status,
     this.photoUrl,
   });
 
-  // Daily Wage getters
+  // Daily Wage & Tea Allowance Getters
   double get dailyRate => salary;
+  double get effectiveTeaSnackAllowance => teaSnackAllowance;
+  double get totalDailyCost => salary + teaSnackAllowance;
+
+  // Earnings & Cost Calculations
   double calculateTotalEarnings(int daysPresent) => daysPresent * dailyRate;
+  double calculateBaseEarnings(int daysPresent) => daysPresent * salary;
+  double calculateTeaSnackCost(int daysPresent) => daysPresent * teaSnackAllowance;
+  double calculateTotalEmployerCost(int daysPresent) => daysPresent * totalDailyCost;
 
   factory Employee.fromJson(Map<String, dynamic> json) {
     return Employee(
@@ -28,6 +37,7 @@ class Employee {
       phone: json['phone'] as String? ?? '',
       role: json['role'] as String? ?? 'Labor',
       salary: (json['salary'] as num?)?.toDouble() ?? 0.0,
+      teaSnackAllowance: (json['tea_snack_allowance'] as num?)?.toDouble() ?? 20.0,
       status: json['status'] as String? ?? 'active',
       photoUrl: json['photo_url'] as String?,
     );
@@ -39,6 +49,7 @@ class Employee {
       'phone': phone,
       'role': role,
       'salary': salary,
+      'tea_snack_allowance': teaSnackAllowance,
       'status': status,
       'photo_url': photoUrl,
     };
@@ -50,6 +61,7 @@ class Employee {
     String? phone,
     String? role,
     double? salary,
+    double? teaSnackAllowance,
     String? status,
     String? photoUrl,
   }) {
@@ -59,8 +71,10 @@ class Employee {
       phone: phone ?? this.phone,
       role: role ?? this.role,
       salary: salary ?? this.salary,
+      teaSnackAllowance: teaSnackAllowance ?? this.teaSnackAllowance,
       status: status ?? this.status,
       photoUrl: photoUrl ?? this.photoUrl,
     );
   }
 }
+

@@ -38,6 +38,9 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
     if (employee.salary < 0) {
       throw ArgumentError('Employee salary cannot be negative.');
     }
+    if (employee.teaSnackAllowance < 0) {
+      throw ArgumentError('Tea and snacks allowance cannot be negative.');
+    }
 
     await _client.from('employees').insert(employee.toJson());
     
@@ -52,10 +55,15 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
 
   @override
   Future<void> updateEmployee(Employee employee) async {
+    if (employee.teaSnackAllowance < 0) {
+      throw ArgumentError('Tea and snacks allowance cannot be negative.');
+    }
+
     await _client
         .from('employees')
         .update(employee.toJson())
         .eq('id', employee.id);
+
         
     // Log activity
     await _activityRepo.logActivity(

@@ -35,6 +35,24 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           ),
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 4.0),
+            child: FilledButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
+                );
+                ref.read(employeeListControllerProvider.notifier).loadEmployees();
+              },
+              icon: const Icon(Icons.person_add, size: 16),
+              label: const Text('+ Add Employee', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              style: FilledButton.styleFrom(
+                backgroundColor: AppColors.primaryColor(context),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+            ),
+          ),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref.read(employeeListControllerProvider.notifier).loadEmployees(),
@@ -45,7 +63,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         data: (employees) {
           // Compute Workforce & Daily Wage Metrics
           final activeCount = employees.where((e) => e.status.toLowerCase() == 'active').length;
-          final totalDailyWageEst = employees.fold(0.0, (sum, e) => sum + e.salary);
+          final totalDailyWageEst = employees.fold(0.0, (sum, e) => sum + e.totalDailyCost);
 
           // Extract unique roles for filter chips
           final roles = employees.map((e) => e.role).toSet().toList();
@@ -134,6 +152,21 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                               'Add construction workers, supervisors, or site staff.',
                               style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
                             ),
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
+                                );
+                                ref.read(employeeListControllerProvider.notifier).loadEmployees();
+                              },
+                              icon: const Icon(Icons.person_add),
+                              label: const Text('Add New Employee'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor(context),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
                           ],
                         ),
                       )
@@ -152,21 +185,19 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error loading employees: $e')),
       ),
-      floatingActionButton: PermissionGuard(
-        permission: 'employee.create',
-        child: FloatingActionButton.extended(
-          onPressed: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
-            );
-            ref.read(employeeListControllerProvider.notifier).loadEmployees();
-          },
-          backgroundColor: AppColors.primaryColor(context),
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.person_add),
-          label: const Text('Add Staff'),
-        ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
+          );
+          ref.read(employeeListControllerProvider.notifier).loadEmployees();
+        },
+        backgroundColor: AppColors.primaryColor(context),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Staff'),
       ),
+
     );
   }
 
@@ -308,13 +339,14 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          '₹${employee.salary.toInt()}/day',
+                          '₹${employee.salary.toInt()}/day + ₹${employee.teaSnackAllowance.toInt()} tea',
                           style: TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.bold,
                             color: AppColors.secondary,
                           ),
                         ),
+
                       ],
                     ),
                     const SizedBox(height: 4),

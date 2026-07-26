@@ -15,9 +15,38 @@ void main() {
       );
 
       expect(worker.dailyRate, equals(850.0));
+      expect(worker.teaSnackAllowance, equals(20.0)); // Default ₹20/day
+      expect(worker.totalDailyCost, equals(870.0)); // ₹850 base + ₹20 tea
       expect(worker.calculateTotalEarnings(22), equals(18700.0)); // 22 days worked * 850
-      expect(worker.calculateTotalEarnings(28), equals(23800.0)); // 28 days worked * 850
+      expect(worker.calculateBaseEarnings(22), equals(18700.0));
+      expect(worker.calculateTeaSnackCost(22), equals(440.0)); // 22 days * ₹20
+      expect(worker.calculateTotalEmployerCost(22), equals(19140.0)); // 18700 + 440
     });
+
+    test('Custom tea and snacks allowance per employee', () {
+      final seniorWorker = Employee(
+        id: 'emp-102',
+        name: 'Suresh Carpenter',
+        phone: '+91 9876543211',
+        role: 'Senior Carpenter',
+        salary: 1000.0,
+        teaSnackAllowance: 35.0, // Custom ₹35/day
+        status: 'active',
+      );
+
+      expect(seniorWorker.teaSnackAllowance, equals(35.0));
+      expect(seniorWorker.totalDailyCost, equals(1035.0));
+      expect(seniorWorker.calculateBaseEarnings(10), equals(10000.0));
+      expect(seniorWorker.calculateTeaSnackCost(10), equals(350.0));
+      expect(seniorWorker.calculateTotalEmployerCost(10), equals(10350.0));
+
+      final json = seniorWorker.toJson();
+      expect(json['tea_snack_allowance'], equals(35.0));
+
+      final restored = Employee.fromJson(json);
+      expect(restored.teaSnackAllowance, equals(35.0));
+    });
+
 
     test('Single-Day Attendance model serialization and backward compatibility', () {
       final attendance = Attendance(
