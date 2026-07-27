@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import 'global_search_dialog.dart';
 import 'notifications_dropdown.dart';
+import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
+
+
+
 
 /// Shared top header bar for the web (desktop) layout.
 /// Displays a search field, notifications, and contextual actions.
@@ -84,6 +88,15 @@ class WebHeader extends StatelessWidget {
             children: [
               const NotificationsDropdown(),
               IconButton(
+                icon: const Icon(Icons.account_circle_outlined, color: AppColors.outline, size: 22),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                  );
+                },
+                tooltip: 'My Profile',
+              ),
+              IconButton(
                 icon: const Icon(Icons.help_outline, color: AppColors.outline, size: 20),
                 onPressed: () {},
                 tooltip: 'Help',
@@ -99,6 +112,7 @@ class WebHeader extends StatelessWidget {
               ],
             ],
           ),
+
         ],
       ),
     );

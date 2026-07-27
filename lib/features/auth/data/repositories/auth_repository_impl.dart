@@ -66,4 +66,24 @@ class AuthRepositoryImpl implements AuthRepository {
       return null;
     }
   }
+
+  @override
+  Future<void> updateProfile({
+    required String uid,
+    required String fullName,
+    required String phone,
+    required String companyName,
+    String? avatarUrl,
+  }) async {
+    final payload = {
+      'id': uid,
+      'full_name': fullName,
+      'phone': phone,
+      'company_name': companyName,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
+      'updated_at': DateTime.now().toIso8601String(),
+    };
+    await _client.from('profiles').upsert(payload);
+  }
 }
+

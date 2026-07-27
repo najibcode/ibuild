@@ -6,6 +6,10 @@ import '../../../../core/theme/theme_provider.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../../features/rbac/presentation/providers/permission_provider.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
+import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
+
+
+
 
 // State Provider to hold draft theme selection before user clicks Apply
 final draftThemeSelectionProvider = StateProvider<ThemeMode>((ref) {
@@ -186,6 +190,44 @@ class SettingsScreen extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // User Profile Section
+            Text(
+              'MY USER PROFILE',
+              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+            ),
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                color: cardBg,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(color: borderCol),
+              ),
+              child: ListTile(
+                leading: CircleAvatar(
+                  backgroundImage: NetworkImage(
+                    profile?['avatar_url'] as String? ??
+                        'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc',
+                  ),
+                  radius: 20,
+                ),
+                title: Text(
+                  profile?['full_name'] as String? ?? 'Business Owner / Admin',
+                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                ),
+                subtitle: Text(userEmail, style: TextStyle(color: mutedText)),
+                trailing: OutlinedButton.icon(
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                    );
+                  },
+                  icon: const Icon(Icons.edit, size: 14),
+                  label: const Text('Edit Profile'),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+
             // Company Profile Section
             Text(
               'COMPANY PROFILE',
@@ -214,6 +256,7 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
+
             const SizedBox(height: 24),
 
             // Theme Calibration Section

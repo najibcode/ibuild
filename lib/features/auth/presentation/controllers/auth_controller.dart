@@ -145,7 +145,40 @@ class AuthController extends StateNotifier<AuthState> {
       return false;
     }
   }
+
+  Future<bool> updateUserProfile({
+    required String fullName,
+    required String phone,
+    required String companyName,
+    String? avatarUrl,
+  }) async {
+    state = state.copyWith(isLoading: true);
+    final user = state.user ?? _repository.getCurrentSession()?.user;
+    final uid = user?.id ?? 'demo-user-id';
+    try {
+      await _repository.updateProfile(
+        uid: uid,
+        fullName: fullName,
+        phone: phone,
+        companyName: companyName,
+        avatarUrl: avatarUrl,
+      );
+      final updatedProfile = await _repository.getUserProfile(uid: uid);
+      state = state.copyWith(
+        isLoading: false,
+        profile: updatedProfile,
+      );
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: e.toString(),
+      );
+      return false;
+    }
+  }
 }
+
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);

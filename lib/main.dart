@@ -14,7 +14,12 @@ import 'budget_utilization_mobile.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
+import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
+
+
+
 import 'features/billing/presentation/screens/billing_list_screen.dart';
+
 import 'features/expenses/presentation/screens/expense_list_screen.dart';
 import 'features/projects/presentation/screens/project_list_screen.dart';
 import 'features/inventory/presentation/screens/inventory_list_screen.dart';
@@ -76,7 +81,9 @@ enum MobileScreen {
   vendors,
   reports,
   settings,
+  profile,
 }
+
 
 class MainRouterScreen extends ConsumerStatefulWidget {
   const MainRouterScreen({super.key});
@@ -190,7 +197,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       case MobileScreen.settings:
         body = const SettingsScreen();
         break;
+      case MobileScreen.profile:
+        body = const UserProfileScreen();
+        break;
     }
+
 
     // Build bottom nav items based on permissions
     final List<_MobileNavEntry> navEntries = [
@@ -392,6 +403,20 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                 const Divider(),
                 ListTile(
                   leading: const Icon(
+                    Icons.account_circle_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'My Profile',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.profile);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(
                     Icons.settings_outlined,
                     color: AppColors.primary,
                   ),
@@ -404,6 +429,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                     _setMobileTab(MobileScreen.settings);
                   },
                 ),
+
               ],
             ),
           ),
