@@ -42,45 +42,48 @@ class EquipmentController extends StateNotifier<EquipmentState> {
   }
 
   Future<void> loadEquipment() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, error: null);
     try {
       final items = await _repo.fetchEquipment();
-      state = state.copyWith(items: items, isLoading: false);
+      state = state.copyWith(items: items, isLoading: false, error: null);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: e.toString());
     }
   }
 
-  Future<void> addEquipment(EquipmentItem item) async {
+  Future<bool> addEquipment(EquipmentItem item) async {
     try {
       final created = await _repo.createEquipment(item);
-      final list = [...state.items, created ?? item];
-      state = state.copyWith(items: list);
+      final list = [created, ...state.items];
+      state = state.copyWith(items: list, error: null);
+      return true;
     } catch (e) {
-      final list = [...state.items, item];
-      state = state.copyWith(items: list);
+      state = state.copyWith(error: e.toString());
+      return false;
     }
   }
 
-  Future<void> updateEquipment(EquipmentItem item) async {
+  Future<bool> updateEquipment(EquipmentItem item) async {
     try {
       await _repo.updateEquipment(item);
       final list = state.items.map((e) => e.id == item.id ? item : e).toList();
-      state = state.copyWith(items: list);
-    } catch (_) {
-      final list = state.items.map((e) => e.id == item.id ? item : e).toList();
-      state = state.copyWith(items: list);
+      state = state.copyWith(items: list, error: null);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
     }
   }
 
-  Future<void> deleteEquipment(String id) async {
+  Future<bool> deleteEquipment(String id) async {
     try {
       await _repo.deleteEquipment(id);
       final list = state.items.where((e) => e.id != id).toList();
-      state = state.copyWith(items: list);
-    } catch (_) {
-      final list = state.items.where((e) => e.id != id).toList();
-      state = state.copyWith(items: list);
+      state = state.copyWith(items: list, error: null);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: e.toString());
+      return false;
     }
   }
 }

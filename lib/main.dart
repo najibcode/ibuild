@@ -369,8 +369,9 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                   ),
                   onTap: () {
                     Navigator.pop(context);
-                    _setMobileTab(MobileScreen.machinery);
+                    _setMobileTab(MobileScreen.equipment);
                   },
+
                 ),
                 ListTile(
                   leading: const Icon(

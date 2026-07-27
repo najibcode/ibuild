@@ -60,16 +60,22 @@ erDiagram
 CREATE TABLE equipment (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    category VARCHAR(100) DEFAULT 'Heavy Machinery', -- Heavy Machinery, Power Tools & Machines, Ladders & Climbing, Hand Tools & Site Gear
+    category VARCHAR(100) DEFAULT 'Heavy Machinery', -- Heavy Machinery, Power Tools & Machines, Ladders & Climbing, Hand Tools & Site Gear, Generators & Power Units
     tag_number VARCHAR(100),
     site_name VARCHAR(255),
     status VARCHAR(50) DEFAULT 'Operational' CHECK (status IN ('Operational', 'In Use', 'Maintenance', 'Idle')),
     rental_cost_per_day NUMERIC(10, 2) DEFAULT 0.00,
     fuel_consumption_liters_per_day NUMERIC(10, 2) DEFAULT 0.00,
+    notes TEXT,
     current_project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
+-- Enable RLS
+ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Allow authenticated read/write on equipment" ON equipment FOR ALL USING (auth.role() = 'authenticated');
+
 
 
 CREATE TABLE machine_maintenance (

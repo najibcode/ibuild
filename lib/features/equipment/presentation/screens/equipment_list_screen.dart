@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
+import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../data/models/equipment_model.dart';
 import '../controllers/equipment_controller.dart';
 
@@ -41,18 +42,21 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
   }
 
   void _showEquipmentFormDialog(BuildContext context, {EquipmentItem? existingItem}) {
+    final projects = ref.read(projectControllerProvider).projects;
+
     final nameCtrl = TextEditingController(text: existingItem?.name ?? '');
     final tagCtrl = TextEditingController(text: existingItem?.tagNumber ?? '');
     final siteCtrl = TextEditingController(text: existingItem?.siteName ?? '');
     final rentalCtrl = TextEditingController(
-      text: existingItem != null ? existingItem.rentalCostPerDay.toInt().toString() : '250',
+      text: existingItem != null ? existingItem.rentalCostPerDay.toStringAsFixed(0) : '0',
     );
     final fuelCtrl = TextEditingController(
-      text: existingItem != null ? existingItem.fuelConsumptionLitersPerDay.toInt().toString() : '0',
+      text: existingItem != null ? existingItem.fuelConsumptionLitersPerDay.toStringAsFixed(0) : '0',
     );
     final notesCtrl = TextEditingController(text: existingItem?.notes ?? '');
-    String selectedCategory = existingItem?.category ?? 'Power Tools & Machines';
+    String selectedCategory = existingItem?.category ?? _categories.first;
     String selectedStatus = existingItem?.status ?? 'Operational';
+    String? selectedProjectId = existingItem?.projectId;
 
     showDialog(
       context: context,
@@ -71,7 +75,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      existingItem == null ? 'Register Equipment & Tools' : 'Edit Equipment / Tool',
+                      existingItem == null ? 'Register Equipment / Tool' : 'Edit Equipment / Tool',
                       style: TextStyle(fontSize: 18, color: AppColors.text(context), fontWeight: FontWeight.bold),
                     ),
                   ),
@@ -82,29 +86,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Quick Presets helper for new entries
-                    if (existingItem == null) ...[
-                      Text(
-                        'QUICK ITEM PRESETS:',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
-                      ),
-                      const SizedBox(height: 6),
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: [
-                          _presetChip('Drill Machine', 'Power Tools & Machines', 'TL-DRL-101', 'Lorry / Tool Box', '250', '0', 'Carried in lorry for site & vehicle work', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
-                          _presetChip('Aluminum Ladder', 'Ladders & Climbing', 'LD-12F-04', 'Skyline Phase 1', '150', '0', '12ft heavy duty extension ladder', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
-                          _presetChip('3-Step Stool', 'Ladders & Climbing', 'ST-03S-09', 'Main Warehouse', '80', '0', 'Large reinforced step stool', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
-                          _presetChip('JCB Excavator', 'Heavy Machinery', 'EQ-JCB-909', 'Sunrise Towers', '4500', '45', 'Heavy excavator bucket', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
-                        ],
-                      ),
-                      const SizedBox(height: 14),
-                      const Divider(),
-                      const SizedBox(height: 10),
-                    ],
-
-                    // Category Selection Dropdown
+                    // Category Selection
                     DropdownButtonFormField<String>(
                       value: _categories.contains(selectedCategory) ? selectedCategory : _categories.first,
                       dropdownColor: AppColors.cardBg(context),
@@ -122,13 +104,13 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Equipment / Tool Name
+                    // Equipment Name
                     TextField(
                       controller: nameCtrl,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        labelText: 'Item Name',
-                        hintText: 'e.g. Bosch Heavy Drill Machine, 12ft Ladder, Large Stool',
+                        labelText: 'Item Name *',
+                        hintText: 'e.g. Bosch Heavy Duty Drill Machine',
                         labelStyle: TextStyle(color: AppColors.mutedText(context)),
                       ),
                     ),
@@ -169,13 +151,45 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Site / Storage Location
+                    // Project Assignment Dropdown (if projects exist)
+                    if (projects.isNotEmpty) ...[
+                      DropdownButtonFormField<String?>(
+                        value: selectedProjectId,
+                        dropdownColor: AppColors.cardBg(context),
+                        decoration: InputDecoration(
+                          labelText: 'Assigned Project',
+                          labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                        ),
+                        items: [
+                          DropdownMenuItem<String?>(
+                            value: null,
+                            child: Text('Unassigned / Central Pool', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                          ),
+                          ...projects.map((p) => DropdownMenuItem<String?>(
+                                value: p.id,
+                                child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                              )),
+                        ],
+                        onChanged: (val) {
+                          setDialogState(() {
+                            selectedProjectId = val;
+                            if (val != null) {
+                              final matched = projects.firstWhere((p) => p.id == val);
+                              siteCtrl.text = matched.name;
+                            }
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
+                    // Site / Storage Location Name
                     TextField(
                       controller: siteCtrl,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        labelText: 'Assigned Site / Location',
-                        hintText: 'e.g. Lorry Tool Box, Skyline Towers, Main Warehouse',
+                        labelText: 'Location / Storage Spot',
+                        hintText: 'e.g. Lorry Tool Box, Main Warehouse, Site B',
                         labelStyle: TextStyle(color: AppColors.mutedText(context)),
                       ),
                     ),
@@ -189,7 +203,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                             keyboardType: TextInputType.number,
                             style: TextStyle(color: AppColors.text(context)),
                             decoration: InputDecoration(
-                              labelText: 'Cost / Value (₹/day)',
+                              labelText: 'Daily Value / Rate (₹)',
                               labelStyle: TextStyle(color: AppColors.mutedText(context)),
                             ),
                           ),
@@ -211,13 +225,14 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Notes / Usage description
+                    // Notes / Remarks
                     TextField(
                       controller: notesCtrl,
+                      maxLines: 2,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        labelText: 'Usage / Storage Notes',
-                        hintText: 'e.g. Kept in lorry for vehicle maintenance & drilling',
+                        labelText: 'Usage / Maintenance Notes',
+                        hintText: 'e.g. Carried in lorry for vehicle maintenance & site work',
                         labelStyle: TextStyle(color: AppColors.mutedText(context)),
                       ),
                     ),
@@ -231,7 +246,13 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                 ),
                 ElevatedButton(
                   onPressed: () async {
-                    if (nameCtrl.text.trim().isEmpty) return;
+                    if (nameCtrl.text.trim().isEmpty) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(content: Text('Please enter an item name')),
+                      );
+                      return;
+                    }
+
                     final item = EquipmentItem(
                       id: existingItem?.id ?? '',
                       name: nameCtrl.text.trim(),
@@ -240,6 +261,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                           ? 'EQ-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}'
                           : tagCtrl.text.trim(),
                       siteName: siteCtrl.text.trim().isEmpty ? 'Main Site' : siteCtrl.text.trim(),
+                      projectId: selectedProjectId,
                       status: selectedStatus,
                       rentalCostPerDay: double.tryParse(rentalCtrl.text) ?? 0.0,
                       fuelConsumptionLitersPerDay: double.tryParse(fuelCtrl.text) ?? 0.0,
@@ -247,22 +269,33 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       createdAt: existingItem?.createdAt ?? DateTime.now(),
                     );
 
+                    final bool success;
                     if (existingItem == null) {
-                      await ref.read(equipmentControllerProvider.notifier).addEquipment(item);
+                      success = await ref.read(equipmentControllerProvider.notifier).addEquipment(item);
                     } else {
-                      await ref.read(equipmentControllerProvider.notifier).updateEquipment(item);
+                      success = await ref.read(equipmentControllerProvider.notifier).updateEquipment(item);
                     }
 
                     if (context.mounted) {
                       Navigator.pop(dialogCtx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(existingItem == null
-                              ? 'Equipment / Tool registered successfully'
-                              : 'Equipment / Tool updated successfully'),
-                          backgroundColor: AppColors.secondary,
-                        ),
-                      );
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(existingItem == null
+                                ? 'Item registered successfully'
+                                : 'Item updated successfully'),
+                            backgroundColor: AppColors.secondary,
+                          ),
+                        );
+                      } else {
+                        final err = ref.read(equipmentControllerProvider).error ?? 'Operation failed';
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Failed to save to backend: $err'),
+                            backgroundColor: AppColors.error,
+                          ),
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(
@@ -279,46 +312,12 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     );
   }
 
-  Widget _presetChip(
-    String label,
-    String category,
-    String tag,
-    String site,
-    String rental,
-    String fuel,
-    String notes,
-    TextEditingController nameCtrl,
-    TextEditingController tagCtrl,
-    TextEditingController siteCtrl,
-    TextEditingController rentalCtrl,
-    TextEditingController fuelCtrl,
-    TextEditingController notesCtrl,
-    StateSetter setDialogState,
-    Function(String) setCat,
-  ) {
-    return ActionChip(
-      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
-      avatar: Icon(_getCategoryIcon(category), size: 14),
-      onPressed: () {
-        setDialogState(() {
-          nameCtrl.text = label;
-          tagCtrl.text = tag;
-          siteCtrl.text = site;
-          rentalCtrl.text = rental;
-          fuelCtrl.text = fuel;
-          notesCtrl.text = notes;
-          setCat(category);
-        });
-      },
-    );
-  }
-
   void _confirmDelete(BuildContext context, EquipmentItem item) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Delete Equipment / Tool'),
-        content: Text('Are you sure you want to delete "${item.name}"?'),
+        content: Text('Are you sure you want to delete "${item.name}" from the database?'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
           ElevatedButton(
@@ -331,11 +330,18 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     );
 
     if (confirm == true) {
-      await ref.read(equipmentControllerProvider.notifier).deleteEquipment(item.id);
+      final success = await ref.read(equipmentControllerProvider.notifier).deleteEquipment(item.id);
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Item deleted successfully')),
-        );
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Item deleted successfully from database')),
+          );
+        } else {
+          final err = ref.read(equipmentControllerProvider).error ?? 'Delete failed';
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Error deleting item: $err'), backgroundColor: AppColors.error),
+          );
+        }
       }
     }
   }
@@ -381,146 +387,175 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
       ),
       body: eqState.isLoading
           ? const Center(child: CircularProgressIndicator())
-          : Column(
-              children: [
-                // Summary Cards
-                Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Column(
-                    children: [
-                      Row(
+          : eqState.error != null
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(Icons.cloud_off, size: 64, color: AppColors.error),
+                        const SizedBox(height: 16),
+                        Text(
+                          'Backend Connection Error',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          eqState.error!,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13, color: AppColors.mutedText(context)),
+                        ),
+                        const SizedBox(height: 20),
+                        ElevatedButton.icon(
+                          onPressed: () => ref.read(equipmentControllerProvider.notifier).loadEquipment(),
+                          icon: const Icon(Icons.refresh),
+                          label: const Text('Retry Connection'),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : Column(
+                  children: [
+                    // Summary Cards
+                    Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: Column(
                         children: [
-                          Expanded(
-                            child: _buildMetricCard(
-                              context,
-                              title: 'Total Fleet & Tools',
-                              value: '$totalFleet Items',
-                              subtitle: '$operational Active / In Use',
-                              icon: Icons.construction,
-                              color: AppColors.primaryColor(context),
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildMetricCard(
-                              context,
-                              title: 'Tools & Ladders',
-                              value: '${powerToolsCount + laddersCount}',
-                              subtitle: '$powerToolsCount Drills/Tools, $laddersCount Ladders',
-                              icon: Icons.stairs,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _buildMetricCard(
-                              context,
-                              title: 'Operational Status',
-                              value: '$operational / $totalFleet',
-                              subtitle: 'Ready for Site Duty',
-                              icon: Icons.check_circle_outline,
-                              color: AppColors.secondary,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _buildMetricCard(
-                              context,
-                              title: 'Daily Fleet Cost',
-                              value: '₹${_fmt(totalDailyCost)}',
-                              subtitle: 'Per Day Asset Value',
-                              icon: Icons.payments_outlined,
-                              color: Colors.purple,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Category Quick Filter Chips
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Row(
-                    children: [
-                      FilterChip(
-                        selected: _categoryFilter == null,
-                        label: const Text('All Items'),
-                        onSelected: (_) => setState(() => _categoryFilter = null),
-                      ),
-                      const SizedBox(width: 8),
-                      ..._categories.map((cat) {
-                        final isSelected = _categoryFilter == cat;
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: FilterChip(
-                            selected: isSelected,
-                            avatar: Icon(_getCategoryIcon(cat), size: 14),
-                            label: Text(cat),
-                            onSelected: (selected) {
-                              setState(() {
-                                _categoryFilter = selected ? cat : null;
-                              });
-                            },
-                          ),
-                        );
-                      }),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 10),
-
-                // Search Bar
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: SearchFilterBar(
-                    hintText: 'Search drilling machines, ladders, trucks, tag #...',
-                    onSearchChanged: (val) => setState(() => _searchQuery = val),
-                    filterOptions: _categories,
-                    activeFilter: _categoryFilter,
-                    onFilterChanged: (val) => setState(() => _categoryFilter = val),
-                  ),
-                ),
-                const SizedBox(height: 12),
-
-                // Equipment Directory List
-                Expanded(
-                  child: filtered.isEmpty
-                      ? Center(
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Row(
                             children: [
-                              Icon(Icons.construction, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No equipment or tools found.',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                              Expanded(
+                                child: _buildMetricCard(
+                                  context,
+                                  title: 'Total Fleet & Tools',
+                                  value: '$totalFleet Items',
+                                  subtitle: '$operational Active / In Use',
+                                  icon: Icons.construction,
+                                  color: AppColors.primaryColor(context),
+                                ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Add drilling machines, ladders, step stools, or heavy machines.',
-                                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildMetricCard(
+                                  context,
+                                  title: 'Tools & Ladders',
+                                  value: '${powerToolsCount + laddersCount}',
+                                  subtitle: '$powerToolsCount Drills/Tools, $laddersCount Ladders',
+                                  icon: Icons.stairs,
+                                  color: AppColors.secondary,
+                                ),
                               ),
                             ],
                           ),
-                        )
-                      : ListView.builder(
-                          padding: const EdgeInsets.symmetric(horizontal: 16),
-                          itemCount: filtered.length,
-                          itemBuilder: (context, index) {
-                            final item = filtered[index];
-                            return _buildEquipmentCard(context, item);
-                          },
-                        ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMetricCard(
+                                  context,
+                                  title: 'Operational Status',
+                                  value: '$operational / $totalFleet',
+                                  subtitle: 'Ready for Site Duty',
+                                  icon: Icons.check_circle_outline,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: _buildMetricCard(
+                                  context,
+                                  title: 'Daily Fleet Cost',
+                                  value: '₹${_fmt(totalDailyCost)}',
+                                  subtitle: 'Per Day Asset Value',
+                                  icon: Icons.payments_outlined,
+                                  color: Colors.purple,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    // Category Quick Filter Chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: Row(
+                        children: [
+                          FilterChip(
+                            selected: _categoryFilter == null,
+                            label: const Text('All Items'),
+                            onSelected: (_) => setState(() => _categoryFilter = null),
+                          ),
+                          const SizedBox(width: 8),
+                          ..._categories.map((cat) {
+                            final isSelected = _categoryFilter == cat;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8.0),
+                              child: FilterChip(
+                                selected: isSelected,
+                                avatar: Icon(_getCategoryIcon(cat), size: 14),
+                                label: Text(cat),
+                                onSelected: (selected) {
+                                  setState(() {
+                                    _categoryFilter = selected ? cat : null;
+                                  });
+                                },
+                              ),
+                            );
+                          }),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Search Bar
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                      child: SearchFilterBar(
+                        hintText: 'Search drilling machines, ladders, trucks, tag #...',
+                        onSearchChanged: (val) => setState(() => _searchQuery = val),
+                        filterOptions: _categories,
+                        activeFilter: _categoryFilter,
+                        onFilterChanged: (val) => setState(() => _categoryFilter = val),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Equipment Directory List
+                    Expanded(
+                      child: filtered.isEmpty
+                          ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.construction, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    'No equipment or tools found.',
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Click "+ Add Equipment / Tool" to register items in Supabase.',
+                                    style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                                  ),
+                                ],
+                              ),
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.symmetric(horizontal: 16),
+                              itemCount: filtered.length,
+                              itemBuilder: (context, index) {
+                                final item = filtered[index];
+                                return _buildEquipmentCard(context, item);
+                              },
+                            ),
+                    ),
+                  ],
                 ),
-              ],
-            ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showEquipmentFormDialog(context),
         backgroundColor: AppColors.primaryColor(context),
