@@ -81,11 +81,12 @@ class WebSidebar extends ConsumerWidget {
       requiredPermission: 'expense.view',
     ),
     WebSidebarItem(
-      icon: Icons.agriculture_outlined,
-      activeIcon: Icons.agriculture,
-      label: 'Machinery Fleet',
+      icon: Icons.construction_outlined,
+      activeIcon: Icons.construction,
+      label: 'Equipment, Machinery & Tools',
       requiredPermission: null,
     ),
+
     WebSidebarItem(
       icon: Icons.assignment_ind_outlined,
       activeIcon: Icons.assignment_ind,

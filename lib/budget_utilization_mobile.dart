@@ -175,10 +175,11 @@ class BudgetUtilizationMobile extends ConsumerWidget {
                   ),
                   _buildBreakdownItem(
                     context: context,
-                    icon: Icons.build_outlined,
+                    icon: Icons.construction_outlined,
                     iconColor: Colors.deepOrange,
-                    title: 'Machinery Rental & Fuel',
+                    title: 'Equipment, Machinery & Tools',
                     amount: '₹36,00,000',
+
                     percent: 0.15,
                     progressBarColor: Colors.deepOrange,
                     showDivider: true,

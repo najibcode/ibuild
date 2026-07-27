@@ -31,7 +31,7 @@ The Excel ingestion pipeline leverages the AI agent to import unstructured sprea
 1.  **File Upload**: The supervisor uploads an `.xlsx` or `.csv` file via the app.
 2.  **Schema Alignment Phase**:
     *   The parsing agent inspects the file headers.
-    *   It uses semantic embedding similarities to map columns (e.g., "Daily Wage", "Payout Rate", "Salary" are all mapped to `salary`; "Tea Money", "Snacks Budget", "Daily Allowance" are mapped to `tea_snack_allowance`).
+    *   It uses semantic embedding similarities to map columns (e.g., "Daily Wage", "Payout Rate", "Salary" are all mapped to `salary`; "Tea Money", "Snacks Budget", "Daily Allowance" are mapped to `tea_snack_allowance`; "Drill Machine", "Ladder", "Heavy Equipment", "Site Tools" are mapped to `equipment`).
 3.  **Data Quality Validation**:
     *   Verify required constraints (e.g., `phone` format, non-negative `salary`, valid foreign key references).
 4.  **Dry Run Execution**:

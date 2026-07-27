@@ -360,16 +360,16 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                   ),
                 ListTile(
                   leading: const Icon(
-                    Icons.agriculture_outlined,
+                    Icons.construction_outlined,
                     color: AppColors.primary,
                   ),
                   title: const Text(
-                    'Machinery Fleet',
+                    'Equipment, Machinery & Tools',
                     style: TextStyle(fontWeight: FontWeight.w600),
                   ),
                   onTap: () {
                     Navigator.pop(context);
-                    _setMobileTab(MobileScreen.equipment);
+                    _setMobileTab(MobileScreen.machinery);
                   },
                 ),
                 ListTile(
@@ -504,9 +504,10 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         return const BillingListScreen();
       case 'Expenses':
         return const ExpenseListScreen();
-      case 'Machinery Fleet':
+      case 'Equipment, Machinery & Tools':
         return const EquipmentListScreen();
       case 'Subcontractors':
+
         return const VendorListScreen();
       case 'Reports & Export':
         return const FullReportGeneratorScreen();

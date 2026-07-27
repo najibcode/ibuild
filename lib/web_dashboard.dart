@@ -85,9 +85,10 @@ class WebDashboard extends ConsumerWidget {
                             _buildQuickActionChip(context, Icons.camera_alt_outlined, 'Daily Progress Log', Colors.amber.shade800, () {
                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Daily Progress Log')));
                             }),
-                            _buildQuickActionChip(context, Icons.agriculture_outlined, 'Machinery Fleet', Colors.purple, () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Machinery Fleet module')));
+                            _buildQuickActionChip(context, Icons.construction_outlined, 'Equipment & Tools', Colors.purple, () {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Equipment, Machinery & Tools module')));
                             }),
+
                             _buildQuickActionChip(context, Icons.assignment_ind_outlined, 'Subcontractors', Colors.indigo, () {
                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subcontractors module')));
                             }),

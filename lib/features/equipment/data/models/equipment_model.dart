@@ -8,6 +8,7 @@ class EquipmentItem {
   final String status; // Operational, In Use, Maintenance, Idle
   final double rentalCostPerDay;
   final double fuelConsumptionLitersPerDay;
+  final String? notes; // Storage / usage notes (e.g. Lorry tool box, 12ft aluminum ladder)
   final DateTime createdAt;
 
   EquipmentItem({
@@ -20,6 +21,7 @@ class EquipmentItem {
     required this.status,
     required this.rentalCostPerDay,
     required this.fuelConsumptionLitersPerDay,
+    this.notes,
     required this.createdAt,
   });
 
@@ -38,6 +40,7 @@ class EquipmentItem {
       fuelConsumptionLitersPerDay: (json['fuel_consumption_liters_per_day'] as num?)?.toDouble() ??
           (json['fuelConsumptionLitersPerDay'] as num?)?.toDouble() ??
           0.0,
+      notes: json['notes'] as String?,
       createdAt: json['created_at'] != null
           ? DateTime.parse(json['created_at'] as String)
           : DateTime.now(),
@@ -55,6 +58,7 @@ class EquipmentItem {
       'status': status,
       'rental_cost_per_day': rentalCostPerDay,
       'fuel_consumption_liters_per_day': fuelConsumptionLitersPerDay,
+      if (notes != null && notes!.isNotEmpty) 'notes': notes,
     };
   }
 
@@ -68,6 +72,7 @@ class EquipmentItem {
     String? status,
     double? rentalCostPerDay,
     double? fuelConsumptionLitersPerDay,
+    String? notes,
     DateTime? createdAt,
   }) {
     return EquipmentItem(
@@ -80,7 +85,9 @@ class EquipmentItem {
       status: status ?? this.status,
       rentalCostPerDay: rentalCostPerDay ?? this.rentalCostPerDay,
       fuelConsumptionLitersPerDay: fuelConsumptionLitersPerDay ?? this.fuelConsumptionLitersPerDay,
+      notes: notes ?? this.notes,
       createdAt: createdAt ?? this.createdAt,
     );
   }
 }
+

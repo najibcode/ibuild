@@ -54,20 +54,23 @@ erDiagram
     equipment ||--o{ machine_maintenance : needs
 ```
 
-### A. Equipment & Machinery Tracking
+### A. Equipment, Machinery & Tools Tracking
 ```sql
+-- Supports Heavy Machinery, Power Tools (Drilling Machines), Climbing Gear (Ladders, Stools), and Site Tools
 CREATE TABLE equipment (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    model_number VARCHAR(100),
-    serial_number VARCHAR(100) UNIQUE,
-    purchase_date DATE,
-    status VARCHAR(50) DEFAULT 'available' CHECK (status IN ('available', 'in_use', 'maintenance', 'retired')),
+    category VARCHAR(100) DEFAULT 'Heavy Machinery', -- Heavy Machinery, Power Tools & Machines, Ladders & Climbing, Hand Tools & Site Gear
+    tag_number VARCHAR(100),
+    site_name VARCHAR(255),
+    status VARCHAR(50) DEFAULT 'Operational' CHECK (status IN ('Operational', 'In Use', 'Maintenance', 'Idle')),
+    rental_cost_per_day NUMERIC(10, 2) DEFAULT 0.00,
+    fuel_consumption_liters_per_day NUMERIC(10, 2) DEFAULT 0.00,
     current_project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
-    hourly_rate NUMERIC(10, 2) DEFAULT 0.00,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
+
 
 CREATE TABLE machine_maintenance (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

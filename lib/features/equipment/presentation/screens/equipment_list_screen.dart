@@ -16,14 +16,43 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
   String _searchQuery = '';
   String? _categoryFilter;
 
-  void _showAddEquipmentDialog(BuildContext context) {
-    final nameCtrl = TextEditingController();
-    final tagCtrl = TextEditingController();
-    final siteCtrl = TextEditingController();
-    final rentalCtrl = TextEditingController(text: '3500');
-    final fuelCtrl = TextEditingController(text: '50');
-    String selectedCategory = 'Excavator';
-    String selectedStatus = 'Operational';
+  static const List<String> _categories = [
+    'Heavy Machinery',
+    'Power Tools & Machines',
+    'Ladders & Climbing',
+    'Hand Tools & Site Gear',
+    'Generators & Power Units',
+  ];
+
+  IconData _getCategoryIcon(String category) {
+    switch (category) {
+      case 'Power Tools & Machines':
+        return Icons.construction;
+      case 'Ladders & Climbing':
+        return Icons.stairs;
+      case 'Hand Tools & Site Gear':
+        return Icons.handyman_outlined;
+      case 'Generators & Power Units':
+        return Icons.bolt_outlined;
+      case 'Heavy Machinery':
+      default:
+        return Icons.agriculture_outlined;
+    }
+  }
+
+  void _showEquipmentFormDialog(BuildContext context, {EquipmentItem? existingItem}) {
+    final nameCtrl = TextEditingController(text: existingItem?.name ?? '');
+    final tagCtrl = TextEditingController(text: existingItem?.tagNumber ?? '');
+    final siteCtrl = TextEditingController(text: existingItem?.siteName ?? '');
+    final rentalCtrl = TextEditingController(
+      text: existingItem != null ? existingItem.rentalCostPerDay.toInt().toString() : '250',
+    );
+    final fuelCtrl = TextEditingController(
+      text: existingItem != null ? existingItem.fuelConsumptionLitersPerDay.toInt().toString() : '0',
+    );
+    final notesCtrl = TextEditingController(text: existingItem?.notes ?? '');
+    String selectedCategory = existingItem?.category ?? 'Power Tools & Machines';
+    String selectedStatus = existingItem?.status ?? 'Operational';
 
     showDialog(
       context: context,
@@ -32,58 +61,90 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               backgroundColor: AppColors.cardBg(context),
-              title: Text('Register Heavy Machinery', style: TextStyle(color: AppColors.text(context))),
+              title: Row(
+                children: [
+                  Icon(
+                    _getCategoryIcon(selectedCategory),
+                    color: AppColors.primaryColor(context),
+                    size: 24,
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      existingItem == null ? 'Register Equipment & Tools' : 'Edit Equipment / Tool',
+                      style: TextStyle(fontSize: 18, color: AppColors.text(context), fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
               content: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Quick Presets helper for new entries
+                    if (existingItem == null) ...[
+                      Text(
+                        'QUICK ITEM PRESETS:',
+                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 6),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: [
+                          _presetChip('Drill Machine', 'Power Tools & Machines', 'TL-DRL-101', 'Lorry / Tool Box', '250', '0', 'Carried in lorry for site & vehicle work', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
+                          _presetChip('Aluminum Ladder', 'Ladders & Climbing', 'LD-12F-04', 'Skyline Phase 1', '150', '0', '12ft heavy duty extension ladder', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
+                          _presetChip('3-Step Stool', 'Ladders & Climbing', 'ST-03S-09', 'Main Warehouse', '80', '0', 'Large reinforced step stool', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
+                          _presetChip('JCB Excavator', 'Heavy Machinery', 'EQ-JCB-909', 'Sunrise Towers', '4500', '45', 'Heavy excavator bucket', nameCtrl, tagCtrl, siteCtrl, rentalCtrl, fuelCtrl, notesCtrl, setDialogState, (c) => selectedCategory = c),
+                        ],
+                      ),
+                      const SizedBox(height: 14),
+                      const Divider(),
+                      const SizedBox(height: 10),
+                    ],
+
+                    // Category Selection Dropdown
+                    DropdownButtonFormField<String>(
+                      value: _categories.contains(selectedCategory) ? selectedCategory : _categories.first,
+                      dropdownColor: AppColors.cardBg(context),
+                      decoration: InputDecoration(
+                        labelText: 'Category / Group',
+                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                      ),
+                      items: _categories
+                          .map((c) => DropdownMenuItem(
+                                value: c,
+                                child: Text(c, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                              ))
+                          .toList(),
+                      onChanged: (val) => setDialogState(() => selectedCategory = val!),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Equipment / Tool Name
                     TextField(
                       controller: nameCtrl,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        labelText: 'Machinery Name',
-                        hintText: 'e.g. JCB 3DX Backhoe',
+                        labelText: 'Item Name',
+                        hintText: 'e.g. Bosch Heavy Drill Machine, 12ft Ladder, Large Stool',
                         labelStyle: TextStyle(color: AppColors.mutedText(context)),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: tagCtrl,
-                      style: TextStyle(color: AppColors.text(context)),
-                      decoration: InputDecoration(
-                        labelText: 'Tag / Serial Number',
-                        hintText: 'e.g. EQ-JCB-909',
-                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: siteCtrl,
-                      style: TextStyle(color: AppColors.text(context)),
-                      decoration: InputDecoration(
-                        labelText: 'Assigned Site Name',
-                        hintText: 'e.g. Skyline Towers Phase 1',
-                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+
                     Row(
                       children: [
                         Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedCategory,
-                            dropdownColor: AppColors.cardBg(context),
+                          child: TextField(
+                            controller: tagCtrl,
+                            style: TextStyle(color: AppColors.text(context)),
                             decoration: InputDecoration(
-                              labelText: 'Category',
+                              labelText: 'Tag / Serial #',
+                              hintText: 'e.g. TL-DRL-101',
                               labelStyle: TextStyle(color: AppColors.mutedText(context)),
                             ),
-                            items: ['Excavator', 'Concrete Mixer', 'Dump Truck', 'Crane', 'Generator']
-                                .map((c) => DropdownMenuItem(
-                                      value: c,
-                                      child: Text(c, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
-                                    ))
-                                .toList(),
-                            onChanged: (val) => setDialogState(() => selectedCategory = val!),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -107,6 +168,19 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       ],
                     ),
                     const SizedBox(height: 12),
+
+                    // Site / Storage Location
+                    TextField(
+                      controller: siteCtrl,
+                      style: TextStyle(color: AppColors.text(context)),
+                      decoration: InputDecoration(
+                        labelText: 'Assigned Site / Location',
+                        hintText: 'e.g. Lorry Tool Box, Skyline Towers, Main Warehouse',
+                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
                     Row(
                       children: [
                         Expanded(
@@ -115,7 +189,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                             keyboardType: TextInputType.number,
                             style: TextStyle(color: AppColors.text(context)),
                             decoration: InputDecoration(
-                              labelText: 'Rental Rate (₹/day)',
+                              labelText: 'Cost / Value (₹/day)',
                               labelStyle: TextStyle(color: AppColors.mutedText(context)),
                             ),
                           ),
@@ -127,12 +201,25 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                             keyboardType: TextInputType.number,
                             style: TextStyle(color: AppColors.text(context)),
                             decoration: InputDecoration(
-                              labelText: 'Fuel (Liters/day)',
+                              labelText: 'Fuel (L/day)',
+                              hintText: '0 for manual tools',
                               labelStyle: TextStyle(color: AppColors.mutedText(context)),
                             ),
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Notes / Usage description
+                    TextField(
+                      controller: notesCtrl,
+                      style: TextStyle(color: AppColors.text(context)),
+                      decoration: InputDecoration(
+                        labelText: 'Usage / Storage Notes',
+                        hintText: 'e.g. Kept in lorry for vehicle maintenance & drilling',
+                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                      ),
                     ),
                   ],
                 ),
@@ -145,23 +232,36 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                 ElevatedButton(
                   onPressed: () async {
                     if (nameCtrl.text.trim().isEmpty) return;
-                    final newItem = EquipmentItem(
-                      id: '',
+                    final item = EquipmentItem(
+                      id: existingItem?.id ?? '',
                       name: nameCtrl.text.trim(),
                       category: selectedCategory,
-                      tagNumber: tagCtrl.text.trim().isEmpty ? 'EQ-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}' : tagCtrl.text.trim(),
+                      tagNumber: tagCtrl.text.trim().isEmpty
+                          ? 'EQ-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}'
+                          : tagCtrl.text.trim(),
                       siteName: siteCtrl.text.trim().isEmpty ? 'Main Site' : siteCtrl.text.trim(),
                       status: selectedStatus,
                       rentalCostPerDay: double.tryParse(rentalCtrl.text) ?? 0.0,
                       fuelConsumptionLitersPerDay: double.tryParse(fuelCtrl.text) ?? 0.0,
-                      createdAt: DateTime.now(),
+                      notes: notesCtrl.text.trim().isNotEmpty ? notesCtrl.text.trim() : null,
+                      createdAt: existingItem?.createdAt ?? DateTime.now(),
                     );
 
-                    await ref.read(equipmentControllerProvider.notifier).addEquipment(newItem);
+                    if (existingItem == null) {
+                      await ref.read(equipmentControllerProvider.notifier).addEquipment(item);
+                    } else {
+                      await ref.read(equipmentControllerProvider.notifier).updateEquipment(item);
+                    }
+
                     if (context.mounted) {
                       Navigator.pop(dialogCtx);
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Machinery equipment added successfully')),
+                        SnackBar(
+                          content: Text(existingItem == null
+                              ? 'Equipment / Tool registered successfully'
+                              : 'Equipment / Tool updated successfully'),
+                          backgroundColor: AppColors.secondary,
+                        ),
                       );
                     }
                   },
@@ -169,7 +269,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     backgroundColor: AppColors.primaryColor(context),
                     foregroundColor: Colors.white,
                   ),
-                  child: const Text('Register Fleet'),
+                  child: Text(existingItem == null ? 'Save Entry' : 'Update Entry'),
                 ),
               ],
             );
@@ -179,32 +279,93 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     );
   }
 
+  Widget _presetChip(
+    String label,
+    String category,
+    String tag,
+    String site,
+    String rental,
+    String fuel,
+    String notes,
+    TextEditingController nameCtrl,
+    TextEditingController tagCtrl,
+    TextEditingController siteCtrl,
+    TextEditingController rentalCtrl,
+    TextEditingController fuelCtrl,
+    TextEditingController notesCtrl,
+    StateSetter setDialogState,
+    Function(String) setCat,
+  ) {
+    return ActionChip(
+      label: Text(label, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600)),
+      avatar: Icon(_getCategoryIcon(category), size: 14),
+      onPressed: () {
+        setDialogState(() {
+          nameCtrl.text = label;
+          tagCtrl.text = tag;
+          siteCtrl.text = site;
+          rentalCtrl.text = rental;
+          fuelCtrl.text = fuel;
+          notesCtrl.text = notes;
+          setCat(category);
+        });
+      },
+    );
+  }
+
+  void _confirmDelete(BuildContext context, EquipmentItem item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Equipment / Tool'),
+        content: Text('Are you sure you want to delete "${item.name}"?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      await ref.read(equipmentControllerProvider.notifier).deleteEquipment(item.id);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Item deleted successfully')),
+        );
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final eqState = ref.watch(equipmentControllerProvider);
     final equipmentList = eqState.items;
 
-    final categories = equipmentList.map((e) => e.category).toSet().toList();
-
     final filtered = equipmentList.where((e) {
       final matchesSearch = _searchQuery.isEmpty ||
           e.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           e.tagNumber.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-          e.siteName.toLowerCase().contains(_searchQuery.toLowerCase());
+          e.siteName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
+          e.category.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesCategory = _categoryFilter == null || e.category == _categoryFilter;
       return matchesSearch && matchesCategory;
     }).toList();
 
     final totalFleet = equipmentList.length;
     final operational = equipmentList.where((e) => e.status == 'Operational' || e.status == 'In Use').length;
-    final maintenance = equipmentList.where((e) => e.status == 'Maintenance').length;
-    final totalDailyRentalCost = equipmentList.fold<double>(0, (sum, e) => sum + e.rentalCostPerDay);
+    final powerToolsCount = equipmentList.where((e) => e.category == 'Power Tools & Machines').length;
+    final laddersCount = equipmentList.where((e) => e.category == 'Ladders & Climbing').length;
+    final totalDailyCost = equipmentList.fold<double>(0, (sum, e) => sum + e.rentalCostPerDay);
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(
-          'Machinery & Heavy Equipment Fleet',
+          'Equipment, Machinery & Tools',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
@@ -214,7 +375,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
           ),
           IconButton(
             icon: Icon(Icons.add, color: AppColors.primaryColor(context)),
-            onPressed: () => _showAddEquipmentDialog(context),
+            onPressed: () => _showEquipmentFormDialog(context),
           ),
         ],
       ),
@@ -222,7 +383,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Top Metrics Bar
+                // Summary Cards
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -232,10 +393,10 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                           Expanded(
                             child: _buildMetricCard(
                               context,
-                              title: 'Total Fleet',
-                              value: '$totalFleet Units',
-                              subtitle: 'Registered',
-                              icon: Icons.agriculture_outlined,
+                              title: 'Total Fleet & Tools',
+                              value: '$totalFleet Items',
+                              subtitle: '$operational Active / In Use',
+                              icon: Icons.construction,
                               color: AppColors.primaryColor(context),
                             ),
                           ),
@@ -243,10 +404,10 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                           Expanded(
                             child: _buildMetricCard(
                               context,
-                              title: 'Operational',
-                              value: '$operational / $totalFleet',
-                              subtitle: 'Active On Site',
-                              icon: Icons.check_circle_outline,
+                              title: 'Tools & Ladders',
+                              value: '${powerToolsCount + laddersCount}',
+                              subtitle: '$powerToolsCount Drills/Tools, $laddersCount Ladders',
+                              icon: Icons.stairs,
                               color: AppColors.secondary,
                             ),
                           ),
@@ -258,20 +419,20 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                           Expanded(
                             child: _buildMetricCard(
                               context,
-                              title: 'In Repair',
-                              value: '$maintenance Units',
-                              subtitle: 'Maintenance',
-                              icon: Icons.build_outlined,
-                              color: AppColors.warning,
+                              title: 'Operational Status',
+                              value: '$operational / $totalFleet',
+                              subtitle: 'Ready for Site Duty',
+                              icon: Icons.check_circle_outline,
+                              color: AppColors.secondary,
                             ),
                           ),
                           const SizedBox(width: 10),
                           Expanded(
                             child: _buildMetricCard(
                               context,
-                              title: 'Daily Rental',
-                              value: '₹${_fmt(totalDailyRentalCost)}',
-                              subtitle: 'Fleet Cost/Day',
+                              title: 'Daily Fleet Cost',
+                              value: '₹${_fmt(totalDailyCost)}',
+                              subtitle: 'Per Day Asset Value',
                               icon: Icons.payments_outlined,
                               color: Colors.purple,
                             ),
@@ -282,35 +443,69 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                   ),
                 ),
 
-                // Search & Category Filter
-                Padding(
+                // Category Quick Filter Chips
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                  child: Column(
+                  child: Row(
                     children: [
-                      SearchFilterBar(
-                        hintText: 'Search machinery name, tag #, site...',
-                        onSearchChanged: (val) => setState(() => _searchQuery = val),
-                        filterOptions: categories,
-                        activeFilter: _categoryFilter,
-                        onFilterChanged: (val) => setState(() => _categoryFilter = val),
+                      FilterChip(
+                        selected: _categoryFilter == null,
+                        label: const Text('All Items'),
+                        onSelected: (_) => setState(() => _categoryFilter = null),
                       ),
-                      const SizedBox(height: 12),
+                      const SizedBox(width: 8),
+                      ..._categories.map((cat) {
+                        final isSelected = _categoryFilter == cat;
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8.0),
+                          child: FilterChip(
+                            selected: isSelected,
+                            avatar: Icon(_getCategoryIcon(cat), size: 14),
+                            label: Text(cat),
+                            onSelected: (selected) {
+                              setState(() {
+                                _categoryFilter = selected ? cat : null;
+                              });
+                            },
+                          ),
+                        );
+                      }),
                     ],
                   ),
                 ),
+                const SizedBox(height: 10),
 
-                // Fleet List
+                // Search Bar
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: SearchFilterBar(
+                    hintText: 'Search drilling machines, ladders, trucks, tag #...',
+                    onSearchChanged: (val) => setState(() => _searchQuery = val),
+                    filterOptions: _categories,
+                    activeFilter: _categoryFilter,
+                    onFilterChanged: (val) => setState(() => _categoryFilter = val),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Equipment Directory List
                 Expanded(
                   child: filtered.isEmpty
                       ? Center(
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.agriculture_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                              Icon(Icons.construction, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
                               const SizedBox(height: 12),
                               Text(
-                                'No machinery found.',
+                                'No equipment or tools found.',
                                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Add drilling machines, ladders, step stools, or heavy machines.',
+                                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
                               ),
                             ],
                           ),
@@ -327,11 +522,11 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
               ],
             ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEquipmentDialog(context),
+        onPressed: () => _showEquipmentFormDialog(context),
         backgroundColor: AppColors.primaryColor(context),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
-        label: const Text('Add Machinery'),
+        label: const Text('Add Equipment / Tool'),
       ),
     );
   }
@@ -345,7 +540,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(14),
@@ -359,9 +554,9 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
               color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 20),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,24 +564,27 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                 Text(
                   title.toUpperCase(),
                   style: TextStyle(
-                    fontSize: 10,
+                    fontSize: 9,
                     fontWeight: FontWeight.bold,
                     color: AppColors.mutedText(context),
                     letterSpacing: 0.5,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
                 Text(
                   value,
                   style: TextStyle(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.bold,
                     color: AppColors.text(context),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                  style: TextStyle(fontSize: 10, color: AppColors.mutedText(context)),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),
@@ -412,9 +610,11 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
         break;
     }
 
+    final catIcon = _getCategoryIcon(item.category);
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(16),
@@ -435,7 +635,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                         color: AppColors.primaryColor(context).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.agriculture_outlined, color: AppColors.primaryColor(context), size: 20),
+                      child: Icon(catIcon, color: AppColors.primaryColor(context), size: 20),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -453,7 +653,8 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                           ),
                           Text(
                             'Tag: ${item.tagNumber} • ${item.category}',
-                            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                            style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ],
                       ),
@@ -461,27 +662,66 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  item.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      item.status.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
                   ),
-                ),
+                  IconButton(
+                    icon: const Icon(Icons.edit_outlined, size: 18),
+                    color: AppColors.primaryColor(context),
+                    onPressed: () => _showEquipmentFormDialog(context, existingItem: item),
+                    tooltip: 'Edit Item',
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    color: AppColors.error,
+                    onPressed: () => _confirmDelete(context, item),
+                    tooltip: 'Delete Item',
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          if (item.notes != null && item.notes!.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: AppColors.primaryColor(context).withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.info_outline, size: 13, color: AppColors.primaryColor(context)),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: Text(
+                      item.notes!,
+                      style: TextStyle(fontSize: 11, color: AppColors.text(context), fontStyle: FontStyle.italic),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const SizedBox(height: 10),
           const Divider(height: 1),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -501,11 +741,13 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     '₹${_fmt(item.rentalCostPerDay)}/day',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
                   ),
-                  const SizedBox(width: 12),
-                  Text(
-                    '${item.fuelConsumptionLitersPerDay.toInt()} L/day',
-                    style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
-                  ),
+                  if (item.fuelConsumptionLitersPerDay > 0) ...[
+                    const SizedBox(width: 12),
+                    Text(
+                      '${item.fuelConsumptionLitersPerDay.toInt()} L/day',
+                      style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    ),
+                  ],
                 ],
               ),
             ],
