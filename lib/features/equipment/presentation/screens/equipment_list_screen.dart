@@ -41,7 +41,17 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     }
   }
 
+
+  dynamic _findProjectByName(List<dynamic> projects, String query) {
+
+    for (final p in projects) {
+      if (p.name.toString().toLowerCase() == query.toLowerCase()) return p;
+    }
+    return null;
+  }
+
   void _showEquipmentFormDialog(BuildContext context, {EquipmentItem? existingItem}) {
+
     final projects = ref.read(projectControllerProvider).projects;
 
     final nameCtrl = TextEditingController(text: existingItem?.name ?? '');
@@ -176,7 +186,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       onSelected: (String selection) {
                         setDialogState(() {
                           siteCtrl.text = selection;
-                          final matchedProject = projects.where((p) => p.name.toLowerCase() == selection.toLowerCase()).firstOrNull;
+                          final matchedProject = _findProjectByName(projects, selection);
                           selectedProjectId = matchedProject?.id;
                         });
                       },
@@ -201,7 +211,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                             labelStyle: TextStyle(color: AppColors.mutedText(context)),
                           ),
                           onChanged: (val) {
-                            final matchedProject = projects.where((p) => p.name.toLowerCase() == val.toLowerCase()).firstOrNull;
+                            final matchedProject = _findProjectByName(projects, val);
                             setDialogState(() {
                               selectedProjectId = matchedProject?.id;
                             });
@@ -269,13 +279,14 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                           onPressed: () {
                             setDialogState(() {
                               siteCtrl.text = loc;
-                              final matchedProject = projects.where((p) => p.name.toLowerCase() == loc.toLowerCase()).firstOrNull;
+                              final matchedProject = _findProjectByName(projects, loc);
                               selectedProjectId = matchedProject?.id;
                             });
                           },
                         );
                       }).toList(),
                     ),
+
                     const SizedBox(height: 12),
 
                     Row(
