@@ -58,6 +58,11 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     String selectedStatus = existingItem?.status ?? 'Operational';
     String? selectedProjectId = existingItem?.projectId;
 
+    // Options for location search dropdown
+    final projectNames = projects.map((p) => p.name).toList();
+    final defaultLocations = ['Lorry / Vehicle Tool Box', 'Main Warehouse', 'Central Pool'];
+    final locationOptions = <String>{...projectNames, ...defaultLocations}.toList();
+
     showDialog(
       context: context,
       builder: (dialogCtx) {
@@ -151,47 +156,125 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Project Assignment Dropdown (if projects exist)
-                    if (projects.isNotEmpty) ...[
-                      DropdownButtonFormField<String?>(
-                        value: selectedProjectId,
-                        dropdownColor: AppColors.cardBg(context),
-                        decoration: InputDecoration(
-                          labelText: 'Assigned Project',
-                          labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                        ),
-                        items: [
-                          DropdownMenuItem<String?>(
-                            value: null,
-                            child: Text('Unassigned / Central Pool', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                    // Searchable Location / Project Field (Search Dropdown + Custom Typing)
+                    Text(
+                      'LOCATION / ASSIGNED SITE',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 4),
+                    RawAutocomplete<String>(
+                      textEditingController: siteCtrl,
+                      focusNode: FocusNode(),
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty) {
+                          return locationOptions;
+                        }
+                        return locationOptions.where((option) {
+                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
+                        });
+                      },
+                      onSelected: (String selection) {
+                        setDialogState(() {
+                          siteCtrl.text = selection;
+                          final matchedProject = projects.where((p) => p.name.toLowerCase() == selection.toLowerCase()).firstOrNull;
+                          selectedProjectId = matchedProject?.id;
+                        });
+                      },
+                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
+                        return TextField(
+                          controller: controller,
+                          focusNode: focusNode,
+                          style: TextStyle(color: AppColors.text(context)),
+                          decoration: InputDecoration(
+                            labelText: 'Location / Site Name',
+                            hintText: 'Type to search project (e.g. RVS) or type custom spot...',
+                            prefixIcon: Icon(Icons.location_on_outlined, size: 20, color: AppColors.primaryColor(context)),
+                            suffixIcon: controller.text.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 18),
+                                    onPressed: () {
+                                      controller.clear();
+                                      setDialogState(() => selectedProjectId = null);
+                                    },
+                                  )
+                                : const Icon(Icons.arrow_drop_down, size: 22),
+                            labelStyle: TextStyle(color: AppColors.mutedText(context)),
                           ),
-                          ...projects.map((p) => DropdownMenuItem<String?>(
-                                value: p.id,
-                                child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
-                              )),
-                        ],
-                        onChanged: (val) {
-                          setDialogState(() {
-                            selectedProjectId = val;
-                            if (val != null) {
-                              final matched = projects.firstWhere((p) => p.id == val);
-                              siteCtrl.text = matched.name;
-                            }
-                          });
-                        },
-                      ),
-                      const SizedBox(height: 12),
-                    ],
+                          onChanged: (val) {
+                            final matchedProject = projects.where((p) => p.name.toLowerCase() == val.toLowerCase()).firstOrNull;
+                            setDialogState(() {
+                              selectedProjectId = matchedProject?.id;
+                            });
+                          },
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 4.0,
+                            color: AppColors.cardBg(context),
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              constraints: const BoxConstraints(maxHeight: 180, maxWidth: 320),
+                              decoration: BoxDecoration(
+                                border: Border.all(color: AppColors.border(context)),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: ListView.builder(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                itemBuilder: (BuildContext context, int index) {
+                                  final String option = options.elementAt(index);
+                                  final isProject = projectNames.contains(option);
+                                  return ListTile(
+                                    dense: true,
+                                    leading: Icon(
+                                      isProject ? Icons.apartment : Icons.place_outlined,
+                                      size: 18,
+                                      color: isProject ? AppColors.primaryColor(context) : AppColors.secondary,
+                                    ),
+                                    title: Text(
+                                      option,
+                                      style: TextStyle(
+                                        color: AppColors.text(context),
+                                        fontWeight: isProject ? FontWeight.bold : FontWeight.normal,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    subtitle: isProject
+                                        ? Text('Registered Project Site', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context)))
+                                        : null,
+                                    onTap: () => onSelected(option),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                    const SizedBox(height: 6),
 
-                    // Site / Storage Location Name
-                    TextField(
-                      controller: siteCtrl,
-                      style: TextStyle(color: AppColors.text(context)),
-                      decoration: InputDecoration(
-                        labelText: 'Location / Storage Spot',
-                        hintText: 'e.g. Lorry Tool Box, Main Warehouse, Site B',
-                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                      ),
+                    // Location Quick Suggestion Chips
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: locationOptions.take(4).map((loc) {
+                        return ActionChip(
+                          visualDensity: VisualDensity.compact,
+                          label: Text(loc, style: const TextStyle(fontSize: 11)),
+                          avatar: const Icon(Icons.place, size: 12),
+                          onPressed: () {
+                            setDialogState(() {
+                              siteCtrl.text = loc;
+                              final matchedProject = projects.where((p) => p.name.toLowerCase() == loc.toLowerCase()).firstOrNull;
+                              selectedProjectId = matchedProject?.id;
+                            });
+                          },
+                        );
+                      }).toList(),
                     ),
                     const SizedBox(height: 12),
 
