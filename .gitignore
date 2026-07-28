@@ -47,3 +47,9 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+!.env.example
