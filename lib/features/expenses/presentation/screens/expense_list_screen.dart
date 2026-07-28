@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/expense_model.dart';
 import '../controllers/expense_controller.dart';
@@ -15,8 +14,6 @@ class ExpenseListScreen extends ConsumerStatefulWidget {
 }
 
 class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
-  String _paymentModeFilter = 'All';
-
   static const List<String> _categories = [
     'Labour',
     'Materials',
@@ -25,14 +22,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     'Food',
     'Fuel',
     'Miscellaneous',
-  ];
-
-  static const List<String> _paymentModes = [
-    'All',
-    'Cash',
-    'Bank',
-    'UPI',
-    'Cheque',
   ];
 
   IconData _getCategoryIcon(String category) {
@@ -52,6 +41,13 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
       default:
         return Icons.receipt_long_outlined;
     }
+  }
+
+  Future<void> _openAddForm() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
+    );
+    ref.read(expenseControllerProvider.notifier).loadExpenses();
   }
 
   void _confirmDelete(BuildContext context, WidgetRef ref, Expense expense) async {
@@ -98,87 +94,101 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(expenseControllerProvider);
 
-    // Apply payment mode filter in-memory if set
-    final filteredExpenses = state.expenses.where((e) {
-      if (_paymentModeFilter == 'All') return true;
-      return e.paymentMode.toLowerCase() == _paymentModeFilter.toLowerCase();
-    }).toList();
-
-    // Financial Summary Metrics
     final double totalExpenseAmount = state.expenses.fold(0.0, (sum, e) => sum + e.amount);
-    final double cashExpenses = state.expenses
-        .where((e) => e.paymentMode.toLowerCase() == 'cash')
-        .fold(0.0, (sum, e) => sum + e.amount);
-    final double digitalExpenses = totalExpenseAmount - cashExpenses;
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 16,
         title: Text(
-          'Site Outflows & Expenses',
+          'Expenses',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
+            icon: const Icon(Icons.refresh),
+            color: AppColors.primaryColor(context),
             onPressed: () => ref.read(expenseControllerProvider.notifier).loadExpenses(),
             tooltip: 'Refresh Expenses',
           ),
+          PermissionGuard(
+            permission: 'expense.create',
+            child: IconButton(
+              icon: const Icon(Icons.add_circle, color: Colors.deepOrange, size: 28),
+              onPressed: _openAddForm,
+              tooltip: 'Add Expense',
+            ),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(
         children: [
-          // Financial Summary Header Cards
+          // Single Summary Banner
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    context,
-                    title: 'Total Expenses',
-                    value: '₹${_fmt(totalExpenseAmount)}',
-                    subtitle: '${state.expenses.length} Total Outflows',
-                    icon: Icons.account_balance_wallet_outlined,
-                    color: Colors.deepOrange,
+            child: Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBg(context),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: AppColors.border(context)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: Colors.deepOrange.withValues(alpha: 0.12),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.account_balance_wallet, color: Colors.deepOrange, size: 24),
+                      ),
+                      const SizedBox(width: 12),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'TOTAL OUTFLOWS',
+                            style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '₹${totalExpenseAmount.toStringAsFixed(2)}',
+                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    context,
-                    title: 'Cash Outflows',
-                    value: '₹${_fmt(cashExpenses)}',
-                    subtitle: 'Petty Cash Payments',
-                    icon: Icons.money_outlined,
-                    color: Colors.amber.shade800,
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      '${state.expenses.length} Records',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    context,
-                    title: 'Digital / Bank',
-                    value: '₹${_fmt(digitalExpenses)}',
-                    subtitle: 'UPI & Bank Transfers',
-                    icon: Icons.credit_card_outlined,
-                    color: AppColors.primaryColor(context),
-                  ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
-          // Interactive Category Filter Chips
+          // Single Clean Category Selector
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
             child: Row(
               children: [
-                FilterChip(
+                ChoiceChip(
                   selected: state.categoryFilter == null,
-                  label: const Text('All Categories'),
+                  label: const Text('All Expenses'),
                   onSelected: (_) => ref.read(expenseControllerProvider.notifier).setCategoryFilter(null),
                 ),
                 const SizedBox(width: 8),
@@ -186,7 +196,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                   final isSelected = state.categoryFilter == cat;
                   return Padding(
                     padding: const EdgeInsets.only(right: 8.0),
-                    child: FilterChip(
+                    child: ChoiceChip(
                       selected: isSelected,
                       avatar: Icon(_getCategoryIcon(cat), size: 14),
                       label: Text(cat),
@@ -201,70 +211,16 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           ),
           const SizedBox(height: 6),
 
-          // Search & Payment Mode Filter Bar
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: Row(
-              children: [
-                Expanded(
-                  child: SearchFilterBar(
-                    hintText: 'Search expense, payee, notes...',
-                    onSearchChanged: (q) => ref.read(expenseControllerProvider.notifier).setSearch(q),
-                    filterOptions: _categories,
-                    activeFilter: state.categoryFilter,
-                    onFilterChanged: (f) => ref.read(expenseControllerProvider.notifier).setCategoryFilter(f),
-                    sortOptions: const ['Date', 'Amount', 'Category'],
-                    onSortChanged: (s) {
-                      final map = {'Date': 'expense_date', 'Amount': 'amount', 'Category': 'category'};
-                      ref.read(expenseControllerProvider.notifier).setSort(map[s] ?? 'created_at');
-                    },
-                  ),
-                ),
-                const SizedBox(width: 10),
-                // Payment Mode Quick Dropdown Filter
-                DropdownButtonHideUnderline(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBg(context),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border(context)),
-                    ),
-                    child: DropdownButton<String>(
-                      value: _paymentModeFilter,
-                      icon: const Icon(Icons.payment, size: 18),
-                      style: TextStyle(fontSize: 13, color: AppColors.text(context), fontWeight: FontWeight.w600),
-                      dropdownColor: AppColors.cardBg(context),
-                      items: _paymentModes
-                          .map((m) => DropdownMenuItem(
-                                value: m,
-                                child: Text(m == 'All' ? 'All Modes' : m),
-                              ))
-                          .toList(),
-                      onChanged: (val) => setState(() => _paymentModeFilter = val!),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          // Expenses List Body
+          // Expense List Body
           Expanded(
-            child: _buildBody(context, ref, state, filteredExpenses),
+            child: _buildBody(context, ref, state),
           ),
         ],
       ),
       floatingActionButton: PermissionGuard(
         permission: 'expense.create',
         child: FloatingActionButton.extended(
-          onPressed: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ExpenseFormScreen()),
-            );
-            ref.read(expenseControllerProvider.notifier).loadExpenses();
-          },
+          onPressed: _openAddForm,
           backgroundColor: Colors.deepOrange,
           foregroundColor: Colors.white,
           icon: const Icon(Icons.add),
@@ -274,65 +230,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     );
   }
 
-  Widget _buildMetricCard(
-    BuildContext context, {
-    required String title,
-    required String value,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg(context),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Flexible(
-                child: Text(
-                  title.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 9,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.mutedText(context),
-                    letterSpacing: 0.5,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              Icon(icon, size: 18, color: color),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text(context)),
-            overflow: TextOverflow.ellipsis,
-          ),
-          const SizedBox(height: 2),
-          Text(
-            subtitle,
-            style: TextStyle(fontSize: 10, color: AppColors.mutedText(context)),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBody(
-    BuildContext context,
-    WidgetRef ref,
-    ExpenseListState state,
-    List<Expense> filteredExpenses,
-  ) {
+  Widget _buildBody(BuildContext context, WidgetRef ref, ExpenseListState state) {
     if (state.isLoading && state.expenses.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -344,33 +242,33 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           children: [
             Icon(Icons.cloud_off, size: 56, color: AppColors.error.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
-            Text('Error: ${state.errorMessage}', style: TextStyle(color: AppColors.mutedText(context))),
+            Text('Error loading expenses: ${state.errorMessage}', style: TextStyle(color: AppColors.mutedText(context))),
             const SizedBox(height: 16),
             ElevatedButton.icon(
               onPressed: () => ref.read(expenseControllerProvider.notifier).loadExpenses(),
               icon: const Icon(Icons.refresh),
-              label: const Text('Retry Connection'),
+              label: const Text('Retry'),
             ),
           ],
         ),
       );
     }
 
-    if (filteredExpenses.isEmpty) {
+    if (state.expenses.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.account_balance_wallet_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+            Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
             const SizedBox(height: 16),
             Text(
-              'No expenses found.',
+              'No expenses found',
               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 6),
             Text(
-              'Click "+ Record Expense" to add operational site costs.',
-              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+              'Tap the "+ Record Expense" button to add your first expense',
+              style: TextStyle(fontSize: 13, color: AppColors.mutedText(context)),
             ),
           ],
         ),
@@ -378,10 +276,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: filteredExpenses.length + (state.hasMore ? 1 : 0),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      itemCount: state.expenses.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == filteredExpenses.length) {
+        if (index == state.expenses.length) {
           ref.read(expenseControllerProvider.notifier).loadMore();
           return const Center(
             child: Padding(
@@ -391,7 +289,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           );
         }
 
-        final item = filteredExpenses[index];
+        final item = state.expenses[index];
         return _ExpenseCard(
           expense: item,
           onEdit: () async {
@@ -406,13 +304,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         );
       },
     );
-  }
-
-  String _fmt(double v) {
-    if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
-    return v.toStringAsFixed(0);
   }
 }
 
@@ -446,107 +337,8 @@ class _ExpenseCard extends StatelessWidget {
     }
   }
 
-  Color _paymentModeColor(String mode) {
-    switch (mode.toLowerCase()) {
-      case 'cash':
-        return Colors.amber.shade800;
-      case 'bank':
-      case 'upi':
-        return AppColors.primary;
-      case 'cheque':
-        return Colors.purple;
-      default:
-        return AppColors.secondary;
-    }
-  }
-
-  void _showExpenseDetails(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardBg(context),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color: Colors.deepOrange.withValues(alpha: 0.12),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(_categoryIcon(expense.category), color: Colors.deepOrange, size: 20),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                '${expense.category} Outflow Details',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
-              ),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _infoRow(context, 'Expense Amount', '₹${expense.amount.toStringAsFixed(2)}', isBold: true, valueColor: Colors.deepOrange),
-            _infoRow(context, 'Project Site', expense.projectName ?? 'General Site'),
-            _infoRow(context, 'Payment Mode', expense.paymentMode.toUpperCase()),
-            _infoRow(context, 'Expense Date', expense.expenseDate),
-            if (expense.notes != null && expense.notes!.isNotEmpty) ...[
-              const Divider(height: 20),
-              Text('Description & Remarks:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.mutedText(context))),
-              const SizedBox(height: 4),
-              Text(expense.notes!, style: TextStyle(fontSize: 13, color: AppColors.text(context), height: 1.3)),
-            ],
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Close'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              onEdit();
-            },
-            icon: const Icon(Icons.edit, size: 16),
-            label: const Text('Edit Expense'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrange,
-              foregroundColor: Colors.white,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _infoRow(BuildContext context, String label, String value, {bool isBold = false, Color? valueColor}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: isBold ? 15 : 13,
-              fontWeight: isBold ? FontWeight.bold : FontWeight.w600,
-              color: valueColor ?? AppColors.text(context),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   @override
   Widget build(BuildContext context) {
-    final modeColor = _paymentModeColor(expense.paymentMode);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
@@ -554,139 +346,105 @@ class _ExpenseCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.border(context)),
       ),
-      child: InkWell(
-        onTap: () => _showExpenseDetails(context),
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Category Icon, Name & Payment Mode Pill
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.deepOrange.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(10),
-                        ),
-                        child: Icon(
-                          _categoryIcon(expense.category),
-                          color: Colors.deepOrange,
-                          size: 18,
-                        ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top Row: Category Icon & Name + Amount + Edit/Delete Actions
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.deepOrange.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
                       ),
-                      const SizedBox(width: 10),
-                      Text(
-                        expense.category.toUpperCase(),
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: AppColors.text(context),
-                          letterSpacing: 0.5,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: modeColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: modeColor.withValues(alpha: 0.3)),
-                        ),
-                        child: Text(
-                          expense.paymentMode.toUpperCase(),
-                          style: TextStyle(color: modeColor, fontSize: 10, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.edit_outlined, size: 18),
-                        color: AppColors.primaryColor(context),
-                        onPressed: onEdit,
-                        tooltip: 'Edit Expense',
-                      ),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        color: AppColors.error,
-                        onPressed: onDelete,
-                        tooltip: 'Delete Expense',
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-
-              // Project Name & Financial Outflow Amount
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Column(
+                      child: Icon(_categoryIcon(expense.category), color: Colors.deepOrange, size: 20),
+                    ),
+                    const SizedBox(width: 10),
+                    Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          expense.projectName ?? 'General Site Expense',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
-                          overflow: TextOverflow.ellipsis,
+                          expense.category.toUpperCase(),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                            color: AppColors.text(context),
+                            letterSpacing: 0.5,
+                          ),
                         ),
-                        const SizedBox(height: 2),
                         Text(
-                          'Expense Date: ${expense.expenseDate}',
-                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                          'Date: ${expense.expenseDate}',
+                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 11),
                         ),
                       ],
                     ),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    children: [
-                      Text(
-                        '-₹${expense.amount.toStringAsFixed(2)}',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.deepOrange),
-                      ),
-                      Text(
-                        'Outflow Cost',
-                        style: TextStyle(color: AppColors.mutedText(context), fontSize: 10),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(
+                      '-₹${expense.amount.toStringAsFixed(2)}',
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17, color: Colors.deepOrange),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18),
+                      color: AppColors.primaryColor(context),
+                      onPressed: onEdit,
+                      tooltip: 'Edit Record',
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.delete_outline, size: 18),
+                      color: AppColors.error,
+                      onPressed: onDelete,
+                      tooltip: 'Delete Record',
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
 
-              if (expense.notes != null && expense.notes!.isNotEmpty) ...[
-                const SizedBox(height: 8),
+            // Project Site Name
+            Row(
+              children: [
+                Icon(Icons.place_outlined, size: 14, color: AppColors.mutedText(context)),
+                const SizedBox(width: 4),
+                Text(
+                  expense.projectName ?? 'General Site Expense',
+                  style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13, color: AppColors.text(context)),
+                ),
+                const SizedBox(width: 12),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: Colors.deepOrange.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(6),
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.info_outline, size: 13, color: Colors.deepOrange),
-                      const SizedBox(width: 6),
-                      Expanded(
-                        child: Text(
-                          expense.notes!,
-                          style: TextStyle(fontSize: 11, color: AppColors.text(context), fontStyle: FontStyle.italic),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+                  child: Text(
+                    expense.paymentMode.toUpperCase(),
+                    style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondary),
                   ),
                 ),
               ],
+            ),
+
+            if (expense.notes != null && expense.notes!.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                'Notes: ${expense.notes}',
+                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontStyle: FontStyle.italic),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

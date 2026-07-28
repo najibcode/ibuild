@@ -481,75 +481,7 @@ class WebDashboard extends ConsumerWidget {
     );
   }
 
-  Widget _buildQuickAccessCard(
-      BuildContext context, QuickAccessProject? project) {
-    if (project == null) {
-      return Container(
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderSubtle),
-        ),
-        child: const Row(
-          children: [
-            Icon(Icons.info_outline, color: AppColors.textMuted),
-            SizedBox(width: 12),
-            Text(
-              'No active projects yet.',
-              style: TextStyle(color: AppColors.textMuted, fontSize: 14),
-            ),
-          ],
-        ),
-      );
-    }
 
-    final utilPct = project.budget > 0
-        ? (project.spent / project.budget * 100).toStringAsFixed(0)
-        : '0';
-
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Row(
-          children: [
-            Container(
-              width: 50,
-              height: 50,
-              decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child:
-                  const Icon(Icons.apartment, color: AppColors.primary, size: 28),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    project.name,
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelLarge
-                        ?.copyWith(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '${_capitalize(project.status)} • ₹${_formatCurrency(project.budget)} budget • $utilPct% utilized',
-                    style: const TextStyle(
-                        color: AppColors.secondary,
-                        fontSize: 13,
-                        fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 
   Widget _buildRecentActivityList(
       BuildContext context, List<RecentActivity> activities) {
@@ -658,32 +590,5 @@ class WebDashboard extends ConsumerWidget {
   static String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
 
-  Widget _buildQuickActionChip(BuildContext context, IconData icon, String label, Color color, VoidCallback onTap) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: color.withValues(alpha: 0.3)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
-              Text(
-                label,
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: color),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 }
