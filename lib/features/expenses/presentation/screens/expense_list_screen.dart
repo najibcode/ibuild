@@ -7,10 +7,17 @@ import '../../data/models/expense_model.dart';
 import '../controllers/expense_controller.dart';
 import 'expense_form_screen.dart';
 
-class ExpenseListScreen extends ConsumerWidget {
+class ExpenseListScreen extends ConsumerStatefulWidget {
   const ExpenseListScreen({super.key});
 
-  static const _categories = [
+  @override
+  ConsumerState<ExpenseListScreen> createState() => _ExpenseListScreenState();
+}
+
+class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
+  String _paymentModeFilter = 'All';
+
+  static const List<String> _categories = [
     'Labour',
     'Materials',
     'Transport',
@@ -20,43 +27,119 @@ class ExpenseListScreen extends ConsumerWidget {
     'Miscellaneous',
   ];
 
+  static const List<String> _paymentModes = [
+    'All',
+    'Cash',
+    'Bank',
+    'UPI',
+    'Cheque',
+  ];
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'labour':
+        return Icons.engineering_outlined;
+      case 'materials':
+        return Icons.inventory_2_outlined;
+      case 'transport':
+        return Icons.local_shipping_outlined;
+      case 'equipment':
+        return Icons.build_outlined;
+      case 'food':
+        return Icons.restaurant_outlined;
+      case 'fuel':
+        return Icons.local_gas_station_outlined;
+      default:
+        return Icons.receipt_long_outlined;
+    }
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, Expense expense) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        title: const Text('Delete Expense Record'),
+        content: Text('Are you sure you want to delete the expense of ₹${expense.amount.toStringAsFixed(2)} (${expense.category})?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await ref.read(expenseControllerProvider.notifier).removeExpense(expense.id);
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Expense record deleted successfully')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete expense record'), backgroundColor: AppColors.error),
+          );
+        }
+      }
+    }
+  }
+
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final state = ref.watch(expenseControllerProvider);
 
-    // Calculate Financial Summary Metrics for Operational Outflows (Expenses)
+    // Apply payment mode filter in-memory if set
+    final filteredExpenses = state.expenses.where((e) {
+      if (_paymentModeFilter == 'All') return true;
+      return e.paymentMode.toLowerCase() == _paymentModeFilter.toLowerCase();
+    }).toList();
+
+    // Financial Summary Metrics
     final double totalExpenseAmount = state.expenses.fold(0.0, (sum, e) => sum + e.amount);
-    final double cashExpenses = state.expenses.where((e) => e.paymentMode.toLowerCase() == 'cash').fold(0.0, (sum, e) => sum + e.amount);
+    final double cashExpenses = state.expenses
+        .where((e) => e.paymentMode.toLowerCase() == 'cash')
+        .fold(0.0, (sum, e) => sum + e.amount);
     final double digitalExpenses = totalExpenseAmount - cashExpenses;
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 16,
-        title: const Text(
-          'Site Outflows & Expenses (Cost)',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+        title: Text(
+          'Site Outflows & Expenses',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref.read(expenseControllerProvider.notifier).loadExpenses(),
+            tooltip: 'Refresh Expenses',
           ),
         ],
       ),
       body: Column(
         children: [
-          // Financial Summary Header Cards (Operational Expenditures)
+          // Financial Summary Header Cards
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: Row(
               children: [
                 Expanded(
                   child: _buildMetricCard(
                     context,
                     title: 'Total Expenses',
-                    value: '₹${totalExpenseAmount.toInt()}',
-                    subtitle: '${state.expenses.length} Logged Outflows',
+                    value: '₹${_fmt(totalExpenseAmount)}',
+                    subtitle: '${state.expenses.length} Total Outflows',
                     icon: Icons.account_balance_wallet_outlined,
                     color: Colors.deepOrange,
                   ),
@@ -65,9 +148,9 @@ class ExpenseListScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildMetricCard(
                     context,
-                    title: 'Cash Payments',
-                    value: '₹${cashExpenses.toInt()}',
-                    subtitle: 'Petty Cash Outflows',
+                    title: 'Cash Outflows',
+                    value: '₹${_fmt(cashExpenses)}',
+                    subtitle: 'Petty Cash Payments',
                     icon: Icons.money_outlined,
                     color: Colors.amber.shade800,
                   ),
@@ -76,38 +159,100 @@ class ExpenseListScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildMetricCard(
                     context,
-                    title: 'Bank / Digital',
-                    value: '₹${digitalExpenses.toInt()}',
+                    title: 'Digital / Bank',
+                    value: '₹${_fmt(digitalExpenses)}',
                     subtitle: 'UPI & Bank Transfers',
                     icon: Icons.credit_card_outlined,
-                    color: AppColors.primary,
+                    color: AppColors.primaryColor(context),
                   ),
                 ),
               ],
             ),
           ),
 
-          // Search & Category Filter Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: SearchFilterBar(
-              hintText: 'Search expense, payee, notes...',
-              onSearchChanged: (q) => ref.read(expenseControllerProvider.notifier).setSearch(q),
-              filterOptions: _categories,
-              activeFilter: state.categoryFilter,
-              onFilterChanged: (f) => ref.read(expenseControllerProvider.notifier).setCategoryFilter(f),
-              sortOptions: const ['Date', 'Amount', 'Category'],
-              onSortChanged: (s) {
-                final map = {'Date': 'expense_date', 'Amount': 'amount', 'Category': 'category'};
-                ref.read(expenseControllerProvider.notifier).setSort(map[s] ?? 'created_at');
-              },
+          // Interactive Category Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+            child: Row(
+              children: [
+                FilterChip(
+                  selected: state.categoryFilter == null,
+                  label: const Text('All Categories'),
+                  onSelected: (_) => ref.read(expenseControllerProvider.notifier).setCategoryFilter(null),
+                ),
+                const SizedBox(width: 8),
+                ..._categories.map((cat) {
+                  final isSelected = state.categoryFilter == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: FilterChip(
+                      selected: isSelected,
+                      avatar: Icon(_getCategoryIcon(cat), size: 14),
+                      label: Text(cat),
+                      onSelected: (selected) {
+                        ref.read(expenseControllerProvider.notifier).setCategoryFilter(selected ? cat : null);
+                      },
+                    ),
+                  );
+                }),
+              ],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 6),
 
-          // Expense Outflow List
+          // Search & Payment Mode Filter Bar
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Row(
+              children: [
+                Expanded(
+                  child: SearchFilterBar(
+                    hintText: 'Search expense, payee, notes...',
+                    onSearchChanged: (q) => ref.read(expenseControllerProvider.notifier).setSearch(q),
+                    filterOptions: _categories,
+                    activeFilter: state.categoryFilter,
+                    onFilterChanged: (f) => ref.read(expenseControllerProvider.notifier).setCategoryFilter(f),
+                    sortOptions: const ['Date', 'Amount', 'Category'],
+                    onSortChanged: (s) {
+                      final map = {'Date': 'expense_date', 'Amount': 'amount', 'Category': 'category'};
+                      ref.read(expenseControllerProvider.notifier).setSort(map[s] ?? 'created_at');
+                    },
+                  ),
+                ),
+                const SizedBox(width: 10),
+                // Payment Mode Quick Dropdown Filter
+                DropdownButtonHideUnderline(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardBg(context),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.border(context)),
+                    ),
+                    child: DropdownButton<String>(
+                      value: _paymentModeFilter,
+                      icon: const Icon(Icons.payment, size: 18),
+                      style: TextStyle(fontSize: 13, color: AppColors.text(context), fontWeight: FontWeight.w600),
+                      dropdownColor: AppColors.cardBg(context),
+                      items: _paymentModes
+                          .map((m) => DropdownMenuItem(
+                                value: m,
+                                child: Text(m == 'All' ? 'All Modes' : m),
+                              ))
+                          .toList(),
+                      onChanged: (val) => setState(() => _paymentModeFilter = val!),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 10),
+
+          // Expenses List Body
           Expanded(
-            child: _buildBody(context, ref, state),
+            child: _buildBody(context, ref, state, filteredExpenses),
           ),
         ],
       ),
@@ -141,7 +286,7 @@ class ExpenseListScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
@@ -152,23 +297,29 @@ class ExpenseListScreen extends ConsumerWidget {
             children: [
               Flexible(
                 child: Text(
-                  title,
-                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                  title.toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.mutedText(context),
+                    letterSpacing: 0.5,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-              Icon(icon, size: 16, color: color),
+              Icon(icon, size: 18, color: color),
             ],
           ),
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: TextStyle(fontSize: 9, color: AppColors.mutedText(context)),
+            style: TextStyle(fontSize: 10, color: AppColors.mutedText(context)),
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -176,7 +327,12 @@ class ExpenseListScreen extends ConsumerWidget {
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, ExpenseListState state) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    ExpenseListState state,
+    List<Expense> filteredExpenses,
+  ) {
     if (state.isLoading && state.expenses.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -186,29 +342,36 @@ class ExpenseListScreen extends ConsumerWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: AppColors.error.withOpacity(0.5)),
+            Icon(Icons.cloud_off, size: 56, color: AppColors.error.withValues(alpha: 0.5)),
             const SizedBox(height: 16),
             Text('Error: ${state.errorMessage}', style: TextStyle(color: AppColors.mutedText(context))),
             const SizedBox(height: 16),
-            ElevatedButton(
+            ElevatedButton.icon(
               onPressed: () => ref.read(expenseControllerProvider.notifier).loadExpenses(),
-              child: const Text('Retry'),
+              icon: const Icon(Icons.refresh),
+              label: const Text('Retry Connection'),
             ),
           ],
         ),
       );
     }
 
-    if (state.expenses.isEmpty) {
+    if (filteredExpenses.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.account_balance_wallet_outlined, size: 64, color: AppColors.mutedText(context).withOpacity(0.4)),
+            Icon(Icons.account_balance_wallet_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
             const SizedBox(height: 16),
-            Text('No expenses recorded.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+            Text(
+              'No expenses found.',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+            ),
             const SizedBox(height: 4),
-            Text('Record site operational costs, vendor payments, and wages.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+            Text(
+              'Click "+ Record Expense" to add operational site costs.',
+              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+            ),
           ],
         ),
       );
@@ -216,9 +379,9 @@ class ExpenseListScreen extends ConsumerWidget {
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      itemCount: state.expenses.length + (state.hasMore ? 1 : 0),
+      itemCount: filteredExpenses.length + (state.hasMore ? 1 : 0),
       itemBuilder: (context, index) {
-        if (index == state.expenses.length) {
+        if (index == filteredExpenses.length) {
           ref.read(expenseControllerProvider.notifier).loadMore();
           return const Center(
             child: Padding(
@@ -227,27 +390,42 @@ class ExpenseListScreen extends ConsumerWidget {
             ),
           );
         }
+
+        final item = filteredExpenses[index];
         return _ExpenseCard(
-          expense: state.expenses[index],
+          expense: item,
           onEdit: () async {
             await Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (_) => ExpenseFormScreen(expense: state.expenses[index]),
+                builder: (_) => ExpenseFormScreen(expense: item),
               ),
             );
             ref.read(expenseControllerProvider.notifier).loadExpenses();
           },
+          onDelete: () => _confirmDelete(context, ref, item),
         );
       },
     );
+  }
+
+  String _fmt(double v) {
+    if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(1)}Cr';
+    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
+    return v.toStringAsFixed(0);
   }
 }
 
 class _ExpenseCard extends StatelessWidget {
   final Expense expense;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
-  const _ExpenseCard({required this.expense, required this.onEdit});
+  const _ExpenseCard({
+    required this.expense,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   IconData _categoryIcon(String category) {
     switch (category.toLowerCase()) {
@@ -293,15 +471,17 @@ class _ExpenseCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(8),
               decoration: BoxDecoration(
-                color: Colors.deepOrange.withOpacity(0.12),
+                color: Colors.deepOrange.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(_categoryIcon(expense.category), color: Colors.deepOrange, size: 20),
             ),
             const SizedBox(width: 10),
-            Text(
-              '${expense.category} Outflow Details',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            Expanded(
+              child: Text(
+                '${expense.category} Outflow Details',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+              ),
             ),
           ],
         ),
@@ -391,7 +571,7 @@ class _ExpenseCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.deepOrange.withOpacity(0.12),
+                          color: Colors.deepOrange.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(10),
                         ),
                         child: Icon(
@@ -412,20 +592,38 @@ class _ExpenseCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: modeColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      expense.paymentMode.toUpperCase(),
-                      style: TextStyle(color: modeColor, fontSize: 10, fontWeight: FontWeight.bold),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: modeColor.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: modeColor.withValues(alpha: 0.3)),
+                        ),
+                        child: Text(
+                          expense.paymentMode.toUpperCase(),
+                          style: TextStyle(color: modeColor, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.edit_outlined, size: 18),
+                        color: AppColors.primaryColor(context),
+                        onPressed: onEdit,
+                        tooltip: 'Edit Expense',
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: AppColors.error,
+                        onPressed: onDelete,
+                        tooltip: 'Delete Expense',
+                      ),
+                    ],
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
 
               // Project Name & Financial Outflow Amount
               Row(
@@ -438,6 +636,7 @@ class _ExpenseCard extends StatelessWidget {
                         Text(
                           expense.projectName ?? 'General Site Expense',
                           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
+                          overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -465,35 +664,27 @@ class _ExpenseCard extends StatelessWidget {
 
               if (expense.notes != null && expense.notes!.isNotEmpty) ...[
                 const SizedBox(height: 8),
-                Text(
-                  'Notes: ${expense.notes}',
-                  style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontStyle: FontStyle.italic),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange.withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline, size: 13, color: Colors.deepOrange),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          expense.notes!,
+                          style: TextStyle(fontSize: 11, color: AppColors.text(context), fontStyle: FontStyle.italic),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-              const SizedBox(height: 12),
-
-              // Action Buttons Row
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  TextButton.icon(
-                    onPressed: () => _showExpenseDetails(context),
-                    icon: const Icon(Icons.info_outline, size: 16, color: AppColors.primary),
-                    label: const Text('View Outflow Details', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                    style: TextButton.styleFrom(
-                      foregroundColor: AppColors.primary,
-                      padding: EdgeInsets.zero,
-                    ),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.outline),
-                    onPressed: onEdit,
-                    tooltip: 'Edit Expense Record',
-                  ),
-                ],
-              ),
             ],
           ),
         ),

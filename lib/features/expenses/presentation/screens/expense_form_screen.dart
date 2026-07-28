@@ -43,10 +43,8 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
   @override
   void initState() {
     super.initState();
-    _amountController =
-        TextEditingController(text: widget.expense?.amount.toString() ?? '');
-    _notesController =
-        TextEditingController(text: widget.expense?.notes ?? '');
+    _amountController = TextEditingController(text: widget.expense?.amount.toString() ?? '');
+    _notesController = TextEditingController(text: widget.expense?.notes ?? '');
     _category = widget.expense?.category ?? _categories.first;
     _paymentMode = widget.expense?.paymentMode ?? 'cash';
     _selectedProjectId = widget.expense?.projectId;
@@ -84,18 +82,12 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
         category: _category,
         amount: double.tryParse(_amountController.text) ?? 0.0,
         paymentMode: _paymentMode,
-        notes: _notesController.text.trim().isEmpty
-            ? null
-            : _notesController.text.trim(),
+        notes: _notesController.text.trim().isEmpty ? null : _notesController.text.trim(),
       );
 
       final success = widget.expense == null
-          ? await ref
-              .read(expenseControllerProvider.notifier)
-              .addExpense(expense)
-          : await ref
-              .read(expenseControllerProvider.notifier)
-              .editExpense(expense);
+          ? await ref.read(expenseControllerProvider.notifier).addExpense(expense)
+          : await ref.read(expenseControllerProvider.notifier).editExpense(expense);
 
       if (success && mounted) {
         Navigator.of(context).pop();
@@ -110,7 +102,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       } else if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Operation failed'),
+            content: Text('Failed to save expense record'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -126,188 +118,174 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        title: Text(isEditing ? 'Edit Expense' : 'Record Expense'),
+        title: Text(
+          isEditing ? 'Edit Expense Record' : 'Record Site Expense',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+        ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.containerMargin),
+        padding: const EdgeInsets.all(16),
         child: Form(
           key: _formKey,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Container(
-                padding: const EdgeInsets.all(AppSpacing.cardPadding),
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: AppColors.cardBg(context),
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: AppColors.border(context)),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Project Selector (Optional)
-                    const Text('Project (Optional)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _selectedProjectId,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                        hintText: 'General expense',
-                      ),
-                      items: [
-                        const DropdownMenuItem(
-                          value: null,
-                          child: Text('General (no project)'),
-                        ),
-                        ...projectsState.projects.map((p) {
-                          return DropdownMenuItem(
-                            value: p.id,
-                            child: Text(p.name,
-                                overflow: TextOverflow.ellipsis),
-                          );
-                        }),
-                      ],
-                      onChanged: (val) =>
-                          setState(() => _selectedProjectId = val),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Expense Date
-                    const Text('Date',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: _pickDate,
-                      child: InputDecorator(
-                        decoration: const InputDecoration(
-                          contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          suffixIcon:
-                              Icon(Icons.calendar_today, size: 18),
-                        ),
-                        child: Text(
-                          _selectedDate != null
-                              ? _selectedDate!
-                                  .toIso8601String()
-                                  .substring(0, 10)
-                              : 'Select date',
-                          style: TextStyle(
-                            color: _selectedDate != null
-                                ? AppColors.textMain
-                                : AppColors.textMuted,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Category
-                    const Text('Category',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
-                    const SizedBox(height: 8),
-                    DropdownButtonFormField<String>(
-                      value: _category,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
-                      ),
-                      items: _categories.map((c) {
-                        return DropdownMenuItem(
-                            value: c, child: Text(c));
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _category = val);
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 20),
-
-                    // Amount
-                    const Text('Amount',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    // Amount Field
+                    Text('EXPENSE AMOUNT (₹) *',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _amountController,
                       keyboardType: TextInputType.number,
-                      decoration:
-                          const InputDecoration(hintText: '₹'),
+                      style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.currency_rupee, color: Colors.deepOrange),
+                        hintText: '0.00',
+                        hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                      ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) {
-                          return 'Please enter amount';
-                        }
-                        if (double.tryParse(v) == null) {
-                          return 'Please enter a valid amount';
-                        }
+                        if (v == null || v.isEmpty) return 'Please enter expense amount';
+                        if (double.tryParse(v) == null) return 'Please enter a valid number';
+                        if (double.parse(v) <= 0) return 'Amount must be greater than 0';
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
 
-                    // Payment Mode
-                    const Text('Payment Mode',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    // Project Assignment
+                    Text('ASSIGNED PROJECT SITE',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    DropdownButtonFormField<String?>(
+                      value: _selectedProjectId,
+                      dropdownColor: AppColors.cardBg(context),
+                      decoration: InputDecoration(
+                        prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context)),
+                        hintText: 'General Expense (No Project)',
+                      ),
+                      items: [
+                        DropdownMenuItem<String?>(
+                          value: null,
+                          child: Text('General Site Expense (No specific project)', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                        ),
+                        ...projectsState.projects.map((p) {
+                          return DropdownMenuItem<String?>(
+                            value: p.id,
+                            child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13), overflow: TextOverflow.ellipsis),
+                          );
+                        }),
+                      ],
+                      onChanged: (val) => setState(() => _selectedProjectId = val),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Expense Category
+                    Text('EXPENSE CATEGORY *',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _paymentMode,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                      value: _category,
+                      dropdownColor: AppColors.cardBg(context),
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.category_outlined, color: Colors.deepOrange),
                       ),
-                      items: _paymentModes.map((m) {
+                      items: _categories.map((c) {
                         return DropdownMenuItem(
-                          value: m,
-                          child:
-                              Text(m[0].toUpperCase() + m.substring(1)),
+                          value: c,
+                          child: Text(c, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
                         );
                       }).toList(),
                       onChanged: (val) {
-                        if (val != null) {
-                          setState(() => _paymentMode = val);
-                        }
+                        if (val != null) setState(() => _category = val);
                       },
                     ),
                     const SizedBox(height: 20),
 
-                    // Notes
-                    const Text('Notes (Optional)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    // Expense Date Pick
+                    Text('EXPENSE DATE *',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    InkWell(
+                      onTap: _pickDate,
+                      borderRadius: BorderRadius.circular(12),
+                      child: InputDecorator(
+                        decoration: InputDecoration(
+                          prefixIcon: Icon(Icons.calendar_today_outlined, color: AppColors.primaryColor(context)),
+                          suffixIcon: const Icon(Icons.arrow_drop_down),
+                        ),
+                        child: Text(
+                          _selectedDate != null
+                              ? _selectedDate!.toIso8601String().substring(0, 10)
+                              : 'Select expense date',
+                          style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.w600, fontSize: 14),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Payment Mode Selection
+                    Text('PAYMENT MODE *',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: _paymentModes.map((m) {
+                        final isSelected = _paymentMode.toLowerCase() == m.toLowerCase();
+                        return ChoiceChip(
+                          selected: isSelected,
+                          label: Text(m.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isSelected ? Colors.white : AppColors.text(context))),
+                          selectedColor: Colors.deepOrange,
+                          backgroundColor: AppColors.cardBg(context),
+                          onSelected: (selected) {
+                            if (selected) setState(() => _paymentMode = m);
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 20),
+
+                    // Description Notes
+                    Text('DESCRIPTION & REMARKS',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _notesController,
                       maxLines: 3,
-                      decoration: const InputDecoration(
-                          hintText: 'Additional notes...'),
+                      style: TextStyle(color: AppColors.text(context)),
+                      decoration: InputDecoration(
+                        hintText: 'e.g. Purchased 50 bags of cement for site foundation work',
+                        hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                      ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
 
-              // Save Button
-              ElevatedButton(
+              // Save / Update Action Button
+              ElevatedButton.icon(
                 onPressed: _onSave,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(double.infinity, 54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.defaultValue),
-                  ),
+                icon: Icon(isEditing ? Icons.save : Icons.check, size: 20),
+                label: Text(
+                  isEditing ? 'Update Expense Record' : 'Save Expense Record',
+                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
-                child: Text(
-                  isEditing ? 'Update Expense' : 'Save Expense',
-                  style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 52),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ],

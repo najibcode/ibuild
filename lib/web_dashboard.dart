@@ -51,55 +51,7 @@ class WebDashboard extends ConsumerWidget {
               ),
               const SizedBox(height: 16),
 
-              // ── Quick Operations Launcher Bar ──
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBg(context),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border(context)),
-                ),
-                child: Row(
-                  children: [
-                    Text(
-                      'QUICK ACTIONS:',
-                      style: TextStyle(
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.mutedText(context),
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: Row(
-                          children: [
-                            _buildQuickActionChip(context, Icons.add_circle_outline, 'Record Expense', AppColors.primaryColor(context), () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Record Expense dialog')));
-                            }),
-                            _buildQuickActionChip(context, Icons.how_to_reg_outlined, 'Mark Attendance', AppColors.secondary, () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Attendance module')));
-                            }),
-                            _buildQuickActionChip(context, Icons.camera_alt_outlined, 'Daily Progress Log', Colors.amber.shade800, () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Daily Progress Log')));
-                            }),
-                            _buildQuickActionChip(context, Icons.construction_outlined, 'Equipment & Tools', Colors.purple, () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Equipment, Machinery & Tools module')));
-                            }),
 
-                            _buildQuickActionChip(context, Icons.assignment_ind_outlined, 'Subcontractors', Colors.indigo, () {
-                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Subcontractors module')));
-                            }),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 24),
 
               // ── KPI Cards Grid ──
               Row(
@@ -226,17 +178,7 @@ class WebDashboard extends ConsumerWidget {
                         ),
                         const SizedBox(height: 12),
                         _buildVelocityChart(context, stats.weeklyProgressCounts),
-                        const SizedBox(height: 32),
-                        Text(
-                          'Quick Access',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(context),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildQuickAccessCard(context, stats.latestProject),
+
                       ],
                     ),
                   ),
