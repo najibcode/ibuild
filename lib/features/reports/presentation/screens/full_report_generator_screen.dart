@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:printing/printing.dart';
+import 'dart:html' as html;
 import '../../../../core/theme/app_colors.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../expenses/presentation/controllers/expense_controller.dart';
