@@ -413,7 +413,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                     Container(width: 4, height: 18, decoration: BoxDecoration(color: AppColors.primaryColor(context), borderRadius: BorderRadius.circular(2))),
                     const SizedBox(width: 8),
                     Text(
-                      'RECENT SITE HISTORY (LAST 7 DAYS)',
+                      'SITE WORKER ATTENDANCE LOGS & PAST RECORDS',
                       style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryColor(context), letterSpacing: 0.5),
                     ),
                   ],
@@ -429,7 +429,14 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
   }
 
   Widget _buildProjectWorkerCard(Attendance record) {
-    final name = record.employeeName ?? 'Unknown Worker';
+    final employeesAsync = ref.watch(employeeListControllerProvider);
+    final employees = employeesAsync.valueOrNull ?? [];
+    final empMatch = employees.where((e) => e.id == record.employeeId);
+    final emp = empMatch.isNotEmpty ? empMatch.first : null;
+
+    final name = emp?.name ?? record.employeeName ?? 'Worker';
+    final role = emp?.role.toUpperCase() ?? 'STAFF';
+    final rate = emp != null ? 'Rate: \u20B9${emp.salary.toInt()}/day' : '';
     final isPresent = record.status.toLowerCase() == 'present';
 
     return Card(
@@ -441,10 +448,10 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           children: [
             CircleAvatar(
               backgroundColor: isPresent ? AppColors.secondary : AppColors.error,
-              radius: 18,
+              radius: 20,
               child: Text(
                 name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'W',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
               ),
             ),
             const SizedBox(width: 12),
@@ -455,7 +462,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                   Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context))),
                   const SizedBox(height: 2),
                   Text(
-                    'Date: ${record.date}',
+                    rate.isNotEmpty ? '$role • $rate' : role,
                     style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
                   ),
                 ],
@@ -480,7 +487,6 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                       status: 'Present',
                       projectId: widget.projectId,
                     );
-                    // Refresh project-scoped data
                     Future.delayed(const Duration(milliseconds: 300), () {
                       ref.invalidate(projectAttendanceProvider(widget.projectId));
                     });
@@ -528,10 +534,14 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
   }
 
   Widget _buildHistoryTable(List<Attendance> records) {
-    // Group by date
+    final employeesAsync = ref.watch(employeeListControllerProvider);
+    final employees = employeesAsync.valueOrNull ?? [];
+
     final Map<String, List<Attendance>> byDate = {};
     for (final r in records) {
-      byDate.putIfAbsent(r.date, () => []).add(r);
+      if (r.date.isNotEmpty) {
+        byDate.putIfAbsent(r.date, () => []).add(r);
+      }
     }
     final sortedDates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
 
@@ -553,7 +563,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             child: Row(
               children: [
                 Expanded(flex: 2, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
-                Expanded(flex: 3, child: Text('Worker', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
+                Expanded(flex: 3, child: Text('Worker Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
                 Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
               ],
             ),
@@ -561,39 +571,56 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           // Table Rows
           ...sortedDates.expand((date) {
             final dayRecords = byDate[date]!;
-            return dayRecords.map((r) => Container(
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: AppColors.border(context), width: 0.5)),
-              ),
-              child: Row(
-                children: [
-                  Expanded(flex: 2, child: Text(r.date, style: TextStyle(fontSize: 12, color: AppColors.text(context)))),
-                  Expanded(flex: 3, child: Text(r.employeeName ?? 'Worker', style: TextStyle(fontSize: 12, color: AppColors.text(context)))),
-                  Expanded(
-                    flex: 2,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: r.status == 'Present'
-                            ? AppColors.secondary.withValues(alpha: 0.12)
-                            : AppColors.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                      child: Text(
-                        r.status.toUpperCase(),
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: r.status == 'Present' ? AppColors.secondary : AppColors.error,
-                        ),
-                        textAlign: TextAlign.center,
+            return dayRecords.map((r) {
+              final empMatch = employees.where((e) => e.id == r.employeeId);
+              final emp = empMatch.isNotEmpty ? empMatch.first : null;
+              final workerName = emp?.name ?? r.employeeName ?? 'Worker';
+              final role = emp?.role ?? '';
+
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  border: Border(top: BorderSide(color: AppColors.border(context), width: 0.5)),
+                ),
+                child: Row(
+                  children: [
+                    Expanded(flex: 2, child: Text(r.date, style: TextStyle(fontSize: 12, color: AppColors.text(context)))),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(workerName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                          if (role.isNotEmpty)
+                            Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: AppColors.mutedText(context))),
+                        ],
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ));
+                    Expanded(
+                      flex: 2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: r.status == 'Present'
+                              ? AppColors.secondary.withValues(alpha: 0.12)
+                              : AppColors.error.withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text(
+                          r.status.toUpperCase(),
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            color: r.status == 'Present' ? AppColors.secondary : AppColors.error,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            });
           }),
         ],
       ),

@@ -128,17 +128,41 @@ class ProjectAttendanceData {
 }
 
 /// Provider that fetches attendance scoped to a specific project.
-/// Returns today's records + last 7 days history for the project.
+/// Returns today's records + past history for the project, merged with in-memory state.
 final projectAttendanceProvider =
     FutureProvider.family<ProjectAttendanceData, String>((ref, projectId) async {
   final repo = ref.watch(attendanceRepositoryProvider);
   final todayStr = DateTime.now().toIso8601String().substring(0, 10);
 
-  final todayRecords = await repo.getAttendanceForProject(projectId, todayStr);
-  final recentHistory = await repo.getAttendanceHistoryForProject(projectId, days: 7);
+  // Fetch DB records for today and past 365 days for this project
+  final dbToday = await repo.getAttendanceForProject(projectId, todayStr);
+  final dbHistory = await repo.getAttendanceHistoryForProject(projectId, days: 365);
+
+  // Merge with in-memory attendanceControllerProvider state for instant UI updates
+  final globalState = ref.watch(attendanceControllerProvider);
+  final memoryToday = globalState.attendanceList.where((a) => a.projectId == projectId && (a.date.isEmpty || a.date == todayStr)).toList();
+
+  final Map<String, Attendance> mergedTodayMap = {};
+  for (final r in dbToday) {
+    mergedTodayMap[r.employeeId] = r;
+  }
+  for (final r in memoryToday) {
+    mergedTodayMap[r.employeeId] = r;
+  }
+
+  final Map<String, Attendance> mergedHistoryMap = {};
+  for (final r in dbHistory) {
+    mergedHistoryMap['${r.employeeId}_${r.date}'] = r;
+  }
+  for (final r in globalState.attendanceList) {
+    if (r.projectId == projectId && r.date.isNotEmpty) {
+      mergedHistoryMap['${r.employeeId}_${r.date}'] = r;
+    }
+  }
 
   return ProjectAttendanceData(
-    todayRecords: todayRecords,
-    recentHistory: recentHistory,
+    todayRecords: mergedTodayMap.values.toList(),
+    recentHistory: mergedHistoryMap.values.toList(),
   );
 });
+

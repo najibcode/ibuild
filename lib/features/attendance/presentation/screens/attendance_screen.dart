@@ -293,20 +293,17 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         status: logged.status == 'Absent' ? 'Present' : logged.status,
                         projectId: projId,
                       );
-                      // Directly head into the project's attendance tab
                       final match = projects.where((p) => p.id == projId);
-                      if (match.isNotEmpty) {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ProjectOperationsScreen(
-                              projectId: match.first.id,
-                              projectName: match.first.name,
-                              initialSection: 1, // Today Attendance
-                            ),
-                          ),
-                        );
-                      }
+                      final siteName = match.isNotEmpty ? match.first.name : 'Site';
+                      ScaffoldMessenger.of(context).clearSnackBars();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('${employee.name} assigned to $siteName'),
+                          duration: const Duration(seconds: 1),
+                          behavior: SnackBarBehavior.floating,
+                          width: 280,
+                        ),
+                      );
                     },
                   ),
                 ],
