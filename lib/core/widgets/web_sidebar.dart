@@ -75,6 +75,13 @@ class WebSidebar extends ConsumerWidget {
       requiredPermission: 'billing.view',
     ),
     WebSidebarItem(
+      icon: Icons.request_quote_outlined,
+      activeIcon: Icons.request_quote,
+      label: 'Quotations & Estimates',
+      requiredPermission: null,
+    ),
+
+    WebSidebarItem(
       icon: Icons.account_balance_wallet_outlined,
       activeIcon: Icons.account_balance_wallet,
       label: 'Expenses',

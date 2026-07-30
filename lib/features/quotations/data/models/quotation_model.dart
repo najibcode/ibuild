@@ -1,107 +1,159 @@
 class QuotationItem {
-  final String id;
-  final String quotationId;
-  final String itemDescription;
+  final String particular;
   final String unit;
   final double quantity;
-  final double unitPrice;
-  final double totalPrice;
+  final double unitRate;
+  final double totalCost;
 
   QuotationItem({
-    required this.id,
-    required this.quotationId,
-    required this.itemDescription,
+    required this.particular,
     required this.unit,
     required this.quantity,
-    required this.unitPrice,
-    required this.totalPrice,
-  });
+    required this.unitRate,
+    double? totalCost,
+  }) : totalCost = totalCost ?? (quantity * unitRate);
 
   factory QuotationItem.fromJson(Map<String, dynamic> json) {
+    final qty = (json['quantity'] ?? json['qty'] ?? 0.0).toDouble();
+    final rate = (json['unit_rate'] ?? json['rate'] ?? 0.0).toDouble();
+    final total = (json['total_cost'] ?? json['total'] ?? (qty * rate)).toDouble();
     return QuotationItem(
-      id: json['id'] as String? ?? '',
-      quotationId: json['quotation_id'] as String? ?? '',
-      itemDescription: json['item_description'] as String? ?? '',
-      unit: json['unit'] as String? ?? 'Pcs',
-      quantity: (json['quantity'] as num?)?.toDouble() ?? 1.0,
-      unitPrice: (json['unit_price'] as num?)?.toDouble() ?? 0.0,
-      totalPrice: (json['total_price'] as num?)?.toDouble() ?? 0.0,
+      particular: json['particular'] ?? '',
+      unit: json['unit'] ?? 'Sqft',
+      quantity: qty,
+      unitRate: rate,
+      totalCost: total,
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      'quotation_id': quotationId,
-      'item_description': itemDescription,
-      'unit': unit,
-      'quantity': quantity,
-      'unit_price': unitPrice,
-      'total_price': totalPrice,
-    };
+  Map<String, dynamic> toJson() => {
+        'particular': particular,
+        'unit': unit,
+        'quantity': quantity,
+        'unit_rate': unitRate,
+        'total_cost': totalCost,
+      };
+
+  QuotationItem copyWith({
+    String? particular,
+    String? unit,
+    double? quantity,
+    double? unitRate,
+    double? totalCost,
+  }) {
+    return QuotationItem(
+      particular: particular ?? this.particular,
+      unit: unit ?? this.unit,
+      quantity: quantity ?? this.quantity,
+      unitRate: unitRate ?? this.unitRate,
+      totalCost: totalCost ?? this.totalCost,
+    );
   }
 }
 
 class Quotation {
   final String id;
   final String? projectId;
-  final String quotationNumber;
+  final String? projectName;
   final String clientName;
   final String? clientPhone;
-  final double totalAmount;
-  final double taxAmount;
-  final double grandTotal;
-  final String status;
-  final DateTime? validUntil;
-  final String? notes;
-  final DateTime createdAt;
+  final String subject;
+  final String status; // 'draft', 'sent', 'approved', 'rejected'
   final List<QuotationItem> items;
+  final double totalAmount;
+  final String? validUntil;
+  final String? notes;
+  final String? createdAt;
+  final String? updatedAt;
 
   Quotation({
     required this.id,
     this.projectId,
-    required this.quotationNumber,
+    this.projectName,
     required this.clientName,
     this.clientPhone,
-    required this.totalAmount,
-    required this.taxAmount,
-    required this.grandTotal,
-    required this.status,
+    required this.subject,
+    this.status = 'draft',
+    required this.items,
+    double? totalAmount,
     this.validUntil,
     this.notes,
-    required this.createdAt,
-    this.items = const [],
-  });
+    this.createdAt,
+    this.updatedAt,
+  }) : totalAmount = totalAmount ?? items.fold(0.0, (sum, i) => sum + i.totalCost);
 
-  factory Quotation.fromJson(Map<String, dynamic> json, {List<QuotationItem> items = const []}) {
+  factory Quotation.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'];
+    List<QuotationItem> parsedItems = [];
+    if (rawItems is List) {
+      parsedItems = rawItems.map((e) => QuotationItem.fromJson(Map<String, dynamic>.from(e))).toList();
+    }
+
+    final computedTotal = parsedItems.fold(0.0, (sum, i) => sum + i.totalCost);
+
     return Quotation(
-      id: json['id'] as String? ?? '',
-      projectId: json['project_id'] as String?,
-      quotationNumber: json['quotation_number'] as String? ?? '',
-      clientName: json['client_name'] as String? ?? '',
-      clientPhone: json['client_phone'] as String?,
-      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? 0.0,
-      taxAmount: (json['tax_amount'] as num?)?.toDouble() ?? 0.0,
-      grandTotal: (json['grand_total'] as num?)?.toDouble() ?? 0.0,
-      status: json['status'] as String? ?? 'Draft',
-      validUntil: json['valid_until'] != null ? DateTime.tryParse(json['valid_until'] as String) : null,
-      notes: json['notes'] as String?,
-      createdAt: json['created_at'] != null ? DateTime.parse(json['created_at'] as String) : DateTime.now(),
-      items: items,
+      id: json['id'] ?? '',
+      projectId: json['project_id'],
+      projectName: json['projects'] != null ? json['projects']['name'] : json['project_name'],
+      clientName: json['client_name'] ?? 'Direct Client',
+      clientPhone: json['client_phone'],
+      subject: json['subject'] ?? 'Construction Estimate',
+      status: json['status'] ?? 'draft',
+      items: parsedItems,
+      totalAmount: (json['total_amount'] ?? computedTotal).toDouble(),
+      validUntil: json['valid_until'],
+      notes: json['notes'],
+      createdAt: json['created_at'],
+      updatedAt: json['updated_at'],
     );
   }
 
   Map<String, dynamic> toJson() {
-    return {
-      'project_id': projectId,
-      'quotation_number': quotationNumber,
+    final map = <String, dynamic>{
       'client_name': clientName,
       'client_phone': clientPhone,
-      'total_amount': totalAmount,
-      'tax_amount': taxAmount,
-      'grand_total': grandTotal,
+      'subject': subject,
       'status': status,
-      'valid_until': validUntil?.toIso8601String(),
+      'items': items.map((i) => i.toJson()).toList(),
+      'total_amount': totalAmount,
+      'valid_until': validUntil,
       'notes': notes,
     };
+    if (projectId != null && projectId!.isNotEmpty) {
+      map['project_id'] = projectId;
+    }
+    return map;
+  }
+
+  Quotation copyWith({
+    String? id,
+    String? projectId,
+    String? projectName,
+    String? clientName,
+    String? clientPhone,
+    String? subject,
+    String? status,
+    List<QuotationItem>? items,
+    double? totalAmount,
+    String? validUntil,
+    String? notes,
+    String? createdAt,
+    String? updatedAt,
+  }) {
+    return Quotation(
+      id: id ?? this.id,
+      projectId: projectId ?? this.projectId,
+      projectName: projectName ?? this.projectName,
+      clientName: clientName ?? this.clientName,
+      clientPhone: clientPhone ?? this.clientPhone,
+      subject: subject ?? this.subject,
+      status: status ?? this.status,
+      items: items ?? this.items,
+      totalAmount: totalAmount ?? this.totalAmount,
+      validUntil: validUntil ?? this.validUntil,
+      notes: notes ?? this.notes,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
   }
 }

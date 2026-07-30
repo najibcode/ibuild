@@ -19,6 +19,7 @@ import 'package:ibuild/features/profile/presentation/screens/user_profile_screen
 
 
 import 'features/billing/presentation/screens/billing_list_screen.dart';
+import 'features/quotations/presentation/screens/quotation_list_screen.dart';
 
 import 'features/expenses/presentation/screens/expense_list_screen.dart';
 import 'features/projects/presentation/screens/project_list_screen.dart';
@@ -76,6 +77,7 @@ enum MobileScreen {
   attendance,
   employees,
   billing,
+  quotations,
   expenses,
   equipment,
   vendors,
@@ -83,6 +85,7 @@ enum MobileScreen {
   settings,
   profile,
 }
+
 
 
 class MainRouterScreen extends ConsumerStatefulWidget {
@@ -182,7 +185,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       case MobileScreen.billing:
         body = const BillingListScreen();
         break;
+      case MobileScreen.quotations:
+        body = const QuotationListScreen();
+        break;
       case MobileScreen.expenses:
+
         body = const ExpenseListScreen();
         break;
       case MobileScreen.equipment:
@@ -343,7 +350,22 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                       _setMobileTab(MobileScreen.billing);
                     },
                   ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.request_quote_outlined,
+                    color: AppColors.primary,
+                  ),
+                  title: const Text(
+                    'Quotations & Estimates',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  onTap: () {
+                    Navigator.pop(context);
+                    _setMobileTab(MobileScreen.quotations);
+                  },
+                ),
                 if (_hasPerm('expense.view'))
+
                   ListTile(
                     leading: const Icon(
                       Icons.account_balance_wallet_outlined,
@@ -503,7 +525,10 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         return const InventoryListScreen();
       case 'Billing':
         return const BillingListScreen();
+      case 'Quotations & Estimates':
+        return const QuotationListScreen();
       case 'Expenses':
+
         return const ExpenseListScreen();
       case 'Equipment, Machinery & Tools':
         return const EquipmentListScreen();

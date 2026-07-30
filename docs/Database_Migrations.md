@@ -169,4 +169,38 @@ To run schema changes without downtime or data corruption, follow this workflow:
 ## 5. Applied Migrations Log
 
 * **`008_tea_snack_allowance.sql`**: Adds `tea_snack_allowance NUMERIC(10, 2) DEFAULT 20.00` to the `employee` table to track daily tea and snacks expenditure incurred by the employer separate from worker base wages.
+* **`009_quotations_table.sql`**: Adds `quotations` table to track client project cost estimates, itemized particulars, and approval pipeline status.
+
+---
+
+## 9. Quotations & Project Estimates Table (`quotations`)
+
+Stores itemized client cost estimations, total project quote amounts, and approval lifecycle statuses.
+
+```sql
+-- Create quotations table
+CREATE TABLE IF NOT EXISTS public.quotations (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+    client_name TEXT NOT NULL,
+    client_phone TEXT,
+    subject TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft', -- 'draft', 'sent', 'approved', 'rejected'
+    items JSONB NOT NULL DEFAULT '[]'::jsonb, -- Array of {particular, unit, qty, rate, total}
+    total_amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+    valid_until DATE,
+    notes TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Enable RLS
+ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
+
+-- Allow authenticated users to perform all operations
+CREATE POLICY "Allow all authenticated users access to quotations"
+ON public.quotations
+FOR ALL
+USING (true);
+```
 

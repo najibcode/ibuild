@@ -60,7 +60,14 @@
 
 ---
 
-### 💰 5. Site Outflows & Expenses
+### 📑 5. Quotations & Project Estimator
+- **Itemized Cost Estimation Builder**: Build project cost quotes with custom particulars (*Description*, *Unit*, *Qty*, *Rate*).
+- **Status Lifecycle Pipeline**: Track quotation status via visual badges (🟡 *Draft*, 🟦 *Sent to Client*, 🟢 *Approved*, 🔴 *Rejected*).
+- **1-Click Draft Export**: 1-tap clipboard copying formatted for instant WhatsApp / Email sharing with clients.
+
+---
+
+### 💰 6. Site Outflows & Expenses
 - **Streamlined Expense Logger**: Record site operational costs, petty cash payouts, and supplier bills.
 - **Category Filter Chips**: Single-tap filtering by category (*Labour*, *Materials*, *Transport*, *Equipment*, *Food*, *Fuel*, *Miscellaneous*).
 - **Payment Mode Badges**: Track payment methods (*Cash*, *Bank Transfer*, *UPI*, *Cheque*).
