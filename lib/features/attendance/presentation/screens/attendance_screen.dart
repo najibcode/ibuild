@@ -5,6 +5,7 @@ import '../controllers/attendance_controller.dart';
 import '../../data/models/attendance_model.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../projects/data/models/project_model.dart';
+import '../../../projects/presentation/screens/project_operations_screen.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -12,6 +13,7 @@ class AttendanceScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
 }
+
 
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String _searchQuery = '';
@@ -216,18 +218,45 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                   ),
                   if (logged.projectName != null && logged.projectName!.isNotEmpty)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor(context).withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        'Site: ${logged.projectName}',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryColor(context),
+                    InkWell(
+                      onTap: () {
+                        if (logged.projectId != null && logged.projectId!.isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ProjectOperationsScreen(
+                                projectId: logged.projectId!,
+                                projectName: logged.projectName!,
+                                initialSection: 1, // Today Attendance
+                              ),
+                            ),
+                          );
+                        }
+                      },
+                      borderRadius: BorderRadius.circular(6),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor(context).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: AppColors.primaryColor(context).withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.location_on, size: 12, color: AppColors.primaryColor(context)),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Site: ${logged.projectName}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryColor(context),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Icon(Icons.arrow_forward_ios, size: 10, color: AppColors.primaryColor(context)),
+                          ],
                         ),
                       ),
                     ),
@@ -258,11 +287,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     projects: projects,
                     currentProjectId: logged.projectId,
                     onProjectSelected: (projId) {
+                      if (projId == null) return;
                       ref.read(attendanceControllerProvider.notifier).markAttendance(
                         employeeId: employee.id,
                         status: logged.status == 'Absent' ? 'Present' : logged.status,
                         projectId: projId,
                       );
+                      // Directly head into the project's attendance tab
+                      final match = projects.where((p) => p.id == projId);
+                      if (match.isNotEmpty) {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => ProjectOperationsScreen(
+                              projectId: match.first.id,
+                              projectName: match.first.name,
+                              initialSection: 1, // Today Attendance
+                            ),
+                          ),
+                        );
+                      }
                     },
                   ),
                 ],

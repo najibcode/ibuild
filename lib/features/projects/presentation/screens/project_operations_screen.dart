@@ -17,6 +17,7 @@ import '../../../inventory/data/models/inventory_item_model.dart';
 import '../../../inventory/presentation/controllers/inventory_controller.dart';
 import '../../../attendance/presentation/controllers/attendance_controller.dart';
 import '../../../attendance/data/models/attendance_model.dart';
+import '../../../employees/presentation/controllers/employee_controller.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 import '../../../reports/presentation/screens/full_report_generator_screen.dart';
 import '../../data/models/project_model.dart';
@@ -61,11 +62,13 @@ final projectDetailByIdProvider = FutureProvider.family<Project?, String>((ref, 
 class ProjectOperationsScreen extends ConsumerStatefulWidget {
   final String projectId;
   final String projectName;
+  final int initialSection;
 
   const ProjectOperationsScreen({
     super.key,
     required this.projectId,
     required this.projectName,
+    this.initialSection = 0,
   });
 
   @override
@@ -73,7 +76,13 @@ class ProjectOperationsScreen extends ConsumerStatefulWidget {
 }
 
 class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScreen> {
-  int _activeSection = 0; // 0 = Grid, 1..10 = Submodules
+  late int _activeSection; // 0 = Grid, 1..10 = Submodules
+
+  @override
+  void initState() {
+    super.initState();
+    _activeSection = widget.initialSection;
+  }
 
   final Map<int, String> _sectionTitles = {
     0: 'Site Operations Dashboard',
@@ -331,167 +340,267 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     );
   }
 
-  // 1. Single-Day Attendance Logger Tab
+  // 1. Project-Scoped Attendance Tab
   Widget _buildAttendanceTab() {
-    final attendanceState = ref.watch(attendanceControllerProvider);
-    final activeEmployees = attendanceState.activeEmployees;
-    final loggedAttendance = attendanceState.attendanceList;
+    final projectAttendanceAsync = ref.watch(projectAttendanceProvider(widget.projectId));
 
-    return Padding(
-      padding: const EdgeInsets.all(16.0),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Card(
-            color: AppColors.cardBg(context),
-            child: ListTile(
-              leading: Icon(Icons.badge_outlined, color: AppColors.primaryColor(context)),
-              title: Text('Today\'s Single-Day Worker Attendance', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-              subtitle: Text(
-                'Active Staff: ${activeEmployees.length} • Logged Today: ${loggedAttendance.length}',
-                style: TextStyle(color: AppColors.mutedText(context)),
+    return projectAttendanceAsync.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Error loading attendance: $e')),
+      data: (data) {
+        final todayRecords = data.todayRecords;
+        // Recent history excluding today to avoid duplicates
+        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+        final historyRecords = data.recentHistory.where((r) => r.date != todayStr).toList();
+
+        return Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Card
+              Card(
+                color: AppColors.cardBg(context),
+                child: ListTile(
+                  leading: Icon(Icons.badge_outlined, color: AppColors.primaryColor(context)),
+                  title: Text(
+                    'Site Attendance - Today',
+                    style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                  ),
+                  subtitle: Text(
+                    'Workers on site: ${todayRecords.where((r) => r.status == 'Present').length} present • ${todayRecords.where((r) => r.status != 'Present').length} absent',
+                    style: TextStyle(color: AppColors.mutedText(context)),
+                  ),
+                  trailing: IconButton(
+                    onPressed: () => ref.invalidate(projectAttendanceProvider(widget.projectId)),
+                    icon: Icon(Icons.refresh, color: AppColors.primaryColor(context), size: 20),
+                    tooltip: 'Refresh',
+                  ),
+                ),
               ),
-              trailing: ElevatedButton.icon(
-                onPressed: () => ref.read(attendanceControllerProvider.notifier).loadAttendanceForToday(),
-                icon: const Icon(Icons.refresh, size: 16),
-                label: const Text('Refresh'),
+              const SizedBox(height: 12),
+
+              // Today's Workers List
+              if (todayRecords.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.group_off_outlined, size: 48, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                        const SizedBox(height: 12),
+                        Text(
+                          'No workers assigned to this site today.',
+                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.mutedText(context)),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Assign workers from the main Attendance tab to deploy them here.',
+                          style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ...todayRecords.map((record) => _buildProjectWorkerCard(record)),
+
+              // Recent History Section
+              if (historyRecords.isNotEmpty) ...[
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(width: 4, height: 18, decoration: BoxDecoration(color: AppColors.primaryColor(context), borderRadius: BorderRadius.circular(2))),
+                    const SizedBox(width: 8),
+                    Text(
+                      'RECENT SITE HISTORY (LAST 7 DAYS)',
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryColor(context), letterSpacing: 0.5),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                _buildHistoryTable(historyRecords),
+              ],
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildProjectWorkerCard(Attendance record) {
+    final name = record.employeeName ?? 'Unknown Worker';
+    final isPresent = record.status.toLowerCase() == 'present';
+
+    return Card(
+      color: AppColors.cardBg(context),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: Padding(
+        padding: const EdgeInsets.all(12.0),
+        child: Row(
+          children: [
+            CircleAvatar(
+              backgroundColor: isPresent ? AppColors.secondary : AppColors.error,
+              radius: 18,
+              child: Text(
+                name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'W',
+                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: attendanceState.isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : activeEmployees.isEmpty
-                    ? Center(
-                        child: Text(
-                          'No active employees found in database.',
-                          style: TextStyle(color: AppColors.mutedText(context)),
-                        ),
-                      )
-                    : ListView.builder(
-                        itemCount: activeEmployees.length,
-                        itemBuilder: (context, i) {
-                          final emp = activeEmployees[i];
-                          final record = loggedAttendance.firstWhere(
-                            (a) => a.employeeId == emp.id,
-                            orElse: () => Attendance(
-                              id: '',
-                              employeeId: emp.id,
-                              date: DateTime.now().toIso8601String().substring(0, 10),
-                              status: 'Absent',
-                            ),
-                          );
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context))),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Date: ${record.date}',
+                    style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                  ),
+                ],
+              ),
+            ),
+            Wrap(
+              spacing: 6,
+              children: [
+                FilterChip(
+                  label: Text(
+                    'Present',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: isPresent ? Colors.white : AppColors.text(context),
+                    ),
+                  ),
+                  selected: isPresent,
+                  onSelected: (_) {
+                    ref.read(attendanceControllerProvider.notifier).markAttendance(
+                      employeeId: record.employeeId,
+                      status: 'Present',
+                      projectId: widget.projectId,
+                    );
+                    // Refresh project-scoped data
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      ref.invalidate(projectAttendanceProvider(widget.projectId));
+                    });
+                  },
+                  backgroundColor: AppColors.cardBg(context),
+                  selectedColor: AppColors.secondary,
+                  side: BorderSide(color: isPresent ? AppColors.secondary : AppColors.border(context)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  showCheckmark: false,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                ),
+                FilterChip(
+                  label: Text(
+                    'Absent',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                      color: !isPresent ? Colors.white : AppColors.text(context),
+                    ),
+                  ),
+                  selected: !isPresent,
+                  onSelected: (_) {
+                    ref.read(attendanceControllerProvider.notifier).markAttendance(
+                      employeeId: record.employeeId,
+                      status: 'Absent',
+                      projectId: widget.projectId,
+                    );
+                    Future.delayed(const Duration(milliseconds: 300), () {
+                      ref.invalidate(projectAttendanceProvider(widget.projectId));
+                    });
+                  },
+                  backgroundColor: AppColors.cardBg(context),
+                  selectedColor: AppColors.error,
+                  side: BorderSide(color: !isPresent ? AppColors.error : AppColors.border(context)),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  showCheckmark: false,
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-                          return Card(
-                            color: AppColors.cardBg(context),
-                            margin: const EdgeInsets.only(bottom: 8),
-                            child: Padding(
-                              padding: const EdgeInsets.all(12.0),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      CircleAvatar(
-                                        backgroundColor: record.status == 'Present'
-                                            ? AppColors.secondary
-                                            : (record.status == 'Leave' ? Colors.amber : AppColors.mutedText(context)),
-                                        radius: 18,
-                                        child: Text(
-                                          emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'E',
-                                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                                        ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Expanded(
-                                        child: Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          children: [
-                                            Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context))),
-                                            Text(
-                                              '${emp.role.toUpperCase()} • ₹${emp.salary.toInt()}/day',
-                                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    alignment: WrapAlignment.spaceBetween,
-                                    crossAxisAlignment: WrapCrossAlignment.center,
-                                    spacing: 8,
-                                    runSpacing: 6,
-                                    children: [
-                                      Text('Single-Day Status:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedText(context))),
-                                        Wrap(
-                                        spacing: 6,
-                                        runSpacing: 6,
-                                        children: [
-                                          FilterChip(
-                                            label: Text(
-                                              'Present',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                                color: record.status.toLowerCase() == 'present' ? Colors.white : AppColors.text(context),
-                                              ),
-                                            ),
-                                            selected: record.status.toLowerCase() == 'present',
-                                            onSelected: (_) {
-                                              ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                                employeeId: emp.id,
-                                                status: 'Present',
-                                                projectId: widget.projectId,
-                                              );
-                                            },
-                                            backgroundColor: AppColors.cardBg(context),
-                                            selectedColor: AppColors.secondary,
-                                            side: BorderSide(color: record.status.toLowerCase() == 'present' ? AppColors.secondary : AppColors.border(context)),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                            showCheckmark: false,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                          ),
-                                          FilterChip(
-                                            label: Text(
-                                              'Absent',
-                                              style: TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.bold,
-                                                color: record.status.toLowerCase() == 'absent' ? Colors.white : AppColors.text(context),
-                                              ),
-                                            ),
-                                            selected: record.status.toLowerCase() == 'absent',
-                                            onSelected: (_) {
-                                              ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                                employeeId: emp.id,
-                                                status: 'Absent',
-                                              );
-                                            },
-                                            backgroundColor: AppColors.cardBg(context),
-                                            selectedColor: AppColors.error,
-                                            side: BorderSide(color: record.status.toLowerCase() == 'absent' ? AppColors.error : AppColors.border(context)),
-                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                            showCheckmark: false,
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                                          ),
-                                        ],
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          );
-                        },
-                      ),
+  Widget _buildHistoryTable(List<Attendance> records) {
+    // Group by date
+    final Map<String, List<Attendance>> byDate = {};
+    for (final r in records) {
+      byDate.putIfAbsent(r.date, () => []).add(r);
+    }
+    final sortedDates = byDate.keys.toList()..sort((a, b) => b.compareTo(a));
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Column(
+        children: [
+          // Table Header
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor(context).withValues(alpha: 0.08),
+              borderRadius: const BorderRadius.only(topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+            ),
+            child: Row(
+              children: [
+                Expanded(flex: 2, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
+                Expanded(flex: 3, child: Text('Worker', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
+                Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
+              ],
+            ),
           ),
+          // Table Rows
+          ...sortedDates.expand((date) {
+            final dayRecords = byDate[date]!;
+            return dayRecords.map((r) => Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border(context), width: 0.5)),
+              ),
+              child: Row(
+                children: [
+                  Expanded(flex: 2, child: Text(r.date, style: TextStyle(fontSize: 12, color: AppColors.text(context)))),
+                  Expanded(flex: 3, child: Text(r.employeeName ?? 'Worker', style: TextStyle(fontSize: 12, color: AppColors.text(context)))),
+                  Expanded(
+                    flex: 2,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: r.status == 'Present'
+                            ? AppColors.secondary.withValues(alpha: 0.12)
+                            : AppColors.error.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Text(
+                        r.status.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: r.status == 'Present' ? AppColors.secondary : AppColors.error,
+                        ),
+                        textAlign: TextAlign.center,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ));
+          }),
         ],
       ),
     );
   }
+
+
 
   // 2. Materials Tab
   Widget _buildMaterialsTab() {

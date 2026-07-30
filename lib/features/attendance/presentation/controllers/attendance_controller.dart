@@ -118,3 +118,27 @@ final attendanceControllerProvider =
   final repository = ref.watch(attendanceRepositoryProvider);
   return AttendanceController(repository, ref);
 });
+
+/// Data class holding project-scoped attendance (today + recent history).
+class ProjectAttendanceData {
+  final List<Attendance> todayRecords;
+  final List<Attendance> recentHistory;
+
+  ProjectAttendanceData({required this.todayRecords, required this.recentHistory});
+}
+
+/// Provider that fetches attendance scoped to a specific project.
+/// Returns today's records + last 7 days history for the project.
+final projectAttendanceProvider =
+    FutureProvider.family<ProjectAttendanceData, String>((ref, projectId) async {
+  final repo = ref.watch(attendanceRepositoryProvider);
+  final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+
+  final todayRecords = await repo.getAttendanceForProject(projectId, todayStr);
+  final recentHistory = await repo.getAttendanceHistoryForProject(projectId, days: 7);
+
+  return ProjectAttendanceData(
+    todayRecords: todayRecords,
+    recentHistory: recentHistory,
+  );
+});

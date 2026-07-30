@@ -93,4 +93,77 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         .order('date', ascending: false);
     return (response as List).map((json) => Attendance.fromJson(json)).toList();
   }
+
+  @override
+  Future<List<Attendance>> getAttendanceForProject(String projectId, String date) async {
+    try {
+      final response = await _client
+          .from('attendance')
+          .select('*, employees(name), projects(name)')
+          .eq('project_id', projectId)
+          .eq('date', date);
+
+      return (response as List).map((json) {
+        final employeeName = (json['employees'] as Map?)?['name'] as String?;
+        final projectName = (json['projects'] as Map?)?['name'] as String?;
+        return Attendance.fromJson(json, employeeName: employeeName, projectName: projectName);
+      }).toList();
+    } catch (_) {
+      try {
+        final response = await _client
+            .from('attendance')
+            .select('*, employees(name)')
+            .eq('project_id', projectId)
+            .eq('date', date);
+
+        return (response as List).map((json) {
+          final employeeName = (json['employees'] as Map?)?['name'] as String?;
+          return Attendance.fromJson(json, employeeName: employeeName);
+        }).toList();
+      } catch (_) {
+        // Fallback: If project_id column does not exist in attendance table, return empty list
+        return [];
+      }
+    }
+  }
+
+  @override
+  Future<List<Attendance>> getAttendanceHistoryForProject(String projectId, {int days = 7}) async {
+    final now = DateTime.now();
+    final startDate = now.subtract(Duration(days: days));
+    final startStr = startDate.toIso8601String().substring(0, 10);
+
+    try {
+      final response = await _client
+          .from('attendance')
+          .select('*, employees(name), projects(name)')
+          .eq('project_id', projectId)
+          .gte('date', startStr)
+          .order('date', ascending: false);
+
+      return (response as List).map((json) {
+        final employeeName = (json['employees'] as Map?)?['name'] as String?;
+        final projectName = (json['projects'] as Map?)?['name'] as String?;
+        return Attendance.fromJson(json, employeeName: employeeName, projectName: projectName);
+      }).toList();
+    } catch (_) {
+      try {
+        final response = await _client
+            .from('attendance')
+            .select('*, employees(name)')
+            .eq('project_id', projectId)
+            .gte('date', startStr)
+            .order('date', ascending: false);
+
+        return (response as List).map((json) {
+          final employeeName = (json['employees'] as Map?)?['name'] as String?;
+          return Attendance.fromJson(json, employeeName: employeeName);
+        }).toList();
+      } catch (_) {
+        // Fallback: If project_id column does not exist in attendance table, return empty list
+        return [];
+      }
+    }
+  }
+
 }

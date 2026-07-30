@@ -71,6 +71,9 @@ flutter:
 
   assets:
     - .env
+    - assets/fonts/Roboto-Regular.ttf
+    - assets/fonts/Roboto-Bold.ttf
+    - assets/fonts/Roboto-Italic.ttf
 
   # To add assets to your application, add an assets section, like this:
   # assets:

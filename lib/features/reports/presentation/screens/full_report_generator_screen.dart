@@ -240,22 +240,19 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
       );
 
       final fileName = 'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-      try {
-        await Printing.sharePdf(
-          bytes: pdfBytes,
-          filename: fileName,
-        );
-      } catch (_) {
-        await Printing.layoutPdf(
-          onLayout: (format) async => pdfBytes,
-          name: fileName,
-        );
-      }
+
+      // Create a Blob and trigger browser download
+      final blob = html.Blob([pdfBytes], 'application/pdf');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', fileName)
+        ..click();
+      html.Url.revokeObjectUrl(url);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('PDF Report generated successfully! Saved to downloads.'),
+            content: Text('PDF Report downloaded successfully!'),
             backgroundColor: AppColors.secondary,
           ),
         );
@@ -271,6 +268,7 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
       }
     }
   }
+
 
 
   @override
