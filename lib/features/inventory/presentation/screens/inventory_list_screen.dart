@@ -13,7 +13,80 @@ import 'inventory_history_screen.dart';
 class InventoryListScreen extends ConsumerWidget {
   const InventoryListScreen({super.key});
 
-  static const _categories = ['Cement', 'Steel', 'Sand', 'Bricks', 'Electrical', 'Plumbing', 'Wood', 'Paint', 'Other'];
+  static const _categories = [
+    'Cement',
+    'Steel',
+    'Sand',
+    'Bricks',
+    'Electrical',
+    'Plumbing',
+    'Wood',
+    'Paint',
+    'Other',
+  ];
+
+  IconData _getCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'cement':
+        return Icons.layers_outlined;
+      case 'steel':
+        return Icons.hardware_outlined;
+      case 'sand':
+        return Icons.grain_outlined;
+      case 'bricks':
+        return Icons.foundation_outlined;
+      case 'electrical':
+        return Icons.bolt_outlined;
+      case 'plumbing':
+        return Icons.plumbing_outlined;
+      case 'paint':
+        return Icons.format_paint_outlined;
+      case 'wood':
+        return Icons.carpenter_outlined;
+      default:
+        return Icons.inventory_2_outlined;
+    }
+  }
+
+  void _confirmDelete(BuildContext context, WidgetRef ref, InventoryItem item) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        title: const Text('Delete Material Record'),
+        content: Text('Are you sure you want to delete "${item.materialName}" (${item.category})? This will remove all associated stock metrics.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete Material'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await ref.read(inventoryControllerProvider.notifier).removeItem(item.id);
+      if (context.mounted) {
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Material record deleted successfully')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Failed to delete material record'), backgroundColor: AppColors.error),
+          );
+        }
+      }
+    }
+  }
 
   void _showBulkPurchaseOrderModal(BuildContext context, List<InventoryItem> items) {
     final lowStockItems = items.where((i) => i.isLowStock).toList();
@@ -49,7 +122,7 @@ class InventoryListScreen extends ConsumerWidget {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: AppColors.secondary.withOpacity(0.1),
+                    color: AppColors.secondary.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: const Row(
@@ -131,7 +204,7 @@ class InventoryListScreen extends ConsumerWidget {
                     .map((item) => "• ${item.materialName}: +${item.recommendedReorderQty.toInt()} ${item.unit} @ ₹${item.purchasePrice}/unit (Est. ₹${item.estimatedReorderCost.toInt()}) [Supplier: ${item.supplier ?? 'N/A'}]")
                     .join("\n");
                 final summaryMsg = "PURCHASE REQUISITION DRAFT:\nTotal Estimated Cost: ₹${totalPOCost.toInt()}\n\nItems Requested:\n$poText";
-                
+
                 Clipboard.setData(ClipboardData(text: summaryMsg));
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Copied PO Requisition summary to clipboard!')),
@@ -154,7 +227,7 @@ class InventoryListScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(inventoryControllerProvider);
 
-    // Calculate Financial Valuation & Metrics
+    // Financial Valuation & Metrics
     final double totalValuation = state.items.fold(0.0, (sum, item) => sum + item.totalValuation);
     final int lowStockCount = state.items.where((item) => item.isLowStock).length;
     final int totalItemsCount = state.items.length;
@@ -164,7 +237,7 @@ class InventoryListScreen extends ConsumerWidget {
       appBar: AppBar(
         titleSpacing: 16,
         title: Text(
-          'Automated Material Inventory ERP',
+          'Material Inventory & Stock ERP',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
@@ -175,21 +248,22 @@ class InventoryListScreen extends ConsumerWidget {
               icon: const Icon(Icons.bolt, size: 16, color: Colors.amber),
               label: const Text('Auto-Generate PO'),
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
+                backgroundColor: AppColors.primaryColor(context),
                 foregroundColor: Colors.white,
                 padding: const EdgeInsets.symmetric(horizontal: 12),
               ),
             ),
           ),
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref.read(inventoryControllerProvider.notifier).loadItems(),
+            tooltip: 'Refresh Inventory',
           ),
         ],
       ),
       body: Column(
         children: [
-          // Financial Valuation & Automated Analytics Summary
+          // Summary Metric Cards
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(
@@ -197,9 +271,9 @@ class InventoryListScreen extends ConsumerWidget {
                 Expanded(
                   child: _buildMetricCard(
                     context,
-                    title: 'Total Stock Valuation',
-                    value: '₹${totalValuation.toInt()}',
-                    subtitle: 'Capital Invested in Goods',
+                    title: 'Stock Valuation',
+                    value: '₹${_fmtValuation(totalValuation)}',
+                    subtitle: 'Capital Invested',
                     icon: Icons.account_balance_wallet_outlined,
                     color: AppColors.secondary,
                   ),
@@ -210,7 +284,7 @@ class InventoryListScreen extends ConsumerWidget {
                     context,
                     title: 'Low Stock Alerts',
                     value: '$lowStockCount Items',
-                    subtitle: lowStockCount > 0 ? 'Auto PO Reorder Ready' : 'Optimal Inventory',
+                    subtitle: lowStockCount > 0 ? 'Reorder Needed' : 'Stock Healthy',
                     icon: Icons.warning_amber_rounded,
                     color: lowStockCount > 0 ? AppColors.error : AppColors.secondary,
                   ),
@@ -221,18 +295,48 @@ class InventoryListScreen extends ConsumerWidget {
                     context,
                     title: 'Stock Categories',
                     value: '$totalItemsCount Types',
-                    subtitle: 'Tracked Construction Items',
+                    subtitle: 'Tracked Items',
                     icon: Icons.inventory_2_outlined,
-                    color: AppColors.primary,
+                    color: AppColors.primaryColor(context),
                   ),
                 ),
               ],
             ),
           ),
 
+          // Interactive 1-Tap Category Filter Chips
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+            child: Row(
+              children: [
+                ChoiceChip(
+                  selected: state.categoryFilter == null,
+                  label: const Text('All Materials'),
+                  onSelected: (_) => ref.read(inventoryControllerProvider.notifier).setCategoryFilter(null),
+                ),
+                const SizedBox(width: 8),
+                ..._categories.map((cat) {
+                  final isSelected = state.categoryFilter == cat;
+                  return Padding(
+                    padding: const EdgeInsets.only(right: 8.0),
+                    child: ChoiceChip(
+                      selected: isSelected,
+                      avatar: Icon(_getCategoryIcon(cat), size: 14),
+                      label: Text(cat),
+                      onSelected: (selected) {
+                        ref.read(inventoryControllerProvider.notifier).setCategoryFilter(selected ? cat : null);
+                      },
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+
           // Search & Filter Bar
           Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: SearchFilterBar(
               hintText: 'Search material, category, supplier...',
               onSearchChanged: (q) => ref.read(inventoryControllerProvider.notifier).setSearch(q),
@@ -255,7 +359,7 @@ class InventoryListScreen extends ConsumerWidget {
               isLoading: state.isLoading,
               hasMore: state.hasMore,
               onLoadMore: () => ref.read(inventoryControllerProvider.notifier).loadMore(),
-              emptyMessage: 'No inventory items found. Tap + to add new material.',
+              emptyMessage: 'No inventory items found. Tap "+ Add Material" to add a new record.',
               errorMessage: state.errorMessage,
               onRetry: () => ref.read(inventoryControllerProvider.notifier).loadItems(),
               itemBuilder: (context, item) => _InventoryCard(
@@ -269,6 +373,7 @@ class InventoryListScreen extends ConsumerWidget {
                   );
                   ref.read(inventoryControllerProvider.notifier).loadItems();
                 },
+                onDelete: () => _confirmDelete(context, ref, item),
                 onAdjustStock: (delta) {
                   ref.read(inventoryControllerProvider.notifier).adjustStock(item, delta);
                 },
@@ -289,7 +394,7 @@ class InventoryListScreen extends ConsumerWidget {
             );
             ref.read(inventoryControllerProvider.notifier).loadItems();
           },
-          backgroundColor: AppColors.primary,
+          backgroundColor: AppColors.primaryColor(context),
           foregroundColor: Colors.white,
           icon: const Icon(Icons.add),
           label: const Text('Add Material'),
@@ -310,7 +415,7 @@ class InventoryListScreen extends ConsumerWidget {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border(context)),
       ),
       child: Column(
@@ -321,8 +426,8 @@ class InventoryListScreen extends ConsumerWidget {
             children: [
               Flexible(
                 child: Text(
-                  title,
-                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                  title.toUpperCase(),
+                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -332,17 +437,25 @@ class InventoryListScreen extends ConsumerWidget {
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
-            style: TextStyle(fontSize: 9, color: AppColors.mutedText(context)),
+            style: TextStyle(fontSize: 10, color: AppColors.mutedText(context)),
             overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
     );
+  }
+
+  String _fmtValuation(double v) {
+    if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(1)}Cr';
+    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
+    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
+    return v.toStringAsFixed(0);
   }
 }
 
@@ -350,6 +463,7 @@ class _InventoryCard extends StatelessWidget {
   final InventoryItem item;
   final VoidCallback onTap;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
   final Function(double delta) onAdjustStock;
   final VoidCallback onGeneratePO;
 
@@ -357,9 +471,33 @@ class _InventoryCard extends StatelessWidget {
     required this.item,
     required this.onTap,
     required this.onEdit,
+    required this.onDelete,
     required this.onAdjustStock,
     required this.onGeneratePO,
   });
+
+  IconData _categoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'cement':
+        return Icons.layers_outlined;
+      case 'steel':
+        return Icons.hardware_outlined;
+      case 'sand':
+        return Icons.grain_outlined;
+      case 'bricks':
+        return Icons.foundation_outlined;
+      case 'electrical':
+        return Icons.bolt_outlined;
+      case 'plumbing':
+        return Icons.plumbing_outlined;
+      case 'paint':
+        return Icons.format_paint_outlined;
+      case 'wood':
+        return Icons.carpenter_outlined;
+      default:
+        return Icons.inventory_2_outlined;
+    }
+  }
 
   void _showQuickStockDialog(BuildContext context, bool isAdding) {
     final controller = TextEditingController();
@@ -367,6 +505,7 @@ class _InventoryCard extends StatelessWidget {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBg(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
             Icon(
@@ -391,6 +530,7 @@ class _InventoryCard extends StatelessWidget {
               controller: controller,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
               autofocus: true,
+              style: TextStyle(color: AppColors.text(context)),
               decoration: InputDecoration(
                 labelText: isAdding ? 'Quantity Received' : 'Quantity Consumed',
                 suffixText: item.unit,
@@ -436,7 +576,7 @@ class _InventoryCard extends StatelessWidget {
         color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: item.isLowStock ? AppColors.error.withOpacity(0.5) : AppColors.border(context),
+          color: item.isLowStock ? AppColors.error.withValues(alpha: 0.5) : AppColors.border(context),
           width: item.isLowStock ? 1.5 : 1.0,
         ),
       ),
@@ -448,27 +588,40 @@ class _InventoryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Row: Category Pill & Stock Runway Analytics Badge
+              // Header Row: Category Icon & Pill + Runway Analytics + Delete Action
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: AppColors.primary.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      item.category.toUpperCase(),
-                      style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 10),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Icon(_categoryIcon(item.category), size: 16, color: AppColors.primaryColor(context)),
+                      ),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          item.category.toUpperCase(),
+                          style: TextStyle(color: AppColors.primaryColor(context), fontWeight: FontWeight.bold, fontSize: 10),
+                        ),
+                      ),
+                    ],
                   ),
                   Row(
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: runwayColor.withOpacity(0.12),
+                          color: runwayColor.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Row(
@@ -487,7 +640,7 @@ class _InventoryCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppColors.error.withOpacity(0.15),
+                            color: AppColors.error.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Row(
@@ -502,6 +655,13 @@ class _InventoryCard extends StatelessWidget {
                           ),
                         ),
                       ],
+                      const SizedBox(width: 4),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        color: AppColors.error,
+                        onPressed: onDelete,
+                        tooltip: 'Delete Material Record',
+                      ),
                     ],
                   ),
                 ],
@@ -550,32 +710,34 @@ class _InventoryCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.1),
+                    color: Colors.amber.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Row(
-                            children: [
-                              Icon(Icons.bolt, size: 14, color: Colors.amber),
-                              SizedBox(width: 4),
-                              Text(
-                                'Automated Reorder Recommendation',
-                                style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est. ₹${item.estimatedReorderCost.toInt()})',
-                            style: TextStyle(fontSize: 11, color: AppColors.text(context), fontWeight: FontWeight.w600),
-                          ),
-                        ],
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Row(
+                              children: [
+                                Icon(Icons.bolt, size: 14, color: Colors.amber),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Automated Reorder Recommendation',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est. ₹${item.estimatedReorderCost.toInt()})',
+                              style: TextStyle(fontSize: 11, color: AppColors.text(context), fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
                       ),
                       ElevatedButton.icon(
                         onPressed: onGeneratePO,
