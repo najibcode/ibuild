@@ -190,20 +190,32 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                 final isSelected = (state.statusFilter == null && status == 'All') ||
                     (state.statusFilter?.toLowerCase() == status.toLowerCase());
                 return Padding(
-                  padding: const EdgeInsets.only(right: 8.0),
-                  child: ChoiceChip(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
                     selected: isSelected,
-                    label: Text(status == 'All' ? 'All Quotations' : status),
-                    selectedColor: AppColors.primaryColor(context),
-                    labelStyle: TextStyle(color: isSelected ? Colors.white : AppColors.text(context), fontWeight: FontWeight.bold),
+                    label: Text(
+                      status == 'All' ? 'All Quotations' : status,
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: isSelected ? Colors.white : AppColors.text(context),
+                      ),
+                    ),
                     onSelected: (selected) {
                       ref.read(quotationControllerProvider.notifier).setStatusFilter(status == 'All' ? null : status);
                     },
+                    backgroundColor: AppColors.cardBg(context),
+                    selectedColor: AppColors.primaryColor(context),
+                    side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   ),
                 );
               }).toList(),
             ),
           ),
+
           const SizedBox(height: 6),
 
           // Quotation List Body

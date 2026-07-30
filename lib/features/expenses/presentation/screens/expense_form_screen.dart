@@ -242,17 +242,29 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                       runSpacing: 8,
                       children: _paymentModes.map((m) {
                         final isSelected = _paymentMode.toLowerCase() == m.toLowerCase();
-                        return ChoiceChip(
+                        return FilterChip(
                           selected: isSelected,
-                          label: Text(m.toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: isSelected ? Colors.white : AppColors.text(context))),
-                          selectedColor: Colors.deepOrange,
-                          backgroundColor: AppColors.cardBg(context),
+                          label: Text(
+                            m.toUpperCase(),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                              color: isSelected ? Colors.white : AppColors.text(context),
+                            ),
+                          ),
                           onSelected: (selected) {
                             if (selected) setState(() => _paymentMode = m);
                           },
+                          backgroundColor: AppColors.cardBg(context),
+                          selectedColor: AppColors.primaryColor(context),
+                          side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          showCheckmark: false,
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         );
                       }).toList(),
                     ),
+
                     const SizedBox(height: 20),
 
                     // Description Notes

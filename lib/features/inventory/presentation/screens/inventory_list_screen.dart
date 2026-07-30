@@ -25,26 +25,26 @@ class InventoryListScreen extends ConsumerWidget {
     'Other',
   ];
 
-  IconData _getCategoryIcon(String category) {
+  String _getCategoryEmoji(String category) {
     switch (category.toLowerCase()) {
       case 'cement':
-        return Icons.layers_outlined;
+        return '🏗️';
       case 'steel':
-        return Icons.hardware_outlined;
+        return '🔩';
       case 'sand':
-        return Icons.grain_outlined;
+        return '⏳';
       case 'bricks':
-        return Icons.foundation_outlined;
+        return '🧱';
       case 'electrical':
-        return Icons.bolt_outlined;
+        return '⚡';
       case 'plumbing':
-        return Icons.plumbing_outlined;
+        return '🔧';
       case 'paint':
-        return Icons.format_paint_outlined;
+        return '🎨';
       case 'wood':
-        return Icons.carpenter_outlined;
+        return '🪵';
       default:
-        return Icons.inventory_2_outlined;
+        return '📦';
     }
   }
 
@@ -310,23 +310,50 @@ class InventoryListScreen extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
             child: Row(
               children: [
-                ChoiceChip(
-                  selected: state.categoryFilter == null,
-                  label: const Text('All Materials'),
-                  onSelected: (_) => ref.read(inventoryControllerProvider.notifier).setCategoryFilter(null),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    selected: state.categoryFilter == null,
+                    label: Text(
+                      'All Materials',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: state.categoryFilter == null ? Colors.white : AppColors.text(context),
+                      ),
+                    ),
+                    onSelected: (_) => ref.read(inventoryControllerProvider.notifier).setCategoryFilter(null),
+                    backgroundColor: AppColors.cardBg(context),
+                    selectedColor: AppColors.primaryColor(context),
+                    side: BorderSide(color: state.categoryFilter == null ? AppColors.primaryColor(context) : AppColors.border(context)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  ),
                 ),
-                const SizedBox(width: 8),
                 ..._categories.map((cat) {
                   final isSelected = state.categoryFilter == cat;
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: FilterChip(
                       selected: isSelected,
-                      avatar: Icon(_getCategoryIcon(cat), size: 14),
-                      label: Text(cat),
+                      label: Text(
+                        '${_getCategoryEmoji(cat)} $cat',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : AppColors.text(context),
+                        ),
+                      ),
                       onSelected: (selected) {
                         ref.read(inventoryControllerProvider.notifier).setCategoryFilter(selected ? cat : null);
                       },
+                      backgroundColor: AppColors.cardBg(context),
+                      selectedColor: AppColors.primaryColor(context),
+                      side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      showCheckmark: false,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     ),
                   );
                 }),
@@ -334,15 +361,13 @@ class InventoryListScreen extends ConsumerWidget {
             ),
           ),
 
-          // Search & Filter Bar
+
+          // Search Bar
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: SearchFilterBar(
               hintText: 'Search material, category, supplier...',
               onSearchChanged: (q) => ref.read(inventoryControllerProvider.notifier).setSearch(q),
-              filterOptions: _categories,
-              activeFilter: state.categoryFilter,
-              onFilterChanged: (f) => ref.read(inventoryControllerProvider.notifier).setCategoryFilter(f),
               sortOptions: const ['Name', 'Stock', 'Price'],
               onSortChanged: (s) {
                 final map = {'Name': 'material_name', 'Stock': 'available_stock', 'Price': 'purchase_price'};
@@ -550,6 +575,18 @@ class _InventoryCard extends StatelessWidget {
               if (qty != null && qty > 0) {
                 onAdjustStock(isAdding ? qty : -qty);
                 Navigator.of(ctx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(isAdding
+                        ? 'Received +$qty ${item.unit} for ${item.materialName}'
+                        : 'Issued -$qty ${item.unit} for ${item.materialName}'),
+                    backgroundColor: isAdding ? AppColors.secondary : AppColors.error,
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Please enter a valid quantity'), backgroundColor: AppColors.error),
+                );
               }
             },
             style: ElevatedButton.styleFrom(
@@ -558,6 +595,7 @@ class _InventoryCard extends StatelessWidget {
             ),
             child: Text(isAdding ? 'Confirm Receive' : 'Confirm Issue'),
           ),
+
         ],
       ),
     );

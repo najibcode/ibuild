@@ -186,29 +186,58 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
             child: Row(
               children: [
-                ChoiceChip(
-                  selected: state.categoryFilter == null,
-                  label: const Text('All Expenses'),
-                  onSelected: (_) => ref.read(expenseControllerProvider.notifier).setCategoryFilter(null),
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: FilterChip(
+                    selected: state.categoryFilter == null,
+                    label: Text(
+                      'All Expenses',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: state.categoryFilter == null ? Colors.white : AppColors.text(context),
+                      ),
+                    ),
+                    onSelected: (_) => ref.read(expenseControllerProvider.notifier).setCategoryFilter(null),
+                    backgroundColor: AppColors.cardBg(context),
+                    selectedColor: AppColors.primaryColor(context),
+                    side: BorderSide(color: state.categoryFilter == null ? AppColors.primaryColor(context) : AppColors.border(context)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    showCheckmark: false,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  ),
                 ),
-                const SizedBox(width: 8),
                 ..._categories.map((cat) {
                   final isSelected = state.categoryFilter == cat;
                   return Padding(
-                    padding: const EdgeInsets.only(right: 8.0),
-                    child: ChoiceChip(
+                    padding: const EdgeInsets.only(right: 6),
+                    child: FilterChip(
                       selected: isSelected,
-                      avatar: Icon(_getCategoryIcon(cat), size: 14),
-                      label: Text(cat),
+                      avatar: Icon(_getCategoryIcon(cat), size: 14, color: isSelected ? Colors.white : AppColors.mutedText(context)),
+                      label: Text(
+                        cat,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: isSelected ? Colors.white : AppColors.text(context),
+                        ),
+                      ),
                       onSelected: (selected) {
                         ref.read(expenseControllerProvider.notifier).setCategoryFilter(selected ? cat : null);
                       },
+                      backgroundColor: AppColors.cardBg(context),
+                      selectedColor: AppColors.primaryColor(context),
+                      side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                      showCheckmark: false,
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     ),
                   );
                 }),
               ],
             ),
           ),
+
           const SizedBox(height: 6),
 
           // Expense List Body

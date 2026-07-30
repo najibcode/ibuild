@@ -56,14 +56,21 @@ class SupabaseQuotationRepository implements QuotationRepository {
     
     // Log activity
     try {
+      final created = Quotation.fromJson(response);
       await _activityRepo.logActivity(
-        title: 'New Quotation Created',
-        subtitle: '${quotation.clientName} - ₹${quotation.totalAmount.toStringAsFixed(2)} (${quotation.subject})',
-        type: 'quotation',
+        actionType: 'created_quotation',
+        entityType: 'Quotation',
+        entityId: created.id,
+        details: {
+          'client_name': quotation.clientName,
+          'subject': quotation.subject,
+          'total_amount': quotation.totalAmount,
+        },
       );
-    } catch (_) {}
-
-    return Quotation.fromJson(response);
+      return created;
+    } catch (_) {
+      return Quotation.fromJson(response);
+    }
   }
 
   @override
@@ -83,9 +90,14 @@ class SupabaseQuotationRepository implements QuotationRepository {
     // Log activity
     try {
       await _activityRepo.logActivity(
-        title: 'Quotation Updated',
-        subtitle: '${quotation.clientName} - ${quotation.status.toUpperCase()} (₹${quotation.totalAmount.toStringAsFixed(2)})',
-        type: 'quotation',
+        actionType: 'updated_quotation',
+        entityType: 'Quotation',
+        entityId: quotation.id,
+        details: {
+          'client_name': quotation.clientName,
+          'status': quotation.status,
+          'total_amount': quotation.totalAmount,
+        },
       );
     } catch (_) {}
 
@@ -99,10 +111,11 @@ class SupabaseQuotationRepository implements QuotationRepository {
     // Log activity
     try {
       await _activityRepo.logActivity(
-        title: 'Quotation Deleted',
-        subtitle: 'Quotation Record #$id removed',
-        type: 'quotation',
+        actionType: 'deleted_quotation',
+        entityType: 'Quotation',
+        entityId: id,
       );
     } catch (_) {}
   }
 }
+

@@ -426,15 +426,20 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                                     runSpacing: 6,
                                     children: [
                                       Text('Single-Day Status:', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.mutedText(context))),
-                                      Wrap(
+                                        Wrap(
                                         spacing: 6,
                                         runSpacing: 6,
                                         children: [
-                                          ChoiceChip(
-                                            label: const Text('Present', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                          FilterChip(
+                                            label: Text(
+                                              'Present',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: record.status.toLowerCase() == 'present' ? Colors.white : AppColors.text(context),
+                                              ),
+                                            ),
                                             selected: record.status.toLowerCase() == 'present',
-                                            selectedColor: AppColors.secondary,
-                                            labelStyle: TextStyle(color: record.status.toLowerCase() == 'present' ? Colors.white : AppColors.text(context)),
                                             onSelected: (_) {
                                               ref.read(attendanceControllerProvider.notifier).markAttendance(
                                                 employeeId: emp.id,
@@ -442,18 +447,35 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                                                 projectId: widget.projectId,
                                               );
                                             },
+                                            backgroundColor: AppColors.cardBg(context),
+                                            selectedColor: AppColors.secondary,
+                                            side: BorderSide(color: record.status.toLowerCase() == 'present' ? AppColors.secondary : AppColors.border(context)),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                            showCheckmark: false,
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           ),
-                                          ChoiceChip(
-                                            label: const Text('Absent', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                          FilterChip(
+                                            label: Text(
+                                              'Absent',
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.bold,
+                                                color: record.status.toLowerCase() == 'absent' ? Colors.white : AppColors.text(context),
+                                              ),
+                                            ),
                                             selected: record.status.toLowerCase() == 'absent',
-                                            selectedColor: AppColors.error,
-                                            labelStyle: TextStyle(color: record.status.toLowerCase() == 'absent' ? Colors.white : AppColors.text(context)),
                                             onSelected: (_) {
                                               ref.read(attendanceControllerProvider.notifier).markAttendance(
                                                 employeeId: emp.id,
                                                 status: 'Absent',
                                               );
                                             },
+                                            backgroundColor: AppColors.cardBg(context),
+                                            selectedColor: AppColors.error,
+                                            side: BorderSide(color: record.status.toLowerCase() == 'absent' ? AppColors.error : AppColors.border(context)),
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                            showCheckmark: false,
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                           ),
                                         ],
                                       ),

@@ -25,19 +25,19 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     'Generators & Power Units',
   ];
 
-  IconData _getCategoryIcon(String category) {
+  String _getCategoryEmoji(String category) {
     switch (category) {
       case 'Power Tools & Machines':
-        return Icons.construction;
+        return '🛠️';
       case 'Ladders & Climbing':
-        return Icons.stairs;
+        return '🪜';
       case 'Hand Tools & Site Gear':
-        return Icons.handyman_outlined;
+        return '🧰';
       case 'Generators & Power Units':
-        return Icons.bolt_outlined;
+        return '⚡';
       case 'Heavy Machinery':
       default:
-        return Icons.agriculture_outlined;
+        return '🚜';
     }
   }
 
@@ -82,10 +82,9 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
               backgroundColor: AppColors.cardBg(context),
               title: Row(
                 children: [
-                  Icon(
-                    _getCategoryIcon(selectedCategory),
-                    color: AppColors.primaryColor(context),
-                    size: 24,
+                  Text(
+                    _getCategoryEmoji(selectedCategory),
+                    style: const TextStyle(fontSize: 22),
                   ),
                   const SizedBox(width: 10),
                   Expanded(
@@ -578,31 +577,59 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 16.0),
                       child: Row(
                         children: [
-                          FilterChip(
-                            selected: _categoryFilter == null,
-                            label: const Text('All Items'),
-                            onSelected: (_) => setState(() => _categoryFilter = null),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: FilterChip(
+                              selected: _categoryFilter == null,
+                              label: Text(
+                                'All Items',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: _categoryFilter == null ? Colors.white : AppColors.text(context),
+                                ),
+                              ),
+                              onSelected: (_) => setState(() => _categoryFilter = null),
+                              backgroundColor: AppColors.cardBg(context),
+                              selectedColor: AppColors.primaryColor(context),
+                              side: BorderSide(color: _categoryFilter == null ? AppColors.primaryColor(context) : AppColors.border(context)),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              showCheckmark: false,
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            ),
                           ),
-                          const SizedBox(width: 8),
                           ..._categories.map((cat) {
                             final isSelected = _categoryFilter == cat;
                             return Padding(
-                              padding: const EdgeInsets.only(right: 8.0),
+                              padding: const EdgeInsets.only(right: 6),
                               child: FilterChip(
                                 selected: isSelected,
-                                avatar: Icon(_getCategoryIcon(cat), size: 14),
-                                label: Text(cat),
+                                label: Text(
+                                  '${_getCategoryEmoji(cat)} $cat',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: isSelected ? Colors.white : AppColors.text(context),
+                                  ),
+                                ),
                                 onSelected: (selected) {
                                   setState(() {
                                     _categoryFilter = selected ? cat : null;
                                   });
                                 },
+                                backgroundColor: AppColors.cardBg(context),
+                                selectedColor: AppColors.primaryColor(context),
+                                side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                showCheckmark: false,
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                               ),
                             );
                           }),
                         ],
                       ),
                     ),
+
                     const SizedBox(height: 10),
 
                     // Search Bar
@@ -611,9 +638,6 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       child: SearchFilterBar(
                         hintText: 'Search drilling machines, ladders, trucks, tag #...',
                         onSearchChanged: (val) => setState(() => _searchQuery = val),
-                        filterOptions: _categories,
-                        activeFilter: _categoryFilter,
-                        onFilterChanged: (val) => setState(() => _categoryFilter = val),
                       ),
                     ),
                     const SizedBox(height: 12),
@@ -739,7 +763,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
         break;
     }
 
-    final catIcon = _getCategoryIcon(item.category);
+    final catEmoji = _getCategoryEmoji(item.category);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -764,7 +788,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                         color: AppColors.primaryColor(context).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(catIcon, color: AppColors.primaryColor(context), size: 20),
+                      child: Text(catEmoji, style: const TextStyle(fontSize: 18)),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
