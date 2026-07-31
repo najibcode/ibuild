@@ -33,6 +33,13 @@ import 'features/dashboard/presentation/screens/admin_dashboard.dart';
 import 'features/dashboard/presentation/screens/supervisor_dashboard.dart';
 import 'features/rbac/presentation/providers/permission_provider.dart';
 
+// ── Controller imports for auto-reload ──
+import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
+import 'features/attendance/presentation/controllers/attendance_controller.dart';
+import 'features/projects/presentation/controllers/project_controller.dart';
+import 'features/subcontractors/presentation/controllers/subcontractor_controller.dart';
+import 'features/expenses/presentation/controllers/expense_controller.dart';
+import 'features/employees/presentation/controllers/employee_controller.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
@@ -118,12 +125,13 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     }
   }
 
-  // Set absolute mobile screen (resets stack)
+  // Set absolute mobile screen (resets stack) + auto-reload
   void _setMobileTab(MobileScreen screen) {
     setState(() {
       _mobileNavStack.clear();
       _mobileNavStack.add(screen);
     });
+    _refreshDataForMobileScreen(screen);
   }
 
   // Get current active mobile screen
@@ -461,6 +469,74 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     );
   }
 
+  // ── Auto-Reload Data on Tab Switch ──
+
+  /// Refreshes data for the selected web sidebar tab
+  void _refreshDataForWebTab(int index) {
+    final permsAsync = ref.read(userPermissionsProvider);
+    final permissions = permsAsync.valueOrNull ?? <String>{};
+    final role = ref.read(currentRoleProvider);
+
+    final visibleItems = WebSidebar.allItems.where((item) {
+      if (item.requiredPermission == null) return true;
+      if (role == 'owner' || role == 'admin' || permissions.isEmpty) return true;
+      return permissions.contains(item.requiredPermission);
+    }).toList();
+
+    if (index >= visibleItems.length) return;
+
+    final label = visibleItems[index].label;
+    _refreshDataForLabel(label);
+  }
+
+  /// Refreshes data for the selected mobile screen
+  void _refreshDataForMobileScreen(MobileScreen screen) {
+    switch (screen) {
+      case MobileScreen.dashboard:
+        _refreshDataForLabel('Dashboard');
+      case MobileScreen.projectsList:
+        _refreshDataForLabel('Projects');
+      case MobileScreen.attendance:
+        _refreshDataForLabel('Attendance');
+      case MobileScreen.employees:
+        _refreshDataForLabel('Employees');
+      case MobileScreen.inventory:
+        _refreshDataForLabel('Inventory');
+      case MobileScreen.billing:
+        _refreshDataForLabel('Billing');
+      case MobileScreen.quotations:
+        _refreshDataForLabel('Quotations & Estimates');
+      case MobileScreen.expenses:
+        _refreshDataForLabel('Expenses');
+      case MobileScreen.equipment:
+        _refreshDataForLabel('Equipment, Machinery & Tools');
+      case MobileScreen.vendors:
+        _refreshDataForLabel('Subcontractors');
+      default:
+        break; // Settings, Profile, Reports, Budget — no background data to reload
+    }
+  }
+
+  /// Core reload dispatcher — triggers the right provider reload for each module
+  void _refreshDataForLabel(String label) {
+    switch (label) {
+      case 'Dashboard':
+        ref.invalidate(dashboardStatsProvider);
+      case 'Projects':
+        ref.read(projectControllerProvider.notifier).loadProjects();
+      case 'Attendance':
+        ref.read(attendanceControllerProvider.notifier).loadAttendanceForToday();
+      case 'Employees':
+        ref.read(employeeListControllerProvider.notifier).loadEmployees();
+      case 'Subcontractors':
+        ref.read(subcontractorControllerProvider.notifier).loadSubcontractors();
+      case 'Expenses':
+        ref.read(expenseControllerProvider.notifier).loadExpenses();
+      default:
+        break; // Other tabs reload via their own mechanisms
+    }
+  }
+
   // --- DESKTOP NAVIGATION & LAYOUT ---
   Widget _buildDesktopLayout() {
     return Scaffold(
@@ -474,6 +550,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
               setState(() {
                 _activeWebTab = index;
               });
+              _refreshDataForWebTab(index);
             },
           ),
           // ── Main Content Area ──

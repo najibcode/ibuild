@@ -25,11 +25,12 @@ class SubcontractorState {
     List<Subcontractor>? items,
     bool? isLoading,
     String? error,
+    bool clearError = false,
   }) {
     return SubcontractorState(
       items: items ?? this.items,
       isLoading: isLoading ?? this.isLoading,
-      error: error,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -42,45 +43,52 @@ class SubcontractorController extends StateNotifier<SubcontractorState> {
   }
 
   Future<void> loadSubcontractors() async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
       final items = await _repo.fetchSubcontractors();
       state = state.copyWith(items: items, isLoading: false);
     } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
+      state = state.copyWith(isLoading: false, error: 'Failed to load subcontractors: $e');
     }
   }
 
-  Future<void> addSubcontractor(Subcontractor sub) async {
+  Future<bool> addSubcontractor(Subcontractor sub) async {
     try {
       final created = await _repo.createSubcontractor(sub);
-      final list = [...state.items, created ?? sub];
-      state = state.copyWith(items: list);
+      // Successfully persisted — add to local state
+      final list = [...state.items, created];
+      state = state.copyWith(items: list, clearError: true);
+      // Re-fetch from DB to ensure consistency
+      await loadSubcontractors();
+      return true;
     } catch (e) {
-      final list = [...state.items, sub];
-      state = state.copyWith(items: list);
+      // Persistence failed — do NOT add to local state
+      state = state.copyWith(error: 'Failed to save subcontractor: $e');
+      return false;
     }
   }
 
-  Future<void> updateSubcontractor(Subcontractor sub) async {
+  Future<bool> updateSubcontractor(Subcontractor sub) async {
     try {
       await _repo.updateSubcontractor(sub);
       final list = state.items.map((e) => e.id == sub.id ? sub : e).toList();
-      state = state.copyWith(items: list);
-    } catch (_) {
-      final list = state.items.map((e) => e.id == sub.id ? sub : e).toList();
-      state = state.copyWith(items: list);
+      state = state.copyWith(items: list, clearError: true);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to update subcontractor: $e');
+      return false;
     }
   }
 
-  Future<void> deleteSubcontractor(String id) async {
+  Future<bool> deleteSubcontractor(String id) async {
     try {
       await _repo.deleteSubcontractor(id);
       final list = state.items.where((e) => e.id != id).toList();
-      state = state.copyWith(items: list);
-    } catch (_) {
-      final list = state.items.where((e) => e.id != id).toList();
-      state = state.copyWith(items: list);
+      state = state.copyWith(items: list, clearError: true);
+      return true;
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to delete subcontractor: $e');
+      return false;
     }
   }
 }

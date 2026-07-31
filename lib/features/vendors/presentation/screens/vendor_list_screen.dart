@@ -258,12 +258,19 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                       createdAt: DateTime.now(),
                     );
 
-                    await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(newSub);
+                    final success = await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(newSub);
                     if (context.mounted) {
                       Navigator.pop(dialogCtx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Subcontractor vendor registered successfully')),
-                      );
+                      if (success) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: const Text('Subcontractor vendor registered successfully'), backgroundColor: AppColors.secondary),
+                        );
+                      } else {
+                        final err = ref.read(subcontractorControllerProvider).error ?? 'Unknown error';
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text('Failed to register vendor: $err'), backgroundColor: AppColors.error),
+                        );
+                      }
                     }
                   },
                   style: ElevatedButton.styleFrom(

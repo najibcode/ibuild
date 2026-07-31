@@ -6,6 +6,7 @@ import '../../domain/repositories/attendance_repository.dart';
 import '../../data/models/attendance_model.dart';
 import '../../../employees/presentation/controllers/employee_controller.dart';
 import '../../../employees/data/models/employee_model.dart';
+import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
@@ -17,11 +18,13 @@ class AttendanceState {
   final bool isLoading;
   final List<Attendance> attendanceList;
   final List<Employee> activeEmployees;
+  final String? error;
 
   AttendanceState({
     required this.isLoading,
     required this.attendanceList,
     required this.activeEmployees,
+    this.error,
   });
 
   factory AttendanceState.initial() => AttendanceState(
@@ -34,11 +37,14 @@ class AttendanceState {
     bool? isLoading,
     List<Attendance>? attendanceList,
     List<Employee>? activeEmployees,
+    String? error,
+    bool clearError = false,
   }) {
     return AttendanceState(
       isLoading: isLoading ?? this.isLoading,
       attendanceList: attendanceList ?? this.attendanceList,
       activeEmployees: activeEmployees ?? this.activeEmployees,
+      error: clearError ? null : (error ?? this.error),
     );
   }
 }
@@ -106,9 +112,12 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     // 2. Persist to backend without triggering full-screen loading spinner
     try {
       await _repository.saveAttendance(newRecord);
+      // Refresh dashboard stats so KPIs update (Workers Present, etc.)
+      _ref.invalidate(dashboardStatsProvider);
       await loadAttendanceForToday(showLoading: false);
-    } catch (_) {
-      // Keep optimistic state
+    } catch (e) {
+      // Keep optimistic state but surface error
+      state = state.copyWith(error: 'Attendance saved locally but failed to sync: $e');
     }
   }
 }

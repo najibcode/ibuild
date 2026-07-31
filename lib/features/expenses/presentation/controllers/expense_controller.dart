@@ -4,6 +4,7 @@ import '../../../activities/data/repositories/supabase_activity_repository.dart'
 import '../../data/repositories/supabase_expense_repository.dart';
 import '../../domain/repositories/expense_repository.dart';
 import '../../data/models/expense_model.dart';
+import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 
 final expenseRepositoryProvider = Provider<ExpenseRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
@@ -58,9 +59,10 @@ class ExpenseListState {
 
 class ExpenseController extends StateNotifier<ExpenseListState> {
   final ExpenseRepository _repository;
+  final Ref _ref;
   static const _pageSize = 20;
 
-  ExpenseController(this._repository) : super(ExpenseListState.initial()) {
+  ExpenseController(this._repository, this._ref) : super(ExpenseListState.initial()) {
     loadExpenses();
   }
 
@@ -112,6 +114,7 @@ class ExpenseController extends StateNotifier<ExpenseListState> {
   Future<bool> addExpense(Expense expense) async {
     try {
       await _repository.createExpense(expense);
+      _ref.invalidate(dashboardStatsProvider);
       await loadExpenses();
       return true;
     } catch (_) {
@@ -122,6 +125,7 @@ class ExpenseController extends StateNotifier<ExpenseListState> {
   Future<bool> editExpense(Expense expense) async {
     try {
       await _repository.updateExpense(expense);
+      _ref.invalidate(dashboardStatsProvider);
       await loadExpenses();
       return true;
     } catch (_) {
@@ -132,6 +136,7 @@ class ExpenseController extends StateNotifier<ExpenseListState> {
   Future<bool> removeExpense(String id) async {
     try {
       await _repository.deleteExpense(id);
+      _ref.invalidate(dashboardStatsProvider);
       await loadExpenses();
       return true;
     } catch (_) {
@@ -143,5 +148,5 @@ class ExpenseController extends StateNotifier<ExpenseListState> {
 final expenseControllerProvider =
     StateNotifierProvider<ExpenseController, ExpenseListState>((ref) {
   final repo = ref.watch(expenseRepositoryProvider);
-  return ExpenseController(repo);
+  return ExpenseController(repo, ref);
 });

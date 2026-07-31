@@ -7,32 +7,20 @@ class SupabaseSubcontractorRepository {
   SupabaseSubcontractorRepository(this._client);
 
   Future<List<Subcontractor>> fetchSubcontractors() async {
-    try {
-      final response = await _client.from('subcontractors').select().order('name', ascending: true);
-      return (response as List).map((json) => Subcontractor.fromJson(json)).toList();
-    } catch (e) {
-      return [];
-    }
+    final response = await _client.from('subcontractors').select().order('name', ascending: true);
+    return (response as List).map((json) => Subcontractor.fromJson(json)).toList();
   }
 
-  Future<Subcontractor?> createSubcontractor(Subcontractor sub) async {
-    try {
-      final response = await _client.from('subcontractors').insert(sub.toJson()).select().single();
-      return Subcontractor.fromJson(response);
-    } catch (e) {
-      return sub;
-    }
+  Future<Subcontractor> createSubcontractor(Subcontractor sub) async {
+    final response = await _client.from('subcontractors').insert(sub.toJson()).select().single();
+    return Subcontractor.fromJson(response);
   }
 
   Future<void> updateSubcontractor(Subcontractor sub) async {
-    try {
-      await _client.from('subcontractors').update(sub.toJson()).eq('id', sub.id);
-    } catch (_) {}
+    await _client.from('subcontractors').update(sub.toJson()).eq('id', sub.id);
   }
 
   Future<void> deleteSubcontractor(String id) async {
-    try {
-      await _client.from('subcontractors').delete().eq('id', id);
-    } catch (_) {}
+    await _client.from('subcontractors').delete().eq('id', id);
   }
 }
