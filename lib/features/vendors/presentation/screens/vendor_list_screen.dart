@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
+import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../subcontractors/data/models/subcontractor_model.dart';
 import '../../../subcontractors/presentation/controllers/subcontractor_controller.dart';
 
@@ -25,12 +26,56 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
     final paidCtrl = TextEditingController(text: '1000000');
     String selectedTrade = 'Electrical & MEP';
     String selectedStatus = 'Active';
+    String? selectedSiteProject; // null = general, '__custom__' = custom text, or project name
+
+    // Ensure projects are loaded fresh
+    ref.read(projectControllerProvider.notifier).loadProjects();
 
     showDialog(
       context: context,
       builder: (dialogCtx) {
-        return StatefulBuilder(
-          builder: (context, setDialogState) {
+        // Use Consumer to reactively watch projects inside the dialog
+        return Consumer(
+          builder: (context, dialogRef, _) {
+            final projects = dialogRef.watch(projectControllerProvider).projects;
+            return StatefulBuilder(
+              builder: (context, setDialogState) {
+            // Build site dropdown items
+            final siteDropdownItems = <DropdownMenuItem<String?>>[
+              DropdownMenuItem<String?>(
+                value: null,
+                child: Row(
+                  children: [
+                    Icon(Icons.public, size: 16, color: AppColors.mutedText(context)),
+                    const SizedBox(width: 8),
+                    Text('General (No Specific Project)', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                  ],
+                ),
+              ),
+              ...projects.map((p) => DropdownMenuItem<String?>(
+                    value: p.name,
+                    child: Row(
+                      children: [
+                        Icon(Icons.apartment, size: 16, color: AppColors.primaryColor(context)),
+                        const SizedBox(width: 8),
+                        Flexible(
+                          child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13), overflow: TextOverflow.ellipsis),
+                        ),
+                      ],
+                    ),
+                  )),
+              DropdownMenuItem<String?>(
+                value: '__custom__',
+                child: Row(
+                  children: [
+                    Icon(Icons.edit_location_alt_outlined, size: 16, color: Colors.deepOrange),
+                    const SizedBox(width: 8),
+                    Text('Other (Type Custom Site)', style: TextStyle(color: Colors.deepOrange, fontSize: 13, fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ),
+            ];
+
             return AlertDialog(
               backgroundColor: AppColors.cardBg(context),
               title: Text('Register Subcontractor Vendor', style: TextStyle(color: AppColors.text(context))),
@@ -76,16 +121,50 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: siteCtrl,
-                      style: TextStyle(color: AppColors.text(context)),
+                    const SizedBox(height: 16),
+
+                    // ── Assigned Site / Project Dropdown ──
+                    Text(
+                      'ASSIGNED SITE / PROJECT',
+                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 6),
+                    DropdownButtonFormField<String?>(
+                      value: selectedSiteProject,
+                      dropdownColor: AppColors.cardBg(context),
+                      isExpanded: true,
                       decoration: InputDecoration(
-                        labelText: 'Assigned Site Name',
-                        hintText: 'e.g. Skyline Towers Phase 1',
+                        prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context), size: 20),
+                        hintText: 'Select active project site',
+                        hintStyle: TextStyle(color: AppColors.mutedText(context)),
                         labelStyle: TextStyle(color: AppColors.mutedText(context)),
                       ),
+                      items: siteDropdownItems,
+                      onChanged: (val) {
+                        setDialogState(() {
+                          selectedSiteProject = val;
+                          if (val != '__custom__') {
+                            siteCtrl.text = val ?? '';
+                          } else {
+                            siteCtrl.clear();
+                          }
+                        });
+                      },
                     ),
+                    // Show custom site text field when "Other" is selected
+                    if (selectedSiteProject == '__custom__') ...[
+                      const SizedBox(height: 8),
+                      TextField(
+                        controller: siteCtrl,
+                        style: TextStyle(color: AppColors.text(context)),
+                        decoration: InputDecoration(
+                          labelText: 'Custom Site Name',
+                          hintText: 'e.g. Skyline Towers Phase 1',
+                          prefixIcon: Icon(Icons.edit_location_alt_outlined, size: 18, color: Colors.deepOrange),
+                          labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 12),
                     Row(
                       children: [
@@ -194,11 +273,13 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   child: const Text('Register Vendor'),
                 ),
               ],
-            );
-          },
-        );
-      },
-    );
+            ); // AlertDialog
+          }, // StatefulBuilder builder
+        ); // StatefulBuilder
+      }, // Consumer builder
+    ); // Consumer
+      }, // showDialog builder
+    ); // showDialog
   }
 
   @override
