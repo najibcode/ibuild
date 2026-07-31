@@ -45,6 +45,320 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     }
   }
 
+  // Track fuel type selection for Vehicles & Transport
+  String _fuelTypeNotifier = 'Diesel';
+
+  // ─── Category-Aware Dynamic Field Config ───
+
+  String _nameLabel(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'Vehicle Name / Model *';
+      case 'Heavy Machinery': return 'Machine Name / Model *';
+      case 'Power Tools & Machines': return 'Tool / Machine Name *';
+      case 'Ladders & Climbing': return 'Ladder / Scaffold Name *';
+      case 'Generators & Power Units': return 'Generator / Power Unit Name *';
+      case 'Hand Tools & Site Gear': return 'Tool / Gear Name *';
+      default: return 'Item Name *';
+    }
+  }
+
+  String _nameHint(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'e.g. Tata 407 Lorry, Mahindra Bolero Pickup';
+      case 'Heavy Machinery': return 'e.g. JCB 3DX Backhoe Loader, Caterpillar Excavator';
+      case 'Power Tools & Machines': return 'e.g. Bosch Heavy Duty Drill, Hilti Rotary Hammer';
+      case 'Ladders & Climbing': return 'e.g. 12ft Aluminium Extension Ladder';
+      case 'Generators & Power Units': return 'e.g. Kirloskar 5kVA Silent Generator';
+      case 'Hand Tools & Site Gear': return 'e.g. Measuring Tape 30m, Spirit Level Set';
+      default: return 'e.g. Equipment item name';
+    }
+  }
+
+  String _tagLabel(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'Vehicle Reg. No. *';
+      case 'Heavy Machinery': return 'Machine Serial #';
+      case 'Power Tools & Machines': return 'Tool Serial / Code #';
+      case 'Ladders & Climbing': return 'Ladder Tag / ID';
+      case 'Generators & Power Units': return 'Generator Serial #';
+      case 'Hand Tools & Site Gear': return 'Tool Code / ID';
+      default: return 'Tag / Serial #';
+    }
+  }
+
+  String _tagHint(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'e.g. KL-07-AB-1234';
+      case 'Heavy Machinery': return 'e.g. JCB-3DX-2024-001';
+      case 'Power Tools & Machines': return 'e.g. PT-DRL-101';
+      case 'Ladders & Climbing': return 'e.g. LD-ALU-12FT-01';
+      case 'Generators & Power Units': return 'e.g. GEN-5KVA-001';
+      case 'Hand Tools & Site Gear': return 'e.g. HT-TAPE-001';
+      default: return 'e.g. EQ-001';
+    }
+  }
+
+  List<String> _statusOptions(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport':
+        return ['Operational', 'In Use / On Road', 'Maintenance / Service', 'Parked / Idle', 'Breakdown'];
+      case 'Heavy Machinery':
+        return ['Operational', 'In Use', 'Maintenance', 'Idle', 'Breakdown'];
+      case 'Power Tools & Machines':
+        return ['Operational', 'In Use', 'Repair', 'Idle', 'Damaged'];
+      case 'Ladders & Climbing':
+        return ['Operational', 'In Use', 'Inspection Due', 'Damaged'];
+      case 'Generators & Power Units':
+        return ['Operational', 'Running', 'Maintenance', 'Idle', 'Fuel Empty'];
+      case 'Hand Tools & Site Gear':
+        return ['Available', 'In Use', 'Lost', 'Damaged'];
+      default:
+        return ['Operational', 'In Use', 'Maintenance', 'Idle'];
+    }
+  }
+
+  String _costLabel(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'Daily Rental / Running Cost (₹)';
+      case 'Heavy Machinery': return 'Hourly / Daily Hire Rate (₹)';
+      case 'Generators & Power Units': return 'Daily Running Cost (₹)';
+      default: return 'Daily Value / Rate (₹)';
+    }
+  }
+
+  bool _showFuelField(String cat) {
+    return cat == 'Vehicles & Transport' ||
+        cat == 'Heavy Machinery' ||
+        cat == 'Generators & Power Units';
+  }
+
+  String _fuelLabel(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'Mileage / Fuel (L/day)';
+      case 'Heavy Machinery': return 'Fuel Usage (L/hr)';
+      case 'Generators & Power Units': return 'Fuel Usage (L/hr)';
+      default: return 'Fuel (L/day)';
+    }
+  }
+
+  String _fuelHint(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'e.g. 15';
+      case 'Heavy Machinery': return 'e.g. 8';
+      case 'Generators & Power Units': return 'e.g. 2.5';
+      default: return '0 for manual tools';
+    }
+  }
+
+  String _locationSectionLabel(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'PARKING / ASSIGNED SITE';
+      case 'Heavy Machinery': return 'DEPLOYED SITE / LOCATION';
+      case 'Generators & Power Units': return 'GENERATOR LOCATION / SITE';
+      default: return 'LOCATION / ASSIGNED SITE';
+    }
+  }
+
+  String _locationFieldLabel(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'Parking Bay / Assigned Site';
+      case 'Heavy Machinery': return 'Deployed Site / Project';
+      default: return 'Location / Site Name';
+    }
+  }
+
+  String _locationHint(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'e.g. Parking Bay 3, Skyline Project Site';
+      case 'Heavy Machinery': return 'e.g. Foundation Pit Section A, Tower Block 2';
+      default: return 'Type ANY custom location (e.g. Lorry 04 Tool Box, Bay 3, etc.)...';
+    }
+  }
+
+  String _notesLabel(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'Vehicle Notes / Service Info';
+      case 'Heavy Machinery': return 'Operator Notes / Service History';
+      case 'Power Tools & Machines': return 'Tool Condition / Maintenance Notes';
+      case 'Generators & Power Units': return 'Runtime Hours / Service Notes';
+      default: return 'Usage / Maintenance Notes';
+    }
+  }
+
+  String _notesHint(String cat) {
+    switch (cat) {
+      case 'Vehicles & Transport': return 'e.g. Last serviced 15 Jan, next service at 45000 km';
+      case 'Heavy Machinery': return 'e.g. Operated by Raju, 2500 hrs runtime, next service at 3000 hrs';
+      case 'Power Tools & Machines': return 'e.g. Blade replaced on 10 Jan, carbons checked';
+      case 'Generators & Power Units': return 'e.g. 1200 hrs runtime, oil change due at 1500 hrs';
+      case 'Ladders & Climbing': return 'e.g. Inspected 01 Jan, good condition, rubber feet replaced';
+      case 'Hand Tools & Site Gear': return 'e.g. Set of 12, 2 missing, stored in red toolbox';
+      default: return 'e.g. Any relevant notes about usage or maintenance';
+    }
+  }
+
+  /// Build category-specific extra fields (e.g. Fuel Type for Vehicles)
+  List<Widget> _buildCategorySpecificFields(
+    BuildContext context,
+    String cat,
+    void Function(void Function()) setDialogState, {
+    required String fuelTypeNotifier,
+  }) {
+    switch (cat) {
+      case 'Vehicles & Transport':
+        return [
+          // Fuel Type selector
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'FUEL TYPE',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: ['Diesel', 'Petrol', 'CNG', 'Electric'].map((fuel) {
+              final isSelected = _fuelTypeNotifier == fuel;
+              return ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                selected: isSelected,
+                label: Text(fuel, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.text(context))),
+                avatar: Icon(
+                  fuel == 'Diesel' ? Icons.local_gas_station
+                      : fuel == 'Petrol' ? Icons.local_gas_station_outlined
+                      : fuel == 'CNG' ? Icons.propane_tank_outlined
+                      : Icons.ev_station_outlined,
+                  size: 14,
+                  color: isSelected ? Colors.white : AppColors.primaryColor(context),
+                ),
+                selectedColor: AppColors.primaryColor(context),
+                backgroundColor: AppColors.cardBg(context),
+                side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                onSelected: (_) => setDialogState(() => _fuelTypeNotifier = fuel),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ];
+
+      case 'Heavy Machinery':
+        return [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'POWER SOURCE',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: ['Diesel', 'Electric', 'Hydraulic'].map((src) {
+              final isSelected = _fuelTypeNotifier == src;
+              return ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                selected: isSelected,
+                label: Text(src, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.text(context))),
+                selectedColor: AppColors.primaryColor(context),
+                backgroundColor: AppColors.cardBg(context),
+                side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                onSelected: (_) => setDialogState(() => _fuelTypeNotifier = src),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ];
+
+      case 'Power Tools & Machines':
+        return [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'POWER TYPE',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: ['Corded Electric', 'Battery / Cordless', 'Pneumatic (Air)', 'Petrol Engine'].map((src) {
+              final isSelected = _fuelTypeNotifier == src;
+              return ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                selected: isSelected,
+                label: Text(src, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.text(context))),
+                selectedColor: AppColors.primaryColor(context),
+                backgroundColor: AppColors.cardBg(context),
+                side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                onSelected: (_) => setDialogState(() => _fuelTypeNotifier = src),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ];
+
+      case 'Generators & Power Units':
+        return [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'FUEL TYPE',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: ['Diesel', 'Petrol', 'Solar / Hybrid'].map((fuel) {
+              final isSelected = _fuelTypeNotifier == fuel;
+              return ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                selected: isSelected,
+                label: Text(fuel, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.text(context))),
+                selectedColor: AppColors.primaryColor(context),
+                backgroundColor: AppColors.cardBg(context),
+                side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                onSelected: (_) => setDialogState(() => _fuelTypeNotifier = fuel),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ];
+
+      case 'Ladders & Climbing':
+        return [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text(
+              'MATERIAL TYPE',
+              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+            ),
+          ),
+          Wrap(
+            spacing: 8,
+            runSpacing: 4,
+            children: ['Aluminium', 'Steel / Iron', 'Fiberglass', 'Bamboo / Wood'].map((mat) {
+              final isSelected = _fuelTypeNotifier == mat;
+              return ChoiceChip(
+                visualDensity: VisualDensity.compact,
+                selected: isSelected,
+                label: Text(mat, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.text(context))),
+                selectedColor: AppColors.primaryColor(context),
+                backgroundColor: AppColors.cardBg(context),
+                side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                onSelected: (_) => setDialogState(() => _fuelTypeNotifier = mat),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 12),
+        ];
+
+      default:
+        return [];
+    }
+  }
+
 
   dynamic _findProjectByName(List<dynamic> projects, String query) {
 
@@ -115,10 +429,18 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       items: _categories
                           .map((c) => DropdownMenuItem(
                                 value: c,
-                                child: Text(c, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                                child: Text('${_getCategoryEmoji(c)}  $c', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
                               ))
                           .toList(),
-                      onChanged: (val) => setDialogState(() => selectedCategory = val!),
+                      onChanged: (val) {
+                        setDialogState(() {
+                          selectedCategory = val!;
+                          // Reset status to first valid option for new category
+                          if (!_statusOptions(selectedCategory).contains(selectedStatus)) {
+                            selectedStatus = _statusOptions(selectedCategory).first;
+                          }
+                        });
+                      },
                     ),
                     const SizedBox(height: 12),
 
@@ -127,8 +449,8 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       controller: nameCtrl,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        labelText: 'Item Name *',
-                        hintText: 'e.g. Bosch Heavy Duty Drill Machine',
+                        labelText: _nameLabel(selectedCategory),
+                        hintText: _nameHint(selectedCategory),
                         labelStyle: TextStyle(color: AppColors.mutedText(context)),
                       ),
                     ),
@@ -141,8 +463,8 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                             controller: tagCtrl,
                             style: TextStyle(color: AppColors.text(context)),
                             decoration: InputDecoration(
-                              labelText: 'Tag / Serial #',
-                              hintText: 'e.g. TL-DRL-101',
+                              labelText: _tagLabel(selectedCategory),
+                              hintText: _tagHint(selectedCategory),
                               labelStyle: TextStyle(color: AppColors.mutedText(context)),
                             ),
                           ),
@@ -150,13 +472,15 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                         const SizedBox(width: 12),
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: selectedStatus,
+                            value: _statusOptions(selectedCategory).contains(selectedStatus)
+                                ? selectedStatus
+                                : _statusOptions(selectedCategory).first,
                             dropdownColor: AppColors.cardBg(context),
                             decoration: InputDecoration(
                               labelText: 'Status',
                               labelStyle: TextStyle(color: AppColors.mutedText(context)),
                             ),
-                            items: ['Operational', 'In Use', 'Maintenance', 'Idle']
+                            items: _statusOptions(selectedCategory)
                                 .map((s) => DropdownMenuItem(
                                       value: s,
                                       child: Text(s, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
@@ -169,13 +493,20 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     ),
                     const SizedBox(height: 12),
 
-                    // Searchable Location / Project Field (Search Dropdown + Custom Typing)
+                    // ── Category-Specific Extra Fields ──
+                    ..._buildCategorySpecificFields(
+                      context,
+                      selectedCategory,
+                      setDialogState,
+                      fuelTypeNotifier: _fuelTypeNotifier,
+                    ),
+
                     // Searchable / Custom Location Field with Dynamic Icon
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Text(
-                          'LOCATION / ASSIGNED SITE',
+                          _locationSectionLabel(selectedCategory),
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
                         ),
                         if (selectedProjectId != null)
@@ -204,8 +535,8 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       controller: siteCtrl,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        labelText: 'Location / Site Name',
-                        hintText: 'Type ANY custom location (e.g. Lorry 04 Tool Box, Bay 3, etc.)...',
+                        labelText: _locationFieldLabel(selectedCategory),
+                        hintText: _locationHint(selectedCategory),
                         prefixIcon: Icon(
                           selectedProjectId != null
                               ? Icons.apartment
@@ -297,24 +628,26 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                             keyboardType: TextInputType.number,
                             style: TextStyle(color: AppColors.text(context)),
                             decoration: InputDecoration(
-                              labelText: 'Daily Value / Rate (₹)',
+                              labelText: _costLabel(selectedCategory),
                               labelStyle: TextStyle(color: AppColors.mutedText(context)),
                             ),
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: fuelCtrl,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(color: AppColors.text(context)),
-                            decoration: InputDecoration(
-                              labelText: 'Fuel (L/day)',
-                              hintText: '0 for manual tools',
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                        if (_showFuelField(selectedCategory)) ...[
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextField(
+                              controller: fuelCtrl,
+                              keyboardType: TextInputType.number,
+                              style: TextStyle(color: AppColors.text(context)),
+                              decoration: InputDecoration(
+                                labelText: _fuelLabel(selectedCategory),
+                                hintText: _fuelHint(selectedCategory),
+                                labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                              ),
                             ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                     const SizedBox(height: 12),
@@ -325,8 +658,8 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                       maxLines: 2,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        labelText: 'Usage / Maintenance Notes',
-                        hintText: 'e.g. Carried in lorry for vehicle maintenance & site work',
+                        labelText: _notesLabel(selectedCategory),
+                        hintText: _notesHint(selectedCategory),
                         labelStyle: TextStyle(color: AppColors.mutedText(context)),
                       ),
                     ),
