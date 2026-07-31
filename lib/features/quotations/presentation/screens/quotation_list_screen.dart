@@ -117,26 +117,42 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
+              );
+              ref.read(quotationControllerProvider.notifier).loadQuotations();
+            },
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('New Estimate'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor(context),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref.read(quotationControllerProvider.notifier).loadQuotations(),
             tooltip: 'Refresh Quotations',
           ),
-          PermissionGuard(
-            permission: 'project.create',
-            child: IconButton(
-              icon: Icon(Icons.add_circle, color: AppColors.primaryColor(context), size: 28),
-              onPressed: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
-                );
-                ref.read(quotationControllerProvider.notifier).loadQuotations();
-              },
-              tooltip: 'New Quotation',
-            ),
-          ),
           const SizedBox(width: 8),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
+          );
+          ref.read(quotationControllerProvider.notifier).loadQuotations();
+        },
+        backgroundColor: AppColors.primaryColor(context),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('New Estimate'),
       ),
       body: Column(
         children: [

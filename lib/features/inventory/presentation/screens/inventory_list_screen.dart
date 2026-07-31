@@ -241,6 +241,22 @@ class InventoryListScreen extends ConsumerWidget {
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const InventoryFormScreen()),
+              );
+              ref.read(inventoryControllerProvider.notifier).loadItems();
+            },
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add Material'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+            ),
+          ),
+          const SizedBox(width: 8),
           Padding(
             padding: const EdgeInsets.only(right: 8.0),
             child: ElevatedButton.icon(
@@ -259,6 +275,7 @@ class InventoryListScreen extends ConsumerWidget {
             onPressed: () => ref.read(inventoryControllerProvider.notifier).loadItems(),
             tooltip: 'Refresh Inventory',
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: Column(

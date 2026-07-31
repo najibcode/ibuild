@@ -18,6 +18,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
   String? _categoryFilter;
 
   static const List<String> _categories = [
+    'Vehicles & Transport',
     'Heavy Machinery',
     'Power Tools & Machines',
     'Ladders & Climbing',
@@ -27,6 +28,9 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
 
   String _getCategoryEmoji(String category) {
     switch (category) {
+      case 'Vehicles':
+      case 'Vehicles & Transport':
+        return '🚛';
       case 'Power Tools & Machines':
         return '🛠️';
       case 'Ladders & Climbing':
@@ -166,119 +170,116 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     const SizedBox(height: 12),
 
                     // Searchable Location / Project Field (Search Dropdown + Custom Typing)
-                    Text(
-                      'LOCATION / ASSIGNED SITE',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                    // Searchable / Custom Location Field with Dynamic Icon
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'LOCATION / ASSIGNED SITE',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                        ),
+                        if (selectedProjectId != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryColor(context).withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.check_circle, size: 10, color: AppColors.primaryColor(context)),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Linked to Project',
+                                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
                     ),
-                    const SizedBox(height: 4),
-                    RawAutocomplete<String>(
-                      textEditingController: siteCtrl,
-                      focusNode: FocusNode(),
-                      optionsBuilder: (TextEditingValue textEditingValue) {
-                        if (textEditingValue.text.isEmpty) {
-                          return locationOptions;
-                        }
-                        return locationOptions.where((option) {
-                          return option.toLowerCase().contains(textEditingValue.text.toLowerCase());
-                        });
-                      },
-                      onSelected: (String selection) {
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: siteCtrl,
+                      style: TextStyle(color: AppColors.text(context)),
+                      decoration: InputDecoration(
+                        labelText: 'Location / Site Name',
+                        hintText: 'Type ANY custom location (e.g. Lorry 04 Tool Box, Bay 3, etc.)...',
+                        prefixIcon: Icon(
+                          selectedProjectId != null
+                              ? Icons.apartment
+                              : siteCtrl.text.toLowerCase().contains('lorry') || siteCtrl.text.toLowerCase().contains('vehicle') || siteCtrl.text.toLowerCase().contains('truck')
+                                  ? Icons.local_shipping_outlined
+                                  : siteCtrl.text.toLowerCase().contains('warehouse') || siteCtrl.text.toLowerCase().contains('store')
+                                      ? Icons.storefront_outlined
+                                      : siteCtrl.text.toLowerCase().contains('pool') || siteCtrl.text.toLowerCase().contains('central')
+                                          ? Icons.hub_outlined
+                                          : Icons.location_on_outlined,
+                          size: 20,
+                          color: AppColors.primaryColor(context),
+                        ),
+                        suffixIcon: siteCtrl.text.isNotEmpty
+                            ? IconButton(
+                                icon: const Icon(Icons.clear, size: 18),
+                                onPressed: () {
+                                  setDialogState(() {
+                                    siteCtrl.clear();
+                                    selectedProjectId = null;
+                                  });
+                                },
+                              )
+                            : null,
+                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                      ),
+                      onChanged: (val) {
+                        final matchedProject = _findProjectByName(projects, val);
                         setDialogState(() {
-                          siteCtrl.text = selection;
-                          final matchedProject = _findProjectByName(projects, selection);
                           selectedProjectId = matchedProject?.id;
                         });
                       },
-                      fieldViewBuilder: (context, controller, focusNode, onFieldSubmitted) {
-                        return TextField(
-                          controller: controller,
-                          focusNode: focusNode,
-                          style: TextStyle(color: AppColors.text(context)),
-                          decoration: InputDecoration(
-                            labelText: 'Location / Site Name',
-                            hintText: 'Type to search project (e.g. RVS) or type custom spot...',
-                            prefixIcon: Icon(Icons.location_on_outlined, size: 20, color: AppColors.primaryColor(context)),
-                            suffixIcon: controller.text.isNotEmpty
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 18),
-                                    onPressed: () {
-                                      controller.clear();
-                                      setDialogState(() => selectedProjectId = null);
-                                    },
-                                  )
-                                : const Icon(Icons.arrow_drop_down, size: 22),
-                            labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                          ),
-                          onChanged: (val) {
-                            final matchedProject = _findProjectByName(projects, val);
-                            setDialogState(() {
-                              selectedProjectId = matchedProject?.id;
-                            });
-                          },
-                        );
-                      },
-                      optionsViewBuilder: (context, onSelected, options) {
-                        return Align(
-                          alignment: Alignment.topLeft,
-                          child: Material(
-                            elevation: 4.0,
-                            color: AppColors.cardBg(context),
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              constraints: const BoxConstraints(maxHeight: 180, maxWidth: 320),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: AppColors.border(context)),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: ListView.builder(
-                                padding: EdgeInsets.zero,
-                                shrinkWrap: true,
-                                itemCount: options.length,
-                                itemBuilder: (BuildContext context, int index) {
-                                  final String option = options.elementAt(index);
-                                  final isProject = projectNames.contains(option);
-                                  return ListTile(
-                                    dense: true,
-                                    leading: Icon(
-                                      isProject ? Icons.apartment : Icons.place_outlined,
-                                      size: 18,
-                                      color: isProject ? AppColors.primaryColor(context) : AppColors.secondary,
-                                    ),
-                                    title: Text(
-                                      option,
-                                      style: TextStyle(
-                                        color: AppColors.text(context),
-                                        fontWeight: isProject ? FontWeight.bold : FontWeight.normal,
-                                        fontSize: 13,
-                                      ),
-                                    ),
-                                    subtitle: isProject
-                                        ? Text('Registered Project Site', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context)))
-                                        : null,
-                                    onTap: () => onSelected(option),
-                                  );
-                                },
-                              ),
-                            ),
-                          ),
-                        );
-                      },
                     ),
-                    const SizedBox(height: 6),
+                    const SizedBox(height: 8),
 
-                    // Location Quick Suggestion Chips
+                    // Quick Location Presets & Project Chips
+                    Text(
+                      'Tap to quick-select Project or Location Preset:',
+                      style: TextStyle(fontSize: 10, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 4),
                     Wrap(
                       spacing: 6,
-                      runSpacing: 4,
-                      children: locationOptions.take(4).map((loc) {
-                        return ActionChip(
+                      runSpacing: 6,
+                      children: locationOptions.map((loc) {
+                        final isProject = projectNames.contains(loc);
+                        final isSelected = siteCtrl.text == loc;
+                        return ChoiceChip(
                           visualDensity: VisualDensity.compact,
-                          label: Text(loc, style: const TextStyle(fontSize: 11)),
-                          avatar: const Icon(Icons.place, size: 12),
-                          onPressed: () {
+                          selected: isSelected,
+                          label: Text(
+                            loc,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                              color: isSelected ? Colors.white : AppColors.text(context),
+                            ),
+                          ),
+                          avatar: Icon(
+                            isProject
+                                ? Icons.apartment
+                                : loc.toLowerCase().contains('lorry') || loc.toLowerCase().contains('vehicle')
+                                    ? Icons.local_shipping
+                                    : Icons.place,
+                            size: 14,
+                            color: isSelected ? Colors.white : AppColors.primaryColor(context),
+                          ),
+                          selectedColor: AppColors.primaryColor(context),
+                          backgroundColor: AppColors.cardBg(context),
+                          side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
+                          onSelected: (selected) {
                             setDialogState(() {
-                              siteCtrl.text = loc;
-                              final matchedProject = _findProjectByName(projects, loc);
+                              siteCtrl.text = selected ? loc : '';
+                              final matchedProject = _findProjectByName(projects, siteCtrl.text);
                               selectedProjectId = matchedProject?.id;
                             });
                           },
@@ -468,15 +469,31 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
+          ElevatedButton.icon(
+            onPressed: () => _showEquipmentFormDialog(context),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add Equipment'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor(context),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref.read(equipmentControllerProvider.notifier).loadEquipment(),
           ),
-          IconButton(
-            icon: Icon(Icons.add, color: AppColors.primaryColor(context)),
-            onPressed: () => _showEquipmentFormDialog(context),
-          ),
+          const SizedBox(width: 8),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showEquipmentFormDialog(context),
+        backgroundColor: AppColors.primaryColor(context),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Equipment'),
       ),
       body: eqState.isLoading
           ? const Center(child: CircularProgressIndicator())

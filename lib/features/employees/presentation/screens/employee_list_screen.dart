@@ -59,6 +59,18 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
+          );
+          ref.read(employeeListControllerProvider.notifier).loadEmployees();
+        },
+        backgroundColor: AppColors.primaryColor(context),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add Employee'),
+      ),
       body: employeesAsync.when(
         data: (employees) {
           // Compute Workforce & Daily Wage Metrics

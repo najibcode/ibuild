@@ -230,15 +230,31 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
+          ElevatedButton.icon(
+            onPressed: () => _showAddSubcontractorDialog(context),
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add Partner'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor(context),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref.read(subcontractorControllerProvider.notifier).loadSubcontractors(),
           ),
-          IconButton(
-            icon: Icon(Icons.add, color: AppColors.primaryColor(context)),
-            onPressed: () => _showAddSubcontractorDialog(context),
-          ),
+          const SizedBox(width: 8),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => _showAddSubcontractorDialog(context),
+        backgroundColor: AppColors.primaryColor(context),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Partner'),
       ),
       body: subState.isLoading
           ? const Center(child: CircularProgressIndicator())

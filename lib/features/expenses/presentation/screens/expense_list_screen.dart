@@ -105,22 +105,33 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
+          ElevatedButton.icon(
+            onPressed: _openAddForm,
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('Add Expense'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.deepOrange,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
             icon: const Icon(Icons.refresh),
             color: AppColors.primaryColor(context),
             onPressed: () => ref.read(expenseControllerProvider.notifier).loadExpenses(),
             tooltip: 'Refresh Expenses',
           ),
-          PermissionGuard(
-            permission: 'expense.create',
-            child: IconButton(
-              icon: const Icon(Icons.add_circle, color: Colors.deepOrange, size: 28),
-              onPressed: _openAddForm,
-              tooltip: 'Add Expense',
-            ),
-          ),
           const SizedBox(width: 8),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _openAddForm,
+        backgroundColor: Colors.deepOrange,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('Add Expense'),
       ),
       body: Column(
         children: [

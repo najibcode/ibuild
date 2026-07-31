@@ -31,11 +31,41 @@ class BillingListScreen extends ConsumerWidget {
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
         actions: [
+          ElevatedButton.icon(
+            onPressed: () async {
+              await Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const BillingFormScreen()),
+              );
+              ref.read(billingControllerProvider.notifier).loadBills();
+            },
+            icon: const Icon(Icons.add, size: 16),
+            label: const Text('New Client Bill'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor(context),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+            ),
+          ),
+          const SizedBox(width: 8),
           IconButton(
-            icon: const Icon(Icons.refresh, color: AppColors.primary),
+            icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref.read(billingControllerProvider.notifier).loadBills(),
           ),
+          const SizedBox(width: 8),
         ],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          await Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const BillingFormScreen()),
+          );
+          ref.read(billingControllerProvider.notifier).loadBills();
+        },
+        backgroundColor: AppColors.primaryColor(context),
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.add),
+        label: const Text('New Client Bill'),
       ),
       body: Column(
         children: [
