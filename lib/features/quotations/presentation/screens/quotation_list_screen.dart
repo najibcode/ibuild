@@ -240,21 +240,6 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
           ),
         ],
       ),
-      floatingActionButton: PermissionGuard(
-        permission: 'project.create',
-        child: FloatingActionButton.extended(
-          onPressed: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
-            );
-            ref.read(quotationControllerProvider.notifier).loadQuotations();
-          },
-          backgroundColor: AppColors.primaryColor(context),
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.add),
-          label: const Text('New Quotation'),
-        ),
-      ),
     );
   }
 

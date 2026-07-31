@@ -257,16 +257,6 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           ),
         ],
       ),
-      floatingActionButton: PermissionGuard(
-        permission: 'expense.create',
-        child: FloatingActionButton.extended(
-          onPressed: _openAddForm,
-          backgroundColor: Colors.deepOrange,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.add),
-          label: const Text('Record Expense'),
-        ),
-      ),
     );
   }
 

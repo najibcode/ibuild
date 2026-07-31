@@ -123,21 +123,6 @@ class ProjectListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: PermissionGuard(
-        permission: 'project.create',
-        child: FloatingActionButton(
-          tooltip: 'Add project',
-          onPressed: () => Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const ProjectFormScreen())),
-          backgroundColor: AppColors.primary,
-          foregroundColor: Colors.white,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.lg),
-          ),
-          child: const Icon(Icons.add),
-        ),
-      ),
     );
   }
 }

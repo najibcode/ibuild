@@ -134,21 +134,6 @@ class BillingListScreen extends ConsumerWidget {
           ),
         ],
       ),
-      floatingActionButton: PermissionGuard(
-        permission: 'billing.create',
-        child: FloatingActionButton.extended(
-          onPressed: () async {
-            await Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const BillingFormScreen()),
-            );
-            ref.read(billingControllerProvider.notifier).loadBills();
-          },
-          backgroundColor: AppColors.secondary,
-          foregroundColor: Colors.white,
-          icon: const Icon(Icons.add),
-          label: const Text('Create Bill'),
-        ),
-      ),
     );
   }
 

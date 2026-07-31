@@ -197,18 +197,6 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error loading employees: $e')),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
-          );
-          ref.read(employeeListControllerProvider.notifier).loadEmployees();
-        },
-        backgroundColor: AppColors.primaryColor(context),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.person_add),
-        label: const Text('Add Staff'),
-      ),
 
     );
   }

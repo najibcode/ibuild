@@ -691,13 +691,6 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     ),
                   ],
                 ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showEquipmentFormDialog(context),
-        backgroundColor: AppColors.primaryColor(context),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Equipment / Tool'),
-      ),
     );
   }
 

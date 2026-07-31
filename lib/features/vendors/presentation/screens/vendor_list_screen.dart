@@ -364,13 +364,6 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 ),
               ],
             ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddSubcontractorDialog(context),
-        backgroundColor: AppColors.primaryColor(context),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('Add Subcontractor'),
-      ),
     );
   }
 
