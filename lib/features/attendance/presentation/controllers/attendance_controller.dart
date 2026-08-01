@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
@@ -19,12 +20,14 @@ class AttendanceState {
   final List<Attendance> attendanceList;
   final List<Employee> activeEmployees;
   final String? error;
+  final String? successMessage;
 
   AttendanceState({
     required this.isLoading,
     required this.attendanceList,
     required this.activeEmployees,
     this.error,
+    this.successMessage,
   });
 
   factory AttendanceState.initial() => AttendanceState(
@@ -38,13 +41,16 @@ class AttendanceState {
     List<Attendance>? attendanceList,
     List<Employee>? activeEmployees,
     String? error,
+    String? successMessage,
     bool clearError = false,
+    bool clearSuccess = false,
   }) {
     return AttendanceState(
       isLoading: isLoading ?? this.isLoading,
       attendanceList: attendanceList ?? this.attendanceList,
       activeEmployees: activeEmployees ?? this.activeEmployees,
       error: clearError ? null : (error ?? this.error),
+      successMessage: clearSuccess ? null : (successMessage ?? this.successMessage),
     );
   }
 }
@@ -62,31 +68,41 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       state = state.copyWith(isLoading: true);
     }
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    debugPrint('[AttendanceCtrl] Loading attendance for $todayStr');
     try {
       // 1. Fetch active employees
       final employees = await _ref.read(employeeRepositoryProvider).getEmployees();
       final active = employees.where((e) => e.status.toLowerCase() == 'active').toList();
+      debugPrint('[AttendanceCtrl] Active employees: ${active.length}');
 
-      // 2. Fetch logged attendance
+      // 2. Fetch logged attendance from DB
       final logged = await _repository.getAttendanceForDate(todayStr);
+      debugPrint('[AttendanceCtrl] Logged attendance from DB: ${logged.length} records');
+      for (final l in logged) {
+        debugPrint('  → ${l.employeeId} | status=${l.status} | project=${l.projectId}');
+      }
 
       state = state.copyWith(
         isLoading: false,
         activeEmployees: active,
         attendanceList: logged,
+        clearError: true,
       );
     } catch (e) {
-      state = state.copyWith(isLoading: false);
+      debugPrint('[AttendanceCtrl] loadAttendanceForToday FAILED: $e');
+      state = state.copyWith(isLoading: false, error: 'Failed to load attendance: $e');
     }
   }
 
-  Future<void> markAttendance({
+  Future<bool> markAttendance({
     required String employeeId,
     required String status,
     String? projectId,
   }) async {
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
     final normalizedStatus = status.toLowerCase() == 'present' ? 'Present' : 'Absent';
+
+    debugPrint('[AttendanceCtrl] markAttendance: employee=$employeeId, status=$normalizedStatus, project=$projectId');
 
     // 1. Optimistic UI update
     final updatedList = List<Attendance>.from(state.attendanceList);
@@ -99,6 +115,8 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       date: todayStr,
       status: normalizedStatus,
       projectId: projectId ?? currentRecord?.projectId,
+      employeeName: currentRecord?.employeeName,
+      projectName: currentRecord?.projectName,
     );
 
     if (existingIdx >= 0) {
@@ -107,17 +125,29 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       updatedList.add(newRecord);
     }
 
-    state = state.copyWith(attendanceList: updatedList);
+    state = state.copyWith(attendanceList: updatedList, clearError: true);
 
-    // 2. Persist to backend without triggering full-screen loading spinner
+    // 2. Persist to backend
     try {
       await _repository.saveAttendance(newRecord);
+      debugPrint('[AttendanceCtrl] markAttendance PERSISTED successfully');
+
       // Refresh dashboard stats so KPIs update (Workers Present, etc.)
       _ref.invalidate(dashboardStatsProvider);
+
+      // Re-fetch from DB to get the actual saved state (with real IDs)
       await loadAttendanceForToday(showLoading: false);
+      return true;
     } catch (e) {
-      // Keep optimistic state but surface error
-      state = state.copyWith(error: 'Attendance saved locally but failed to sync: $e');
+      debugPrint('[AttendanceCtrl] markAttendance FAILED to persist: $e');
+
+      // ROLLBACK optimistic update — revert to what DB actually has
+      await loadAttendanceForToday(showLoading: false);
+
+      state = state.copyWith(
+        error: 'Failed to save attendance. Please check your connection and try again.',
+      );
+      return false;
     }
   }
 }
@@ -174,4 +204,3 @@ final projectAttendanceProvider =
     recentHistory: mergedHistoryMap.values.toList(),
   );
 });
-

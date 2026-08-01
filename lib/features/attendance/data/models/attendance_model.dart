@@ -37,16 +37,24 @@ class Attendance {
     );
   }
 
+  /// Produce the minimal, safe JSON for Supabase upsert.
+  /// Only sends columns that definitely exist in the attendance table.
+  /// Does NOT include morning_status/evening_status (legacy columns that may not exist).
   Map<String, dynamic> toJson() {
-    return {
-      if (id.isNotEmpty) 'id': id,
+    final map = <String, dynamic>{
       'employee_id': employeeId,
       'date': date,
       'status': status,
-      'morning_status': status.toLowerCase(),
-      'evening_status': status.toLowerCase(),
-      if (projectId != null && projectId!.isNotEmpty) 'project_id': projectId,
     };
+    // Only include id if it's a real UUID (editing existing record)
+    if (id.isNotEmpty && id.length > 10) {
+      map['id'] = id;
+    }
+    // Only include project_id if it's set
+    if (projectId != null && projectId!.isNotEmpty) {
+      map['project_id'] = projectId;
+    }
+    return map;
   }
 
   Attendance copyWith({

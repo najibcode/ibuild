@@ -24,6 +24,19 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final projectState = ref.watch(projectControllerProvider);
     final projects = projectState.projects;
 
+    // Listen for errors and show SnackBar
+    ref.listen<AttendanceState>(attendanceControllerProvider, (prev, next) {
+      if (next.error != null && next.error != prev?.error) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.error!),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    });
+
     final todayStr = DateTime.now().toString().substring(0, 10);
 
     return Scaffold(
@@ -274,8 +287,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   _buildStatusToggle(
                     context: context,
                     activeStatus: logged.status,
-                    onSelected: (status) {
-                      ref.read(attendanceControllerProvider.notifier).markAttendance(
+                    onSelected: (status) async {
+                      await ref.read(attendanceControllerProvider.notifier).markAttendance(
                         employeeId: employee.id,
                         status: status,
                         projectId: logged.projectId,
@@ -286,24 +299,27 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     context: context,
                     projects: projects,
                     currentProjectId: logged.projectId,
-                    onProjectSelected: (projId) {
+                    onProjectSelected: (projId) async {
                       if (projId == null) return;
-                      ref.read(attendanceControllerProvider.notifier).markAttendance(
+                      final success = await ref.read(attendanceControllerProvider.notifier).markAttendance(
                         employeeId: employee.id,
                         status: logged.status == 'Absent' ? 'Present' : logged.status,
                         projectId: projId,
                       );
-                      final match = projects.where((p) => p.id == projId);
-                      final siteName = match.isNotEmpty ? match.first.name : 'Site';
-                      ScaffoldMessenger.of(context).clearSnackBars();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text('${employee.name} assigned to $siteName'),
-                          duration: const Duration(seconds: 1),
-                          behavior: SnackBarBehavior.floating,
-                          width: 280,
-                        ),
-                      );
+                      if (success && context.mounted) {
+                        final match = projects.where((p) => p.id == projId);
+                        final siteName = match.isNotEmpty ? match.first.name : 'Site';
+                        ScaffoldMessenger.of(context).clearSnackBars();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('${employee.name} assigned to $siteName ✓'),
+                            duration: const Duration(seconds: 1),
+                            behavior: SnackBarBehavior.floating,
+                            width: 280,
+                            backgroundColor: AppColors.secondary,
+                          ),
+                        );
+                      }
                     },
                   ),
                 ],
