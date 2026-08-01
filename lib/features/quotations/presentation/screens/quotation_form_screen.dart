@@ -167,8 +167,9 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
           ),
         );
       } else if (mounted) {
+        final err = ref.read(quotationControllerProvider).errorMessage ?? 'Failed to save quotation';
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to save quotation'), backgroundColor: AppColors.error),
+          SnackBar(content: Text(err), backgroundColor: AppColors.error),
         );
       }
     }

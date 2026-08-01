@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
@@ -39,6 +40,7 @@ class QuotationListState {
     List<Quotation>? quotations,
     bool? isLoading,
     String? errorMessage,
+    bool clearErrorMessage = false,
     String? statusFilter,
     bool clearStatusFilter = false,
     String? projectFilter,
@@ -49,7 +51,7 @@ class QuotationListState {
     return QuotationListState(
       quotations: quotations ?? this.quotations,
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage,
+      errorMessage: clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
       statusFilter: clearStatusFilter ? null : (statusFilter ?? this.statusFilter),
       projectFilter: clearProjectFilter ? null : (projectFilter ?? this.projectFilter),
       offset: offset ?? this.offset,
@@ -69,7 +71,7 @@ class QuotationController extends StateNotifier<QuotationListState> {
   Future<void> loadQuotations({bool reset = true}) async {
     if (state.isLoading) return;
     final newOffset = reset ? 0 : state.offset;
-    state = state.copyWith(isLoading: true, offset: newOffset);
+    state = state.copyWith(isLoading: true, offset: newOffset, clearErrorMessage: true);
     if (reset) state = state.copyWith(quotations: []);
 
     try {
@@ -85,8 +87,10 @@ class QuotationController extends StateNotifier<QuotationListState> {
         isLoading: false,
         offset: newOffset + results.length,
         hasMore: results.length >= _pageSize,
+        clearErrorMessage: true,
       );
     } catch (e) {
+      debugPrint('[QuotationCtrl] loadQuotations error: $e');
       state = state.copyWith(isLoading: false, errorMessage: e.toString());
     }
   }
@@ -108,7 +112,9 @@ class QuotationController extends StateNotifier<QuotationListState> {
       await _repository.createQuotation(quotation);
       await loadQuotations();
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[QuotationCtrl] addQuotation ERROR: $e');
+      state = state.copyWith(errorMessage: 'Failed to create quotation: $e');
       return false;
     }
   }
@@ -118,7 +124,9 @@ class QuotationController extends StateNotifier<QuotationListState> {
       await _repository.updateQuotation(quotation);
       await loadQuotations();
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[QuotationCtrl] editQuotation ERROR: $e');
+      state = state.copyWith(errorMessage: 'Failed to update quotation: $e');
       return false;
     }
   }
@@ -128,7 +136,8 @@ class QuotationController extends StateNotifier<QuotationListState> {
       await _repository.deleteQuotation(id);
       await loadQuotations();
       return true;
-    } catch (_) {
+    } catch (e) {
+      debugPrint('[QuotationCtrl] removeQuotation ERROR: $e');
       return false;
     }
   }

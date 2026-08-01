@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/quotation_repository.dart';
 import '../models/quotation_model.dart';
@@ -16,30 +17,57 @@ class SupabaseQuotationRepository implements QuotationRepository {
     int limit = 20,
     int offset = 0,
   }) async {
-    dynamic query = _client.from('quotations').select('*, projects(name)');
+    try {
+      dynamic query = _client.from('quotations').select('*, projects(name)');
 
-    if (projectId != null && projectId.isNotEmpty) {
-      query = query.eq('project_id', projectId);
+      if (projectId != null && projectId.isNotEmpty) {
+        query = query.eq('project_id', projectId);
+      }
+      if (statusFilter != null && statusFilter.isNotEmpty && statusFilter.toLowerCase() != 'all') {
+        query = query.eq('status', statusFilter.toLowerCase());
+      }
+
+      query = query.order('created_at', ascending: false);
+      query = query.range(offset, offset + limit - 1);
+
+      final response = await query;
+      return (response as List).map((j) => Quotation.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('[QuotationRepo] getQuotations with join failed: $e. Fallback to select(*)');
+      dynamic query = _client.from('quotations').select('*');
+
+      if (projectId != null && projectId.isNotEmpty) {
+        query = query.eq('project_id', projectId);
+      }
+      if (statusFilter != null && statusFilter.isNotEmpty && statusFilter.toLowerCase() != 'all') {
+        query = query.eq('status', statusFilter.toLowerCase());
+      }
+
+      query = query.order('created_at', ascending: false);
+      query = query.range(offset, offset + limit - 1);
+
+      final response = await query;
+      return (response as List).map((j) => Quotation.fromJson(j)).toList();
     }
-    if (statusFilter != null && statusFilter.isNotEmpty && statusFilter.toLowerCase() != 'all') {
-      query = query.eq('status', statusFilter.toLowerCase());
-    }
-
-    query = query.order('created_at', ascending: false);
-    query = query.range(offset, offset + limit - 1);
-
-    final response = await query;
-    return (response as List).map((j) => Quotation.fromJson(j)).toList();
   }
 
   @override
   Future<Quotation> getQuotationById(String id) async {
-    final response = await _client
-        .from('quotations')
-        .select('*, projects(name)')
-        .eq('id', id)
-        .single();
-    return Quotation.fromJson(response);
+    try {
+      final response = await _client
+          .from('quotations')
+          .select('*, projects(name)')
+          .eq('id', id)
+          .single();
+      return Quotation.fromJson(response);
+    } catch (_) {
+      final response = await _client
+          .from('quotations')
+          .select('*')
+          .eq('id', id)
+          .single();
+      return Quotation.fromJson(response);
+    }
   }
 
   @override
@@ -52,7 +80,24 @@ class SupabaseQuotationRepository implements QuotationRepository {
     }
 
     final data = quotation.toJson();
-    final response = await _client.from('quotations').insert(data).select('*, projects(name)').single();
+    debugPrint('[QuotationRepo] createQuotation payload: $data');
+
+    Map<String, dynamic> response;
+    try {
+      final res = await _client.from('quotations').insert(data).select('*, projects(name)').single();
+      response = Map<String, dynamic>.from(res);
+      debugPrint('[QuotationRepo] Inserted successfully with join: $response');
+    } catch (e) {
+      debugPrint('[QuotationRepo] Insert with join failed: $e. Trying select(*) without join.');
+      try {
+        final res = await _client.from('quotations').insert(data).select('*').single();
+        response = Map<String, dynamic>.from(res);
+        debugPrint('[QuotationRepo] Inserted successfully without join: $response');
+      } catch (e2) {
+        debugPrint('[QuotationRepo] Insert failed without join: $e2');
+        rethrow;
+      }
+    }
     
     // Log activity
     try {
@@ -80,12 +125,27 @@ class SupabaseQuotationRepository implements QuotationRepository {
     }
 
     final data = quotation.toJson();
-    final response = await _client
-        .from('quotations')
-        .update(data)
-        .eq('id', quotation.id)
-        .select('*, projects(name)')
-        .single();
+    debugPrint('[QuotationRepo] updateQuotation payload: $data');
+
+    Map<String, dynamic> response;
+    try {
+      final res = await _client
+          .from('quotations')
+          .update(data)
+          .eq('id', quotation.id)
+          .select('*, projects(name)')
+          .single();
+      response = Map<String, dynamic>.from(res);
+    } catch (e) {
+      debugPrint('[QuotationRepo] Update with join failed: $e. Fallback to select(*)');
+      final res = await _client
+          .from('quotations')
+          .update(data)
+          .eq('id', quotation.id)
+          .select('*')
+          .single();
+      response = Map<String, dynamic>.from(res);
+    }
 
     // Log activity
     try {
@@ -118,4 +178,3 @@ class SupabaseQuotationRepository implements QuotationRepository {
     } catch (_) {}
   }
 }
-

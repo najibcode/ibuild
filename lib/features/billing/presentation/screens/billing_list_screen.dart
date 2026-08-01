@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
+import '../../data/building_pdf_generator.dart';
 import '../../data/models/bill_model.dart';
 import '../controllers/billing_controller.dart';
 import 'billing_form_screen.dart';
@@ -31,6 +33,22 @@ class BillingListScreen extends ConsumerWidget {
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
         ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.picture_as_pdf, color: AppColors.primaryColor(context)),
+            tooltip: 'Export Building Billing Summary PDF',
+            onPressed: () {
+              if (state.bills.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('No building bills to export.')),
+                );
+                return;
+              }
+              Printing.layoutPdf(
+                onLayout: (format) => BuildingPdfGenerator.generateBuildingReport(state.bills),
+                name: 'IBUILD_Building_Billing_Report.pdf',
+              );
+            },
+          ),
           ElevatedButton.icon(
             onPressed: () async {
               await Navigator.of(context).push(
@@ -402,6 +420,16 @@ class _BillCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.picture_as_pdf, size: 20, color: AppColors.primary),
+                    onPressed: () {
+                      Printing.layoutPdf(
+                        onLayout: (format) => BuildingPdfGenerator.generateBill(bill),
+                        name: 'Building_Invoice_${bill.billNumber}.pdf',
+                      );
+                    },
+                    tooltip: 'Print Building Invoice PDF',
+                  ),
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 20, color: AppColors.primary),
                     onPressed: () {
