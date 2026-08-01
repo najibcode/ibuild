@@ -49,32 +49,70 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     final payload = attendance.toJson();
     debugPrint('[Attendance] saveAttendance payload: $payload');
 
-    // ── Strategy: Try upsert with full payload. If project_id column doesn't
-    //    exist, retry without it. NEVER silently swallow the final error. ──
+    // ── Strategy: Manual select → update/insert.
+    //    This avoids depending on a UNIQUE constraint on (employee_id, date)
+    //    which may not exist in the Supabase table. ──
 
     try {
-      await _client.from('attendance').upsert(
-        payload,
-        onConflict: 'employee_id,date',
-      );
-      debugPrint('[Attendance] saveAttendance SUCCESS with full payload');
+      // 1. Check if a record already exists for this employee + date
+      final existing = await _client
+          .from('attendance')
+          .select('id')
+          .eq('employee_id', attendance.employeeId)
+          .eq('date', attendance.date)
+          .maybeSingle();
+
+      if (existing != null) {
+        // 2a. UPDATE existing record
+        final updatePayload = Map<String, dynamic>.from(payload);
+        updatePayload.remove('id'); // Don't update the primary key
+        updatePayload.remove('employee_id'); // Don't update the match key
+        updatePayload.remove('date'); // Don't update the match key
+
+        await _client
+            .from('attendance')
+            .update(updatePayload)
+            .eq('id', existing['id'] as String);
+
+        debugPrint('[Attendance] saveAttendance UPDATED existing record id=${existing['id']}');
+      } else {
+        // 2b. INSERT new record
+        final insertPayload = Map<String, dynamic>.from(payload);
+        insertPayload.remove('id'); // Let Supabase auto-generate UUID
+
+        await _client.from('attendance').insert(insertPayload);
+        debugPrint('[Attendance] saveAttendance INSERTED new record');
+      }
     } catch (e) {
-      debugPrint('[Attendance] saveAttendance full payload failed: $e');
+      debugPrint('[Attendance] saveAttendance with project_id failed: $e');
 
-      // Retry without project_id (column may not exist)
-      final fallbackPayload = Map<String, dynamic>.from(payload);
-      fallbackPayload.remove('project_id');
-      fallbackPayload.remove('id');
-
+      // Retry without project_id (column may not exist in table)
       try {
-        await _client.from('attendance').upsert(
-          fallbackPayload,
-          onConflict: 'employee_id,date',
-        );
-        debugPrint('[Attendance] saveAttendance SUCCESS with fallback (no project_id)');
+        final minPayload = <String, dynamic>{
+          'employee_id': attendance.employeeId,
+          'date': attendance.date,
+          'status': attendance.status,
+        };
+
+        final existing = await _client
+            .from('attendance')
+            .select('id')
+            .eq('employee_id', attendance.employeeId)
+            .eq('date', attendance.date)
+            .maybeSingle();
+
+        if (existing != null) {
+          await _client
+              .from('attendance')
+              .update({'status': attendance.status})
+              .eq('id', existing['id'] as String);
+          debugPrint('[Attendance] saveAttendance UPDATED (fallback, no project_id)');
+        } else {
+          await _client.from('attendance').insert(minPayload);
+          debugPrint('[Attendance] saveAttendance INSERTED (fallback, no project_id)');
+        }
       } catch (e2) {
         debugPrint('[Attendance] saveAttendance FINAL FAILURE: $e2');
-        // Re-throw so the controller can surface the error to the user
         rethrow;
       }
     }
