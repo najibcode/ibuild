@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/quotation_model.dart';
 import '../../data/quotation_pdf_generator.dart';
@@ -408,15 +409,16 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                         ),
                         const SizedBox(width: 4),
                         IconButton(
-                          icon: const Icon(Icons.picture_as_pdf, size: 18),
+                          icon: const Icon(Icons.file_download_outlined, size: 18),
                           color: AppColors.primaryColor(context),
-                          onPressed: () {
-                            Printing.layoutPdf(
-                              onLayout: (format) => QuotationPdfGenerator.generate(quotation),
-                              name: 'Quotation_${quotation.clientName.replaceAll(' ', '_')}.pdf',
+                          onPressed: () async {
+                            final bytes = await QuotationPdfGenerator.generate(quotation);
+                            await PdfDownloadHelper.downloadPdf(
+                              bytes: bytes,
+                              filename: 'Quotation_${quotation.clientName.replaceAll(' ', '_')}.pdf',
                             );
                           },
-                          tooltip: 'Print / Export Quotation PDF',
+                          tooltip: 'Download Quotation PDF',
                         ),
                         IconButton(
                           icon: const Icon(Icons.share_outlined, size: 18),

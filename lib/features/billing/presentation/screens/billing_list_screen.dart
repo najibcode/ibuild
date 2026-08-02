@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/building_pdf_generator.dart';
@@ -34,18 +35,24 @@ class BillingListScreen extends ConsumerWidget {
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.picture_as_pdf, color: AppColors.primaryColor(context)),
-            tooltip: 'Export Building Billing Summary PDF',
-            onPressed: () {
+            icon: Icon(Icons.file_download_outlined, color: AppColors.primaryColor(context)),
+            tooltip: 'Download Building Billing Summary PDF',
+            onPressed: () async {
               if (state.bills.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('No building bills to export.')),
                 );
                 return;
               }
-              Printing.layoutPdf(
-                onLayout: (format) => BuildingPdfGenerator.generateBuildingReport(state.bills),
-                name: 'IBUILD_Building_Billing_Report.pdf',
+              final bytes = await BuildingPdfGenerator.generateReport(
+                bills: state.bills,
+                totalAmount: totalBilled,
+                totalPaid: totalPaid,
+                totalPending: totalPending,
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: bytes,
+                filename: 'IBUILD_Building_Billing_Report.pdf',
               );
             },
           ),
@@ -421,14 +428,15 @@ class _BillCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.picture_as_pdf, size: 20, color: AppColors.primary),
-                    onPressed: () {
-                      Printing.layoutPdf(
-                        onLayout: (format) => BuildingPdfGenerator.generateBill(bill),
-                        name: 'Building_Invoice_${bill.billNumber}.pdf',
+                    icon: const Icon(Icons.file_download_outlined, size: 20, color: AppColors.primary),
+                    onPressed: () async {
+                      final bytes = await BuildingPdfGenerator.generateBill(bill);
+                      await PdfDownloadHelper.downloadPdf(
+                        bytes: bytes,
+                        filename: 'Building_Invoice_${bill.billNumber}.pdf',
                       );
                     },
-                    tooltip: 'Print Building Invoice PDF',
+                    tooltip: 'Download Building Invoice PDF',
                   ),
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 20, color: AppColors.primary),

@@ -5,24 +5,19 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../data/models/bill_model.dart';
 
-/// Professional Building / Client Invoice PDF Generator for IBUILD ERP.
+/// Professional, Formal Monochrome Building & Client Invoice PDF Generator for IBUILD ERP.
 ///
-/// Produces a clean, architectural-style building invoice with:
-/// - Company header & logo banner
-/// - Invoice / Bill number, date, status
-/// - Project site details
-/// - Amount breakdown & payment terms
-/// - Timestamped generation footer
+/// Designed strictly without colorful fonts or decorative styling for a clean, formal corporate finish.
 class BuildingPdfGenerator {
   static const String _companyName = 'IBUILD';
   static const String _companyTagline = 'Building & Civil Construction ERP';
-  static const PdfColor _primary = PdfColor.fromInt(0xFF1E88E5);
-  static const PdfColor _darkBlue = PdfColor.fromInt(0xFF0D47A1);
-  static const PdfColor _lightBg = PdfColor.fromInt(0xFFF4F6F9);
-  static const PdfColor _grey600 = PdfColor.fromInt(0xFF757575);
-  static const PdfColor _grey200 = PdfColor.fromInt(0xFFE0E0E0);
-  static const PdfColor _green = PdfColor.fromInt(0xFF2E7D32);
-  static const PdfColor _amber = PdfColor.fromInt(0xFFF57F17);
+
+  // Professional Monochrome Palette (No colorful fonts)
+  static const PdfColor _black = PdfColor.fromInt(0xFF000000);
+  static const PdfColor _darkGrey = PdfColor.fromInt(0xFF333333);
+  static const PdfColor _mediumGrey = PdfColor.fromInt(0xFF666666);
+  static const PdfColor _lightGrey = PdfColor.fromInt(0xFFF8F9FA);
+  static const PdfColor _borderGrey = PdfColor.fromInt(0xFFCCCCCC);
   static const PdfColor _white = PdfColors.white;
 
   static Future<Map<String, pw.Font>> _loadFonts() async {
@@ -41,7 +36,7 @@ class BuildingPdfGenerator {
     return formatter.format(amount);
   }
 
-  /// Generate single bill building PDF
+  /// Generate single bill building PDF (Monochrome)
   static Future<Uint8List> generateBill(Bill bill) async {
     final fonts = await _loadFonts();
     final headerFont = fonts['bold']!;
@@ -65,9 +60,6 @@ class BuildingPdfGenerator {
       billDateFormatted = DateFormat('dd MMMM yyyy').format(parsed);
     } catch (_) {}
 
-    final isPaid = bill.status.toLowerCase() == 'paid';
-    final statusColor = isPaid ? _green : _amber;
-
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
@@ -76,39 +68,33 @@ class BuildingPdfGenerator {
         build: (context) => [
           // Header
           _buildHeader(headerFont, bodyFont),
-          pw.SizedBox(height: 20),
+          pw.SizedBox(height: 16),
+          pw.Divider(color: _borderGrey, thickness: 1),
+          pw.SizedBox(height: 12),
 
-          // Title Banner
+          // Title Row
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'BUILDING CLIENT INVOICE',
+                style: pw.TextStyle(font: headerFont, fontSize: 16, color: _black, letterSpacing: 1),
+              ),
+              pw.Text(
+                'BILL #${bill.billNumber}',
+                style: pw.TextStyle(font: headerFont, fontSize: 12, color: _mediumGrey),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 14),
+
+          // Details Card
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: const pw.BoxDecoration(
-              color: _darkBlue,
-              borderRadius: pw.BorderRadius.all(pw.Radius.circular(4)),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'BUILDING CLIENT INVOICE',
-                  style: pw.TextStyle(font: headerFont, fontSize: 14, color: _white, letterSpacing: 1.5),
-                ),
-                pw.Text(
-                  'BILL #${bill.billNumber}',
-                  style: pw.TextStyle(font: headerFont, fontSize: 12, color: _white),
-                ),
-              ],
-            ),
-          ),
-          pw.SizedBox(height: 16),
-
-          // Invoice Summary Card
-          pw.Container(
-            padding: const pw.EdgeInsets.all(16),
+            padding: const pw.EdgeInsets.all(12),
             decoration: pw.BoxDecoration(
-              color: _lightBg,
-              borderRadius: pw.BorderRadius.circular(4),
-              border: pw.Border.all(color: _grey200),
+              color: _lightGrey,
+              border: pw.Border.all(color: _borderGrey, width: 0.5),
             ),
             child: pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -117,11 +103,11 @@ class BuildingPdfGenerator {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('PROJECT / SITE LOCATION:', style: pw.TextStyle(font: headerFont, fontSize: 9, color: _grey600)),
+                      pw.Text('PROJECT / SITE:', style: pw.TextStyle(font: headerFont, fontSize: 8, color: _mediumGrey, letterSpacing: 0.5)),
                       pw.SizedBox(height: 4),
-                      pw.Text(bill.projectName ?? 'General Construction Site', style: pw.TextStyle(font: headerFont, fontSize: 13, color: _darkBlue)),
-                      pw.SizedBox(height: 8),
-                      pw.Text('Bill Date: $billDateFormatted', style: pw.TextStyle(font: bodyFont, fontSize: 10, color: PdfColors.black)),
+                      pw.Text(bill.projectName ?? 'General Construction Site', style: pw.TextStyle(font: headerFont, fontSize: 12, color: _black)),
+                      pw.SizedBox(height: 4),
+                      pw.Text('Invoice Date: $billDateFormatted', style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _darkGrey)),
                     ],
                   ),
                 ),
@@ -129,20 +115,9 @@ class BuildingPdfGenerator {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Container(
-                        padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                        decoration: pw.BoxDecoration(
-                          color: statusColor,
-                          borderRadius: pw.BorderRadius.circular(12),
-                        ),
-                        child: pw.Text(
-                          bill.status.toUpperCase(),
-                          style: pw.TextStyle(font: headerFont, fontSize: 10, color: _white),
-                        ),
-                      ),
-                      pw.SizedBox(height: 10),
-                      pw.Text('TOTAL INVOICE AMOUNT', style: pw.TextStyle(font: headerFont, fontSize: 9, color: _grey600)),
-                      pw.Text(_currency(bill.amount), style: pw.TextStyle(font: headerFont, fontSize: 18, color: _darkBlue)),
+                      _buildDetailRow('Bill Number:', '#${bill.billNumber}', headerFont, bodyFont),
+                      _buildDetailRow('Status:', bill.status.toUpperCase(), headerFont, bodyFont),
+                      _buildDetailRow('Total Invoiced:', _currency(bill.amount), headerFont, bodyFont),
                     ],
                   ),
                 ),
@@ -151,53 +126,68 @@ class BuildingPdfGenerator {
           ),
           pw.SizedBox(height: 20),
 
-          // Invoice Particulars Table
-          pw.Text('BILLING DETAILS', style: pw.TextStyle(font: headerFont, fontSize: 11, color: _darkBlue, letterSpacing: 1)),
-          pw.SizedBox(height: 8),
-          pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(font: headerFont, fontSize: 10, color: _white),
-            cellStyle: pw.TextStyle(font: bodyFont, fontSize: 10),
-            headerDecoration: const pw.BoxDecoration(color: _primary),
-            headerPadding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-            border: pw.TableBorder.all(color: _grey200, width: 0.5),
-            headers: ['#', 'Description / Particular', 'Category', 'Amount (\u20B9)'],
-            data: [
-              ['1', 'Civil Construction & Building Work - ${bill.projectName ?? 'Site'}', 'Building Billing', _currency(bill.amount)],
+          // Breakdown Section
+          pw.Text('FINANCIAL BREAKDOWN', style: pw.TextStyle(font: headerFont, fontSize: 10, color: _black, letterSpacing: 0.5)),
+          pw.SizedBox(height: 6),
+
+          pw.Table(
+            border: pw.TableBorder.all(color: _borderGrey, width: 0.5),
+            children: [
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: _darkGrey),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text('Description / Particulars', style: pw.TextStyle(font: headerFont, fontSize: 8, color: _white)),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(6),
+                    child: pw.Text('Amount (\u20B9)', style: pw.TextStyle(font: headerFont, fontSize: 8, color: _white), textAlign: pw.TextAlign.right),
+                  ),
+                ],
+              ),
+              pw.TableRow(
+                decoration: const pw.BoxDecoration(color: _white),
+                children: [
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Column(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Text('Construction Work / Milestone Billing', style: pw.TextStyle(font: headerFont, fontSize: 9, color: _black)),
+                        if (bill.notes != null && bill.notes!.isNotEmpty)
+                          pw.Text(bill.notes!, style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _mediumGrey)),
+                      ],
+                    ),
+                  ),
+                  pw.Padding(
+                    padding: const pw.EdgeInsets.all(8),
+                    child: pw.Text(_currency(bill.amount), style: pw.TextStyle(font: headerFont, fontSize: 10, color: _black), textAlign: pw.TextAlign.right),
+                  ),
+                ],
+              ),
             ],
           ),
+
           pw.SizedBox(height: 12),
 
-          // Total Bar
+          // Grand Total Box
           pw.Container(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: const pw.BoxDecoration(color: _darkBlue, borderRadius: pw.BorderRadius.all(pw.Radius.circular(4))),
+            width: double.infinity,
+            padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: const pw.BoxDecoration(
+              color: _darkGrey,
+            ),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
-                pw.Text('TOTAL PAYABLE AMOUNT', style: pw.TextStyle(font: headerFont, fontSize: 12, color: _white)),
-                pw.Text(_currency(bill.amount), style: pw.TextStyle(font: headerFont, fontSize: 16, color: _white)),
+                pw.Text('TOTAL BILL AMOUNT', style: pw.TextStyle(font: headerFont, fontSize: 12, color: _white, letterSpacing: 0.5)),
+                pw.Text(_currency(bill.amount), style: pw.TextStyle(font: headerFont, fontSize: 15, color: _white)),
               ],
             ),
           ),
 
-          if (bill.notes != null && bill.notes!.isNotEmpty) ...[
-            pw.SizedBox(height: 16),
-            pw.Container(
-              padding: const pw.EdgeInsets.all(12),
-              decoration: pw.BoxDecoration(color: _lightBg, borderRadius: pw.BorderRadius.circular(4), border: pw.Border.all(color: _grey200)),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Text('REMARKS & NOTES', style: pw.TextStyle(font: headerFont, fontSize: 9, color: _grey600)),
-                  pw.SizedBox(height: 4),
-                  pw.Text(bill.notes!, style: pw.TextStyle(font: bodyFont, fontSize: 10)),
-                ],
-              ),
-            ),
-          ],
-
-          pw.SizedBox(height: 40),
+          pw.SizedBox(height: 35),
 
           // Signatures
           pw.Row(
@@ -206,17 +196,17 @@ class BuildingPdfGenerator {
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Container(width: 140, height: 0.5, color: _grey600),
+                  pw.Container(width: 140, height: 0.5, color: _black),
                   pw.SizedBox(height: 4),
-                  pw.Text('Client Approval', style: pw.TextStyle(font: italicFont, fontSize: 9, color: _grey600)),
+                  pw.Text('Client Representative', style: pw.TextStyle(font: italicFont, fontSize: 8, color: _mediumGrey)),
                 ],
               ),
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
-                  pw.Container(width: 140, height: 0.5, color: _grey600),
+                  pw.Container(width: 140, height: 0.5, color: _black),
                   pw.SizedBox(height: 4),
-                  pw.Text('Authorized Manager - $_companyName', style: pw.TextStyle(font: italicFont, fontSize: 9, color: _grey600)),
+                  pw.Text('Authorized Signatory - $_companyName', style: pw.TextStyle(font: italicFont, fontSize: 8, color: _mediumGrey)),
                 ],
               ),
             ],
@@ -228,26 +218,27 @@ class BuildingPdfGenerator {
     return pdf.save();
   }
 
-  /// Generate full building summary report (all bills)
-  static Future<Uint8List> generateBuildingReport(List<Bill> bills) async {
+  /// Generate summary report for building billing (Monochrome)
+  static Future<Uint8List> generateReport({
+    required List<Bill> bills,
+    required double totalAmount,
+    required double totalPaid,
+    required double totalPending,
+  }) async {
     final fonts = await _loadFonts();
     final headerFont = fonts['bold']!;
     final bodyFont = fonts['regular']!;
     final italicFont = fonts['italic']!;
 
     final pdf = pw.Document(
-      title: 'IBUILD Building Billing Summary Report',
+      title: 'Building Billing Summary Report',
       author: _companyName,
-      creator: 'IBUILD ERP Report Engine',
+      creator: 'IBUILD ERP Building Billing Engine',
     );
 
     final now = DateTime.now();
     final dateFormatted = DateFormat('dd MMMM yyyy').format(now);
     final timeFormatted = DateFormat('hh:mm a').format(now);
-
-    final double totalAmount = bills.fold(0.0, (sum, b) => sum + b.amount);
-    final double paidAmount = bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.amount);
-    final double pendingAmount = totalAmount - paidAmount;
 
     pdf.addPage(
       pw.MultiPage(
@@ -256,46 +247,49 @@ class BuildingPdfGenerator {
         footer: (context) => _buildFooter(context, bodyFont, italicFont, dateFormatted, timeFormatted),
         build: (context) => [
           _buildHeader(headerFont, bodyFont),
-          pw.SizedBox(height: 20),
-
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: const pw.BoxDecoration(color: _darkBlue, borderRadius: pw.BorderRadius.all(pw.Radius.circular(4))),
-            child: pw.Text('BUILDING BILLING & REVENUE REPORT', style: pw.TextStyle(font: headerFont, fontSize: 14, color: _white, letterSpacing: 1.5)),
-          ),
           pw.SizedBox(height: 16),
+          pw.Divider(color: _borderGrey, thickness: 1),
+          pw.SizedBox(height: 12),
 
-          // Metrics
+          pw.Text('BUILDING BILLING SUMMARY REPORT', style: pw.TextStyle(font: headerFont, fontSize: 14, color: _black, letterSpacing: 1)),
+          pw.SizedBox(height: 12),
+
+          // Summary Stats Cards
           pw.Row(
             children: [
-              _buildMetricBox('TOTAL INVOICED', _currency(totalAmount), _darkBlue, headerFont, bodyFont),
-              pw.SizedBox(width: 10),
-              _buildMetricBox('COLLECTED (PAID)', _currency(paidAmount), _green, headerFont, bodyFont),
-              pw.SizedBox(width: 10),
-              _buildMetricBox('PENDING BALANCE', _currency(pendingAmount), _amber, headerFont, bodyFont),
+              _buildStatBox('TOTAL INVOICED', _currency(totalAmount), headerFont, bodyFont),
+              pw.SizedBox(width: 8),
+              _buildStatBox('PAID AMOUNT', _currency(totalPaid), headerFont, bodyFont),
+              pw.SizedBox(width: 8),
+              _buildStatBox('PENDING AMOUNT', _currency(totalPending), headerFont, bodyFont),
             ],
           ),
           pw.SizedBox(height: 20),
 
-          pw.Text('ALL BUILDING BILLS LOG', style: pw.TextStyle(font: headerFont, fontSize: 11, color: _darkBlue, letterSpacing: 1)),
-          pw.SizedBox(height: 8),
+          // Bills List Table
+          pw.Text('ALL BUILDING INVOICES (${bills.length})', style: pw.TextStyle(font: headerFont, fontSize: 10, color: _black, letterSpacing: 0.5)),
+          pw.SizedBox(height: 6),
 
           pw.TableHelper.fromTextArray(
-            headerStyle: pw.TextStyle(font: headerFont, fontSize: 9, color: _white),
-            cellStyle: pw.TextStyle(font: bodyFont, fontSize: 9),
-            headerDecoration: const pw.BoxDecoration(color: _primary),
-            headerPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-            border: pw.TableBorder.all(color: _grey200, width: 0.5),
+            headerAlignment: pw.Alignment.centerLeft,
+            cellAlignment: pw.Alignment.centerLeft,
+            headerStyle: pw.TextStyle(font: headerFont, fontSize: 8, color: _white),
+            cellStyle: pw.TextStyle(font: bodyFont, fontSize: 8, color: _black),
+            headerDecoration: const pw.BoxDecoration(color: _darkGrey),
+            headerPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+            cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+            oddRowDecoration: const pw.BoxDecoration(color: _lightGrey),
+            border: pw.TableBorder.all(color: _borderGrey, width: 0.5),
             headers: ['Bill #', 'Project / Site', 'Date', 'Status', 'Amount (\u20B9)'],
-            data: bills.map((b) => [
-              '#${b.billNumber}',
-              b.projectName ?? 'General Site',
-              b.billDate,
-              b.status.toUpperCase(),
-              _currency(b.amount),
-            ]).toList(),
+            data: bills.map((b) {
+              return [
+                '#${b.billNumber}',
+                b.projectName ?? 'General Site',
+                b.billDate,
+                b.status.toUpperCase(),
+                _currency(b.amount),
+              ];
+            }).toList(),
           ),
         ],
       ),
@@ -304,52 +298,77 @@ class BuildingPdfGenerator {
     return pdf.save();
   }
 
-  static pw.Widget _buildHeader(pw.Font headerFont, pw.Font bodyFont) {
-    return pw.Row(
-      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-      children: [
-        pw.Column(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text(_companyName, style: pw.TextStyle(font: headerFont, fontSize: 26, color: _primary, letterSpacing: 3)),
-            pw.Text(_companyTagline, style: pw.TextStyle(font: bodyFont, fontSize: 10, color: _grey600)),
-          ],
-        ),
-        pw.Container(
-          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: pw.BoxDecoration(color: _darkBlue, borderRadius: pw.BorderRadius.circular(4)),
-          child: pw.Text('BUILDING BILLING', style: pw.TextStyle(font: headerFont, fontSize: 11, color: _white, letterSpacing: 1)),
-        ),
-      ],
-    );
-  }
-
-  static pw.Widget _buildMetricBox(String label, String val, PdfColor col, pw.Font headerFont, pw.Font bodyFont) {
+  static pw.Widget _buildStatBox(String label, String value, pw.Font headerFont, pw.Font bodyFont) {
     return pw.Expanded(
       child: pw.Container(
         padding: const pw.EdgeInsets.all(10),
-        decoration: pw.BoxDecoration(color: _lightBg, borderRadius: pw.BorderRadius.circular(4), border: pw.Border.all(color: _grey200)),
+        decoration: pw.BoxDecoration(
+          color: _lightGrey,
+          border: pw.Border.all(color: _borderGrey, width: 0.5),
+        ),
         child: pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(label, style: pw.TextStyle(font: headerFont, fontSize: 8, color: _grey600)),
+            pw.Text(label, style: pw.TextStyle(font: headerFont, fontSize: 7, color: _mediumGrey, letterSpacing: 0.5)),
             pw.SizedBox(height: 4),
-            pw.Text(val, style: pw.TextStyle(font: headerFont, fontSize: 12, color: col)),
+            pw.Text(value, style: pw.TextStyle(font: headerFont, fontSize: 11, color: _black)),
           ],
         ),
       ),
     );
   }
 
+  static pw.Widget _buildHeader(pw.Font headerFont, pw.Font bodyFont) {
+    return pw.Row(
+      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: pw.CrossAxisAlignment.start,
+      children: [
+        pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(_companyName, style: pw.TextStyle(font: headerFont, fontSize: 24, color: _black, letterSpacing: 2)),
+            pw.Text(_companyTagline, style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _mediumGrey)),
+          ],
+        ),
+        pw.Text(
+          'BUILDING INVOICE',
+          style: pw.TextStyle(font: headerFont, fontSize: 11, color: _darkGrey, letterSpacing: 1),
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _buildDetailRow(String label, String value, pw.Font headerFont, pw.Font bodyFont) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(bottom: 2),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.end,
+        children: [
+          pw.Text(label, style: pw.TextStyle(font: headerFont, fontSize: 8, color: _mediumGrey)),
+          pw.SizedBox(width: 5),
+          pw.Text(value, style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _black)),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _buildFooter(pw.Context context, pw.Font bodyFont, pw.Font italicFont, String date, String time) {
     return pw.Container(
-      padding: const pw.EdgeInsets.only(top: 8),
-      decoration: const pw.BoxDecoration(border: pw.Border(top: pw.BorderSide(color: _grey200, width: 0.5))),
+      padding: const pw.EdgeInsets.only(top: 6),
+      decoration: const pw.BoxDecoration(
+        border: pw.Border(top: pw.BorderSide(color: _borderGrey, width: 0.5)),
+      ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text('Generated on $date at $time | $_companyName ERP Building Division', style: pw.TextStyle(font: italicFont, fontSize: 8, color: _grey600)),
-          pw.Text('Page ${context.pageNumber} of ${context.pagesCount}', style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _grey600)),
+          pw.Text(
+            'Generated on $date at $time | $_companyName ERP',
+            style: pw.TextStyle(font: italicFont, fontSize: 8, color: _mediumGrey),
+          ),
+          pw.Text(
+            'Page ${context.pageNumber} of ${context.pagesCount}',
+            style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _mediumGrey),
+          ),
         ],
       ),
     );

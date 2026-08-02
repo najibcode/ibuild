@@ -5,26 +5,20 @@ import 'package:pdf/widgets.dart' as pw;
 import 'package:intl/intl.dart';
 import '../data/models/quotation_model.dart';
 
-/// Professional Quotation / Estimate PDF Generator for IBUILD ERP.
+/// Professional, Formal Monochrome Quotation / Estimate PDF Generator for IBUILD ERP.
 ///
-/// Produces a clean, formal construction quotation with:
-/// - Company header with IBUILD branding
-/// - Client details section
-/// - Itemized particulars table with unit, qty, rate, total
-/// - Grand total with optional terms/notes
-/// - Generation timestamp in professional format
+/// Designed strictly without colorful fonts or decorative styling for a clean, formal corporate finish.
 class QuotationPdfGenerator {
   static const String _companyName = 'IBUILD';
-  static const String _companyTagline = 'Construction & Project Management';
-  static const PdfColor _primary = PdfColor.fromInt(0xFF1565C0);
-  static const PdfColor _darkBlue = PdfColor.fromInt(0xFF0D47A1);
-  static const PdfColor _lightBlue = PdfColor.fromInt(0xFFE3F2FD);
-  static const PdfColor _accent = PdfColor.fromInt(0xFFE65100);
-  static const PdfColor _grey600 = PdfColor.fromInt(0xFF757575);
-  static const PdfColor _grey200 = PdfColor.fromInt(0xFFEEEEEE);
-  static const PdfColor _green = PdfColor.fromInt(0xFF2E7D32);
+  static const String _companyTagline = 'Construction & Project Management ERP';
+
+  // Professional Monochrome Palette (No colorful fonts)
+  static const PdfColor _black = PdfColor.fromInt(0xFF000000);
+  static const PdfColor _darkGrey = PdfColor.fromInt(0xFF333333);
+  static const PdfColor _mediumGrey = PdfColor.fromInt(0xFF666666);
+  static const PdfColor _lightGrey = PdfColor.fromInt(0xFFF8F9FA);
+  static const PdfColor _borderGrey = PdfColor.fromInt(0xFFCCCCCC);
   static const PdfColor _white = PdfColors.white;
-  static const PdfColor _rowBg = PdfColor.fromInt(0xFFF5F5F5);
 
   static Future<Map<String, pw.Font>> _loadFonts() async {
     final regularData = await rootBundle.load('assets/fonts/Roboto-Regular.ttf');
@@ -37,13 +31,13 @@ class QuotationPdfGenerator {
     };
   }
 
-  /// Format currency with ₹ symbol and Indian number formatting.
+  /// Format currency with ₹ symbol and standard Indian number formatting.
   static String _currency(double amount) {
     final formatter = NumberFormat.currency(locale: 'en_IN', symbol: '\u20B9', decimalDigits: 2);
     return formatter.format(amount);
   }
 
-  /// Generate a professional quotation PDF.
+  /// Generate a formal monochrome quotation PDF.
   static Future<Uint8List> generate(Quotation quotation) async {
     final fonts = await _loadFonts();
     final headerFont = fonts['bold']!;
@@ -61,7 +55,6 @@ class QuotationPdfGenerator {
     final dateFormatted = DateFormat('dd MMMM yyyy').format(now);
     final timeFormatted = DateFormat('hh:mm a').format(now);
 
-    // Parse created date for display
     String quotationDate = dateFormatted;
     if (quotation.createdAt != null && quotation.createdAt!.isNotEmpty) {
       try {
@@ -86,42 +79,35 @@ class QuotationPdfGenerator {
         margin: const pw.EdgeInsets.all(40),
         footer: (context) => _buildFooter(context, bodyFont, italicFont, dateFormatted, timeFormatted),
         build: (context) => [
-          // ── Company Header ──
+          // ── Header ──
           _buildCompanyHeader(headerFont, bodyFont),
-          pw.SizedBox(height: 20),
-
-          // ── QUOTATION Title Bar ──
-          pw.Container(
-            width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            decoration: pw.BoxDecoration(
-              color: _darkBlue,
-              borderRadius: pw.BorderRadius.circular(4),
-            ),
-            child: pw.Row(
-              mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-              children: [
-                pw.Text(
-                  'QUOTATION ESTIMATE',
-                  style: pw.TextStyle(font: headerFont, fontSize: 16, color: _white, letterSpacing: 1.5),
-                ),
-                pw.Text(
-                  'Status: ${quotation.status.toUpperCase()}',
-                  style: pw.TextStyle(font: headerFont, fontSize: 10, color: _white),
-                ),
-              ],
-            ),
-          ),
           pw.SizedBox(height: 16),
+          pw.Divider(color: _borderGrey, thickness: 1),
+          pw.SizedBox(height: 12),
 
-          // ── Client & Project Details ──
+          // ── Title Bar ──
+          pw.Row(
+            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+            children: [
+              pw.Text(
+                'QUOTATION ESTIMATE',
+                style: pw.TextStyle(font: headerFont, fontSize: 16, color: _black, letterSpacing: 1),
+              ),
+              pw.Text(
+                'STATUS: ${quotation.status.toUpperCase()}',
+                style: pw.TextStyle(font: headerFont, fontSize: 10, color: _mediumGrey),
+              ),
+            ],
+          ),
+          pw.SizedBox(height: 14),
+
+          // ── Client & Details Section ──
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.all(14),
+            padding: const pw.EdgeInsets.all(12),
             decoration: pw.BoxDecoration(
-              color: _lightBlue,
-              borderRadius: pw.BorderRadius.circular(4),
-              border: pw.Border.all(color: _primary, width: 0.5),
+              color: _lightGrey,
+              border: pw.Border.all(color: _borderGrey, width: 0.5),
             ),
             child: pw.Row(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -130,11 +116,11 @@ class QuotationPdfGenerator {
                   child: pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Text('TO:', style: pw.TextStyle(font: headerFont, fontSize: 9, color: _grey600)),
+                      pw.Text('CLIENT DETAILS:', style: pw.TextStyle(font: headerFont, fontSize: 8, color: _mediumGrey, letterSpacing: 0.5)),
                       pw.SizedBox(height: 4),
-                      pw.Text(quotation.clientName, style: pw.TextStyle(font: headerFont, fontSize: 13, color: _darkBlue)),
+                      pw.Text(quotation.clientName, style: pw.TextStyle(font: headerFont, fontSize: 12, color: _black)),
                       if (quotation.clientPhone != null && quotation.clientPhone!.isNotEmpty)
-                        pw.Text('Phone: ${quotation.clientPhone}', style: pw.TextStyle(font: bodyFont, fontSize: 10, color: _grey600)),
+                        pw.Text('Phone: ${quotation.clientPhone}', style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _darkGrey)),
                     ],
                   ),
                 ),
@@ -144,7 +130,7 @@ class QuotationPdfGenerator {
                     children: [
                       _buildDetailRow('Date:', quotationDate, headerFont, bodyFont),
                       if (quotation.projectName != null)
-                        _buildDetailRow('Site:', quotation.projectName!, headerFont, bodyFont),
+                        _buildDetailRow('Project / Site:', quotation.projectName!, headerFont, bodyFont),
                       _buildDetailRow('Subject:', quotation.subject, headerFont, bodyFont),
                       if (validUntilFormatted != null)
                         _buildDetailRow('Valid Until:', validUntilFormatted, headerFont, bodyFont),
@@ -154,82 +140,79 @@ class QuotationPdfGenerator {
               ],
             ),
           ),
-          pw.SizedBox(height: 20),
+          pw.SizedBox(height: 18),
 
           // ── Itemized Particulars Table ──
           pw.Text(
             'ITEMIZED PARTICULARS',
-            style: pw.TextStyle(font: headerFont, fontSize: 11, color: _darkBlue, letterSpacing: 1),
+            style: pw.TextStyle(font: headerFont, fontSize: 10, color: _black, letterSpacing: 0.5),
           ),
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 6),
           _buildItemsTable(quotation.items, headerFont, bodyFont),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 10),
 
-          // ── Grand Total ──
+          // ── Grand Total Box ──
           pw.Container(
             width: double.infinity,
-            padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: pw.BoxDecoration(
-              color: _darkBlue,
-              borderRadius: pw.BorderRadius.circular(4),
+              color: _darkGrey,
             ),
             child: pw.Row(
               mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
               children: [
                 pw.Text(
                   'GRAND TOTAL ESTIMATE',
-                  style: pw.TextStyle(font: headerFont, fontSize: 13, color: _white, letterSpacing: 1),
+                  style: pw.TextStyle(font: headerFont, fontSize: 12, color: _white, letterSpacing: 0.5),
                 ),
                 pw.Text(
                   _currency(quotation.totalAmount),
-                  style: pw.TextStyle(font: headerFont, fontSize: 16, color: _white),
+                  style: pw.TextStyle(font: headerFont, fontSize: 15, color: _white),
                 ),
               ],
             ),
           ),
 
-          // ── Notes / Terms ──
+          // ── Terms & Notes ──
           if (quotation.notes != null && quotation.notes!.isNotEmpty) ...[
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 14),
             pw.Container(
               width: double.infinity,
-              padding: const pw.EdgeInsets.all(12),
+              padding: const pw.EdgeInsets.all(10),
               decoration: pw.BoxDecoration(
-                color: _rowBg,
-                borderRadius: pw.BorderRadius.circular(4),
-                border: pw.Border.all(color: _grey200),
+                border: pw.Border.all(color: _borderGrey, width: 0.5),
               ),
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Text('TERMS & CONDITIONS', style: pw.TextStyle(font: headerFont, fontSize: 9, color: _grey600, letterSpacing: 1)),
-                  pw.SizedBox(height: 6),
-                  pw.Text(quotation.notes!, style: pw.TextStyle(font: bodyFont, fontSize: 10, color: PdfColors.black)),
+                  pw.Text('TERMS & CONDITIONS', style: pw.TextStyle(font: headerFont, fontSize: 8, color: _mediumGrey, letterSpacing: 0.5)),
+                  pw.SizedBox(height: 4),
+                  pw.Text(quotation.notes!, style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _black)),
                 ],
               ),
             ),
           ],
 
-          pw.SizedBox(height: 30),
+          pw.SizedBox(height: 35),
 
-          // ── Signature Area ──
+          // ── Signatures ──
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.start,
                 children: [
-                  pw.Container(width: 150, height: 0.5, color: _grey600),
+                  pw.Container(width: 140, height: 0.5, color: _black),
                   pw.SizedBox(height: 4),
-                  pw.Text('Client Signature', style: pw.TextStyle(font: italicFont, fontSize: 9, color: _grey600)),
+                  pw.Text('Client Signature', style: pw.TextStyle(font: italicFont, fontSize: 8, color: _mediumGrey)),
                 ],
               ),
               pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.end,
                 children: [
-                  pw.Container(width: 150, height: 0.5, color: _grey600),
+                  pw.Container(width: 140, height: 0.5, color: _black),
                   pw.SizedBox(height: 4),
-                  pw.Text('Authorized Signatory - $_companyName', style: pw.TextStyle(font: italicFont, fontSize: 9, color: _grey600)),
+                  pw.Text('Authorized Signatory - $_companyName', style: pw.TextStyle(font: italicFont, fontSize: 8, color: _mediumGrey)),
                 ],
               ),
             ],
@@ -241,7 +224,7 @@ class QuotationPdfGenerator {
     return pdf.save();
   }
 
-  /// Company header with IBUILD branding.
+  /// Company header
   static pw.Widget _buildCompanyHeader(pw.Font headerFont, pw.Font bodyFont) {
     return pw.Row(
       mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -250,59 +233,50 @@ class QuotationPdfGenerator {
         pw.Column(
           crossAxisAlignment: pw.CrossAxisAlignment.start,
           children: [
-            pw.Text(_companyName, style: pw.TextStyle(font: headerFont, fontSize: 28, color: _primary, letterSpacing: 3)),
-            pw.Text(_companyTagline, style: pw.TextStyle(font: bodyFont, fontSize: 10, color: _grey600)),
+            pw.Text(_companyName, style: pw.TextStyle(font: headerFont, fontSize: 24, color: _black, letterSpacing: 2)),
+            pw.Text(_companyTagline, style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _mediumGrey)),
           ],
         ),
-        pw.Container(
-          padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: pw.BoxDecoration(
-            color: _accent,
-            borderRadius: pw.BorderRadius.circular(4),
-          ),
-          child: pw.Text(
-            'QUOTATION',
-            style: pw.TextStyle(font: headerFont, fontSize: 12, color: _white, letterSpacing: 2),
-          ),
+        pw.Text(
+          'OFFICIAL QUOTATION',
+          style: pw.TextStyle(font: headerFont, fontSize: 11, color: _darkGrey, letterSpacing: 1),
         ),
       ],
     );
   }
 
-  /// Detail row for right column of client section.
   static pw.Widget _buildDetailRow(String label, String value, pw.Font headerFont, pw.Font bodyFont) {
     return pw.Padding(
-      padding: const pw.EdgeInsets.only(bottom: 3),
+      padding: const pw.EdgeInsets.only(bottom: 2),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.end,
         children: [
-          pw.Text(label, style: pw.TextStyle(font: headerFont, fontSize: 9, color: _grey600)),
-          pw.SizedBox(width: 6),
-          pw.Text(value, style: pw.TextStyle(font: bodyFont, fontSize: 10, color: PdfColors.black)),
+          pw.Text(label, style: pw.TextStyle(font: headerFont, fontSize: 8, color: _mediumGrey)),
+          pw.SizedBox(width: 5),
+          pw.Text(value, style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _black)),
         ],
       ),
     );
   }
 
-  /// Itemized table of quotation particulars.
   static pw.Widget _buildItemsTable(List<QuotationItem> items, pw.Font headerFont, pw.Font bodyFont) {
     return pw.TableHelper.fromTextArray(
       headerAlignment: pw.Alignment.centerLeft,
       cellAlignment: pw.Alignment.centerLeft,
-      headerStyle: pw.TextStyle(font: headerFont, fontSize: 9, color: _white),
-      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 9),
-      headerDecoration: const pw.BoxDecoration(color: _primary),
-      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      oddRowDecoration: const pw.BoxDecoration(color: _rowBg),
-      border: pw.TableBorder.all(color: _grey200, width: 0.5),
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 8, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 8, color: _black),
+      headerDecoration: const pw.BoxDecoration(color: _darkGrey),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+      oddRowDecoration: const pw.BoxDecoration(color: _lightGrey),
+      border: pw.TableBorder.all(color: _borderGrey, width: 0.5),
       columnWidths: {
-        0: const pw.FixedColumnWidth(30),  // S.No
-        1: const pw.FlexColumnWidth(4),     // Particular
-        2: const pw.FixedColumnWidth(50),   // Unit
-        3: const pw.FixedColumnWidth(50),   // Qty
-        4: const pw.FixedColumnWidth(70),   // Unit Rate
-        5: const pw.FixedColumnWidth(80),   // Total
+        0: const pw.FixedColumnWidth(25),
+        1: const pw.FlexColumnWidth(4),
+        2: const pw.FixedColumnWidth(45),
+        3: const pw.FixedColumnWidth(45),
+        4: const pw.FixedColumnWidth(65),
+        5: const pw.FixedColumnWidth(75),
       },
       headers: ['#', 'Particular', 'Unit', 'Qty', 'Rate (\u20B9)', 'Total (\u20B9)'],
       data: items.asMap().entries.map((entry) {
@@ -320,23 +294,22 @@ class QuotationPdfGenerator {
     );
   }
 
-  /// Page footer with generation timestamp.
   static pw.Widget _buildFooter(pw.Context context, pw.Font bodyFont, pw.Font italicFont, String date, String time) {
     return pw.Container(
-      padding: const pw.EdgeInsets.only(top: 8),
+      padding: const pw.EdgeInsets.only(top: 6),
       decoration: const pw.BoxDecoration(
-        border: pw.Border(top: pw.BorderSide(color: _grey200, width: 0.5)),
+        border: pw.Border(top: pw.BorderSide(color: _borderGrey, width: 0.5)),
       ),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
           pw.Text(
             'Generated on $date at $time | $_companyName ERP',
-            style: pw.TextStyle(font: italicFont, fontSize: 8, color: _grey600),
+            style: pw.TextStyle(font: italicFont, fontSize: 8, color: _mediumGrey),
           ),
           pw.Text(
             'Page ${context.pageNumber} of ${context.pagesCount}',
-            style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _grey600),
+            style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _mediumGrey),
           ),
         ],
       ),
