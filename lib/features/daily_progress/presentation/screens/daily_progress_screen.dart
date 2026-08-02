@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -6,7 +7,7 @@ import '../../data/models/daily_progress_model.dart';
 import '../controllers/daily_progress_controller.dart';
 import 'daily_progress_form_screen.dart';
 
-class DailyProgressScreen extends ConsumerWidget {
+class DailyProgressScreen extends ConsumerStatefulWidget {
   final String projectId;
   final String projectName;
   final bool showAppBar;
@@ -19,11 +20,77 @@ class DailyProgressScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final progressAsync = ref.watch(dailyProgressListProvider(projectId));
+  ConsumerState<DailyProgressScreen> createState() => _DailyProgressScreenState();
+}
+
+class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
+  String _searchQuery = '';
+
+  void _shareDailySummary(BuildContext context, List<DailyProgress> entries) {
+    if (entries.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No site progress logs available to share.')),
+      );
+      return;
+    }
+
+    final latest = entries.first;
+    final buffer = StringBuffer();
+    buffer.writeln('🏗️ *DAILY SITE PROGRESS REPORT*');
+    buffer.writeln('📍 *Project:* ${widget.projectName}');
+    buffer.writeln('📅 *Date:* ${latest.date}');
+    buffer.writeln('📊 *Overall Completion:* ${latest.progressPercentage}%');
+    buffer.writeln('--------------------------------');
+
+    for (int i = 0; i < entries.length && i < 5; i++) {
+      final entry = entries[i];
+      buffer.writeln('• *[${entry.date}]* (${entry.progressPercentage}% completion)');
+      final notes = entry.allNotes;
+      if (notes.isNotEmpty) {
+        for (final n in notes) {
+          buffer.writeln('   "$n"');
+        }
+      }
+    }
+
+    buffer.writeln('--------------------------------');
+    buffer.writeln('Generated via IBUILD Construction ERP');
+
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Copied Site Progress Report to clipboard! ✓'),
+        backgroundColor: AppColors.secondary,
+      ),
+    );
+  }
+
+  void _openForm(BuildContext context, DailyProgress? existing) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DailyProgressFormScreen(
+          projectId: widget.projectId,
+          existing: existing,
+        ),
+      ),
+    );
+    ref.invalidate(dailyProgressListProvider(widget.projectId));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final progressAsync = ref.watch(dailyProgressListProvider(widget.projectId));
 
     final Widget bodyContent = progressAsync.when(
       data: (entries) {
+        final filteredEntries = entries.where((e) {
+          if (_searchQuery.isEmpty) return true;
+          final query = _searchQuery.toLowerCase();
+          final dateMatch = e.date.toLowerCase().contains(query);
+          final notesMatch = e.allNotes.any((n) => n.toLowerCase().contains(query));
+          return dateMatch || notesMatch;
+        }).toList();
+
         final int totalEntries = entries.length;
         final int latestPercentage = entries.isNotEmpty ? entries.first.progressPercentage : 0;
 
@@ -66,15 +133,26 @@ class DailyProgressScreen extends ConsumerWidget {
                           ),
                         ],
                       ),
-                      ElevatedButton.icon(
-                        onPressed: () => _openForm(context, ref, null),
-                        icon: const Icon(Icons.add_a_photo, size: 16),
-                        label: const Text('Log Daily Progress'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.secondary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          IconButton(
+                            onPressed: () => _shareDailySummary(context, entries),
+                            icon: const Icon(Icons.share_outlined, size: 20),
+                            color: AppColors.primaryColor(context),
+                            tooltip: 'Share Daily Progress Report',
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () => _openForm(context, null),
+                            icon: const Icon(Icons.add_a_photo, size: 16),
+                            label: const Text('Log Progress'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.secondary,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
@@ -97,9 +175,40 @@ class DailyProgressScreen extends ConsumerWidget {
               ),
             ),
 
+            // Search Bar
+            if (entries.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: TextField(
+                  onChanged: (val) => setState(() => _searchQuery = val.trim()),
+                  style: TextStyle(fontSize: 13, color: AppColors.text(context)),
+                  decoration: InputDecoration(
+                    hintText: 'Search progress logs by date or description...',
+                    hintStyle: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    prefixIcon: Icon(Icons.search, size: 18, color: AppColors.mutedText(context)),
+                    suffixIcon: _searchQuery.isNotEmpty
+                        ? IconButton(
+                            icon: const Icon(Icons.clear, size: 16),
+                            onPressed: () => setState(() => _searchQuery = ''),
+                          )
+                        : null,
+                    isDense: true,
+                    contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                    filled: true,
+                    fillColor: AppColors.cardBg(context),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: AppColors.border(context)),
+                    ),
+                  ),
+                ),
+              ),
+
+            const SizedBox(height: 8),
+
             // Daily Progress Feed
             Expanded(
-              child: entries.isEmpty
+              child: filteredEntries.isEmpty
                   ? Center(
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
@@ -107,33 +216,34 @@ class DailyProgressScreen extends ConsumerWidget {
                           Icon(Icons.camera_enhance_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
                           const SizedBox(height: 16),
                           Text(
-                            'No daily progress updates recorded yet.',
+                            entries.isEmpty ? 'No daily progress updates recorded yet.' : 'No matching logs found.',
                             style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 16),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Upload site photos and daily work notes to track construction progress.',
+                            entries.isEmpty ? 'Upload site photos and daily work notes to track construction progress.' : 'Try adjusting your search query.',
                             style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
                           ),
                           const SizedBox(height: 20),
-                          ElevatedButton.icon(
-                            onPressed: () => _openForm(context, ref, null),
-                            icon: const Icon(Icons.add_a_photo),
-                            label: const Text('Log First Daily Progress'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.primary,
-                              foregroundColor: Colors.white,
+                          if (entries.isEmpty)
+                            ElevatedButton.icon(
+                              onPressed: () => _openForm(context, null),
+                              icon: const Icon(Icons.add_a_photo),
+                              label: const Text('Log First Daily Progress'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primary,
+                                foregroundColor: Colors.white,
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     )
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: entries.length,
+                      itemCount: filteredEntries.length,
                       itemBuilder: (context, index) => _ProgressCard(
-                        entry: entries[index],
-                        onEdit: entries[index].isToday ? () => _openForm(context, ref, entries[index]) : null,
+                        entry: filteredEntries[index],
+                        onEdit: filteredEntries[index].isToday ? () => _openForm(context, filteredEntries[index]) : null,
                       ),
                     ),
             ),
@@ -144,36 +254,24 @@ class DailyProgressScreen extends ConsumerWidget {
       error: (e, _) => Center(child: Text('Error loading progress logs: $e')),
     );
 
-    if (!showAppBar) {
+    if (!widget.showAppBar) {
       return bodyContent;
     }
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        title: Text('Daily Progress: $projectName'),
+        title: Text('Daily Progress: ${widget.projectName}'),
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
             tooltip: 'Refresh Daily Progress Feed',
-            onPressed: () => ref.invalidate(dailyProgressListProvider(projectId)),
+            onPressed: () => ref.invalidate(dailyProgressListProvider(widget.projectId)),
           ),
         ],
       ),
       body: bodyContent,
     );
-  }
-
-  void _openForm(BuildContext context, WidgetRef ref, DailyProgress? existing) async {
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => DailyProgressFormScreen(
-          projectId: projectId,
-          existing: existing,
-        ),
-      ),
-    );
-    ref.invalidate(dailyProgressListProvider(projectId));
   }
 }
 
@@ -348,19 +446,16 @@ class _ProgressCard extends StatelessWidget {
                                 CachedNetworkImage(
                                   imageUrl: url,
                                   fit: BoxFit.cover,
-                                  placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                                  errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image, color: AppColors.outline)),
+                                  placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
+                                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 36, color: AppColors.outline),
                                 ),
                                 Positioned(
-                                  right: 6,
                                   bottom: 6,
+                                  right: 6,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(alpha: 0.6),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(Icons.zoom_in, color: Colors.white, size: 14),
+                                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
+                                    child: const Icon(Icons.fullscreen, color: Colors.white, size: 14),
                                   ),
                                 ),
                               ],
@@ -372,50 +467,36 @@ class _ProgressCard extends StatelessWidget {
                   ),
                 ),
               ],
-            )
-          else
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.bg(context),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border(context)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.photo_library_outlined, size: 20, color: AppColors.mutedText(context)),
-                  const SizedBox(width: 8),
-                  Text('No site photos attached for this entry', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
-                ],
-              ),
             ),
 
-          // Display Work Notes / Logs
-          if (notesList.isNotEmpty && !hasMorningAndEvening) ...[
+          // Notes Section
+          if (notesList.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.bg(context),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: AppColors.border(context)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Daily Work Description & Activity Log',
-                    style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context)),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    notesList.join('\n\n'),
-                    style: TextStyle(fontSize: 12, color: AppColors.text(context), height: 1.4),
-                  ),
-                ],
-              ),
-            ),
+            ...notesList.map((text) {
+              return Container(
+                width: double.infinity,
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: AppColors.bg(context),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.border(context)),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Icon(Icons.notes, size: 16, color: AppColors.primaryColor(context)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        text,
+                        style: TextStyle(fontSize: 13, color: AppColors.text(context), height: 1.3),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            }),
           ],
         ],
       ),
@@ -429,8 +510,6 @@ class _ProgressCard extends StatelessWidget {
     required String? imageUrl,
     required String? notes,
   }) {
-    final hasImage = imageUrl != null && imageUrl.isNotEmpty;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -445,70 +524,49 @@ class _ProgressCard extends StatelessWidget {
             style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5),
           ),
         ),
-        const SizedBox(height: 8),
-        InkWell(
-          onTap: hasImage ? () => _showImagePreview(context, imageUrl, badgeLabel) : null,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            height: 130,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: AppColors.bg(context),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border(context)),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: hasImage
-                ? Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-                        errorWidget: (_, __, ___) => const Center(child: Icon(Icons.broken_image, color: AppColors.outline)),
-                      ),
-                      Positioned(
-                        right: 6,
-                        bottom: 6,
-                        child: Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: Colors.black.withValues(alpha: 0.6),
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.zoom_in, color: Colors.white, size: 14),
-                        ),
-                      ),
-                    ],
-                  )
-                : Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.image_not_supported_outlined, color: AppColors.mutedText(context), size: 28),
-                        const SizedBox(height: 4),
-                        Text('No Image', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context))),
-                      ],
+        const SizedBox(height: 6),
+        if (imageUrl != null)
+          InkWell(
+            onTap: () => _showImagePreview(context, imageUrl, badgeLabel),
+            borderRadius: BorderRadius.circular(10),
+            child: Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: AppColors.bg(context),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.border(context)),
+              ),
+              clipBehavior: Clip.antiAlias,
+              child: Stack(
+                fit: StackFit.expand,
+                children: [
+                  CachedNetworkImage(
+                    imageUrl: imageUrl,
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
+                    errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 36, color: AppColors.outline),
+                  ),
+                  Positioned(
+                    bottom: 6,
+                    right: 6,
+                    child: Container(
+                      padding: const EdgeInsets.all(4),
+                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
+                      child: const Icon(Icons.fullscreen, color: Colors.white, size: 14),
                     ),
                   ),
+                ],
+              ),
+            ),
           ),
-        ),
         if (notes != null && notes.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.bg(context),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border(context)),
-            ),
-            child: Text(
-              notes,
-              style: TextStyle(fontSize: 11, color: AppColors.text(context), height: 1.3),
-              maxLines: 3,
-              overflow: TextOverflow.ellipsis,
-            ),
+          const SizedBox(height: 4),
+          Text(
+            notes,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
           ),
         ],
       ],

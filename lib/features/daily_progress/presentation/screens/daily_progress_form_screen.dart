@@ -27,6 +27,9 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
   late int _progress;
   bool _isSaving = false;
 
+  String? _selectedPhase;
+  String? _selectedCondition;
+
   String? _morningImageUrl;
   String? _eveningImageUrl;
   Uint8List? _morningPendingBytes;
@@ -79,6 +82,16 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
       if (url != null) _eveningImageUrl = url;
     }
 
+    String eveningText = _eveningNotesCtrl.text.trim();
+    final metaTags = <String>[];
+    if (_selectedPhase != null) metaTags.add('🏗️ Phase: $_selectedPhase');
+    if (_selectedCondition != null) metaTags.add('Conditions: $_selectedCondition');
+
+    if (metaTags.isNotEmpty) {
+      final metaHeader = metaTags.join(' • ');
+      eveningText = eveningText.isEmpty ? metaHeader : '$metaHeader\n$eveningText';
+    }
+
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
     final entry = DailyProgress(
       id: widget.existing?.id ?? '',
@@ -87,7 +100,7 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
       morningImageUrl: _morningImageUrl,
       morningNotes: _morningNotesCtrl.text.trim().isEmpty ? null : _morningNotesCtrl.text.trim(),
       eveningImageUrl: _eveningImageUrl,
-      eveningNotes: _eveningNotesCtrl.text.trim().isEmpty ? null : _eveningNotesCtrl.text.trim(),
+      eveningNotes: eveningText.isEmpty ? null : eveningText,
       progressPercentage: _progress,
     );
 
@@ -96,7 +109,7 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Site progress log saved successfully'), backgroundColor: AppColors.secondary),
+          const SnackBar(content: Text('Site progress log saved successfully ✓'), backgroundColor: AppColors.secondary),
         );
       }
     } catch (e) {
@@ -157,6 +170,56 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
                   ),
                 ],
               ),
+            ),
+            const SizedBox(height: 20),
+
+            // Construction Phase Selection
+            Text('ACTIVE CONSTRUCTION PHASE', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryColor(context), letterSpacing: 0.5)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                'Foundation & Footing',
+                'RCC Structure & Columns',
+                'Brickwork & Masonry',
+                'Electrical & Plumbing',
+                'Plastering & Painting',
+                'Finishing & Handover',
+              ].map((phase) {
+                final isSelected = _selectedPhase == phase;
+                return ChoiceChip(
+                  label: Text(phase, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.text(context))),
+                  selected: isSelected,
+                  selectedColor: AppColors.primaryColor(context),
+                  backgroundColor: AppColors.cardBg(context),
+                  onSelected: (val) => setState(() => _selectedPhase = val ? phase : null),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 16),
+
+            // Site & Weather Condition Selection
+            Text('WEATHER & SITE CONDITIONS', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryColor(context), letterSpacing: 0.5)),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                '☀️ Clear / Good Work',
+                '🌧️ Rainy / Work Delayed',
+                '⚠️ Material Delay',
+                '🚧 Normal Work Day',
+              ].map((cond) {
+                final isSelected = _selectedCondition == cond;
+                return ChoiceChip(
+                  label: Text(cond, style: TextStyle(fontSize: 12, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal, color: isSelected ? Colors.white : AppColors.text(context))),
+                  selected: isSelected,
+                  selectedColor: AppColors.secondary,
+                  backgroundColor: AppColors.cardBg(context),
+                  onSelected: (val) => setState(() => _selectedCondition = val ? cond : null),
+                );
+              }).toList(),
             ),
             const SizedBox(height: 24),
 
