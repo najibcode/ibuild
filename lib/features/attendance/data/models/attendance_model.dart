@@ -2,8 +2,8 @@ class Attendance {
   final String id;
   final String employeeId;
   final String date;
-  final String status; // Present or Absent
-  final String? projectId; // Site/Project assigned for the day
+  final String status; // Present or Absent (app-side unified view)
+  final String? projectId; // UI-only: kept in memory for site assignment display
   final String? employeeName;
   final String? projectName;
 
@@ -22,7 +22,10 @@ class Attendance {
   String get eveningStatus => status;
 
   factory Attendance.fromJson(Map<String, dynamic> json, {String? employeeName, String? projectName}) {
-    final rawStatus = json['status'] as String? ?? json['morning_status'] as String? ?? 'Absent';
+    // The actual DB columns are morning_status / evening_status (NOT "status")
+    final rawStatus = json['morning_status'] as String?
+        ?? json['status'] as String?
+        ?? 'Absent';
     final normalizedStatus = (rawStatus.toLowerCase() == 'present') ? 'Present' : 'Absent';
     final pName = projectName ?? (json['projects'] as Map?)?['name'] as String? ?? json['project_name'] as String?;
 
@@ -37,24 +40,26 @@ class Attendance {
     );
   }
 
-  /// Produce the minimal, safe JSON for Supabase upsert.
-  /// Only sends columns that definitely exist in the attendance table.
-  /// Does NOT include morning_status/evening_status (legacy columns that may not exist).
+  /// Produce the minimal, safe JSON for Supabase insert/update.
+  /// IMPORTANT: The actual DB columns are morning_status and evening_status,
+  /// NOT "status" or "project_id".
   Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{
+    final lowerStatus = status.toLowerCase() == 'present' ? 'present' : 'absent';
+    return <String, dynamic>{
       'employee_id': employeeId,
       'date': date,
-      'status': status,
+      'morning_status': lowerStatus,   // Must be lowercase to pass PostgreSQL check constraint
+      'evening_status': lowerStatus,   // Must be lowercase to pass PostgreSQL check constraint
     };
-    // Only include id if it's a real UUID (editing existing record)
-    if (id.isNotEmpty && id.length > 10) {
-      map['id'] = id;
-    }
-    // Only include project_id if it's set
-    if (projectId != null && projectId!.isNotEmpty) {
-      map['project_id'] = projectId;
-    }
-    return map;
+  }
+
+  /// Minimal update payload (only the fields that change on attendance toggle)
+  Map<String, dynamic> toUpdateJson() {
+    final lowerStatus = status.toLowerCase() == 'present' ? 'present' : 'absent';
+    return <String, dynamic>{
+      'morning_status': lowerStatus,
+      'evening_status': lowerStatus,
+    };
   }
 
   Attendance copyWith({

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../controllers/attendance_controller.dart';
 import '../../data/models/attendance_model.dart';
@@ -14,9 +15,28 @@ class AttendanceScreen extends ConsumerStatefulWidget {
   ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
 }
 
-
 class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String _searchQuery = '';
+  String? _selectedFilterProjectId;
+
+  void _pickDate(BuildContext context, String currentDateStr) async {
+    DateTime initial = DateTime.tryParse(currentDateStr) ?? DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: initial,
+      firstDate: DateTime(2020),
+      lastDate: DateTime(2030),
+    );
+    if (picked != null) {
+      ref.read(attendanceControllerProvider.notifier).changeSelectedDate(picked);
+    }
+  }
+
+  void _shiftDate(int days, String currentDateStr) {
+    DateTime current = DateTime.tryParse(currentDateStr) ?? DateTime.now();
+    DateTime shifted = current.add(Duration(days: days));
+    ref.read(attendanceControllerProvider.notifier).changeSelectedDate(shifted);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -24,9 +44,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final projectState = ref.watch(projectControllerProvider);
     final projects = projectState.projects;
 
-    // Listen for errors and show SnackBar
+    // Error and Success feedback listeners
     ref.listen<AttendanceState>(attendanceControllerProvider, (prev, next) {
       if (next.error != null && next.error != prev?.error) {
+        ScaffoldMessenger.of(context).clearSnackBars();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(next.error!),
@@ -35,14 +56,26 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           ),
         );
       }
+      if (next.successMessage != null && next.successMessage != prev?.successMessage) {
+        ScaffoldMessenger.of(context).clearSnackBars();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(next.successMessage!),
+            backgroundColor: AppColors.secondary,
+            duration: const Duration(seconds: 2),
+          ),
+        );
+      }
     });
 
-    final todayStr = DateTime.now().toString().substring(0, 10);
+    final selectedDateParsed = DateTime.tryParse(state.selectedDate) ?? DateTime.now();
+    final isToday = state.selectedDate == DateTime.now().toIso8601String().substring(0, 10);
+    final formattedDateStr = DateFormat('EEE, dd MMMM yyyy').format(selectedDateParsed);
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: AppSpacing.containerMargin,
+        titleSpacing: 16,
         title: Text(
           'Attendance & Site Deployment',
           style: TextStyle(
@@ -53,14 +86,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         actions: [
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
+            tooltip: 'Refresh Data',
             onPressed: () {
-              ref.read(attendanceControllerProvider.notifier).loadAttendanceForToday();
+              ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(state.selectedDate);
               ref.read(projectControllerProvider.notifier).loadProjects();
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: state.isLoading
+      body: state.isLoading && state.activeEmployees.isEmpty
           ? const Center(child: CircularProgressIndicator())
           : state.activeEmployees.isEmpty
               ? Center(
@@ -75,7 +110,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Add employees in the Workforce tab to take daily attendance.',
+                        'Add staff in the Workforce tab to track site attendance.',
                         style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
                       ),
                     ],
@@ -83,78 +118,174 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 )
               : Column(
                   children: [
-                    // Date Header & Summary Metric Cards
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                    // ── Interactive Date Navigator & Bulk Actions Bar ──
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                      color: AppColors.cardBg(context),
                       child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
+                              // Date Picker & Shift Arrows
                               Row(
                                 children: [
-                                  Icon(Icons.calendar_today_outlined, size: 16, color: AppColors.primaryColor(context)),
-                                  const SizedBox(width: 6),
-                                  Text(
-                                    'Date: $todayStr (Today)',
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 13,
-                                      color: AppColors.text(context),
+                                  IconButton(
+                                    icon: const Icon(Icons.chevron_left, size: 20),
+                                    onPressed: () => _shiftDate(-1, state.selectedDate),
+                                    tooltip: 'Previous Day',
+                                  ),
+                                  InkWell(
+                                    onTap: () => _pickDate(context, state.selectedDate),
+                                    borderRadius: BorderRadius.circular(8),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.primaryColor(context).withValues(alpha: 0.08),
+                                        borderRadius: BorderRadius.circular(8),
+                                        border: Border.all(color: AppColors.primaryColor(context).withValues(alpha: 0.2)),
+                                      ),
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.calendar_month, size: 16, color: AppColors.primaryColor(context)),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            formattedDateStr,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 13,
+                                              color: AppColors.primaryColor(context),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  IconButton(
+                                    icon: const Icon(Icons.chevron_right, size: 20),
+                                    onPressed: () => _shiftDate(1, state.selectedDate),
+                                    tooltip: 'Next Day',
+                                  ),
+                                  if (!isToday)
+                                    TextButton(
+                                      onPressed: () {
+                                        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+                                        ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(todayStr);
+                                      },
+                                      child: const Text('Today', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    ),
+                                ],
+                              ),
+
+                              // Quick Bulk Actions Menu
+                              PopupMenuButton<String>(
+                                icon: Icon(Icons.more_vert, color: AppColors.primaryColor(context)),
+                                tooltip: 'Bulk Actions',
+                                color: AppColors.cardBg(context),
+                                onSelected: (val) {
+                                  if (val == 'all_present') {
+                                    ref.read(attendanceControllerProvider.notifier).markAllPresent();
+                                  } else if (val == 'all_absent') {
+                                    ref.read(attendanceControllerProvider.notifier).markAllAbsent();
+                                  }
+                                },
+                                itemBuilder: (context) => [
+                                  const PopupMenuItem(
+                                    value: 'all_present',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.check_circle_outline, color: AppColors.secondary, size: 18),
+                                        SizedBox(width: 8),
+                                        Text('Mark All Staff Present'),
+                                      ],
+                                    ),
+                                  ),
+                                  const PopupMenuItem(
+                                    value: 'all_absent',
+                                    child: Row(
+                                      children: [
+                                        Icon(Icons.cancel_outlined, color: AppColors.error, size: 18),
+                                        SizedBox(width: 8),
+                                        Text('Mark All Staff Absent'),
+                                      ],
                                     ),
                                   ),
                                 ],
                               ),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: AppColors.secondary.withValues(alpha: 0.12),
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: Text(
-                                  'DAILY LOG',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.secondary,
-                                  ),
-                                ),
-                              ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const SizedBox(height: 8),
                           _buildSummaryCard(context, state.attendanceList, state.activeEmployees),
                         ],
                       ),
                     ),
 
-                    // Search Worker Bar
+                    // ── Search & Filter Controls ──
                     Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        height: 44,
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBg(context),
-                          borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border(context)),
-                        ),
-                        child: TextField(
-                          onChanged: (q) => setState(() => _searchQuery = q),
-                          style: TextStyle(color: AppColors.text(context), fontSize: 13),
-                          decoration: InputDecoration(
-                            hintText: 'Search worker by name or role...',
-                            hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 13),
-                            prefixIcon: Icon(Icons.search, color: AppColors.mutedText(context), size: 18),
-                            border: InputBorder.none,
-                            contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: 3,
+                            child: Container(
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: AppColors.cardBg(context),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.border(context)),
+                              ),
+                              child: TextField(
+                                onChanged: (q) => setState(() => _searchQuery = q),
+                                style: TextStyle(color: AppColors.text(context), fontSize: 13),
+                                decoration: InputDecoration(
+                                  hintText: 'Search staff by name or role...',
+                                  hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                                  prefixIcon: Icon(Icons.search, color: AppColors.mutedText(context), size: 18),
+                                  border: InputBorder.none,
+                                  contentPadding: const EdgeInsets.symmetric(vertical: 10),
+                                ),
+                              ),
+                            ),
                           ),
-                        ),
+                          const SizedBox(width: 8),
+                          // Project Filter Dropdown
+                          Expanded(
+                            flex: 2,
+                            child: Container(
+                              height: 40,
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                color: AppColors.cardBg(context),
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.border(context)),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String?>(
+                                  value: _selectedFilterProjectId,
+                                  dropdownColor: AppColors.cardBg(context),
+                                  hint: Text('Filter Site', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                                  isExpanded: true,
+                                  style: TextStyle(fontSize: 12, color: AppColors.text(context)),
+                                  items: [
+                                    DropdownMenuItem<String?>(
+                                      value: null,
+                                      child: Text('All Sites', style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold)),
+                                    ),
+                                    ...projects.map((p) => DropdownMenuItem<String?>(
+                                          value: p.id,
+                                          child: Text(p.name, overflow: TextOverflow.ellipsis),
+                                        )),
+                                  ],
+                                  onChanged: (val) => setState(() => _selectedFilterProjectId = val),
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 10),
 
-                    // Attendance Worker List
+                    // ── Staff List ──
                     Expanded(
                       child: _buildWorkerList(context, state, projects),
                     ),
@@ -165,22 +296,37 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
   Widget _buildWorkerList(BuildContext context, AttendanceState state, List<Project> projects) {
     final filtered = state.activeEmployees.where((e) {
-      if (_searchQuery.isEmpty) return true;
-      final q = _searchQuery.toLowerCase();
-      return e.name.toLowerCase().contains(q) || e.role.toLowerCase().contains(q);
+      if (_searchQuery.isNotEmpty) {
+        final q = _searchQuery.toLowerCase();
+        if (!e.name.toLowerCase().contains(q) && !e.role.toLowerCase().contains(q)) {
+          return false;
+        }
+      }
+
+      if (_selectedFilterProjectId != null) {
+        final record = state.attendanceList.firstWhere(
+          (a) => a.employeeId == e.id,
+          orElse: () => Attendance(id: '', employeeId: e.id, date: '', status: 'Absent'),
+        );
+        if (record.projectId != _selectedFilterProjectId) {
+          return false;
+        }
+      }
+
+      return true;
     }).toList();
 
     if (filtered.isEmpty) {
       return Center(
         child: Text(
-          'No matching staff found for "$_searchQuery".',
+          'No matching staff found for current filter.',
           style: TextStyle(color: AppColors.mutedText(context), fontSize: 13),
         ),
       );
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       itemCount: filtered.length,
       itemBuilder: (context, index) {
         final employee = filtered[index];
@@ -190,18 +336,28 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           orElse: () => Attendance(
             id: '',
             employeeId: employee.id,
-            date: '',
+            date: state.selectedDate,
             status: 'Absent',
           ),
         );
 
-        return Container(
-          margin: const EdgeInsets.only(bottom: 12),
-          padding: const EdgeInsets.all(16),
+        final isPresent = logged.status.toLowerCase() == 'present';
+
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
-            color: AppColors.cardBg(context),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border(context)),
+            color: isPresent
+                ? AppColors.secondary.withValues(alpha: 0.05)
+                : AppColors.cardBg(context),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isPresent
+                  ? AppColors.secondary.withValues(alpha: 0.4)
+                  : AppColors.border(context),
+              width: isPresent ? 1.5 : 1.0,
+            ),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -213,14 +369,36 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          employee.name,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                            color: AppColors.text(context),
-                          ),
-                          overflow: TextOverflow.ellipsis,
+                        Row(
+                          children: [
+                            Text(
+                              employee.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColors.text(context),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isPresent
+                                    ? AppColors.secondary.withValues(alpha: 0.15)
+                                    : AppColors.error.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                isPresent ? 'PRESENT' : 'ABSENT',
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: isPresent ? AppColors.secondary : AppColors.error,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 2),
                         Text(
@@ -240,7 +418,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               builder: (_) => ProjectOperationsScreen(
                                 projectId: logged.projectId!,
                                 projectName: logged.projectName!,
-                                initialSection: 1, // Today Attendance
+                                initialSection: 1,
                               ),
                             ),
                           );
@@ -275,14 +453,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 12),
 
-              // Status Toggle & Site Selector
+              // Status Toggle & Site Assignment Dropdown
               Wrap(
                 alignment: WrapAlignment.spaceBetween,
                 crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 12,
-                runSpacing: 10,
+                spacing: 10,
+                runSpacing: 8,
                 children: [
                   _buildStatusToggle(
                     context: context,
@@ -336,7 +514,6 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final int present = logged.where((a) => a.status.toLowerCase() == 'present').length;
     final int absent = totalActive - present;
 
-    // Calculate today's wage payout for present workers
     double todayPayroll = 0;
     for (final l in logged) {
       if (l.status.toLowerCase() == 'present') {
@@ -348,10 +525,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     }
 
     return Container(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AppColors.cardBg(context),
-        borderRadius: BorderRadius.circular(14),
+        color: AppColors.bg(context),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: AppColors.border(context)),
       ),
       child: Row(
@@ -369,7 +546,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   Widget _buildSummaryCol(BuildContext context, String label, String count, Color color) {
     return Column(
       children: [
-        Text(count, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color)),
+        Text(count, style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: color)),
         const SizedBox(height: 2),
         Text(label, style: TextStyle(fontSize: 10, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
       ],
@@ -403,11 +580,11 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       onTap: () => onSelected(status),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
         decoration: BoxDecoration(
           color: isActive ? activeColor : activeColor.withValues(alpha: 0.1),
           border: Border.all(color: isActive ? activeColor : activeColor.withValues(alpha: 0.3)),
-          borderRadius: BorderRadius.circular(10),
+          borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -439,10 +616,10 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     required Function(String? projectId) onProjectSelected,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(8),
         border: Border.all(color: AppColors.border(context)),
       ),
       child: Row(

@@ -13,30 +13,30 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
   @override
   Future<List<Attendance>> getAttendanceForDate(String date) async {
     try {
-      // Try with project join first
+      // The attendance table has: id, employee_id, date, morning_status,
+      // evening_status, created_at, updated_at.
+      // Join employees(name) for display. No project FK exists in the table.
       final response = await _client
           .from('attendance')
-          .select('*, employees(name), projects(name)')
+          .select('*, employees(name)')
           .eq('date', date);
 
       return (response as List).map((json) {
         final employeeName = (json['employees'] as Map?)?['name'] as String?;
-        final projectName = (json['projects'] as Map?)?['name'] as String?;
-        return Attendance.fromJson(json, employeeName: employeeName, projectName: projectName);
+        return Attendance.fromJson(json, employeeName: employeeName);
       }).toList();
     } catch (e) {
-      debugPrint('[Attendance] getAttendanceForDate with project join failed: $e');
-      // Fallback without project join (project_id column may not exist)
+      debugPrint('[Attendance] getAttendanceForDate failed: $e');
+      // Fallback: plain select without join
       try {
         final response = await _client
             .from('attendance')
-            .select('*, employees(name)')
+            .select('*')
             .eq('date', date);
 
-        return (response as List).map((json) {
-          final employeeName = (json['employees'] as Map?)?['name'] as String?;
-          return Attendance.fromJson(json, employeeName: employeeName);
-        }).toList();
+        return (response as List)
+            .map((json) => Attendance.fromJson(json))
+            .toList();
       } catch (e2) {
         debugPrint('[Attendance] getAttendanceForDate fallback also failed: $e2');
         return [];
@@ -46,78 +46,52 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> saveAttendance(Attendance attendance) async {
-    final payload = attendance.toJson();
+    final payload = attendance.toJson(); // {employee_id, date, morning_status, evening_status}
     debugPrint('[Attendance] saveAttendance payload: $payload');
 
-    // ── Strategy: Manual select → update/insert.
-    //    This avoids depending on a UNIQUE constraint on (employee_id, date)
-    //    which may not exist in the Supabase table. ──
-
     try {
-      // 1. Check if a record already exists for this employee + date
-      final existing = await _client
+      // Step 1: Check if a record already exists for this employee + date
+      final response = await _client
           .from('attendance')
           .select('id')
           .eq('employee_id', attendance.employeeId)
-          .eq('date', attendance.date)
-          .maybeSingle();
+          .eq('date', attendance.date);
 
-      if (existing != null) {
-        // 2a. UPDATE existing record
-        final updatePayload = Map<String, dynamic>.from(payload);
-        updatePayload.remove('id'); // Don't update the primary key
-        updatePayload.remove('employee_id'); // Don't update the match key
-        updatePayload.remove('date'); // Don't update the match key
+      final existingList = response as List;
+
+      if (existingList.isNotEmpty) {
+        // UPDATE the existing record
+        final existingId = existingList.first['id'] as String;
+        final updateData = attendance.toUpdateJson(); // {morning_status, evening_status}
 
         await _client
             .from('attendance')
-            .update(updatePayload)
-            .eq('id', existing['id'] as String);
+            .update(updateData)
+            .eq('id', existingId);
 
-        debugPrint('[Attendance] saveAttendance UPDATED existing record id=${existing['id']}');
+        debugPrint('[Attendance] saveAttendance UPDATED record id=$existingId');
+
+        // Clean up any duplicate records
+        if (existingList.length > 1) {
+          for (int i = 1; i < existingList.length; i++) {
+            final dupId = existingList[i]['id'] as String;
+            try {
+              await _client.from('attendance').delete().eq('id', dupId);
+              debugPrint('[Attendance] Cleaned duplicate id=$dupId');
+            } catch (_) {}
+          }
+        }
       } else {
-        // 2b. INSERT new record
-        final insertPayload = Map<String, dynamic>.from(payload);
-        insertPayload.remove('id'); // Let Supabase auto-generate UUID
-
-        await _client.from('attendance').insert(insertPayload);
+        // INSERT new record — do NOT include 'id', let DB auto-generate
+        await _client.from('attendance').insert(payload);
         debugPrint('[Attendance] saveAttendance INSERTED new record');
       }
     } catch (e) {
-      debugPrint('[Attendance] saveAttendance with project_id failed: $e');
-
-      // Retry without project_id (column may not exist in table)
-      try {
-        final minPayload = <String, dynamic>{
-          'employee_id': attendance.employeeId,
-          'date': attendance.date,
-          'status': attendance.status,
-        };
-
-        final existing = await _client
-            .from('attendance')
-            .select('id')
-            .eq('employee_id', attendance.employeeId)
-            .eq('date', attendance.date)
-            .maybeSingle();
-
-        if (existing != null) {
-          await _client
-              .from('attendance')
-              .update({'status': attendance.status})
-              .eq('id', existing['id'] as String);
-          debugPrint('[Attendance] saveAttendance UPDATED (fallback, no project_id)');
-        } else {
-          await _client.from('attendance').insert(minPayload);
-          debugPrint('[Attendance] saveAttendance INSERTED (fallback, no project_id)');
-        }
-      } catch (e2) {
-        debugPrint('[Attendance] saveAttendance FINAL FAILURE: $e2');
-        rethrow;
-      }
+      debugPrint('[Attendance] saveAttendance FAILED: $e');
+      rethrow; // Let controller surface the real error
     }
 
-    // Log activity (non-critical — don't let failures here break attendance)
+    // Log activity (best-effort, never block on failure)
     try {
       await _activityRepo.logActivity(
         actionType: 'updated_attendance',
@@ -126,7 +100,6 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         details: {
           'date': attendance.date,
           'status': attendance.status,
-          'project_id': attendance.projectId ?? '',
           'employee_name': attendance.employeeName ?? '',
         },
       );
@@ -135,81 +108,39 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<List<Attendance>> getAttendanceHistory(String employeeId) async {
-    final response = await _client
-        .from('attendance')
-        .select()
-        .eq('employee_id', employeeId)
-        .order('date', ascending: false);
-    return (response as List).map((json) => Attendance.fromJson(json)).toList();
+    try {
+      final response = await _client
+          .from('attendance')
+          .select('*, employees(name)')
+          .eq('employee_id', employeeId)
+          .order('date', ascending: false);
+      return (response as List).map((json) {
+        final employeeName = (json['employees'] as Map?)?['name'] as String?;
+        return Attendance.fromJson(json, employeeName: employeeName);
+      }).toList();
+    } catch (_) {
+      final response = await _client
+          .from('attendance')
+          .select()
+          .eq('employee_id', employeeId)
+          .order('date', ascending: false);
+      return (response as List).map((json) => Attendance.fromJson(json)).toList();
+    }
   }
 
   @override
   Future<List<Attendance>> getAttendanceForProject(String projectId, String date) async {
-    try {
-      final response = await _client
-          .from('attendance')
-          .select('*, employees(name), projects(name)')
-          .eq('project_id', projectId)
-          .eq('date', date);
-
-      return (response as List).map((json) {
-        final employeeName = (json['employees'] as Map?)?['name'] as String?;
-        final projectName = (json['projects'] as Map?)?['name'] as String?;
-        return Attendance.fromJson(json, employeeName: employeeName, projectName: projectName);
-      }).toList();
-    } catch (_) {
-      try {
-        final response = await _client
-            .from('attendance')
-            .select('*, employees(name)')
-            .eq('project_id', projectId)
-            .eq('date', date);
-
-        return (response as List).map((json) {
-          final employeeName = (json['employees'] as Map?)?['name'] as String?;
-          return Attendance.fromJson(json, employeeName: employeeName);
-        }).toList();
-      } catch (_) {
-        return [];
-      }
-    }
+    // NOTE: The attendance table does NOT have a project_id column.
+    // This method returns an empty list since we can't filter by project at DB level.
+    // Project assignment is handled at the UI/memory level only.
+    debugPrint('[Attendance] getAttendanceForProject called but project_id column does not exist in DB — returning empty list');
+    return [];
   }
 
   @override
   Future<List<Attendance>> getAttendanceHistoryForProject(String projectId, {int days = 7}) async {
-    final now = DateTime.now();
-    final startDate = now.subtract(Duration(days: days));
-    final startStr = startDate.toIso8601String().substring(0, 10);
-
-    try {
-      final response = await _client
-          .from('attendance')
-          .select('*, employees(name), projects(name)')
-          .eq('project_id', projectId)
-          .gte('date', startStr)
-          .order('date', ascending: false);
-
-      return (response as List).map((json) {
-        final employeeName = (json['employees'] as Map?)?['name'] as String?;
-        final projectName = (json['projects'] as Map?)?['name'] as String?;
-        return Attendance.fromJson(json, employeeName: employeeName, projectName: projectName);
-      }).toList();
-    } catch (_) {
-      try {
-        final response = await _client
-            .from('attendance')
-            .select('*, employees(name)')
-            .eq('project_id', projectId)
-            .gte('date', startStr)
-            .order('date', ascending: false);
-
-        return (response as List).map((json) {
-          final employeeName = (json['employees'] as Map?)?['name'] as String?;
-          return Attendance.fromJson(json, employeeName: employeeName);
-        }).toList();
-      } catch (_) {
-        return [];
-      }
-    }
+    // NOTE: The attendance table does NOT have a project_id column.
+    debugPrint('[Attendance] getAttendanceHistoryForProject called but project_id column does not exist in DB — returning empty list');
+    return [];
   }
 }

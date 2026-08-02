@@ -7,6 +7,7 @@ import '../../domain/repositories/attendance_repository.dart';
 import '../../data/models/attendance_model.dart';
 import '../../../employees/presentation/controllers/employee_controller.dart';
 import '../../../employees/data/models/employee_model.dart';
+import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
@@ -17,29 +18,41 @@ final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
 
 class AttendanceState {
   final bool isLoading;
+  final String selectedDate;
   final List<Attendance> attendanceList;
   final List<Employee> activeEmployees;
+  /// Key: "${employeeId}_${date}", Value: projectId
+  final Map<String, String> siteAssignments;
   final String? error;
   final String? successMessage;
 
   AttendanceState({
     required this.isLoading,
+    required this.selectedDate,
     required this.attendanceList,
     required this.activeEmployees,
+    required this.siteAssignments,
     this.error,
     this.successMessage,
   });
 
-  factory AttendanceState.initial() => AttendanceState(
-        isLoading: false,
-        attendanceList: [],
-        activeEmployees: [],
-      );
+  factory AttendanceState.initial() {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    return AttendanceState(
+      isLoading: false,
+      selectedDate: today,
+      attendanceList: [],
+      activeEmployees: [],
+      siteAssignments: {},
+    );
+  }
 
   AttendanceState copyWith({
     bool? isLoading,
+    String? selectedDate,
     List<Attendance>? attendanceList,
     List<Employee>? activeEmployees,
+    Map<String, String>? siteAssignments,
     String? error,
     String? successMessage,
     bool clearError = false,
@@ -47,8 +60,10 @@ class AttendanceState {
   }) {
     return AttendanceState(
       isLoading: isLoading ?? this.isLoading,
+      selectedDate: selectedDate ?? this.selectedDate,
       attendanceList: attendanceList ?? this.attendanceList,
       activeEmployees: activeEmployees ?? this.activeEmployees,
+      siteAssignments: siteAssignments ?? this.siteAssignments,
       error: clearError ? null : (error ?? this.error),
       successMessage: clearSuccess ? null : (successMessage ?? this.successMessage),
     );
@@ -60,38 +75,82 @@ class AttendanceController extends StateNotifier<AttendanceState> {
   final Ref _ref;
 
   AttendanceController(this._repository, this._ref) : super(AttendanceState.initial()) {
-    loadAttendanceForToday();
+    loadAttendanceForDate(state.selectedDate);
   }
 
   Future<void> loadAttendanceForToday({bool showLoading = true}) async {
+    final today = DateTime.now().toIso8601String().substring(0, 10);
+    await loadAttendanceForDate(today, showLoading: showLoading);
+  }
+
+  Future<void> loadAttendanceForDate(String date, {bool showLoading = true}) async {
     if (showLoading && state.activeEmployees.isEmpty) {
-      state = state.copyWith(isLoading: true);
+      state = state.copyWith(isLoading: true, selectedDate: date);
+    } else {
+      state = state.copyWith(selectedDate: date);
     }
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    debugPrint('[AttendanceCtrl] Loading attendance for $todayStr');
+
+    debugPrint('[AttendanceCtrl] Loading attendance for date: $date');
     try {
       // 1. Fetch active employees
       final employees = await _ref.read(employeeRepositoryProvider).getEmployees();
       final active = employees.where((e) => e.status.toLowerCase() == 'active').toList();
-      debugPrint('[AttendanceCtrl] Active employees: ${active.length}');
 
       // 2. Fetch logged attendance from DB
-      final logged = await _repository.getAttendanceForDate(todayStr);
-      debugPrint('[AttendanceCtrl] Logged attendance from DB: ${logged.length} records');
+      final logged = await _repository.getAttendanceForDate(date);
+      debugPrint('[AttendanceCtrl] Logged DB records for $date: ${logged.length}');
+
+      // 3. Get existing projects to resolve project names
+      final projects = _ref.read(projectControllerProvider).projects;
+
+      // 4. Merge DB attendance records with site assignments
+      final Map<String, Attendance> mergedMap = {};
+
       for (final l in logged) {
-        debugPrint('  → ${l.employeeId} | status=${l.status} | project=${l.projectId}');
+        final assignedProjId = state.siteAssignments['${l.employeeId}_$date'] ?? l.projectId;
+        final projMatch = projects.where((p) => p.id == assignedProjId);
+        final projName = projMatch.isNotEmpty ? projMatch.first.name : l.projectName;
+
+        mergedMap[l.employeeId] = l.copyWith(
+          projectId: assignedProjId,
+          projectName: projName,
+        );
+      }
+
+      // Also ensure active employees with site assignments exist in attendanceList
+      for (final emp in active) {
+        final savedProjId = state.siteAssignments['${emp.id}_$date'];
+        if (!mergedMap.containsKey(emp.id) && savedProjId != null) {
+          final projMatch = projects.where((p) => p.id == savedProjId);
+          final projName = projMatch.isNotEmpty ? projMatch.first.name : null;
+
+          mergedMap[emp.id] = Attendance(
+            id: '',
+            employeeId: emp.id,
+            date: date,
+            status: 'Absent',
+            projectId: savedProjId,
+            employeeName: emp.name,
+            projectName: projName,
+          );
+        }
       }
 
       state = state.copyWith(
         isLoading: false,
         activeEmployees: active,
-        attendanceList: logged,
+        attendanceList: mergedMap.values.toList(),
         clearError: true,
       );
     } catch (e) {
-      debugPrint('[AttendanceCtrl] loadAttendanceForToday FAILED: $e');
+      debugPrint('[AttendanceCtrl] loadAttendanceForDate FAILED: $e');
       state = state.copyWith(isLoading: false, error: 'Failed to load attendance: $e');
     }
+  }
+
+  Future<void> changeSelectedDate(DateTime date) async {
+    final dateStr = date.toIso8601String().substring(0, 10);
+    await loadAttendanceForDate(dateStr, showLoading: true);
   }
 
   Future<bool> markAttendance({
@@ -99,24 +158,36 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     required String status,
     String? projectId,
   }) async {
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    final dateStr = state.selectedDate;
     final normalizedStatus = status.toLowerCase() == 'present' ? 'Present' : 'Absent';
 
-    debugPrint('[AttendanceCtrl] markAttendance: employee=$employeeId, status=$normalizedStatus, project=$projectId');
+    debugPrint('[AttendanceCtrl] markAttendance: employee=$employeeId, status=$normalizedStatus, date=$dateStr, project=$projectId');
 
-    // 1. Optimistic UI update
+    // 1. Update site assignments map if projectId is provided
+    final updatedAssignments = Map<String, String>.from(state.siteAssignments);
+    final existingAssignmentKey = '${employeeId}_$dateStr';
+
     final updatedList = List<Attendance>.from(state.attendanceList);
     final existingIdx = updatedList.indexWhere((a) => a.employeeId == employeeId);
     final currentRecord = existingIdx >= 0 ? updatedList[existingIdx] : null;
 
+    final assignedProjId = projectId ?? currentRecord?.projectId ?? updatedAssignments[existingAssignmentKey];
+    if (assignedProjId != null && assignedProjId.isNotEmpty) {
+      updatedAssignments[existingAssignmentKey] = assignedProjId;
+    }
+
+    final projects = _ref.read(projectControllerProvider).projects;
+    final projMatch = projects.where((p) => p.id == assignedProjId);
+    final projName = projMatch.isNotEmpty ? projMatch.first.name : currentRecord?.projectName;
+
     final newRecord = Attendance(
       id: currentRecord?.id ?? '',
       employeeId: employeeId,
-      date: todayStr,
+      date: dateStr,
       status: normalizedStatus,
-      projectId: projectId ?? currentRecord?.projectId,
+      projectId: assignedProjId,
       employeeName: currentRecord?.employeeName,
-      projectName: currentRecord?.projectName,
+      projectName: projName,
     );
 
     if (existingIdx >= 0) {
@@ -125,30 +196,66 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       updatedList.add(newRecord);
     }
 
-    state = state.copyWith(attendanceList: updatedList, clearError: true);
+    // Apply immediate state update so UI shows assigned site immediately
+    state = state.copyWith(
+      attendanceList: updatedList,
+      siteAssignments: updatedAssignments,
+      clearError: true,
+    );
 
     // 2. Persist to backend
     try {
       await _repository.saveAttendance(newRecord);
       debugPrint('[AttendanceCtrl] markAttendance PERSISTED successfully');
 
-      // Refresh dashboard stats so KPIs update (Workers Present, etc.)
+      // Refresh dashboard stats & invalidations
       _ref.invalidate(dashboardStatsProvider);
 
-      // Re-fetch from DB to get the actual saved state (with real IDs)
-      await loadAttendanceForToday(showLoading: false);
+      // Re-fetch DB records without wiping out in-memory site assignments
+      await loadAttendanceForDate(dateStr, showLoading: false);
       return true;
     } catch (e) {
       debugPrint('[AttendanceCtrl] markAttendance FAILED to persist: $e');
 
-      // ROLLBACK optimistic update — revert to what DB actually has
-      await loadAttendanceForToday(showLoading: false);
+      // ROLLBACK optimistic update
+      await loadAttendanceForDate(dateStr, showLoading: false);
 
       state = state.copyWith(
-        error: 'Failed to save attendance. Please check your connection and try again.',
+        error: 'Attendance save error: $e',
       );
       return false;
     }
+  }
+
+  /// Bulk action: Mark all currently active employees as Present
+  Future<void> markAllPresent({String? defaultProjectId}) async {
+    final active = state.activeEmployees;
+    if (active.isEmpty) return;
+
+    state = state.copyWith(isLoading: true);
+    for (final emp in active) {
+      await markAttendance(
+        employeeId: emp.id,
+        status: 'Present',
+        projectId: defaultProjectId,
+      );
+    }
+    state = state.copyWith(isLoading: false, successMessage: 'All workers marked Present! ✓');
+  }
+
+  /// Bulk action: Mark all currently active employees as Absent
+  Future<void> markAllAbsent() async {
+    final active = state.activeEmployees;
+    if (active.isEmpty) return;
+
+    state = state.copyWith(isLoading: true);
+    for (final emp in active) {
+      await markAttendance(
+        employeeId: emp.id,
+        status: 'Absent',
+      );
+    }
+    state = state.copyWith(isLoading: false, successMessage: 'All workers marked Absent.');
   }
 }
 
@@ -167,40 +274,23 @@ class ProjectAttendanceData {
 }
 
 /// Provider that fetches attendance scoped to a specific project.
-/// Returns today's records + past history for the project, merged with in-memory state.
 final projectAttendanceProvider =
     FutureProvider.family<ProjectAttendanceData, String>((ref, projectId) async {
-  final repo = ref.watch(attendanceRepositoryProvider);
-  final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-
-  // Fetch DB records for today and past 365 days for this project
-  final dbToday = await repo.getAttendanceForProject(projectId, todayStr);
-  final dbHistory = await repo.getAttendanceHistoryForProject(projectId, days: 365);
-
-  // Merge with in-memory attendanceControllerProvider state for instant UI updates
   final globalState = ref.watch(attendanceControllerProvider);
-  final memoryToday = globalState.attendanceList.where((a) => a.projectId == projectId && (a.date.isEmpty || a.date == todayStr)).toList();
+  final selectedDate = globalState.selectedDate;
 
-  final Map<String, Attendance> mergedTodayMap = {};
-  for (final r in dbToday) {
-    mergedTodayMap[r.employeeId] = r;
-  }
-  for (final r in memoryToday) {
-    mergedTodayMap[r.employeeId] = r;
-  }
+  // 1. Get records from current attendance list for this project
+  final todayRecords = globalState.attendanceList.where((a) {
+    return a.projectId == projectId && (a.date.isEmpty || a.date == selectedDate);
+  }).toList();
 
-  final Map<String, Attendance> mergedHistoryMap = {};
-  for (final r in dbHistory) {
-    mergedHistoryMap['${r.employeeId}_${r.date}'] = r;
-  }
-  for (final r in globalState.attendanceList) {
-    if (r.projectId == projectId && r.date.isNotEmpty) {
-      mergedHistoryMap['${r.employeeId}_${r.date}'] = r;
-    }
-  }
+  // 2. Get history records for this project
+  final historyRecords = globalState.attendanceList.where((a) {
+    return a.projectId == projectId && a.date.isNotEmpty && a.date != selectedDate;
+  }).toList();
 
   return ProjectAttendanceData(
-    todayRecords: mergedTodayMap.values.toList(),
-    recentHistory: mergedHistoryMap.values.toList(),
+    todayRecords: todayRecords,
+    recentHistory: historyRecords,
   );
 });

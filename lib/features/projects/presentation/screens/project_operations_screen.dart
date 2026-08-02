@@ -340,6 +340,95 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     );
   }
 
+  void _showDeployWorkerSheet(BuildContext context) {
+    final globalState = ref.read(attendanceControllerProvider);
+    final activeEmployees = globalState.activeEmployees;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.cardBg(context),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            final currentAttendance = ref.watch(attendanceControllerProvider).attendanceList;
+            return Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text(
+                        'Deploy Workers to Site',
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.close),
+                        onPressed: () => Navigator.of(context).pop(),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  if (activeEmployees.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(16),
+                      child: Text('No active employees available to deploy.'),
+                    )
+                  else
+                    Flexible(
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: activeEmployees.length,
+                        itemBuilder: (context, idx) {
+                          final emp = activeEmployees[idx];
+                          final match = currentAttendance.where((a) => a.employeeId == emp.id);
+                          final currentRecord = match.isNotEmpty ? match.first : null;
+                          final isAssignedHere = currentRecord?.projectId == widget.projectId;
+
+                          return ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isAssignedHere ? AppColors.secondary : AppColors.primaryColor(context),
+                              child: Text(
+                                emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'W',
+                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                            title: Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                            subtitle: Text('${emp.role} • \u20B9${emp.salary.toInt()}/day', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                            trailing: ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: isAssignedHere ? AppColors.secondary : AppColors.primaryColor(context),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                              onPressed: () async {
+                                await ref.read(attendanceControllerProvider.notifier).markAttendance(
+                                  employeeId: emp.id,
+                                  status: 'Present',
+                                  projectId: widget.projectId,
+                                );
+                                setModalState(() {});
+                              },
+                              child: Text(isAssignedHere ? 'Deployed ✓' : 'Deploy Here'),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   // 1. Project-Scoped Attendance Tab
   Widget _buildAttendanceTab() {
     final projectAttendanceAsync = ref.watch(projectAttendanceProvider(widget.projectId));
@@ -371,10 +460,25 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                     'Workers on site: ${todayRecords.where((r) => r.status == 'Present').length} present • ${todayRecords.where((r) => r.status != 'Present').length} absent',
                     style: TextStyle(color: AppColors.mutedText(context)),
                   ),
-                  trailing: IconButton(
-                    onPressed: () => ref.invalidate(projectAttendanceProvider(widget.projectId)),
-                    icon: Icon(Icons.refresh, color: AppColors.primaryColor(context), size: 20),
-                    tooltip: 'Refresh',
+                  trailing: Wrap(
+                    spacing: 4,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => _showDeployWorkerSheet(context),
+                        icon: const Icon(Icons.person_add_alt_1, size: 16),
+                        label: const Text('Deploy', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor(context),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                        ),
+                      ),
+                      IconButton(
+                        onPressed: () => ref.invalidate(projectAttendanceProvider(widget.projectId)),
+                        icon: Icon(Icons.refresh, color: AppColors.primaryColor(context), size: 20),
+                        tooltip: 'Refresh',
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -395,8 +499,18 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Assign workers from the main Attendance tab to deploy them here.',
+                          'Deploy workers here or assign them from the main Attendance tab.',
                           style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () => _showDeployWorkerSheet(context),
+                          icon: const Icon(Icons.person_add_alt_1),
+                          label: const Text('Deploy Workers to This Site'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.primaryColor(context),
+                            foregroundColor: Colors.white,
+                          ),
                         ),
                       ],
                     ),
