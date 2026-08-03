@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/document_number_generator.dart';
 import '../../data/models/bill_model.dart';
 import '../controllers/billing_controller.dart';
 import '../../../../features/projects/presentation/controllers/project_controller.dart';
@@ -26,8 +27,8 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
   @override
   void initState() {
     super.initState();
-    _billNumberController =
-        TextEditingController(text: widget.bill?.billNumber ?? '');
+    final initialBillNo = widget.bill?.billNumber ?? DocumentNumberGenerator.generateBillNumber();
+    _billNumberController = TextEditingController(text: initialBillNo);
     _amountController =
         TextEditingController(text: widget.bill?.amount.toString() ?? '');
     _notesController =
@@ -166,15 +167,39 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                     ),
                     const SizedBox(height: 20),
 
-                    // Bill Number
-                    const Text('Bill Number',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    // Bill Number (Auto-Generated & Verified)
+                    Row(
+                      children: [
+                        const Text('Bill Number',
+                            style: TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondary.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: const [
+                              Icon(Icons.lock_outline, size: 12, color: AppColors.secondary),
+                              SizedBox(width: 4),
+                              Text('Auto-Generated (Anti-Fraud)',
+                                  style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _billNumberController,
+                      readOnly: true,
                       decoration: const InputDecoration(
-                          hintText: 'e.g. INV-001'),
+                        suffixIcon: Icon(Icons.verified_user_outlined, color: AppColors.secondary, size: 20),
+                        helperText: 'Standardized anti-fraud authentic bill number',
+                      ),
                       validator: (v) => v == null || v.isEmpty
                           ? 'Please enter bill number'
                           : null,

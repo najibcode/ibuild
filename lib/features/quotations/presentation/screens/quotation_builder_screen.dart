@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../../../core/utils/document_number_generator.dart';
 import '../../data/models/quotation_model.dart';
 import '../../data/repositories/supabase_quotation_repository.dart';
 
@@ -26,6 +27,7 @@ class _QuotationBuilderScreenState extends ConsumerState<QuotationBuilderScreen>
   final _clientNameCtrl = TextEditingController();
   final _clientPhoneCtrl = TextEditingController();
   final _notesCtrl = TextEditingController();
+  late String _quotationNumber;
   final List<QuotationBuilderItem> _rows = [];
   bool _isSaving = false;
 
@@ -34,6 +36,7 @@ class _QuotationBuilderScreenState extends ConsumerState<QuotationBuilderScreen>
   @override
   void initState() {
     super.initState();
+    _quotationNumber = widget.quotation?.quotationNumber ?? DocumentNumberGenerator.generateQuotationNumber();
     if (widget.quotation != null) {
       _clientNameCtrl.text = widget.quotation!.clientName;
       _clientPhoneCtrl.text = widget.quotation!.clientPhone ?? '';
@@ -74,32 +77,25 @@ class _QuotationBuilderScreenState extends ConsumerState<QuotationBuilderScreen>
       final client = ref.read(supabaseClientProvider);
       final repo = SupabaseQuotationRepository(client);
 
-      final qNumber = widget.quotation?.quotationNumber ?? 'QTN-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-
       final newQuotation = Quotation(
         id: widget.quotation?.id ?? '',
-        quotationNumber: qNumber,
+        quotationNumber: _quotationNumber,
         clientName: _clientNameCtrl.text.trim(),
         clientPhone: _clientPhoneCtrl.text.trim().isEmpty ? null : _clientPhoneCtrl.text.trim(),
         totalAmount: _subtotal,
-        taxAmount: _tax,
-        grandTotal: _grandTotal,
         status: 'Draft',
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),
-        createdAt: DateTime.now(),
+        createdAt: DateTime.now().toIso8601String(),
+        items: _rows.map((r) => QuotationItem(
+          particular: r.descriptionCtrl.text.trim().isEmpty ? 'Item' : r.descriptionCtrl.text.trim(),
+          unit: r.unit,
+          quantity: double.tryParse(r.qtyCtrl.text) ?? 1.0,
+          unitRate: double.tryParse(r.priceCtrl.text) ?? 0.0,
+          totalCost: r.total,
+        )).toList(),
       );
 
-      final items = _rows.map((r) => QuotationItem(
-        id: '',
-        quotationId: '',
-        itemDescription: r.descriptionCtrl.text.trim().isEmpty ? 'Item' : r.descriptionCtrl.text.trim(),
-        unit: r.unit,
-        quantity: double.tryParse(r.qtyCtrl.text) ?? 1.0,
-        unitPrice: double.tryParse(r.priceCtrl.text) ?? 0.0,
-        totalPrice: r.total,
-      )).toList();
-
-      await repo.createQuotation(newQuotation, items);
+      await repo.createQuotation(newQuotation);
 
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -153,6 +149,16 @@ class _QuotationBuilderScreenState extends ConsumerState<QuotationBuilderScreen>
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Client Information', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              const SizedBox(height: 12),
+              TextField(
+                controller: TextEditingController(text: _quotationNumber),
+                readOnly: true,
+                decoration: const InputDecoration(
+                  labelText: 'Quotation / Estimate No.',
+                  helperText: 'Auto-generated anti-fraud number',
+                  suffixIcon: Icon(Icons.verified_user_outlined, color: AppColors.secondary, size: 20),
+                ),
+              ),
               const SizedBox(height: 12),
               Row(
                 children: [

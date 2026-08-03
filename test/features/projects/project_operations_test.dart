@@ -3,6 +3,7 @@ import 'package:ibuild/features/projects/data/models/project_model.dart';
 import 'package:ibuild/features/checklists/data/models/checklist_model.dart';
 import 'package:ibuild/features/sales_bills/data/models/sales_bill_model.dart';
 import 'package:ibuild/features/payments/data/models/payment_model.dart';
+import 'package:ibuild/features/quotations/data/models/quotation_model.dart';
 
 void main() {
   group('Project Operations & Site-Centered Model Tests', () {
@@ -107,6 +108,21 @@ void main() {
       final json = payment.toJson();
       expect(json['payment_type'], equals('Received'));
       expect(json['reference_no'], equals('TXN-987654321'));
+    });
+
+    test('Quotation model serialization with auto-generated document number', () {
+      final quotation = Quotation(
+        id: 'qtn-101',
+        clientName: 'Modern Build Corp',
+        subject: 'Foundation Work Estimate',
+        items: [],
+        totalAmount: 150000.0,
+      );
+
+      expect(quotation.quotationNumber.startsWith('EST-'), isTrue);
+      final json = quotation.toDbJson();
+      expect(json['quotation_number'], equals(quotation.quotationNumber));
+      expect(json['client_name'], equals('Modern Build Corp'));
     });
   });
 }

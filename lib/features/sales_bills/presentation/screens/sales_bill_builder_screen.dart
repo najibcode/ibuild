@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../../../core/utils/document_number_generator.dart';
 import '../../data/models/sales_bill_model.dart';
 import '../../data/repositories/supabase_sales_bill_repository.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
@@ -33,7 +34,7 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
   @override
   void initState() {
     super.initState();
-    _billNumberCtrl.text = 'INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+    _billNumberCtrl.text = DocumentNumberGenerator.generateSalesBillNumber();
     _addRow();
   }
 
@@ -150,7 +151,12 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                   Expanded(
                     child: TextField(
                       controller: _billNumberCtrl,
-                      decoration: const InputDecoration(labelText: 'Invoice / Bill No.'),
+                      readOnly: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Invoice / Bill No.',
+                        helperText: 'Auto-generated anti-fraud number',
+                        suffixIcon: Icon(Icons.verified_user_outlined, color: AppColors.secondary, size: 20),
+                      ),
                     ),
                   ),
                 ],

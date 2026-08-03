@@ -120,3 +120,20 @@ To prevent mixing client, vendor, and manager logic, we split presentation flows
 *   **Core Logic Shares the Same Domain**: Both Owner app and Client/Vendor portal use the same `ProjectRepository`.
 *   **Separate Presentation Layers**: Create distinct screen directories (e.g. `lib/features/projects/presentation/screens_portal/`) to isolate portal UI components from internal supervisor UIs, while sharing underlying Riverpod state controllers.
 *   **Security at Database Level**: Secure access control at the database schema using Supabase RLS (Row Level Security), not app code.
+
+---
+
+## 5. Standardized Document Numbering & Anti-Fraud Authentication Strategy
+
+To prevent fraudulent document generation and ensure standardized presentation across financial records, all document-issuing modules (Bills, Sales Bills, and Quotations/Estimates) share a single unified `DocumentNumberGenerator` model.
+
+### Numbering Specification
+*   **Bills (Vendor & Operational Expenses)**: `BILL-YYYYMMDD-XXXX` (e.g., `BILL-20260803-7A3B`)
+*   **Sales Bills (Client Invoices)**: `INV-YYYYMMDD-XXXX` (e.g., `INV-20260803-5E1F`)
+*   **Quotations & Estimates**: `EST-YYYYMMDD-XXXX` (e.g., `EST-20260803-9C2D`)
+
+### Authenticity Verification Mechanics
+1. **Deterministic Checksum**: The 4-character suffix (`XXXX`) is computed using an anti-tamper checksum function based on document date, seed, and prefix.
+2. **Format & Authenticity Checks**: The core service provides `verifyAuthenticity(number)` to validate format structural integrity and verify that document numbers have not been arbitrarily altered or manually forged.
+3. **Immutability in Presentation**: Creation screens enforce read-only presentation of document numbers with visual anti-fraud badges, removing manual entry error vectors.
+

@@ -384,11 +384,20 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                               quotation.clientName,
                               style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
                             ),
-                            if (quotation.clientPhone != null)
-                              Text(
-                                quotation.clientPhone!,
-                                style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
-                              ),
+                            Row(
+                              children: [
+                                Text(
+                                  quotation.quotationNumber,
+                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                                ),
+                                if (quotation.clientPhone != null) ...[
+                                  Text(
+                                    ' • ${quotation.clientPhone!}',
+                                    style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                                  ),
+                                ],
+                              ],
+                            ),
                           ],
                         ),
                       ],

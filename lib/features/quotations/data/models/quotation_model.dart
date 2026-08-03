@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import '../../../../core/utils/document_number_generator.dart';
 
 class QuotationItem {
   final String particular;
@@ -58,6 +59,7 @@ class Quotation {
   final String id;
   final String? projectId;
   final String? projectName;
+  final String quotationNumber;
   final String clientName;
   final String? clientPhone;
   final String subject;
@@ -73,6 +75,7 @@ class Quotation {
     required this.id,
     this.projectId,
     this.projectName,
+    String? quotationNumber,
     required this.clientName,
     this.clientPhone,
     required this.subject,
@@ -83,7 +86,8 @@ class Quotation {
     this.notes,
     this.createdAt,
     this.updatedAt,
-  }) : totalAmount = totalAmount ?? items.fold(0.0, (sum, i) => sum + i.totalCost);
+  })  : quotationNumber = quotationNumber ?? DocumentNumberGenerator.generateQuotationNumber(),
+        totalAmount = totalAmount ?? items.fold(0.0, (sum, i) => sum + i.totalCost);
 
   factory Quotation.fromJson(Map<String, dynamic> json) {
     String parsedSubject = json['subject'] as String? ?? 'Construction Estimate';
@@ -124,6 +128,7 @@ class Quotation {
       id: json['id'] as String? ?? '',
       projectId: json['project_id'] as String?,
       projectName: json['projects'] != null ? json['projects']['name'] as String? : json['project_name'] as String?,
+      quotationNumber: json['quotation_number'] as String? ?? DocumentNumberGenerator.generateQuotationNumber(),
       clientName: json['client_name'] as String? ?? 'Direct Client',
       clientPhone: json['client_phone'] as String?,
       subject: parsedSubject,
@@ -147,6 +152,7 @@ class Quotation {
     final String encodedNotes = '---QUOTATION_DATA---\n${jsonEncode(itemsData)}';
 
     final map = <String, dynamic>{
+      'quotation_number': quotationNumber,
       'client_name': clientName,
       'client_phone': clientPhone,
       'status': status,
@@ -166,6 +172,7 @@ class Quotation {
     String? id,
     String? projectId,
     String? projectName,
+    String? quotationNumber,
     String? clientName,
     String? clientPhone,
     String? subject,
@@ -181,6 +188,7 @@ class Quotation {
       id: id ?? this.id,
       projectId: projectId ?? this.projectId,
       projectName: projectName ?? this.projectName,
+      quotationNumber: quotationNumber ?? this.quotationNumber,
       clientName: clientName ?? this.clientName,
       clientPhone: clientPhone ?? this.clientPhone,
       subject: subject ?? this.subject,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/document_number_generator.dart';
 import '../../data/models/quotation_model.dart';
 import '../controllers/quotation_controller.dart';
 import '../../../../features/projects/presentation/controllers/project_controller.dart';
@@ -16,6 +17,7 @@ class QuotationFormScreen extends ConsumerStatefulWidget {
 
 class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
   final _formKey = GlobalKey<FormState>();
+  late TextEditingController _quotationNumberCtrl;
   late TextEditingController _clientNameCtrl;
   late TextEditingController _clientPhoneCtrl;
   late TextEditingController _subjectCtrl;
@@ -32,6 +34,7 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
   void initState() {
     super.initState();
     final q = widget.quotation;
+    _quotationNumberCtrl = TextEditingController(text: q?.quotationNumber ?? DocumentNumberGenerator.generateQuotationNumber());
     _clientNameCtrl = TextEditingController(text: q?.clientName ?? '');
     _clientPhoneCtrl = TextEditingController(text: q?.clientPhone ?? '');
     _subjectCtrl = TextEditingController(text: q?.subject ?? 'Construction Project Estimate');
@@ -82,6 +85,7 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
 
   @override
   void dispose() {
+    _quotationNumberCtrl.dispose();
     _clientNameCtrl.dispose();
     _clientPhoneCtrl.dispose();
     _subjectCtrl.dispose();
@@ -144,6 +148,7 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
       final quotation = Quotation(
         id: widget.quotation?.id ?? '',
         projectId: _selectedProjectId,
+        quotationNumber: _quotationNumberCtrl.text.trim(),
         clientName: _clientNameCtrl.text.trim(),
         clientPhone: _clientPhoneCtrl.text.trim().isEmpty ? null : _clientPhoneCtrl.text.trim(),
         subject: _subjectCtrl.text.trim(),
@@ -210,6 +215,19 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                     Text('CLIENT & ESTIMATE DETAILS',
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
                     const SizedBox(height: 12),
+
+                    TextFormField(
+                      controller: _quotationNumberCtrl,
+                      readOnly: true,
+                      style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.w600),
+                      decoration: InputDecoration(
+                        labelText: 'Quotation / Estimate No.',
+                        helperText: 'Auto-generated anti-fraud estimate number',
+                        prefixIcon: Icon(Icons.receipt_long_outlined, color: AppColors.primaryColor(context)),
+                        suffixIcon: const Icon(Icons.verified_user_outlined, color: AppColors.secondary, size: 20),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
 
                     TextFormField(
                       controller: _clientNameCtrl,
