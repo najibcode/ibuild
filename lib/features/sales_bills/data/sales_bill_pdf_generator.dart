@@ -73,10 +73,7 @@ class SalesBillPdfGenerator {
                       pw.Text('BILLED TO:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 10, color: PdfColors.grey700)),
                       pw.SizedBox(height: 4),
                       pw.Text(bill.clientName, style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: darkColor)),
-                      if (bill.clientAddress != null && bill.clientAddress!.isNotEmpty)
-                        pw.Text(bill.clientAddress!, style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800)),
-                      if (bill.clientGstin != null && bill.clientGstin!.isNotEmpty)
-                        pw.Text('GSTIN: ${bill.clientGstin}', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800)),
+                      pw.Text('Construction Client Account', style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey800)),
                     ],
                   ),
                   pw.Column(
@@ -84,8 +81,8 @@ class SalesBillPdfGenerator {
                     children: [
                       pw.Text('INVOICE NO: ${bill.billNumber}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 12, color: primaryColor)),
                       pw.SizedBox(height: 4),
-                      pw.Text('Invoice Date: ${bill.invoiceDate.toIso8601String().split('T').first}', style: const pw.TextStyle(fontSize: 10)),
-                      pw.Text('Due Date: ${bill.dueDate.toIso8601String().split('T').first}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Text('Invoice Date: ${bill.createdAt.toIso8601String().split('T').first}', style: const pw.TextStyle(fontSize: 10)),
+                      pw.Text('Due Date: ${bill.dueDate?.toIso8601String().split('T').first ?? "N/A"}', style: const pw.TextStyle(fontSize: 10)),
                       pw.Text('Status: ${bill.status.toUpperCase()}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: bill.status == 'Paid' ? PdfColors.green700 : PdfColors.orange800)),
                     ],
                   ),
@@ -94,7 +91,7 @@ class SalesBillPdfGenerator {
 
               pw.SizedBox(height: 24),
 
-              // Items Table
+              // Summary Calculations Table
               pw.TableHelper.fromTextArray(
                 context: context,
                 border: pw.TableBorder.all(color: PdfColors.grey300, width: 0.5),
@@ -103,17 +100,10 @@ class SalesBillPdfGenerator {
                 rowDecoration: const pw.BoxDecoration(color: PdfColors.white),
                 cellAlignment: pw.Alignment.centerLeft,
                 cellPadding: const pw.EdgeInsets.all(8),
-                headers: ['S.No', 'Item Description / Scope of Work', 'Qty', 'Unit Rate (₹)', 'Total (₹)'],
-                data: List.generate(bill.items.length, (index) {
-                  final item = bill.items[index];
-                  return [
-                    '${index + 1}',
-                    item.description,
-                    '${item.quantity}',
-                    '₹${item.unitPrice.toStringAsFixed(2)}',
-                    '₹${item.total.toStringAsFixed(2)}',
-                  ];
-                }),
+                headers: ['S.No', 'Description / Commercial Item', 'Status', 'Total (₹)'],
+                data: [
+                  ['1', 'Sales Bill Invoice #${bill.billNumber} for ${bill.clientName}', bill.status, '₹${bill.totalAmount.toStringAsFixed(2)}'],
+                ],
               ),
 
               pw.SizedBox(height: 16),
@@ -135,7 +125,7 @@ class SalesBillPdfGenerator {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Subtotal:', style: const pw.TextStyle(fontSize: 10)),
-                            pw.Text('₹${bill.subtotal.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
+                            pw.Text('₹${bill.amount.toStringAsFixed(2)}', style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold)),
                           ],
                         ),
                         pw.SizedBox(height: 4),
