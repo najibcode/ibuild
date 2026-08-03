@@ -399,7 +399,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                               ),
                             ),
                             title: Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                            subtitle: Text('${emp.role} • \u20B9${emp.salary.toInt()}/day', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                            subtitle: Text('${emp.role} • \u20B9${emp.salary.toInt()}/day + \u20B9${emp.teaSnackAllowance.toInt()} tea', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
                             trailing: ElevatedButton(
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: isAssignedHere ? AppColors.secondary : AppColors.primaryColor(context),
@@ -550,7 +550,7 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
 
     final name = emp?.name ?? record.employeeName ?? 'Worker';
     final role = emp?.role.toUpperCase() ?? 'STAFF';
-    final rate = emp != null ? 'Rate: \u20B9${emp.salary.toInt()}/day' : '';
+    final rate = emp != null ? 'Rate: \u20B9${emp.salary.toInt()}/day + \u20B9${emp.teaSnackAllowance.toInt()} tea' : '';
     final isPresent = record.status.toLowerCase() == 'present';
 
     return Card(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../../features/rbac/presentation/providers/permission_provider.dart';
 
@@ -258,6 +259,45 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                               fontWeight: FontWeight.bold,
                             ),
                           ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
+                  // Account Session & Logout Section
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'ACCOUNT SESSION',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                        color: AppColors.mutedText(context),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  // Logout Button
+                  ElevatedButton.icon(
+                    onPressed: () => showLogoutDialog(context, ref),
+                    icon: const Icon(Icons.logout, size: 18),
+                    label: const Text(
+                      'Logout / Sign Out',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.error,
+                      foregroundColor: Colors.white,
+                      minimumSize: const Size(double.infinity, 48),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                      ),
+                    ),
                   ),
                 ],
               ),

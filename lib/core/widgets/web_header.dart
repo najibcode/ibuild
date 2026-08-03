@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_colors.dart';
 import 'global_search_dialog.dart';
 import 'notifications_dropdown.dart';
+import 'logout_dialog.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
-
-
-
 
 /// Shared top header bar for the web (desktop) layout.
 /// Displays a search field, notifications, and contextual actions.
-class WebHeader extends StatelessWidget {
+class WebHeader extends ConsumerWidget {
   /// Optional title shown as breadcrumb text. Defaults to current section name.
   final String? title;
 
@@ -26,7 +25,7 @@ class WebHeader extends StatelessWidget {
   });
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     return Container(
       height: 64,
       decoration: BoxDecoration(
@@ -95,6 +94,11 @@ class WebHeader extends StatelessWidget {
                   );
                 },
                 tooltip: 'My Profile',
+              ),
+              IconButton(
+                icon: const Icon(Icons.logout_outlined, color: AppColors.error, size: 20),
+                onPressed: () => showLogoutDialog(context, ref),
+                tooltip: 'Logout / Sign Out',
               ),
               IconButton(
                 icon: const Icon(Icons.help_outline, color: AppColors.outline, size: 20),

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
+import 'package:ibuild/core/widgets/logout_dialog.dart';
 import 'package:ibuild/features/dashboard/presentation/controllers/dashboard_controller.dart';
+import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
 /// Dashboard shown to users with the 'supervisor' role.
 /// Focuses on daily operations: attendance, inventory alerts, and project progress.
@@ -20,17 +22,54 @@ class SupervisorDashboard extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header
-              Text(
-                'Supervisor Dashboard',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Your daily operations overview',
-                style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+              // Header Row
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Supervisor Dashboard',
+                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                              fontWeight: FontWeight.bold,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Your daily operations overview',
+                        style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                          );
+                        },
+                        icon: const Icon(Icons.person_outline, size: 16),
+                        label: const Text('My Profile'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => showLogoutDialog(context, ref),
+                        icon: const Icon(Icons.logout, size: 16),
+                        label: const Text('Log Out'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
               const SizedBox(height: 24),
 

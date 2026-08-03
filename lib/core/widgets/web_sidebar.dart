@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../../features/rbac/presentation/providers/permission_provider.dart';
 import 'package:ibuild/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
+import 'logout_dialog.dart';
 
 
 
@@ -257,7 +258,13 @@ class WebSidebar extends ConsumerWidget {
                             ],
                           ),
                         ),
-                        Icon(Icons.edit_outlined, size: 16, color: AppColors.mutedText(context)),
+                        IconButton(
+                          icon: const Icon(Icons.logout, size: 18, color: AppColors.error),
+                          onPressed: () => showLogoutDialog(context, ref),
+                          tooltip: 'Logout / Sign Out',
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
                       ],
                     ),
                   ),

@@ -116,6 +116,20 @@ class InventoryController extends StateNotifier<InventoryListState> {
     final updated = item.copyWith(availableStock: newStock);
     try {
       await _repository.updateItem(updated);
+
+      // Log the stock movement as an inventory_history entry
+      final changeType = delta > 0 ? 'added' : 'used';
+      final absQty = delta.abs();
+      final notes = delta > 0
+          ? 'Received +${absQty.toStringAsFixed(1)} ${item.unit} via quick action'
+          : 'Issued -${absQty.toStringAsFixed(1)} ${item.unit} via quick action';
+      await _repository.logInventoryChange(
+        inventoryId: item.id,
+        changeType: changeType,
+        quantityChange: absQty,
+        notes: notes,
+      );
+
       await loadItems();
       return true;
     } catch (_) {

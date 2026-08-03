@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_provider.dart';
+import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../../features/rbac/presentation/providers/permission_provider.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
@@ -20,34 +21,7 @@ class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
 
   void _onLogout(BuildContext context, WidgetRef ref) async {
-    final confirm = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Log Out'),
-        content: const Text('Are you sure you want to log out of IBUILD?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Log Out'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirm == true) {
-      await ref.read(authControllerProvider.notifier).signOut();
-      if (context.mounted) {
-        context.go('/login');
-      }
-    }
+    await showLogoutDialog(context, ref);
   }
 
   Widget _themeOptionCard(

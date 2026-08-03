@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'core/theme/app_colors.dart';
+import 'core/widgets/logout_dialog.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/dashboard/data/models/dashboard_stats_model.dart';
+import 'features/profile/presentation/screens/user_profile_screen.dart';
 
 class WebDashboard extends ConsumerWidget {
   const WebDashboard({super.key});
@@ -45,6 +47,24 @@ class WebDashboard extends ConsumerWidget {
                       _buildOutlineButton(context, Icons.refresh, 'Refresh', onPressed: () {
                         ref.invalidate(dashboardStatsProvider);
                       }),
+                      const SizedBox(width: 8),
+                      _buildOutlineButton(context, Icons.person_outline, 'My Profile', onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                        );
+                      }),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: () => showLogoutDialog(context, ref),
+                        icon: const Icon(Icons.logout, size: 14),
+                        label: const Text('Log Out', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.error,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
                     ],
                   ),
                 ],

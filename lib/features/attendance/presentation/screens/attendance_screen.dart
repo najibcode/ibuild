@@ -7,6 +7,7 @@ import '../../data/models/attendance_model.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../projects/data/models/project_model.dart';
 import '../../../projects/presentation/screens/project_operations_screen.dart';
+import '../../../rbac/presentation/providers/permission_provider.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -19,7 +20,20 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   String _searchQuery = '';
   String? _selectedFilterProjectId;
 
+  /// Whether the current user is a supervisor (restricted to today-only)
+  bool get _isSupervisor => ref.read(isSupervisorProvider);
+
+  /// Whether the current user is an owner (full access)
+  bool get _isOwner => ref.read(isOwnerProvider);
+
+  /// Whether the current user is an admin (full access with technical privileges)
+  bool get _isAdmin => ref.read(isAdminProvider);
+
+  /// Whether the user can navigate to other dates
+  bool get _canChangeDates => _isOwner || _isAdmin;
+
   void _pickDate(BuildContext context, String currentDateStr) async {
+    if (!_canChangeDates) return;
     DateTime initial = DateTime.tryParse(currentDateStr) ?? DateTime.now();
     final picked = await showDatePicker(
       context: context,
@@ -33,9 +47,22 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
   }
 
   void _shiftDate(int days, String currentDateStr) {
+    if (!_canChangeDates) return;
     DateTime current = DateTime.tryParse(currentDateStr) ?? DateTime.now();
     DateTime shifted = current.add(Duration(days: days));
     ref.read(attendanceControllerProvider.notifier).changeSelectedDate(shifted);
+  }
+
+  String _getRelativeDateLabel(String selectedDateStr) {
+    final now = DateTime.now();
+    final todayStr = DateTime(now.year, now.month, now.day).toIso8601String().substring(0, 10);
+    final yesterdayStr = DateTime(now.year, now.month, now.day - 1).toIso8601String().substring(0, 10);
+    final tomorrowStr = DateTime(now.year, now.month, now.day + 1).toIso8601String().substring(0, 10);
+
+    if (selectedDateStr == todayStr) return 'TODAY';
+    if (selectedDateStr == yesterdayStr) return 'YESTERDAY';
+    if (selectedDateStr == tomorrowStr) return 'TOMORROW';
+    return 'PAST DATE';
   }
 
   @override
@@ -130,13 +157,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                               // Date Picker & Shift Arrows
                               Row(
                                 children: [
-                                  IconButton(
-                                    icon: const Icon(Icons.chevron_left, size: 20),
-                                    onPressed: () => _shiftDate(-1, state.selectedDate),
-                                    tooltip: 'Previous Day',
-                                  ),
+                                  if (_canChangeDates)
+                                    IconButton(
+                                      icon: const Icon(Icons.chevron_left, size: 20),
+                                      onPressed: () => _shiftDate(-1, state.selectedDate),
+                                      tooltip: 'Previous Day',
+                                    ),
                                   InkWell(
-                                    onTap: () => _pickDate(context, state.selectedDate),
+                                    onTap: _canChangeDates ? () => _pickDate(context, state.selectedDate) : null,
                                     borderRadius: BorderRadius.circular(8),
                                     child: Container(
                                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -157,65 +185,104 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                                               color: AppColors.primaryColor(context),
                                             ),
                                           ),
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: isToday
+                                                  ? AppColors.secondary.withValues(alpha: 0.15)
+                                                  : Colors.amber.withValues(alpha: 0.18),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(
+                                                color: isToday
+                                                    ? AppColors.secondary.withValues(alpha: 0.3)
+                                                    : Colors.amber.withValues(alpha: 0.4),
+                                              ),
+                                            ),
+                                            child: Text(
+                                              _getRelativeDateLabel(state.selectedDate),
+                                              style: TextStyle(
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                                color: isToday ? AppColors.secondary : Colors.amber.shade900,
+                                              ),
+                                            ),
+                                          ),
+                                          if (_isSupervisor) ...[
+                                            const SizedBox(width: 6),
+                                            Icon(Icons.lock_outline, size: 12, color: AppColors.mutedText(context)),
+                                          ],
                                         ],
                                       ),
                                     ),
                                   ),
-                                  IconButton(
-                                    icon: const Icon(Icons.chevron_right, size: 20),
-                                    onPressed: () => _shiftDate(1, state.selectedDate),
-                                    tooltip: 'Next Day',
-                                  ),
-                                  if (!isToday)
-                                    TextButton(
-                                      onPressed: () {
-                                        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-                                        ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(todayStr);
-                                      },
-                                      child: const Text('Today', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                  if (_canChangeDates)
+                                    IconButton(
+                                      icon: const Icon(Icons.chevron_right, size: 20),
+                                      onPressed: () => _shiftDate(1, state.selectedDate),
+                                      tooltip: 'Next Day',
+                                    ),
+                                  if (!isToday && _canChangeDates)
+                                    Padding(
+                                      padding: const EdgeInsets.only(left: 4.0),
+                                      child: OutlinedButton.icon(
+                                        onPressed: () {
+                                          final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+                                          ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(todayStr);
+                                        },
+                                        icon: const Icon(Icons.today, size: 14),
+                                        label: const Text('Go to Today', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                        style: OutlinedButton.styleFrom(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                          side: BorderSide(color: AppColors.primaryColor(context)),
+                                          foregroundColor: AppColors.primaryColor(context),
+                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                        ),
+                                      ),
                                     ),
                                 ],
                               ),
 
-                              // Quick Bulk Actions Menu
-                              PopupMenuButton<String>(
-                                icon: Icon(Icons.more_vert, color: AppColors.primaryColor(context)),
-                                tooltip: 'Bulk Actions',
-                                color: AppColors.cardBg(context),
-                                onSelected: (val) {
-                                  if (val == 'all_present') {
-                                    ref.read(attendanceControllerProvider.notifier).markAllPresent();
-                                  } else if (val == 'all_absent') {
-                                    ref.read(attendanceControllerProvider.notifier).markAllAbsent();
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(
-                                    value: 'all_present',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.check_circle_outline, color: AppColors.secondary, size: 18),
-                                        SizedBox(width: 8),
-                                        Text('Mark All Staff Present'),
-                                      ],
+                              // Quick Bulk Actions Menu (only for owners/admins, or supervisors on today)
+                              if (_canChangeDates || isToday)
+                                PopupMenuButton<String>(
+                                  icon: Icon(Icons.more_vert, color: AppColors.primaryColor(context)),
+                                  tooltip: 'Bulk Actions',
+                                  color: AppColors.cardBg(context),
+                                  onSelected: (val) {
+                                    if (val == 'all_present') {
+                                      ref.read(attendanceControllerProvider.notifier).markAllPresent();
+                                    } else if (val == 'all_absent') {
+                                      ref.read(attendanceControllerProvider.notifier).markAllAbsent();
+                                    }
+                                  },
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'all_present',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.check_circle_outline, color: AppColors.secondary, size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Mark All Staff Present'),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                  const PopupMenuItem(
-                                    value: 'all_absent',
-                                    child: Row(
-                                      children: [
-                                        Icon(Icons.cancel_outlined, color: AppColors.error, size: 18),
-                                        SizedBox(width: 8),
-                                        Text('Mark All Staff Absent'),
-                                      ],
+                                    const PopupMenuItem(
+                                      value: 'all_absent',
+                                      child: Row(
+                                        children: [
+                                          Icon(Icons.cancel_outlined, color: AppColors.error, size: 18),
+                                          SizedBox(width: 8),
+                                          Text('Mark All Staff Absent'),
+                                        ],
+                                      ),
                                     ),
-                                  ),
-                                ],
-                              ),
+                                  ],
+                                ),
                             ],
                           ),
                           const SizedBox(height: 8),
-                          _buildSummaryCard(context, state.attendanceList, state.activeEmployees),
+                          _buildSummaryCard(context, state.attendanceList, state.activeEmployees, _getRelativeDateLabel(state.selectedDate)),
                         ],
                       ),
                     ),
@@ -287,14 +354,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
 
                     // ── Staff List ──
                     Expanded(
-                      child: _buildWorkerList(context, state, projects),
+                      child: _buildWorkerList(context, state, projects, isToday),
                     ),
                   ],
                 ),
     );
   }
 
-  Widget _buildWorkerList(BuildContext context, AttendanceState state, List<Project> projects) {
+  Widget _buildWorkerList(BuildContext context, AttendanceState state, List<Project> projects, bool isToday) {
     final filtered = state.activeEmployees.where((e) {
       if (_searchQuery.isNotEmpty) {
         final q = _searchQuery.toLowerCase();
@@ -402,7 +469,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          '${employee.role.toUpperCase()} • Rate: ₹${employee.salary.toInt()}/day',
+                          '${employee.role.toUpperCase()} • Rate: ₹${employee.salary.toInt()}/day + ₹${employee.teaSnackAllowance.toInt()} tea',
                           style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
                         ),
                       ],
@@ -456,52 +523,74 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               const SizedBox(height: 12),
 
               // Status Toggle & Site Assignment Dropdown
-              Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                crossAxisAlignment: WrapCrossAlignment.center,
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  _buildStatusToggle(
-                    context: context,
-                    activeStatus: logged.status,
-                    onSelected: (status) async {
-                      await ref.read(attendanceControllerProvider.notifier).markAttendance(
-                        employeeId: employee.id,
-                        status: status,
-                        projectId: logged.projectId,
-                      );
-                    },
+              // Supervisors can only edit attendance for today
+              if (_isSupervisor && !isToday)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
                   ),
-                  _buildSiteAssignmentDropdown(
-                    context: context,
-                    projects: projects,
-                    currentProjectId: logged.projectId,
-                    onProjectSelected: (projId) async {
-                      if (projId == null) return;
-                      final success = await ref.read(attendanceControllerProvider.notifier).markAttendance(
-                        employeeId: employee.id,
-                        status: logged.status == 'Absent' ? 'Present' : logged.status,
-                        projectId: projId,
-                      );
-                      if (success && context.mounted) {
-                        final match = projects.where((p) => p.id == projId);
-                        final siteName = match.isNotEmpty ? match.first.name : 'Site';
-                        ScaffoldMessenger.of(context).clearSnackBars();
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('${employee.name} assigned to $siteName ✓'),
-                            duration: const Duration(seconds: 1),
-                            behavior: SnackBarBehavior.floating,
-                            width: 280,
-                            backgroundColor: AppColors.secondary,
-                          ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_outline, size: 14, color: Colors.amber.shade800),
+                      const SizedBox(width: 6),
+                      Text(
+                        'Supervisors can only edit today\'s attendance',
+                        style: TextStyle(fontSize: 11, color: Colors.amber.shade800, fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                )
+              else
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    _buildStatusToggle(
+                      context: context,
+                      activeStatus: logged.status,
+                      onSelected: (status) async {
+                        await ref.read(attendanceControllerProvider.notifier).markAttendance(
+                          employeeId: employee.id,
+                          status: status,
+                          projectId: logged.projectId,
                         );
-                      }
-                    },
-                  ),
-                ],
-              ),
+                      },
+                    ),
+                    _buildSiteAssignmentDropdown(
+                      context: context,
+                      projects: projects,
+                      currentProjectId: logged.projectId,
+                      onProjectSelected: (projId) async {
+                        if (projId == null) return;
+                        final success = await ref.read(attendanceControllerProvider.notifier).markAttendance(
+                          employeeId: employee.id,
+                          status: logged.status == 'Absent' ? 'Present' : logged.status,
+                          projectId: projId,
+                        );
+                        if (success && context.mounted) {
+                          final match = projects.where((p) => p.id == projId);
+                          final siteName = match.isNotEmpty ? match.first.name : 'Site';
+                          ScaffoldMessenger.of(context).clearSnackBars();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('${employee.name} assigned to $siteName ✓'),
+                              duration: const Duration(seconds: 1),
+                              behavior: SnackBarBehavior.floating,
+                              width: 280,
+                              backgroundColor: AppColors.secondary,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ],
+                ),
             ],
           ),
         );
@@ -509,7 +598,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     );
   }
 
-  Widget _buildSummaryCard(BuildContext context, List<Attendance> logged, List<dynamic> employees) {
+  Widget _buildSummaryCard(
+    BuildContext context,
+    List<Attendance> logged,
+    List<dynamic> employees,
+    String dateLabel,
+  ) {
     final int totalActive = employees.length;
     final int present = logged.where((a) => a.status.toLowerCase() == 'present').length;
     final int absent = totalActive - present;
@@ -519,10 +613,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       if (l.status.toLowerCase() == 'present') {
         final matches = employees.where((e) => e.id == l.employeeId);
         if (matches.isNotEmpty) {
-          todayPayroll += matches.first.salary;
+          todayPayroll += matches.first.totalDailyCost;
         }
       }
     }
+
+    final presentTitle = dateLabel == 'TODAY'
+        ? 'Present Today'
+        : (dateLabel == 'YESTERDAY' ? 'Present Yesterday' : 'Present');
+
+    final absentTitle = dateLabel == 'TODAY'
+        ? 'Absent Today'
+        : (dateLabel == 'YESTERDAY' ? 'Absent Yesterday' : 'Absent');
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -535,9 +637,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
           _buildSummaryCol(context, 'Total Staff', '$totalActive', AppColors.primaryColor(context)),
-          _buildSummaryCol(context, 'Present Today', '$present', AppColors.secondary),
-          _buildSummaryCol(context, 'Absent Today', '$absent', AppColors.error),
-          _buildSummaryCol(context, 'Daily Wage Est', '₹${todayPayroll.toInt()}', Colors.amber.shade800),
+          _buildSummaryCol(context, presentTitle, '$present', AppColors.secondary),
+          _buildSummaryCol(context, absentTitle, '$absent', AppColors.error),
+          _buildSummaryCol(context, 'Daily Cost (Pay + Tea)', '₹${todayPayroll.toInt()}', Colors.amber.shade800),
         ],
       ),
     );
