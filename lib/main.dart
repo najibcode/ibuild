@@ -19,6 +19,8 @@ import 'package:ibuild/features/profile/presentation/screens/user_profile_screen
 
 
 import 'features/billing/presentation/screens/billing_list_screen.dart';
+import 'features/sales_bills/presentation/screens/sales_bill_builder_screen.dart';
+import 'features/payments/presentation/screens/payment_ledger_screen.dart';
 import 'features/quotations/presentation/screens/quotation_list_screen.dart';
 
 import 'features/expenses/presentation/screens/expense_list_screen.dart';
@@ -602,6 +604,10 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         return const InventoryListScreen();
       case 'Billing':
         return const BillingListScreen();
+      case 'Sales Bills & Invoices':
+        return const SalesBillBuilderScreen();
+      case 'Payment Ledger':
+        return const PaymentLedgerScreen();
       case 'Quotations & Estimates':
         return const QuotationListScreen();
       case 'Expenses':

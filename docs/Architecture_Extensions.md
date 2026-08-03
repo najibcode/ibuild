@@ -137,3 +137,24 @@ To prevent fraudulent document generation and ensure standardized presentation a
 2. **Format & Authenticity Checks**: The core service provides `verifyAuthenticity(number)` to validate format structural integrity and verify that document numbers have not been arbitrarily altered or manually forged.
 3. **Immutability in Presentation**: Creation screens enforce read-only presentation of document numbers with visual anti-fraud badges, removing manual entry error vectors.
 
+---
+
+## 6. Navigation Architecture & Feature Scoping (Inside vs Outside Project)
+
+To preserve clean navigation and prevent user confusion, workflows are strictly categorized into **Global Workflows (Outside Project)** and **Site-Specific Workflows (Inside Project)**.
+
+### A. Global Workflows (Outside Project Navigation)
+Accessible directly from the main sidebar (`WebSidebar`) and main app navigation menu:
+*   **Sales Bills & Invoices**: Top-level entry allowing users to create and manage client invoices globally.
+*   **Payment Ledger**: Top-level entry for viewing payments and ledger transactions across all projects.
+*   **Billing & Expenses**, **Quotations & Estimates**, **Materials Inventory**, **Equipment & Tools**, **Subcontractors**, and **Reports**.
+
+### B. Site-Specific Workflows (Inside Project Workspace)
+Contained within `ProjectOperationsScreen` for active site execution:
+*   **Site Drawings & Blueprints**: Includes direct `+ Add Drawing & Blueprint` button and upload modal inside the Drawings tab.
+*   **Inspection Checklist**: Includes direct `+ Add Inspection Item` button inside the Checklist tab.
+*   **Daily Site Progress**: Progress logs, photos, and site updates.
+*   **About Site Specifications**: Engineering metrics and project details.
+*   **Linked Project Shortcuts**: Quick actions (`+ Draw Invoice for this Site`, `+ Record Payment for this Site`) that launch global tools pre-configured for the active project.
+
+

@@ -20,6 +20,7 @@ import '../../../attendance/data/models/attendance_model.dart';
 import '../../../employees/presentation/controllers/employee_controller.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 import '../../../reports/presentation/screens/full_report_generator_screen.dart';
+import '../../../sales_bills/presentation/screens/sales_bill_builder_screen.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 
@@ -953,41 +954,62 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
   Widget _buildPaymentsTab() {
     final payAsync = ref.watch(projectPaymentsProvider(widget.projectId));
 
-    return payAsync.when(
-      data: (payments) {
-        if (payments.isEmpty) {
-          return _emptyState('No payment records', 'Record payments received or paid for this project');
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: payments.length,
-          itemBuilder: (context, i) {
-            final p = payments[i];
-            final isRec = p.paymentType == 'Received';
-            return Card(
-              color: AppColors.cardBg(context),
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: Icon(
-                  isRec ? Icons.arrow_downward : Icons.arrow_upward,
-                  color: isRec ? AppColors.secondary : AppColors.error,
-                ),
-                title: Text(p.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                subtitle: Text('Method: ${p.paymentMethod} • Ref: ${p.referenceNo ?? 'N/A'}'),
-                trailing: Text(
-                  '${isRec ? '+' : '-'}₹${p.amount.toInt()}',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: isRec ? AppColors.secondary : AppColors.error,
-                  ),
-                ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Payment Ledger & Receipts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              ElevatedButton.icon(
+                onPressed: _showAddPaymentDialog,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Record Payment'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
               ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error loading payments: $e')),
+            ],
+          ),
+        ),
+        Expanded(
+          child: payAsync.when(
+            data: (payments) {
+              if (payments.isEmpty) {
+                return _emptyState('No payment records', 'Record payments received or paid for this project');
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: payments.length,
+                itemBuilder: (context, i) {
+                  final p = payments[i];
+                  final isRec = p.paymentType == 'Received';
+                  return Card(
+                    color: AppColors.cardBg(context),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: Icon(
+                        isRec ? Icons.arrow_downward : Icons.arrow_upward,
+                        color: isRec ? AppColors.secondary : AppColors.error,
+                      ),
+                      title: Text(p.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                      subtitle: Text('Method: ${p.paymentMethod} • Ref: ${p.referenceNo ?? 'N/A'}'),
+                      trailing: Text(
+                        '${isRec ? '+' : '-'}₹${p.amount.toInt()}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: isRec ? AppColors.secondary : AppColors.error,
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, s) => Center(child: Text('Error loading payments: $e')),
+          ),
+        ),
+      ],
     );
   }
 
@@ -995,44 +1017,65 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
   Widget _buildChecklistTab() {
     final checkAsync = ref.watch(projectChecklistProvider(widget.projectId));
 
-    return checkAsync.when(
-      data: (items) {
-        if (items.isEmpty) {
-          return _emptyState('No checklist items', 'Add quality inspection tasks for this site');
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: items.length,
-          itemBuilder: (context, i) {
-            final item = items[i];
-            return Card(
-              color: AppColors.cardBg(context),
-              margin: const EdgeInsets.only(bottom: 12),
-              child: CheckboxListTile(
-                value: item.isCompleted,
-                title: Text(
-                  item.title,
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
-                    decoration: item.isCompleted ? TextDecoration.lineThrough : null,
-                  ),
-                ),
-                subtitle: Text('Phase: ${item.phaseGroup} • Status: ${item.approvalStatus}'),
-                onChanged: (val) async {
-                  if (val != null) {
-                    final client = ref.read(supabaseClientProvider);
-                    await SupabaseChecklistRepository(client).toggleChecklistItem(item.id, val);
-                    ref.invalidate(projectChecklistProvider(widget.projectId));
-                  }
-                },
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Site Inspection Checklist', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              ElevatedButton.icon(
+                onPressed: _showAddChecklistDialog,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Task'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor(context), foregroundColor: Colors.white),
               ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error loading checklist: $e')),
+            ],
+          ),
+        ),
+        Expanded(
+          child: checkAsync.when(
+            data: (items) {
+              if (items.isEmpty) {
+                return _emptyState('No checklist items', 'Add quality inspection tasks for this site');
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: items.length,
+                itemBuilder: (context, i) {
+                  final item = items[i];
+                  return Card(
+                    color: AppColors.cardBg(context),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: CheckboxListTile(
+                      value: item.isCompleted,
+                      title: Text(
+                        item.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text(context),
+                          decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                        ),
+                      ),
+                      subtitle: Text('Phase: ${item.phaseGroup} • Status: ${item.approvalStatus}'),
+                      onChanged: (val) async {
+                        if (val != null) {
+                          final client = ref.read(supabaseClientProvider);
+                          await SupabaseChecklistRepository(client).toggleChecklistItem(item.id, val);
+                          ref.invalidate(projectChecklistProvider(widget.projectId));
+                        }
+                      },
+                    ),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, s) => Center(child: Text('Error loading checklist: $e')),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1040,31 +1083,52 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
   Widget _buildDrawingsTab() {
     final dwgAsync = ref.watch(projectDrawingsProvider(widget.projectId));
 
-    return dwgAsync.when(
-      data: (drawings) {
-        if (drawings.isEmpty) {
-          return _emptyState('No site drawings', 'Blueprints and structural layouts will appear here');
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: drawings.length,
-          itemBuilder: (context, i) {
-            final d = drawings[i];
-            return Card(
-              color: AppColors.cardBg(context),
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: const Icon(Icons.draw_outlined, color: AppColors.primary),
-                title: Text(d.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                subtitle: Text('Category: ${d.category} • Version: ${d.version}'),
-                trailing: const Icon(Icons.download, color: AppColors.primary),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Blueprints & Site Drawings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              ElevatedButton.icon(
+                onPressed: _showAddDrawingDialog,
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Add Drawing'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor(context), foregroundColor: Colors.white),
               ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error loading drawings: $e')),
+            ],
+          ),
+        ),
+        Expanded(
+          child: dwgAsync.when(
+            data: (drawings) {
+              if (drawings.isEmpty) {
+                return _emptyState('No site drawings', 'Blueprints and structural layouts will appear here');
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: drawings.length,
+                itemBuilder: (context, i) {
+                  final d = drawings[i];
+                  return Card(
+                    color: AppColors.cardBg(context),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: const Icon(Icons.draw_outlined, color: AppColors.primary),
+                      title: Text(d.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                      subtitle: Text('Category: ${d.category} • Version: ${d.version}'),
+                      trailing: const Icon(Icons.download, color: AppColors.primary),
+                    ),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, s) => Center(child: Text('Error loading drawings: $e')),
+          ),
+        ),
+      ],
     );
   }
 
@@ -1072,38 +1136,277 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
   Widget _buildSalesBillsTab() {
     final billsAsync = ref.watch(projectSalesBillsProvider(widget.projectId));
 
-    return billsAsync.when(
-      data: (bills) {
-        if (bills.isEmpty) {
-          return _emptyState('No sales bills', 'Invoices generated for client billing');
-        }
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: bills.length,
-          itemBuilder: (context, i) {
-            final b = bills[i];
-            return Card(
-              color: AppColors.cardBg(context),
-              margin: const EdgeInsets.only(bottom: 12),
-              child: ListTile(
-                leading: const Icon(Icons.receipt_outlined, color: AppColors.primary),
-                title: Text('Bill #${b.billNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                subtitle: Text('Client: ${b.clientName}'),
-                trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                    Text(b.status, style: TextStyle(color: b.status == 'Paid' ? AppColors.secondary : AppColors.error, fontSize: 11)),
-                  ],
-                ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Sales Invoices & Client Billing', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
+                  );
+                  ref.invalidate(projectSalesBillsProvider(widget.projectId));
+                },
+                icon: const Icon(Icons.point_of_sale, size: 16),
+                label: const Text('Draw Invoice'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor(context), foregroundColor: Colors.white),
               ),
-            );
-          },
-        );
-      },
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(child: Text('Error loading sales bills: $e')),
+            ],
+          ),
+        ),
+        Expanded(
+          child: billsAsync.when(
+            data: (bills) {
+              if (bills.isEmpty) {
+                return _emptyState('No sales bills', 'Invoices generated for client billing');
+              }
+              return ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: bills.length,
+                itemBuilder: (context, i) {
+                  final b = bills[i];
+                  return Card(
+                    color: AppColors.cardBg(context),
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: ListTile(
+                      leading: const Icon(Icons.receipt_outlined, color: AppColors.primary),
+                      title: Text('Bill #${b.billNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                      subtitle: Text('Client: ${b.clientName}'),
+                      trailing: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                          Text(b.status, style: TextStyle(color: b.status == 'Paid' ? AppColors.secondary : AppColors.error, fontSize: 11)),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, s) => Center(child: Text('Error loading sales bills: $e')),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showAddDrawingDialog() {
+    final titleCtrl = TextEditingController();
+    final versionCtrl = TextEditingController(text: 'v1.0');
+    final fileUrlCtrl = TextEditingController();
+    final notesCtrl = TextEditingController();
+    String category = 'Architectural';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Site Drawing & Blueprint'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Drawing Title *', hintText: 'e.g. Structural Foundation Layout'),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: category,
+                decoration: const InputDecoration(labelText: 'Category'),
+                items: ['Architectural', 'Structural', 'Electrical', 'Plumbing', 'HVAC', 'Other']
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => category = v ?? category,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: versionCtrl,
+                decoration: const InputDecoration(labelText: 'Version (e.g. v1.0, v2.1)'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: fileUrlCtrl,
+                decoration: const InputDecoration(labelText: 'Blueprint File URL / Document Ref'),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: notesCtrl,
+                decoration: const InputDecoration(labelText: 'Notes / Revision Details'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty) return;
+              final drawing = SiteDrawing(
+                id: '',
+                projectId: widget.projectId,
+                title: titleCtrl.text.trim(),
+                category: category,
+                version: versionCtrl.text.trim().isEmpty ? 'v1.0' : versionCtrl.text.trim(),
+                fileUrl: fileUrlCtrl.text.trim().isEmpty ? 'https://storage.supabase.co/drawings/site_blueprint.pdf' : fileUrlCtrl.text.trim(),
+                notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                createdAt: DateTime.now(),
+              );
+              final client = ref.read(supabaseClientProvider);
+              await SupabaseDrawingRepository(client).addDrawing(drawing);
+              ref.invalidate(projectDrawingsProvider(widget.projectId));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Save Drawing'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddChecklistDialog() {
+    final titleCtrl = TextEditingController();
+    String category = 'Quality Control';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Inspection Checklist Task'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: titleCtrl,
+              decoration: const InputDecoration(labelText: 'Inspection Task Title *', hintText: 'e.g. Slump Test & Rebar Quality Check'),
+            ),
+            const SizedBox(height: 12),
+            DropdownButtonFormField<String>(
+              value: category,
+              decoration: const InputDecoration(labelText: 'Category'),
+              items: ['Quality Control', 'Safety Inspection', 'General Inspection', 'Site Preparation']
+                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                  .toList(),
+              onChanged: (v) => category = v ?? category,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty) return;
+              final item = ChecklistItem(
+                id: '',
+                projectId: widget.projectId,
+                title: titleCtrl.text.trim(),
+                category: category,
+                isCompleted: false,
+                createdAt: DateTime.now(),
+              );
+              final client = ref.read(supabaseClientProvider);
+              await SupabaseChecklistRepository(client).addChecklistItem(item);
+              ref.invalidate(projectChecklistProvider(widget.projectId));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Add Inspection Task'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showAddPaymentDialog() {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final refNoCtrl = TextEditingController();
+    String paymentType = 'Received';
+    String paymentMethod = 'Bank Transfer';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Record Site Payment'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: 'Payment Title *', hintText: 'e.g. Milestone 1 Client Advance'),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String>(
+                      value: paymentType,
+                      decoration: const InputDecoration(labelText: 'Type'),
+                      items: ['Received', 'Paid']
+                          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .toList(),
+                      onChanged: (v) => paymentType = v ?? paymentType,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextField(
+                      controller: amountCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(labelText: 'Amount (₹) *'),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                value: paymentMethod,
+                decoration: const InputDecoration(labelText: 'Payment Method'),
+                items: ['Bank Transfer', 'UPI', 'Cash', 'Cheque', 'Credit Card']
+                    .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                    .toList(),
+                onChanged: (v) => paymentMethod = v ?? paymentMethod,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: refNoCtrl,
+                decoration: const InputDecoration(labelText: 'Reference / Transaction No.'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              if (titleCtrl.text.trim().isEmpty || amountCtrl.text.trim().isEmpty) return;
+              final amount = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
+              final payment = ProjectPayment(
+                id: '',
+                projectId: widget.projectId,
+                title: titleCtrl.text.trim(),
+                paymentType: paymentType,
+                amount: amount,
+                paymentMethod: paymentMethod,
+                referenceNo: refNoCtrl.text.trim().isEmpty ? null : refNoCtrl.text.trim(),
+                paymentDate: DateTime.now(),
+                createdAt: DateTime.now(),
+              );
+              final client = ref.read(supabaseClientProvider);
+              await SupabasePaymentRepository(client).recordPayment(payment);
+              ref.invalidate(projectPaymentsProvider(widget.projectId));
+              ref.invalidate(projectDetailByIdProvider(widget.projectId));
+              if (ctx.mounted) Navigator.pop(ctx);
+            },
+            child: const Text('Save Payment'),
+          ),
+        ],
+      ),
     );
   }
 
