@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import 'package:printing/printing.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
+import '../data/payment_ledger_pdf_generator.dart';
 import '../../data/models/payment_ledger_model.dart';
 import '../../data/repositories/supabase_payment_ledger_repository.dart';
 
@@ -30,11 +33,30 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
         title: const Text('Payment Ledger & Cash Flow'),
         actions: [
           IconButton(
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'Print Payment Ledger PDF',
+            onPressed: () async {
+              final entries = ledgerAsync.valueOrNull ?? [];
+              if (entries.isEmpty) return;
+              final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
+              await Printing.layoutPdf(
+                onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                name: 'Payment_Ledger_Report.pdf',
+              );
+            },
+          ),
+          IconButton(
             icon: const Icon(Icons.download_outlined),
-            tooltip: 'Export Payment Ledger Report',
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Downloading Payment Ledger Report (CSV/PDF)...')),
-            ),
+            tooltip: 'Download Payment Ledger Report PDF',
+            onPressed: () async {
+              final entries = ledgerAsync.valueOrNull ?? [];
+              if (entries.isEmpty) return;
+              final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Payment_Ledger_Report.pdf',
+              );
+            },
           ),
         ],
       ),

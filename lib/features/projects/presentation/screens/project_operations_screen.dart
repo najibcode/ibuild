@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:printing/printing.dart';
+import '../../../sales_bills/data/sales_bill_pdf_generator.dart';
+import '../../../payments/data/payment_ledger_pdf_generator.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 
@@ -21,6 +24,7 @@ import '../../../employees/presentation/controllers/employee_controller.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 import '../../../reports/presentation/screens/full_report_generator_screen.dart';
 import '../../../sales_bills/presentation/screens/sales_bill_builder_screen.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 
@@ -993,12 +997,28 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                       ),
                       title: Text(p.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                       subtitle: Text('Method: ${p.paymentMethod} • Ref: ${p.referenceNo ?? 'N/A'}'),
-                      trailing: Text(
-                        '${isRec ? '+' : '-'}₹${p.amount.toInt()}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: isRec ? AppColors.secondary : AppColors.error,
-                        ),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${isRec ? '+' : '-'}₹${p.amount.toInt()}',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: isRec ? AppColors.secondary : AppColors.error,
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.print_outlined, size: 18),
+                            tooltip: 'Print Payment Receipt PDF',
+                            onPressed: () async {
+                              final pdfBytes = await PaymentLedgerPdfGenerator.generatePaymentReceipt(p);
+                              await Printing.layoutPdf(
+                                onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                                name: 'Payment_Receipt_${p.id}.pdf',
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
                   );
@@ -1176,12 +1196,28 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                       leading: const Icon(Icons.receipt_outlined, color: AppColors.primary),
                       title: Text('Bill #${b.billNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
                       subtitle: Text('Client: ${b.clientName}'),
-                      trailing: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.end,
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                          Text(b.status, style: TextStyle(color: b.status == 'Paid' ? AppColors.secondary : AppColors.error, fontSize: 11)),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                              Text(b.status, style: TextStyle(color: b.status == 'Paid' ? AppColors.secondary : AppColors.error, fontSize: 11)),
+                            ],
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.print_outlined, size: 18),
+                            tooltip: 'Print Sales Invoice PDF',
+                            onPressed: () async {
+                              final pdfBytes = await SalesBillPdfGenerator.generatePdf(b);
+                              await Printing.layoutPdf(
+                                onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                                name: 'Sales_Invoice_${b.billNumber}.pdf',
+                              );
+                            },
+                          ),
                         ],
                       ),
                     ),
@@ -1259,8 +1295,19 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 createdAt: DateTime.now(),
               );
               final client = ref.read(supabaseClientProvider);
-              await SupabaseDrawingRepository(client).addDrawing(drawing);
+              final saved = await SupabaseDrawingRepository(client).addDrawing(drawing);
+              if (saved != null) {
+                await SupabaseActivityRepository(client).logSiteActivityAndNotify(
+                  actionType: 'drawing_added',
+                  entityType: 'site_drawings',
+                  entityId: saved.id,
+                  title: 'New Site Blueprint: ${saved.title} (${saved.category})',
+                  projectId: widget.projectId,
+                );
+              }
               ref.invalidate(projectDrawingsProvider(widget.projectId));
+              ref.invalidate(recentActivitiesProvider);
+              ref.invalidate(unreadNotificationsCountProvider);
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('Save Drawing'),
@@ -1310,8 +1357,19 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 createdAt: DateTime.now(),
               );
               final client = ref.read(supabaseClientProvider);
-              await SupabaseChecklistRepository(client).addChecklistItem(item);
+              final saved = await SupabaseChecklistRepository(client).addChecklistItem(item);
+              if (saved != null) {
+                await SupabaseActivityRepository(client).logSiteActivityAndNotify(
+                  actionType: 'checklist_item_added',
+                  entityType: 'project_checklists',
+                  entityId: saved.id,
+                  title: 'Inspection Task Added: ${saved.title}',
+                  projectId: widget.projectId,
+                );
+              }
               ref.invalidate(projectChecklistProvider(widget.projectId));
+              ref.invalidate(recentActivitiesProvider);
+              ref.invalidate(unreadNotificationsCountProvider);
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('Add Inspection Task'),
@@ -1398,9 +1456,21 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 createdAt: DateTime.now(),
               );
               final client = ref.read(supabaseClientProvider);
-              await SupabasePaymentRepository(client).recordPayment(payment);
+              final saved = await SupabasePaymentRepository(client).recordPayment(payment);
+              if (saved != null) {
+                await SupabaseActivityRepository(client).logSiteActivityAndNotify(
+                  actionType: 'payment_recorded',
+                  entityType: 'project_payments',
+                  entityId: saved.id,
+                  title: 'Payment ${paymentType}: ₹${amount.toInt()} - ${saved.title}',
+                  projectId: widget.projectId,
+                  details: {'amount': amount, 'type': paymentType},
+                );
+              }
               ref.invalidate(projectPaymentsProvider(widget.projectId));
               ref.invalidate(projectDetailByIdProvider(widget.projectId));
+              ref.invalidate(recentActivitiesProvider);
+              ref.invalidate(unreadNotificationsCountProvider);
               if (ctx.mounted) Navigator.pop(ctx);
             },
             child: const Text('Save Payment'),

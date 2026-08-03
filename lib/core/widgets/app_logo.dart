@@ -91,7 +91,7 @@ class AppLogo extends StatelessWidget {
   }
 }
 
-/// CustomPainter for crisp, modern architectural building structure emblem
+/// CustomPainter for crisp, standing architectural skyscraper emblem
 class _ArchitecturalLogoPainter extends CustomPainter {
   final Color accentColor;
 
@@ -99,43 +99,61 @@ class _ArchitecturalLogoPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final paint = Paint()
-      ..color = accentColor
-      ..style = PaintingStyle.fill
-      ..strokeWidth = size.width * 0.08
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
     final w = size.width;
     final h = size.height;
 
-    // Building Pillar 1 (Left tower)
-    final path1 = Path()
-      ..moveTo(w * 0.25, h * 0.80)
-      ..lineTo(w * 0.25, h * 0.40)
-      ..lineTo(w * 0.44, h * 0.26)
-      ..lineTo(w * 0.44, h * 0.80)
-      ..close();
-    canvas.drawPath(path1, paint);
-
-    // Building Pillar 2 (Right tower - taller)
-    final path2 = Path()
-      ..moveTo(w * 0.50, h * 0.80)
-      ..lineTo(w * 0.50, h * 0.20)
-      ..lineTo(w * 0.75, h * 0.34)
-      ..lineTo(w * 0.75, h * 0.80)
-      ..close();
-
-    // Slightly dim right pillar for depth
-    final dimPaint = Paint()
-      ..color = accentColor.withValues(alpha: 0.82)
+    final paintMain = Paint()
+      ..color = accentColor
       ..style = PaintingStyle.fill;
-    canvas.drawPath(path2, dimPaint);
 
-    // Foundation Base line
+    final paintMid = Paint()
+      ..color = accentColor.withValues(alpha: 0.88)
+      ..style = PaintingStyle.fill;
+
+    final paintSide = Paint()
+      ..color = accentColor.withValues(alpha: 0.75)
+      ..style = PaintingStyle.fill;
+
+    // Standing Skyscraper Tower 1 (Left Wing)
+    final towerLeft = Path()
+      ..moveTo(w * 0.18, h * 0.82)
+      ..lineTo(w * 0.18, h * 0.42)
+      ..lineTo(w * 0.38, h * 0.28)
+      ..lineTo(w * 0.38, h * 0.82)
+      ..close();
+    canvas.drawPath(towerLeft, paintSide);
+
+    // Standing Center Tower (Main High-rise Skyscraper)
+    final towerCenter = Path()
+      ..moveTo(w * 0.40, h * 0.82)
+      ..lineTo(w * 0.40, h * 0.16)
+      ..lineTo(w * 0.62, h * 0.16)
+      ..lineTo(w * 0.62, h * 0.82)
+      ..close();
+    canvas.drawPath(towerCenter, paintMain);
+
+    // Standing Skyscraper Tower 3 (Right Wing)
+    final towerRight = Path()
+      ..moveTo(w * 0.64, h * 0.82)
+      ..lineTo(w * 0.64, h * 0.34)
+      ..lineTo(w * 0.82, h * 0.44)
+      ..lineTo(w * 0.82, h * 0.82)
+      ..close();
+    canvas.drawPath(towerRight, paintMid);
+
+    // Architectural Window Accents on Center Tower
+    final windowPaint = Paint()
+      ..color = Colors.white.withValues(alpha: 0.9)
+      ..style = PaintingStyle.fill;
+
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.46, h * 0.24, w * 0.10, h * 0.08), Radius.circular(w * 0.02)), windowPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.46, h * 0.38, w * 0.10, h * 0.08), Radius.circular(w * 0.02)), windowPaint);
+    canvas.drawRRect(RRect.fromRectAndRadius(Rect.fromLTWH(w * 0.46, h * 0.52, w * 0.10, h * 0.08), Radius.circular(w * 0.02)), windowPaint);
+
+    // Heavy Structural Base Foundation Line
     final baseLine = Path()
-      ..moveTo(w * 0.18, h * 0.84)
-      ..lineTo(w * 0.82, h * 0.84);
+      ..moveTo(w * 0.12, h * 0.86)
+      ..lineTo(w * 0.88, h * 0.86);
     canvas.drawPath(
       baseLine,
       Paint()
@@ -145,18 +163,18 @@ class _ArchitecturalLogoPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    // Modern Roof Angle Badge Accent
-    final accentPaint = Paint()
-      ..color = accentColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.06
-      ..strokeCap = StrokeCap.round;
-
-    final roofLine = Path()
-      ..moveTo(w * 0.22, h * 0.38)
-      ..lineTo(w * 0.48, h * 0.18)
-      ..lineTo(w * 0.78, h * 0.32);
-    canvas.drawPath(roofLine, accentPaint);
+    // Crown Spire Accent on Center Tower Top
+    final spire = Path()
+      ..moveTo(w * 0.51, h * 0.16)
+      ..lineTo(w * 0.51, h * 0.08);
+    canvas.drawPath(
+      spire,
+      Paint()
+        ..color = accentColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = w * 0.06
+        ..strokeCap = StrokeCap.round,
+    );
   }
 
   @override

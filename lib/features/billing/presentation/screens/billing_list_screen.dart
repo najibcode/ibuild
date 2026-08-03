@@ -8,6 +8,8 @@ import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/building_pdf_generator.dart';
 import '../../data/models/bill_model.dart';
+import '../../../sales_bills/presentation/screens/sales_bill_builder_screen.dart';
+import '../../../payments/presentation/screens/payment_ledger_screen.dart';
 import '../controllers/billing_controller.dart';
 import 'billing_form_screen.dart';
 
@@ -25,76 +27,79 @@ class BillingListScreen extends ConsumerWidget {
     final double totalPaid = state.bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.amount);
     final double totalPending = state.bills.where((b) => b.status.toLowerCase() == 'pending' || b.status.toLowerCase() == 'overdue').fold(0.0, (sum, b) => sum + b.amount);
 
-    return Scaffold(
-      backgroundColor: AppColors.bg(context),
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: const Text(
-          'Client Invoicing & Billing (Revenue)',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.file_download_outlined, color: AppColors.primaryColor(context)),
-            tooltip: 'Download Building Billing Summary PDF',
-            onPressed: () async {
-              if (state.bills.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No building bills to export.')),
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: AppColors.bg(context),
+        appBar: AppBar(
+          titleSpacing: 16,
+          title: const Text(
+            'Billing & Financial Hub',
+            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+          ),
+          bottom: TabBar(
+            labelColor: AppColors.primaryColor(context),
+            unselectedLabelColor: AppColors.mutedText(context),
+            indicatorColor: AppColors.primaryColor(context),
+            tabs: const [
+              Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Vendor & Operational Bills'),
+              Tab(icon: Icon(Icons.point_of_sale, size: 18), text: 'Client Sales Invoices'),
+              Tab(icon: Icon(Icons.account_balance, size: 18), text: 'Payment Ledger & Cash Flow'),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: Icon(Icons.file_download_outlined, color: AppColors.primaryColor(context)),
+              tooltip: 'Download Building Billing Summary PDF',
+              onPressed: () async {
+                if (state.bills.isEmpty) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('No building bills to export.')),
+                  );
+                  return;
+                }
+                final bytes = await BuildingPdfGenerator.generateReport(
+                  bills: state.bills,
+                  totalAmount: totalBilled,
+                  totalPaid: totalPaid,
+                  totalPending: totalPending,
                 );
-                return;
-              }
-              final bytes = await BuildingPdfGenerator.generateReport(
-                bills: state.bills,
-                totalAmount: totalBilled,
-                totalPaid: totalPaid,
-                totalPending: totalPending,
-              );
-              await PdfDownloadHelper.downloadPdf(
-                bytes: bytes,
-                filename: 'IBUILD_Building_Billing_Report.pdf',
-              );
-            },
-          ),
-          ElevatedButton.icon(
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const BillingFormScreen()),
-              );
-              ref.read(billingControllerProvider.notifier).loadBills();
-            },
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('New Client Bill'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor(context),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                await PdfDownloadHelper.downloadPdf(
+                  bytes: bytes,
+                  filename: 'IBUILD_Building_Billing_Report.pdf',
+                );
+              },
             ),
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
-            onPressed: () => ref.read(billingControllerProvider.notifier).loadBills(),
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const BillingFormScreen()),
-          );
-          ref.read(billingControllerProvider.notifier).loadBills();
-        },
-        backgroundColor: AppColors.primaryColor(context),
-        foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('New Client Bill'),
-      ),
-      body: Column(
-        children: [
-          // Financial Summary Header Cards (Client Receivables & Revenue)
+            ElevatedButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const BillingFormScreen()),
+                );
+                ref.read(billingControllerProvider.notifier).loadBills();
+              },
+              icon: const Icon(Icons.add, size: 16),
+              label: const Text('New Bill'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryColor(context),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
+            ),
+            const SizedBox(width: 8),
+            IconButton(
+              icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
+              onPressed: () => ref.read(billingControllerProvider.notifier).loadBills(),
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: TabBarView(
+          children: [
+            // Tab 1: Vendor & Operational Bills
+            Column(
+              children: [
+                // Financial Summary Header Cards (Client Receivables & Revenue)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
             child: Row(
@@ -159,8 +164,17 @@ class BillingListScreen extends ConsumerWidget {
           ),
         ],
       ),
-    );
-  }
+
+      // Tab 2: Client Sales Invoices
+      const SalesBillBuilderScreen(),
+
+      // Tab 3: Payment Ledger & Cash Flow
+      const PaymentLedgerScreen(),
+    ],
+  ),
+),
+);
+}
 
   Widget _buildMetricCard(
     BuildContext context, {

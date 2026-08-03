@@ -227,68 +227,68 @@ class _RoleSummarySection extends ConsumerWidget {
 class _RecentActivitySection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final activityRepo = ref.watch(activityRepositoryProvider);
+    final activitiesAsync = ref.watch(recentActivitiesProvider);
 
-    return FutureBuilder(
-      future: activityRepo.getRecentActivities(limit: 10),
-      builder: (context, snapshot) {
-        return Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: AppColors.cardBg(context),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.border(context)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.history, color: AppColors.primary, size: 20),
-                  const SizedBox(width: 8),
-                  Text(
-                    'System Activity Log',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.bold,
-                        ),
-                  ),
-                ],
+              const Icon(Icons.history, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Live Site Activity & Notifications Log',
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
               ),
-              const Divider(height: 24),
-              if (snapshot.connectionState == ConnectionState.waiting)
-                const Center(child: CircularProgressIndicator())
-              else if (snapshot.hasData && snapshot.data!.isNotEmpty)
-                ...snapshot.data!.map(
+            ],
+          ),
+          const Divider(height: 24),
+          activitiesAsync.when(
+            data: (activities) {
+              if (activities.isEmpty) {
+                return const Text(
+                  'No activity logged yet',
+                  style: TextStyle(color: AppColors.textMuted),
+                );
+              }
+              return Column(
+                children: activities.map(
                   (activity) => Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    padding: const EdgeInsets.symmetric(vertical: 6),
                     child: Row(
                       children: [
-                        const Icon(Icons.circle, size: 6, color: AppColors.outline),
+                        const Icon(Icons.circle, size: 6, color: AppColors.primary),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Text(
-                            '${activity.actionType} — ${activity.entityType}',
-                            style: const TextStyle(fontSize: 13),
+                            activity.details['title'] ?? '${activity.actionType} — ${activity.entityType}',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text(context)),
                           ),
                         ),
                         Text(
                           _timeAgo(activity.createdAt),
-                          style: const TextStyle(
-                              color: AppColors.textMuted, fontSize: 11),
+                          style: const TextStyle(color: AppColors.textMuted, fontSize: 11),
                         ),
                       ],
                     ),
                   ),
-                )
-              else
-                const Text(
-                  'No activity logged yet',
-                  style: TextStyle(color: AppColors.textMuted),
-                ),
-            ],
+                ).toList(),
+              );
+            },
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, s) => Text('Error loading activity log: $e', style: const TextStyle(color: AppColors.error)),
           ),
-        );
-      },
+        ],
+      ),
     );
   }
 

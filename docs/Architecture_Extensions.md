@@ -145,9 +145,8 @@ To preserve clean navigation and prevent user confusion, workflows are strictly 
 
 ### A. Global Workflows (Outside Project Navigation)
 Accessible directly from the main sidebar (`WebSidebar`) and main app navigation menu:
-*   **Sales Bills & Invoices**: Top-level entry allowing users to create and manage client invoices globally.
-*   **Payment Ledger**: Top-level entry for viewing payments and ledger transactions across all projects.
-*   **Billing & Expenses**, **Quotations & Estimates**, **Materials Inventory**, **Equipment & Tools**, **Subcontractors**, and **Reports**.
+*   **Billing & Financial Hub**: Single unified commercial section containing Operational Vendor Bills, Client Sales Invoices (`INV-YYYYMMDD-XXXX`), and Payment Ledgers.
+*   **Quotations & Estimates**, **Materials Inventory**, **Equipment & Tools**, **Subcontractors**, **Expenses**, and **Reports**.
 
 ### B. Site-Specific Workflows (Inside Project Workspace)
 Contained within `ProjectOperationsScreen` for active site execution:
@@ -156,5 +155,23 @@ Contained within `ProjectOperationsScreen` for active site execution:
 *   **Daily Site Progress**: Progress logs, photos, and site updates.
 *   **About Site Specifications**: Engineering metrics and project details.
 *   **Linked Project Shortcuts**: Quick actions (`+ Draw Invoice for this Site`, `+ Record Payment for this Site`) that launch global tools pre-configured for the active project.
+
+---
+
+## 7. Site Activity Logging & Multi-Role Notification Engine
+
+To keep Owner, Supervisors, and Admin informed of real-time site events, all site operations emit structured activity logs and dispatch multi-role notifications.
+
+### A. Activity Dispatch Mechanism
+Whenever a site event occurs (drawing uploaded, payment recorded, invoice drawn, progress update submitted, inspection checklist task added), `SupabaseActivityRepository.logSiteActivityAndNotify()` logs an entry in `activities` table with:
+*   `action_type`: e.g. `drawing_added`, `payment_recorded`, `sales_bill_drawn`, `checklist_item_added`.
+*   `entity_type`: e.g. `site_drawings`, `project_payments`, `sales_bills`, `project_checklists`.
+*   `details`: JSON metadata containing project title, user role, amount, and reference tags.
+
+### B. Notification Presentation & Role Targets
+*   **Role Targets**: Broadcasted to `owner`, `admin`, and `supervisor` roles.
+*   **Web & Desktop**: Accessible via `NotificationsDropdown` in `WebHeader` and real-time activity feed panels on `AdminDashboard`, `SupervisorDashboard`, and `WebDashboard`.
+*   **Mobile Devices**: Accessible via the `MobileDashboard` top header notification bell with active unread badge alerts and mobile bottom sheet notifications drawer.
+
 
 

@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../../core/utils/document_number_generator.dart';
+import 'package:printing/printing.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
+import '../data/sales_bill_pdf_generator.dart';
 import '../../data/models/sales_bill_model.dart';
 import '../../data/repositories/supabase_sales_bill_repository.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
@@ -111,10 +114,72 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
         title: const Text('Sales Bill Invoice Builder'),
         actions: [
           IconButton(
-            icon: const Icon(Icons.picture_as_pdf_outlined),
-            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Generating Sales Bill PDF...')),
-            ),
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'Print Sales Invoice PDF',
+            onPressed: () async {
+              final items = _rows.map((r) => SalesBillItem(
+                id: '',
+                billId: '',
+                description: r.particularCtrl.text.isEmpty ? 'Construction Work Item' : r.particularCtrl.text,
+                quantity: double.tryParse(r.qtyCtrl.text) ?? 1,
+                unitPrice: double.tryParse(r.priceCtrl.text) ?? 0,
+                total: r.total,
+              )).toList();
+
+              final bill = SalesBill(
+                id: '',
+                projectId: _selectedProjectId ?? '',
+                billNumber: _billNumberCtrl.text.trim(),
+                clientName: _clientNameCtrl.text.trim().isEmpty ? 'Valued Client' : _clientNameCtrl.text.trim(),
+                amount: _subtotal,
+                taxAmount: _tax,
+                totalAmount: _grandTotal,
+                status: _status,
+                dueDate: DateTime.now().add(const Duration(days: 30)),
+                createdAt: DateTime.now(),
+                items: items,
+              );
+
+              final pdfBytes = await SalesBillPdfGenerator.generatePdf(bill);
+              await Printing.layoutPdf(
+                onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                name: 'Sales_Invoice_${bill.billNumber}.pdf',
+              );
+            },
+          ),
+          IconButton(
+            icon: const Icon(Icons.download_outlined),
+            tooltip: 'Download Sales Invoice PDF',
+            onPressed: () async {
+              final items = _rows.map((r) => SalesBillItem(
+                id: '',
+                billId: '',
+                description: r.particularCtrl.text.isEmpty ? 'Construction Work Item' : r.particularCtrl.text,
+                quantity: double.tryParse(r.qtyCtrl.text) ?? 1,
+                unitPrice: double.tryParse(r.priceCtrl.text) ?? 0,
+                total: r.total,
+              )).toList();
+
+              final bill = SalesBill(
+                id: '',
+                projectId: _selectedProjectId ?? '',
+                billNumber: _billNumberCtrl.text.trim(),
+                clientName: _clientNameCtrl.text.trim().isEmpty ? 'Valued Client' : _clientNameCtrl.text.trim(),
+                amount: _subtotal,
+                taxAmount: _tax,
+                totalAmount: _grandTotal,
+                status: _status,
+                dueDate: DateTime.now().add(const Duration(days: 30)),
+                createdAt: DateTime.now(),
+                items: items,
+              );
+
+              final pdfBytes = await SalesBillPdfGenerator.generatePdf(bill);
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'Sales_Invoice_${bill.billNumber}.pdf',
+              );
+            },
           ),
         ],
       ),

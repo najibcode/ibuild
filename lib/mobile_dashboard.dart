@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'core/theme/app_colors.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
+import 'features/activities/data/repositories/supabase_activity_repository.dart';
+import 'core/widgets/notifications_dropdown.dart';
 
 class MobileDashboard extends ConsumerWidget {
   final VoidCallback onViewProjects;
@@ -66,28 +68,67 @@ class MobileDashboard extends ConsumerWidget {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.containerMargin),
-            child: Stack(
-              children: [
-                IconButton(
-                  icon: const Icon(
-                    Icons.notifications_none,
-                    color: AppColors.primary,
-                  ),
-                  onPressed: () {},
-                ),
-                Positioned(
-                  right: 12,
-                  top: 12,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: AppColors.error,
-                      shape: BoxShape.circle,
+            child: Consumer(
+              builder: (context, ref, _) {
+                final unreadAsync = ref.watch(unreadNotificationsCountProvider);
+                final count = unreadAsync.valueOrNull ?? 0;
+
+                return Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    IconButton(
+                      icon: const Icon(
+                        Icons.notifications_outlined,
+                        color: AppColors.primary,
+                      ),
+                      onPressed: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          shape: const RoundedRectangleBorder(
+                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                          ),
+                          builder: (ctx) => Container(
+                            height: MediaQuery.of(ctx).size.height * 0.65,
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              children: [
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Text('Site Activity Notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.text(ctx))),
+                                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                                  ],
+                                ),
+                                const Divider(),
+                                const Expanded(child: NotificationsDropdown()),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
                     ),
-                  ),
-                ),
-              ],
+                    if (count > 0)
+                      Positioned(
+                        right: 8,
+                        top: 8,
+                        child: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: const BoxDecoration(
+                            color: AppColors.error,
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          child: Text(
+                            '$count',
+                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                );
+              },
             ),
           ),
         ],

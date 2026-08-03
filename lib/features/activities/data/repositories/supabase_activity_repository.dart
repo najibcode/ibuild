@@ -7,10 +7,49 @@ final activityRepositoryProvider = Provider<SupabaseActivityRepository>((ref) {
   return SupabaseActivityRepository(ref.watch(supabaseClientProvider));
 });
 
+final recentActivitiesProvider = FutureProvider<List<Activity>>((ref) async {
+  final repo = ref.watch(activityRepositoryProvider);
+  return await repo.getRecentActivities();
+});
+
+final unreadNotificationsCountProvider = FutureProvider<int>((ref) async {
+  final repo = ref.watch(activityRepositoryProvider);
+  final notifications = await repo.getNotificationsForUser();
+  return notifications.length;
+});
+
 class SupabaseActivityRepository {
   final SupabaseClient _client;
 
   SupabaseActivityRepository(this._client);
+
+  Future<void> logSiteActivityAndNotify({
+    required String actionType,
+    required String entityType,
+    required String entityId,
+    required String title,
+    String? projectId,
+    Map<String, dynamic> details = const {},
+  }) async {
+    try {
+      final user = _client.auth.currentUser;
+
+      final mergedDetails = Map<String, dynamic>.from(details);
+      mergedDetails['title'] = title;
+      if (projectId != null) mergedDetails['project_id'] = projectId;
+      mergedDetails['target_roles'] = ['owner', 'admin', 'supervisor'];
+
+      await _client.from('activities').insert({
+        'user_id': user?.id ?? 'system',
+        'action_type': actionType,
+        'entity_type': entityType,
+        'entity_id': entityId,
+        'details': mergedDetails,
+      });
+    } catch (e) {
+      print('Failed to log site activity and notify: $e');
+    }
+  }
 
   Future<void> logActivity({
     required String actionType,
