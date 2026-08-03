@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_logo.dart';
 import '../controllers/auth_controller.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
@@ -38,23 +39,12 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              Icons.architecture,
-              size: 80,
+            AppLogo(
+              size: 72,
+              subtitle: 'CONSTRUCTION ERP',
               color: Colors.white,
             ),
-            SizedBox(height: 16),
-            Text(
-              'IBUILD',
-              style: TextStyle(
-                fontFamily: 'Inter',
-                fontSize: 32,
-                fontWeight: FontWeight.w900,
-                color: Colors.white,
-                letterSpacing: 2,
-              ),
-            ),
-            SizedBox(height: 24),
+            SizedBox(height: 36),
             CircularProgressIndicator(
               valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
             ),

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_logo.dart';
 import '../controllers/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -76,33 +77,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // App Brand Logo/Icon
-                  Center(
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.architecture,
-                          size: 48,
-                          color: primaryCol,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'IBUILD',
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.w900,
-                            color: primaryCol,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'ERP Management Portal',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: AppColors.mutedText(context),
-                          ),
-                        ),
-                      ],
+                  const Center(
+                    child: AppLogo(
+                      size: 52,
+                      subtitle: 'ERP MANAGEMENT PORTAL',
                     ),
                   ),
                   const SizedBox(height: 32),

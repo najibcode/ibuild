@@ -4,6 +4,7 @@ import '../theme/app_colors.dart';
 import '../../features/rbac/presentation/providers/permission_provider.dart';
 import 'package:ibuild/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
+import 'app_logo.dart';
 import 'logout_dialog.dart';
 
 
@@ -168,30 +169,11 @@ class WebSidebar extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.containerMargin,
-              vertical: 32,
+              vertical: 24,
             ),
-            child: Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: primaryCol.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(Icons.architecture, color: primaryCol),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'IBUILD',
-                  style: TextStyle(
-                    fontFamily: 'Inter',
-                    fontSize: 22,
-                    fontWeight: FontWeight.w900,
-                    color: primaryCol,
-                  ),
-                ),
-              ],
+            child: const AppLogo(
+              size: 38,
+              subtitle: 'ERP ENTERPRISE',
             ),
           ),
 
