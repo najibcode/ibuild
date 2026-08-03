@@ -1,10 +1,29 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/supabase/supabase_client.provider.dart';
 import '../models/sales_bill_model.dart';
+
+final allSalesBillsProvider = FutureProvider<List<SalesBill>>((ref) async {
+  final client = ref.watch(supabaseClientProvider);
+  return await SupabaseSalesBillRepository(client).fetchAllSalesBills();
+});
 
 class SupabaseSalesBillRepository {
   final SupabaseClient _client;
 
   SupabaseSalesBillRepository(this._client);
+
+  Future<List<SalesBill>> fetchAllSalesBills() async {
+    try {
+      final response = await _client
+          .from('sales_bills')
+          .select()
+          .order('created_at', ascending: false);
+      return (response as List).map((json) => SalesBill.fromJson(json)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
 
   Future<List<SalesBill>> fetchSalesBillsForProject(String projectId) async {
     try {

@@ -65,12 +65,13 @@ class SupabaseInventoryRepository implements InventoryRepository {
 
     await _client.from('inventory').insert(item.toJson());
     
-    // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'added_inventory',
+    // Log activity & broadcast notifications
+    await _activityRepo.logSiteActivityAndNotify(
+      actionType: 'inventory_added',
       entityType: 'Inventory',
       entityId: item.id,
-      details: {'item_name': item.materialName, 'quantity': item.quantity},
+      title: 'New Stock Added: ${item.materialName} (${item.quantity} ${item.unit})',
+      details: {'item_name': item.materialName, 'quantity': item.quantity, 'unit': item.unit},
     );
   }
 
@@ -86,12 +87,13 @@ class SupabaseInventoryRepository implements InventoryRepository {
       throw StateError('Item was not found or you do not have permission.');
     }
 
-    // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'updated_inventory',
+    // Log activity & broadcast notifications
+    await _activityRepo.logSiteActivityAndNotify(
+      actionType: 'inventory_updated',
       entityType: 'Inventory',
       entityId: item.id,
-      details: {'item_name': item.materialName},
+      title: 'Stock Updated: ${item.materialName} (${item.quantity} ${item.unit})',
+      details: {'item_name': item.materialName, 'quantity': item.quantity},
     );
   }
 
@@ -99,11 +101,12 @@ class SupabaseInventoryRepository implements InventoryRepository {
   Future<void> deleteItem(String id) async {
     await _client.from('inventory').delete().eq('id', id);
     
-    // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'deleted_inventory',
+    // Log activity & broadcast notifications
+    await _activityRepo.logSiteActivityAndNotify(
+      actionType: 'inventory_deleted',
       entityType: 'Inventory',
       entityId: id,
+      title: 'Stock Item Removed from Inventory',
     );
   }
 

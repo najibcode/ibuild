@@ -97,7 +97,6 @@ class SupabaseActivityRepository {
     final response = await _client
         .from('activities')
         .select('*, profiles(company_name)')
-        .neq('user_id', user.id) // Only activities from OTHER users
         .order('created_at', ascending: false)
         .limit(limit);
 

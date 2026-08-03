@@ -18,6 +18,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   late TextEditingController _phoneController;
   late TextEditingController _companyController;
   late TextEditingController _avatarUrlController;
+  String _notificationScope = 'all';
+  bool _enablePushNotifications = true;
 
   static const String _defaultAvatar =
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc';
@@ -229,6 +231,67 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       hintText: 'https://...',
                       prefixIcon: Icon(Icons.image_outlined, size: 20),
                     ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  const SizedBox(height: 16),
+
+                  // Notification Preferences & Role Scope
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'NOTIFICATION PREFERENCES & SCOPE',
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 0.8,
+                        color: AppColors.mutedText(context),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 14),
+
+                  DropdownButtonFormField<String>(
+                    value: _notificationScope,
+                    decoration: const InputDecoration(
+                      labelText: 'ERP Notification Alert Scope',
+                      prefixIcon: Icon(Icons.notifications_active_outlined, size: 20),
+                    ),
+                    items: const [
+                      DropdownMenuItem(
+                        value: 'all',
+                        child: Text('All Site & Operational Updates (Recommended)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'financial',
+                        child: Text('High-Priority & Financial Only (Bills, Payments)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'site',
+                        child: Text('Site Execution Only (Drawings, Checklists)'),
+                      ),
+                      DropdownMenuItem(
+                        value: 'muted',
+                        child: Text('Muted / Silent'),
+                      ),
+                    ],
+                    onChanged: (v) => setState(() => _notificationScope = v!),
+                  ),
+                  const SizedBox(height: 14),
+
+                  SwitchListTile(
+                    value: _enablePushNotifications,
+                    activeColor: AppColors.secondary,
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Mobile Push Banners & Unread Badges',
+                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text(context)),
+                    ),
+                    subtitle: Text(
+                      'Receive live unread badges on mobile header bell icon',
+                      style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                    ),
+                    onChanged: (val) => setState(() => _enablePushNotifications = val),
                   ),
                   const SizedBox(height: 28),
 

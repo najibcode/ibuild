@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../controllers/inventory_controller.dart';
 
@@ -74,6 +75,8 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
     final success = widget.item == null ? await ctrl.addItem(item) : await ctrl.editItem(item);
 
     if (success && mounted) {
+      ref.invalidate(recentActivitiesProvider);
+      ref.invalidate(unreadNotificationsCountProvider);
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(widget.item == null ? 'Item added' : 'Item updated'), backgroundColor: AppColors.secondary),

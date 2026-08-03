@@ -5,176 +5,477 @@ import 'package:printing/printing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
-import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
+import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/building_pdf_generator.dart';
 import '../../data/models/bill_model.dart';
+import '../../../sales_bills/data/models/sales_bill_model.dart';
+import '../../../sales_bills/data/repositories/supabase_sales_bill_repository.dart';
+import '../../../sales_bills/data/sales_bill_pdf_generator.dart';
 import '../../../sales_bills/presentation/screens/sales_bill_builder_screen.dart';
 import '../../../payments/presentation/screens/payment_ledger_screen.dart';
+import '../../../payments/data/models/payment_model.dart';
+import '../../../payments/data/models/payment_ledger_model.dart';
+import '../../../payments/data/repositories/supabase_payment_repository.dart';
+import '../../../payments/data/repositories/supabase_payment_ledger_repository.dart';
+import '../../../projects/presentation/controllers/project_controller.dart';
 import '../controllers/billing_controller.dart';
 import 'billing_form_screen.dart';
 
-class BillingListScreen extends ConsumerWidget {
+class BillingListScreen extends ConsumerStatefulWidget {
   const BillingListScreen({super.key});
 
-  static const _statuses = ['pending', 'paid', 'overdue', 'cancelled'];
+  @override
+  ConsumerState<BillingListScreen> createState() => _BillingListScreenState();
+}
+
+class _BillingListScreenState extends ConsumerState<BillingListScreen> with SingleTickerProviderStateMixin {
+  late TabController _tabController;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(billingControllerProvider);
+  void initState() {
+    super.initState();
+    _tabController = TabController(length: 3, vsync: this);
+    _tabController.addListener(() {
+      if (!mounted) return;
+      setState(() {});
+    });
+  }
 
-    // Calculate Financial Summary Metrics for Client Billing (Revenue Inflow)
-    final double totalBilled = state.bills.fold(0.0, (sum, b) => sum + b.amount);
-    final double totalPaid = state.bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.amount);
-    final double totalPending = state.bills.where((b) => b.status.toLowerCase() == 'pending' || b.status.toLowerCase() == 'overdue').fold(0.0, (sum, b) => sum + b.amount);
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
 
-    return DefaultTabController(
-      length: 3,
-      child: Scaffold(
-        backgroundColor: AppColors.bg(context),
-        appBar: AppBar(
-          titleSpacing: 16,
-          title: const Text(
-            'Billing & Financial Hub',
-            style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
-          ),
-          bottom: TabBar(
-            labelColor: AppColors.primaryColor(context),
-            unselectedLabelColor: AppColors.mutedText(context),
-            indicatorColor: AppColors.primaryColor(context),
-            tabs: const [
-              Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Vendor & Operational Bills'),
-              Tab(icon: Icon(Icons.point_of_sale, size: 18), text: 'Client Sales Invoices'),
-              Tab(icon: Icon(Icons.account_balance, size: 18), text: 'Payment Ledger & Cash Flow'),
-            ],
-          ),
-          actions: [
-            IconButton(
-              icon: Icon(Icons.file_download_outlined, color: AppColors.primaryColor(context)),
-              tooltip: 'Download Building Billing Summary PDF',
-              onPressed: () async {
-                if (state.bills.isEmpty) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('No building bills to export.')),
-                  );
-                  return;
-                }
-                final bytes = await BuildingPdfGenerator.generateReport(
-                  bills: state.bills,
-                  totalAmount: totalBilled,
-                  totalPaid: totalPaid,
-                  totalPending: totalPending,
-                );
-                await PdfDownloadHelper.downloadPdf(
-                  bytes: bytes,
-                  filename: 'IBUILD_Building_Billing_Report.pdf',
-                );
-              },
-            ),
-            ElevatedButton.icon(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const BillingFormScreen()),
-                );
-                ref.read(billingControllerProvider.notifier).loadBills();
-              },
-              icon: const Icon(Icons.add, size: 16),
-              label: const Text('New Bill'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor(context),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(width: 8),
-            IconButton(
-              icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
-              onPressed: () => ref.read(billingControllerProvider.notifier).loadBills(),
-            ),
-            const SizedBox(width: 8),
-          ],
-        ),
-        body: TabBarView(
-          children: [
-            // Tab 1: Vendor & Operational Bills
-            Column(
+  void _onPrimaryActionButtonPressed() async {
+    final activeIndex = _tabController.index;
+    if (activeIndex == 0) {
+      // New Vendor Bill
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const BillingFormScreen()),
+      );
+      ref.read(billingControllerProvider.notifier).loadBills();
+    } else if (activeIndex == 1) {
+      // New Client Sales Invoice
+      await Navigator.of(context).push(
+        MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
+      );
+      ref.invalidate(allSalesBillsProvider);
+    } else {
+      // Record Payment
+      _showAddPaymentDialog(context);
+    }
+  }
+
+  void _showAddPaymentDialog(BuildContext context) {
+    final titleCtrl = TextEditingController();
+    final amountCtrl = TextEditingController();
+    final refCtrl = TextEditingController();
+    final partyCtrl = TextEditingController();
+    String? selectedProjectId;
+    String partyType = 'Client';
+    String pType = 'Received';
+    String pMethod = 'Bank Transfer';
+
+    final projectState = ref.read(projectControllerProvider);
+    final projects = projectState.projects;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: const Text('Record Payment & Cash Flow'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                // Financial Summary Header Cards (Client Receivables & Revenue)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-            child: Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    context,
-                    title: 'Total Invoiced',
-                    value: '₹${totalBilled.toInt()}',
-                    subtitle: '${state.bills.length} Client Bills',
-                    icon: Icons.receipt_long_outlined,
-                    color: AppColors.primary,
-                  ),
+                DropdownButtonFormField<String>(
+                  value: selectedProjectId,
+                  decoration: const InputDecoration(labelText: 'Select Project *'),
+                  items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                  onChanged: (v) => setDlgState(() => selectedProjectId = v),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    context,
-                    title: 'Collected (Paid)',
-                    value: '+₹${totalPaid.toInt()}',
-                    subtitle: 'Revenue Received',
-                    icon: Icons.check_circle_outline,
-                    color: AppColors.secondary,
-                  ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: partyCtrl,
+                  decoration: const InputDecoration(labelText: 'Payer / Payee Name *', hintText: 'e.g. City Developers / Apex Hardware'),
                 ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _buildMetricCard(
-                    context,
-                    title: 'Pending Due',
-                    value: '₹${totalPending.toInt()}',
-                    subtitle: 'Client Receivables',
-                    icon: Icons.pending_actions,
-                    color: totalPending > 0 ? AppColors.warning : AppColors.secondary,
-                  ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: partyType,
+                  decoration: const InputDecoration(labelText: 'Counterparty Type'),
+                  items: const [
+                    DropdownMenuItem(value: 'Client', child: Text('Client')),
+                    DropdownMenuItem(value: 'Supplier', child: Text('Supplier / Vendor')),
+                    DropdownMenuItem(value: 'Subcontractor', child: Text('Subcontractor')),
+                    DropdownMenuItem(value: 'Other', child: Text('Other')),
+                  ],
+                  onChanged: (v) => setDlgState(() => partyType = v!),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: titleCtrl,
+                  decoration: const InputDecoration(labelText: 'Transaction Description / Notes *', hintText: 'e.g. Milestone 2 Advance Payment'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Amount (₹) *', prefixText: '₹ '),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: pType,
+                  decoration: const InputDecoration(labelText: 'Payment Flow'),
+                  items: const [
+                    DropdownMenuItem(value: 'Received', child: Text('Received (+ Inflow)')),
+                    DropdownMenuItem(value: 'Paid', child: Text('Paid (- Outflow)')),
+                  ],
+                  onChanged: (v) => setDlgState(() => pType = v!),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  value: pMethod,
+                  decoration: const InputDecoration(labelText: 'Payment Method'),
+                  items: const [
+                    DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer / NEFT')),
+                    DropdownMenuItem(value: 'UPI', child: Text('UPI / GPay')),
+                    DropdownMenuItem(value: 'Cheque', child: Text('Cheque')),
+                    DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                  ],
+                  onChanged: (v) => setDlgState(() => pMethod = v!),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: refCtrl,
+                  decoration: const InputDecoration(labelText: 'Reference / UTR No.', hintText: 'e.g. UTR-9823411'),
                 ),
               ],
             ),
           ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                final amount = double.tryParse(amountCtrl.text) ?? 0;
+                if (partyCtrl.text.trim().isEmpty || amount <= 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Please enter party name and valid amount'), backgroundColor: AppColors.error),
+                  );
+                  return;
+                }
 
-          // Search & Status Filter Bar
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: SearchFilterBar(
-              hintText: 'Search bill #, project, notes...',
-              onSearchChanged: (q) => ref.read(billingControllerProvider.notifier).setSearch(q),
-              filterOptions: _statuses,
-              activeFilter: state.statusFilter,
-              onFilterChanged: (f) => ref.read(billingControllerProvider.notifier).setStatusFilter(f),
-              sortOptions: const ['Bill Date', 'Amount', 'Status'],
-              onSortChanged: (s) {
-                final map = {'Bill Date': 'bill_date', 'Amount': 'amount', 'Status': 'status'};
-                ref.read(billingControllerProvider.notifier).setSort(map[s] ?? 'created_at');
+                final client = ref.read(supabaseClientProvider);
+                final entry = PaymentLedgerEntry(
+                  id: '',
+                  projectId: selectedProjectId ?? 'general',
+                  counterpartyName: partyCtrl.text.trim(),
+                  counterpartyType: partyType,
+                  paymentType: pType,
+                  amount: amount,
+                  paymentMethod: pMethod,
+                  paymentDate: DateTime.now(),
+                  remarks: refCtrl.text.trim().isNotEmpty
+                      ? '${titleCtrl.text.trim()} (Ref: ${refCtrl.text.trim()})'
+                      : titleCtrl.text.trim(),
+                  createdAt: DateTime.now(),
+                );
+
+                await SupabasePaymentLedgerRepository(client).recordLedgerEntry(entry);
+                ref.invalidate(allPaymentLedgerProvider);
+                if (ctx.mounted) Navigator.pop(ctx);
+
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Payment ledger transaction recorded successfully'), backgroundColor: AppColors.secondary),
+                );
               },
+              child: const Text('Save Record'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(billingControllerProvider);
+    final salesBillsAsync = ref.watch(allSalesBillsProvider);
+
+    final activeIndex = _tabController.index;
+    String actionLabel = 'New Vendor Bill';
+    IconData actionIcon = Icons.add;
+    if (activeIndex == 1) {
+      actionLabel = 'New Sales Invoice';
+      actionIcon = Icons.point_of_sale;
+    } else if (activeIndex == 2) {
+      actionLabel = 'Record Payment';
+      actionIcon = Icons.account_balance_wallet;
+    }
+
+    final double totalBilled = state.bills.fold(0.0, (sum, b) => sum + b.amount);
+    final double totalPaid = state.bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.amount);
+    final double totalPending = state.bills.where((b) => b.status.toLowerCase() == 'pending' || b.status.toLowerCase() == 'overdue').fold(0.0, (sum, b) => sum + b.amount);
+
+    return Scaffold(
+      backgroundColor: AppColors.bg(context),
+      appBar: AppBar(
+        titleSpacing: 16,
+        title: const Text(
+          'Billing & Financial Hub',
+          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+        ),
+        bottom: TabBar(
+          controller: _tabController,
+          labelColor: AppColors.primaryColor(context),
+          unselectedLabelColor: AppColors.mutedText(context),
+          indicatorColor: AppColors.primaryColor(context),
+          tabs: const [
+            Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Vendor & Operational Bills'),
+            Tab(icon: Icon(Icons.point_of_sale, size: 18), text: 'Client Sales Invoices'),
+            Tab(icon: Icon(Icons.account_balance, size: 18), text: 'Payment Ledger & Cash Flow'),
+          ],
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.file_download_outlined, color: AppColors.primaryColor(context)),
+            tooltip: 'Download Building Billing Summary PDF',
+            onPressed: () async {
+              if (state.bills.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('No building bills to export.')),
+                );
+                return;
+              }
+              final bytes = await BuildingPdfGenerator.generateReport(
+                bills: state.bills,
+                totalAmount: totalBilled,
+                totalPaid: totalPaid,
+                totalPending: totalPending,
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: bytes,
+                filename: 'IBUILD_Building_Billing_Report.pdf',
+              );
+            },
+          ),
+          ElevatedButton.icon(
+            onPressed: _onPrimaryActionButtonPressed,
+            icon: Icon(actionIcon, size: 16),
+            label: Text(actionLabel),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryColor(context),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
             ),
           ),
-          const SizedBox(height: 8),
-
-          // Invoice List
-          Expanded(
-            child: _buildBody(context, ref, state),
+          const SizedBox(width: 8),
+          IconButton(
+            icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
+            onPressed: () {
+              ref.read(billingControllerProvider.notifier).loadBills();
+              ref.invalidate(allSalesBillsProvider);
+              ref.invalidate(allPaymentLedgerProvider);
+            },
           ),
+          const SizedBox(width: 8),
         ],
       ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Tab 1: Vendor & Operational Bills
+          _buildVendorBillsTab(context, ref, state, totalBilled, totalPaid, totalPending),
 
-      // Tab 2: Client Sales Invoices
-      const SalesBillBuilderScreen(),
+          // Tab 2: Client Sales Invoices
+          _buildClientSalesInvoicesTab(context, ref, salesBillsAsync),
 
-      // Tab 3: Payment Ledger & Cash Flow
-      const PaymentLedgerScreen(),
-    ],
-  ),
-),
-);
-}
+          // Tab 3: Payment Ledger & Cash Flow
+          const PaymentLedgerScreen(isEmbedded: true),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildVendorBillsTab(
+    BuildContext context,
+    WidgetRef ref,
+    BillingListState state,
+    double totalBilled,
+    double totalPaid,
+    double totalPending,
+  ) {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: _buildMetricCard(
+                  context,
+                  title: 'Total Invoiced',
+                  value: '₹${totalBilled.toInt()}',
+                  subtitle: '${state.bills.length} Vendor Bills',
+                  icon: Icons.receipt_long_outlined,
+                  color: AppColors.primary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  context,
+                  title: 'Paid Expenses',
+                  value: '₹${totalPaid.toInt()}',
+                  subtitle: 'Disbursements',
+                  icon: Icons.check_circle_outline,
+                  color: AppColors.secondary,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: _buildMetricCard(
+                  context,
+                  title: 'Pending Payable',
+                  value: '₹${totalPending.toInt()}',
+                  subtitle: 'Outstanding Bills',
+                  icon: Icons.pending_actions_outlined,
+                  color: AppColors.warning,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          child: SearchFilterBar(
+            hintText: 'Search by bill number, project, or notes...',
+            onSearchChanged: (q) => ref.read(billingControllerProvider.notifier).setSearch(q),
+            filterOptions: const ['All', 'Paid', 'Pending', 'Overdue', 'Cancelled'],
+            activeFilter: state.statusFilter,
+            onFilterChanged: (f) => ref.read(billingControllerProvider.notifier).setStatusFilter(f),
+            sortOptions: const ['Bill Date', 'Amount', 'Status'],
+            onSortChanged: (s) {
+              final map = {'Bill Date': 'bill_date', 'Amount': 'amount', 'Status': 'status'};
+              ref.read(billingControllerProvider.notifier).setSort(map[s] ?? 'created_at');
+            },
+          ),
+        ),
+        const SizedBox(height: 8),
+        Expanded(
+          child: _buildBody(context, ref, state),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildClientSalesInvoicesTab(
+    BuildContext context,
+    WidgetRef ref,
+    AsyncValue<List<SalesBill>> salesBillsAsync,
+  ) {
+    return salesBillsAsync.when(
+      data: (bills) {
+        final double totalInvoiced = bills.fold(0.0, (sum, b) => sum + b.totalAmount);
+        final double totalCollected = bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.totalAmount);
+
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricCard(
+                      context,
+                      title: 'Total Sales Invoiced',
+                      value: '₹${totalInvoiced.toInt()}',
+                      subtitle: '${bills.length} Client Invoices',
+                      icon: Icons.point_of_sale,
+                      color: AppColors.primary,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricCard(
+                      context,
+                      title: 'Revenue Collected',
+                      value: '+₹${totalCollected.toInt()}',
+                      subtitle: 'Client Inflow',
+                      icon: Icons.check_circle,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            if (bills.isEmpty)
+              Expanded(
+                child: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.point_of_sale_outlined, size: 64, color: AppColors.mutedText(context)),
+                      const SizedBox(height: 16),
+                      Text('No client sales invoices recorded', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+                      const SizedBox(height: 4),
+                      Text('Click "+ New Sales Invoice" above to issue client bills', style: TextStyle(color: AppColors.mutedText(context), fontSize: 12)),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Expanded(
+                child: ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  itemCount: bills.length,
+                  itemBuilder: (context, i) {
+                    final b = bills[i];
+                    final isPaid = b.status.toLowerCase() == 'paid';
+                    return Card(
+                      color: AppColors.cardBg(context),
+                      margin: const EdgeInsets.only(bottom: 12),
+                      child: ListTile(
+                        leading: const Icon(Icons.receipt_long_outlined, color: AppColors.primary),
+                        title: Text('INVOICE #${b.billNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                        subtitle: Text('Client: ${b.clientName} • Date: ${b.createdAt.toIso8601String().split('T').first}'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                                Text(b.status, style: TextStyle(color: isPaid ? AppColors.secondary : AppColors.error, fontSize: 11, fontWeight: FontWeight.bold)),
+                              ],
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.print_outlined, size: 18),
+                              tooltip: 'Print Invoice PDF',
+                              onPressed: () async {
+                                final pdfBytes = await SalesBillPdfGenerator.generatePdf(b);
+                                await Printing.layoutPdf(
+                                  onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                                  name: 'Sales_Invoice_${b.billNumber}.pdf',
+                                );
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error loading sales invoices: $e')),
+    );
+  }
 
   Widget _buildMetricCard(
     BuildContext context, {
@@ -253,9 +554,9 @@ class BillingListScreen extends ConsumerWidget {
           children: [
             Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.mutedText(context).withOpacity(0.4)),
             const SizedBox(height: 16),
-            Text('No client bills recorded.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+            Text('No vendor bills recorded.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
             const SizedBox(height: 4),
-            Text('Create client invoices to track sales revenue and receivables.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+            Text('Create vendor bills to track operational expenses.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
           ],
         ),
       );
@@ -337,7 +638,6 @@ class _BillCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Client Invoice Badge & Status Tag
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -372,8 +672,6 @@ class _BillCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 12),
-
-              // Project Name & Financial Revenue Amount
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -401,14 +699,13 @@ class _BillCard extends StatelessWidget {
                         style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.secondary),
                       ),
                       Text(
-                        'Client Invoice',
+                        'Vendor Expense',
                         style: TextStyle(color: AppColors.mutedText(context), fontSize: 10),
                       ),
                     ],
                   ),
                 ],
               ),
-
               if (bill.notes != null && bill.notes!.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 Text(
@@ -417,8 +714,6 @@ class _BillCard extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 14),
-
-              // Action Buttons Row
               Row(
                 children: [
                   Expanded(
@@ -450,23 +745,23 @@ class _BillCard extends StatelessWidget {
                         filename: 'Building_Invoice_${bill.billNumber}.pdf',
                       );
                     },
-                    tooltip: 'Download Building Invoice PDF',
+                    tooltip: 'Download Vendor Bill PDF',
                   ),
                   IconButton(
                     icon: const Icon(Icons.share_outlined, size: 20, color: AppColors.primary),
                     onPressed: () {
-                      final invoiceText = "CLIENT INVOICE #${bill.billNumber}\nProject: ${bill.projectName}\nDate: ${bill.billDate}\nAmount: ₹${bill.amount.toStringAsFixed(2)}\nStatus: ${bill.status.toUpperCase()}";
+                      final invoiceText = "VENDOR BILL #${bill.billNumber}\nProject: ${bill.projectName}\nDate: ${bill.billDate}\nAmount: ₹${bill.amount.toStringAsFixed(2)}\nStatus: ${bill.status.toUpperCase()}";
                       Clipboard.setData(ClipboardData(text: invoiceText));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Copied Invoice details to clipboard!')),
+                        const SnackBar(content: Text('Copied Bill details to clipboard!')),
                       );
                     },
-                    tooltip: 'Share Invoice Details',
+                    tooltip: 'Share Bill Details',
                   ),
                   IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.outline),
                     onPressed: onEdit,
-                    tooltip: 'Edit Invoice',
+                    tooltip: 'Edit Bill',
                   ),
                 ],
               ),

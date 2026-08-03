@@ -89,10 +89,22 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
       await repo.createSalesBill(bill);
 
       if (!mounted) return;
-      Navigator.of(context).pop();
+      ref.invalidate(allSalesBillsProvider);
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Sales bill created successfully'), backgroundColor: AppColors.secondary),
       );
+
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      } else {
+        setState(() {
+          _clientNameCtrl.clear();
+          _billNumberCtrl.text = DocumentNumberGenerator.generateSalesBillNumber();
+          _rows.clear();
+          _addRow();
+        });
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
