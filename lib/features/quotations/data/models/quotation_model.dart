@@ -63,13 +63,23 @@ class Quotation {
   final String clientName;
   final String? clientPhone;
   final String subject;
-  final String status; // 'draft', 'sent', 'approved', 'rejected'
+  final String status; // 'Draft', 'Sent', 'Approved', 'Rejected'
   final List<QuotationItem> items;
   final double totalAmount;
   final String? validUntil;
   final String? notes;
   final String? createdAt;
   final String? updatedAt;
+
+  static String normalizeStatus(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return 'Draft';
+    final s = raw.trim().toLowerCase();
+    if (s == 'draft') return 'Draft';
+    if (s == 'sent') return 'Sent';
+    if (s == 'approved') return 'Approved';
+    if (s == 'rejected') return 'Rejected';
+    return raw[0].toUpperCase() + raw.substring(1);
+  }
 
   Quotation({
     required this.id,
@@ -79,7 +89,7 @@ class Quotation {
     required this.clientName,
     this.clientPhone,
     required this.subject,
-    this.status = 'draft',
+    String status = 'Draft',
     required this.items,
     double? totalAmount,
     this.validUntil,
@@ -87,6 +97,7 @@ class Quotation {
     this.createdAt,
     this.updatedAt,
   })  : quotationNumber = quotationNumber ?? DocumentNumberGenerator.generateQuotationNumber(),
+        status = normalizeStatus(status),
         totalAmount = totalAmount ?? items.fold(0.0, (sum, i) => sum + i.totalCost);
 
   factory Quotation.fromJson(Map<String, dynamic> json) {
@@ -132,7 +143,7 @@ class Quotation {
       clientName: json['client_name'] as String? ?? 'Direct Client',
       clientPhone: json['client_phone'] as String?,
       subject: parsedSubject,
-      status: json['status'] as String? ?? 'draft',
+      status: normalizeStatus(json['status'] as String?),
       items: parsedItems,
       totalAmount: (json['total_amount'] as num?)?.toDouble() ?? computedTotal,
       validUntil: json['valid_until'] as String?,
@@ -155,7 +166,7 @@ class Quotation {
       'quotation_number': quotationNumber,
       'client_name': clientName,
       'client_phone': clientPhone,
-      'status': status,
+      'status': normalizeStatus(status),
       'total_amount': totalAmount,
       'valid_until': validUntil,
       'notes': encodedNotes,

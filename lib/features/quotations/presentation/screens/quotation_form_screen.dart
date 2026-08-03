@@ -39,7 +39,7 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
     _clientPhoneCtrl = TextEditingController(text: q?.clientPhone ?? '');
     _subjectCtrl = TextEditingController(text: q?.subject ?? 'Construction Project Estimate');
     _notesCtrl = TextEditingController(text: q?.notes ?? '');
-    _status = q?.status ?? 'draft';
+    _status = Quotation.normalizeStatus(q?.status ?? 'Draft');
     _selectedProjectId = q?.projectId;
 
     if (q != null && q.validUntil != null) {
@@ -303,10 +303,10 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                             dropdownColor: AppColors.cardBg(context),
                             decoration: const InputDecoration(labelText: 'Quote Status'),
                             items: const [
-                              DropdownMenuItem(value: 'draft', child: Text('🟡 Draft')),
-                              DropdownMenuItem(value: 'sent', child: Text('🟦 Sent to Client')),
-                              DropdownMenuItem(value: 'approved', child: Text('🟢 Approved')),
-                              DropdownMenuItem(value: 'rejected', child: Text('🔴 Rejected')),
+                              DropdownMenuItem(value: 'Draft', child: Text('🟡 Draft')),
+                              DropdownMenuItem(value: 'Sent', child: Text('🟦 Sent to Client')),
+                              DropdownMenuItem(value: 'Approved', child: Text('🟢 Approved')),
+                              DropdownMenuItem(value: 'Rejected', child: Text('🔴 Rejected')),
                             ],
                             onChanged: (val) => setState(() => _status = val!),
                           ),

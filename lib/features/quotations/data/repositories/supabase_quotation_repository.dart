@@ -24,7 +24,7 @@ class SupabaseQuotationRepository implements QuotationRepository {
         query = query.eq('project_id', projectId);
       }
       if (statusFilter != null && statusFilter.isNotEmpty && statusFilter.toLowerCase() != 'all') {
-        query = query.eq('status', statusFilter.toLowerCase());
+        query = query.eq('status', Quotation.normalizeStatus(statusFilter));
       }
 
       query = query.order('created_at', ascending: false);
@@ -40,7 +40,7 @@ class SupabaseQuotationRepository implements QuotationRepository {
         query = query.eq('project_id', projectId);
       }
       if (statusFilter != null && statusFilter.isNotEmpty && statusFilter.toLowerCase() != 'all') {
-        query = query.eq('status', statusFilter.toLowerCase());
+        query = query.eq('status', Quotation.normalizeStatus(statusFilter));
       }
 
       query = query.order('created_at', ascending: false);

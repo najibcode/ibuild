@@ -123,6 +123,7 @@ void main() {
       final json = quotation.toDbJson();
       expect(json['quotation_number'], equals(quotation.quotationNumber));
       expect(json['client_name'], equals('Modern Build Corp'));
+      expect(json['status'], equals('Draft'));
     });
   });
 }
