@@ -56,17 +56,6 @@ class SupervisorDashboard extends ConsumerWidget {
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         ),
                       ),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: () => showLogoutDialog(context, ref),
-                        icon: const Icon(Icons.logout, size: 16),
-                        label: const Text('Log Out'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                      ),
                     ],
                   ),
                 ],

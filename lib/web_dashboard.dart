@@ -53,18 +53,6 @@ class WebDashboard extends ConsumerWidget {
                           MaterialPageRoute(builder: (_) => const UserProfileScreen()),
                         );
                       }),
-                      const SizedBox(width: 8),
-                      ElevatedButton.icon(
-                        onPressed: () => showLogoutDialog(context, ref),
-                        icon: const Icon(Icons.logout, size: 14),
-                        label: const Text('Log Out', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.error,
-                          foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                        ),
-                      ),
                     ],
                   ),
                 ],

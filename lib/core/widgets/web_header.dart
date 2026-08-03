@@ -96,11 +96,6 @@ class WebHeader extends ConsumerWidget {
                 tooltip: 'My Profile',
               ),
               IconButton(
-                icon: const Icon(Icons.logout_outlined, color: AppColors.error, size: 20),
-                onPressed: () => showLogoutDialog(context, ref),
-                tooltip: 'Logout / Sign Out',
-              ),
-              IconButton(
                 icon: const Icon(Icons.help_outline, color: AppColors.outline, size: 20),
                 onPressed: () {},
                 tooltip: 'Help',
