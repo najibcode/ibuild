@@ -31,7 +31,7 @@ class SupabaseQuotationRepository implements QuotationRepository {
       query = query.range(offset, offset + limit - 1);
 
       final response = await query;
-      return (response as List).map((j) => Quotation.fromJson(j)).toList();
+      return (response as List).map((j) => Quotation.fromJson(Map<String, dynamic>.from(j))).toList();
     } catch (e) {
       debugPrint('[QuotationRepo] getQuotations with join failed: $e. Fallback to select(*)');
       dynamic query = _client.from('quotations').select('*');
@@ -47,7 +47,7 @@ class SupabaseQuotationRepository implements QuotationRepository {
       query = query.range(offset, offset + limit - 1);
 
       final response = await query;
-      return (response as List).map((j) => Quotation.fromJson(j)).toList();
+      return (response as List).map((j) => Quotation.fromJson(Map<String, dynamic>.from(j))).toList();
     }
   }
 
@@ -59,14 +59,14 @@ class SupabaseQuotationRepository implements QuotationRepository {
           .select('*, projects(name)')
           .eq('id', id)
           .single();
-      return Quotation.fromJson(response);
+      return Quotation.fromJson(Map<String, dynamic>.from(response));
     } catch (_) {
       final response = await _client
           .from('quotations')
           .select('*')
           .eq('id', id)
           .single();
-      return Quotation.fromJson(response);
+      return Quotation.fromJson(Map<String, dynamic>.from(response));
     }
   }
 
@@ -79,8 +79,8 @@ class SupabaseQuotationRepository implements QuotationRepository {
       throw ArgumentError('Quotation subject is required');
     }
 
-    final data = quotation.toJson();
-    debugPrint('[QuotationRepo] createQuotation payload: $data');
+    final data = quotation.toDbJson();
+    debugPrint('[QuotationRepo] createQuotation DB payload: $data');
 
     Map<String, dynamic> response;
     try {
@@ -100,22 +100,23 @@ class SupabaseQuotationRepository implements QuotationRepository {
     }
     
     // Log activity
+    final created = Quotation.fromJson(response);
+    final finalQuotation = created.items.isNotEmpty ? created : created.copyWith(items: quotation.items, subject: quotation.subject);
+
     try {
-      final created = Quotation.fromJson(response);
       await _activityRepo.logActivity(
         actionType: 'created_quotation',
         entityType: 'Quotation',
-        entityId: created.id,
+        entityId: finalQuotation.id,
         details: {
           'client_name': quotation.clientName,
           'subject': quotation.subject,
           'total_amount': quotation.totalAmount,
         },
       );
-      return created;
-    } catch (_) {
-      return Quotation.fromJson(response);
-    }
+    } catch (_) {}
+
+    return finalQuotation;
   }
 
   @override
@@ -124,8 +125,8 @@ class SupabaseQuotationRepository implements QuotationRepository {
       throw ArgumentError('Quotation ID is required for update');
     }
 
-    final data = quotation.toJson();
-    debugPrint('[QuotationRepo] updateQuotation payload: $data');
+    final data = quotation.toDbJson();
+    debugPrint('[QuotationRepo] updateQuotation DB payload: $data');
 
     Map<String, dynamic> response;
     try {
@@ -147,6 +148,9 @@ class SupabaseQuotationRepository implements QuotationRepository {
       response = Map<String, dynamic>.from(res);
     }
 
+    final updated = Quotation.fromJson(response);
+    final finalQuotation = updated.items.isNotEmpty ? updated : updated.copyWith(items: quotation.items, subject: quotation.subject);
+
     // Log activity
     try {
       await _activityRepo.logActivity(
@@ -161,7 +165,7 @@ class SupabaseQuotationRepository implements QuotationRepository {
       );
     } catch (_) {}
 
-    return Quotation.fromJson(response);
+    return finalQuotation;
   }
 
   @override

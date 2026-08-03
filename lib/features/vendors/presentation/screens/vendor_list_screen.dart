@@ -16,17 +16,18 @@ class VendorListScreen extends ConsumerStatefulWidget {
 class _VendorListScreenState extends ConsumerState<VendorListScreen> {
   String _searchQuery = '';
   String? _tradeFilter;
+  String _statusFilter = 'All';
 
-  void _showAddSubcontractorDialog(BuildContext context) {
-    final companyCtrl = TextEditingController();
-    final personCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final siteCtrl = TextEditingController();
-    final contractCtrl = TextEditingController(text: '2500000');
-    final paidCtrl = TextEditingController(text: '1000000');
-    String selectedTrade = 'Electrical & MEP';
-    String selectedStatus = 'Active';
-    String? selectedSiteProject; // null = general, '__custom__' = custom text, or project name
+  void _showSubcontractorFormDialog(BuildContext context, {Subcontractor? existing}) {
+    final companyCtrl = TextEditingController(text: existing?.companyName ?? '');
+    final personCtrl = TextEditingController(text: existing?.contactPerson ?? '');
+    final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
+    final siteCtrl = TextEditingController(text: existing?.siteName ?? '');
+    final contractCtrl = TextEditingController(text: (existing?.contractValue ?? 2500000).toStringAsFixed(0));
+    final paidCtrl = TextEditingController(text: (existing?.paidAmount ?? 1000000).toStringAsFixed(0));
+    String selectedTrade = existing?.tradeSpecialization ?? 'Electrical & MEP';
+    String selectedStatus = existing?.status ?? 'Active';
+    String? selectedSiteProject = existing?.siteName;
 
     // Ensure projects are loaded fresh
     ref.read(projectControllerProvider.notifier).loadProjects();
@@ -34,259 +35,347 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
     showDialog(
       context: context,
       builder: (dialogCtx) {
-        // Use Consumer to reactively watch projects inside the dialog
         return Consumer(
           builder: (context, dialogRef, _) {
             final projects = dialogRef.watch(projectControllerProvider).projects;
             return StatefulBuilder(
               builder: (context, setDialogState) {
-            // Build site dropdown items
-            final siteDropdownItems = <DropdownMenuItem<String?>>[
-              DropdownMenuItem<String?>(
-                value: null,
-                child: Row(
-                  children: [
-                    Icon(Icons.public, size: 16, color: AppColors.mutedText(context)),
-                    const SizedBox(width: 8),
-                    Text('General (No Specific Project)', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
-                  ],
-                ),
-              ),
-              ...projects.map((p) => DropdownMenuItem<String?>(
-                    value: p.name,
+                final siteDropdownItems = <DropdownMenuItem<String?>>[
+                  DropdownMenuItem<String?>(
+                    value: null,
                     child: Row(
                       children: [
-                        Icon(Icons.apartment, size: 16, color: AppColors.primaryColor(context)),
+                        Icon(Icons.public, size: 16, color: AppColors.mutedText(context)),
                         const SizedBox(width: 8),
-                        Flexible(
-                          child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13), overflow: TextOverflow.ellipsis),
-                        ),
+                        Text('General (No Specific Project)', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
                       ],
                     ),
-                  )),
-              DropdownMenuItem<String?>(
-                value: '__custom__',
-                child: Row(
-                  children: [
-                    Icon(Icons.edit_location_alt_outlined, size: 16, color: Colors.deepOrange),
-                    const SizedBox(width: 8),
-                    Text('Other (Type Custom Site)', style: TextStyle(color: Colors.deepOrange, fontSize: 13, fontWeight: FontWeight.w600)),
-                  ],
-                ),
-              ),
-            ];
-
-            return AlertDialog(
-              backgroundColor: AppColors.cardBg(context),
-              title: Text('Register Subcontractor Vendor', style: TextStyle(color: AppColors.text(context))),
-              content: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    TextField(
-                      controller: companyCtrl,
-                      style: TextStyle(color: AppColors.text(context)),
-                      decoration: InputDecoration(
-                        labelText: 'Company / Firm Name',
-                        hintText: 'e.g. Sri Laxmi Electricals',
-                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: personCtrl,
-                            style: TextStyle(color: AppColors.text(context)),
-                            decoration: InputDecoration(
-                              labelText: 'Contact Person',
-                              hintText: 'e.g. Srinivas Rao',
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: phoneCtrl,
-                            keyboardType: TextInputType.phone,
-                            style: TextStyle(color: AppColors.text(context)),
-                            decoration: InputDecoration(
-                              labelText: 'Phone Number',
-                              hintText: '+91 98765...',
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-
-                    // ── Assigned Site / Project Dropdown ──
-                    Text(
-                      'ASSIGNED SITE / PROJECT',
-                      style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
-                    ),
-                    const SizedBox(height: 6),
-                    DropdownButtonFormField<String?>(
-                      value: selectedSiteProject,
-                      dropdownColor: AppColors.cardBg(context),
-                      isExpanded: true,
-                      decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context), size: 20),
-                        hintText: 'Select active project site',
-                        hintStyle: TextStyle(color: AppColors.mutedText(context)),
-                        labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                      ),
-                      items: siteDropdownItems,
-                      onChanged: (val) {
-                        setDialogState(() {
-                          selectedSiteProject = val;
-                          if (val != '__custom__') {
-                            siteCtrl.text = val ?? '';
-                          } else {
-                            siteCtrl.clear();
-                          }
-                        });
-                      },
-                    ),
-                    // Show custom site text field when "Other" is selected
-                    if (selectedSiteProject == '__custom__') ...[
-                      const SizedBox(height: 8),
-                      TextField(
-                        controller: siteCtrl,
-                        style: TextStyle(color: AppColors.text(context)),
-                        decoration: InputDecoration(
-                          labelText: 'Custom Site Name',
-                          hintText: 'e.g. Skyline Towers Phase 1',
-                          prefixIcon: Icon(Icons.edit_location_alt_outlined, size: 18, color: Colors.deepOrange),
-                          labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedTrade,
-                            dropdownColor: AppColors.cardBg(context),
-                            decoration: InputDecoration(
-                              labelText: 'Trade Specialization',
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                            ),
-                            items: ['Electrical & MEP', 'Steel Fabrication', 'Plumbing & Drainage', 'Tiling & Flooring', 'Civil Work']
-                                .map((t) => DropdownMenuItem(
-                                      value: t,
-                                      child: Text(t, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
-                                    ))
-                                .toList(),
-                            onChanged: (val) => setDialogState(() => selectedTrade = val!),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: DropdownButtonFormField<String>(
-                            value: selectedStatus,
-                            dropdownColor: AppColors.cardBg(context),
-                            decoration: InputDecoration(
-                              labelText: 'Contract Status',
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                            ),
-                            items: ['Active', 'Completed', 'Pending']
-                                .map((s) => DropdownMenuItem(
-                                      value: s,
-                                      child: Text(s, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
-                                    ))
-                                .toList(),
-                            onChanged: (val) => setDialogState(() => selectedStatus = val!),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: TextField(
-                            controller: contractCtrl,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(color: AppColors.text(context)),
-                            decoration: InputDecoration(
-                              labelText: 'Contract Amount (₹)',
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: TextField(
-                            controller: paidCtrl,
-                            keyboardType: TextInputType.number,
-                            style: TextStyle(color: AppColors.text(context)),
-                            decoration: InputDecoration(
-                              labelText: 'Amount Paid (₹)',
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(dialogCtx),
-                  child: const Text('Cancel'),
-                ),
-                ElevatedButton(
-                  onPressed: () async {
-                    if (companyCtrl.text.trim().isEmpty) return;
-                    final newSub = Subcontractor(
-                      id: '',
-                      name: companyCtrl.text.trim(),
-                      companyNameProp: companyCtrl.text.trim(),
-                      contactPersonProp: personCtrl.text.trim().isEmpty ? 'Contractor' : personCtrl.text.trim(),
-                      phone: phoneCtrl.text.trim(),
-                      specialization: selectedTrade,
-                      siteNameProp: siteCtrl.text.trim().isEmpty ? 'Main Site' : siteCtrl.text.trim(),
-                      contractValue: double.tryParse(contractCtrl.text) ?? 0.0,
-                      paidAmount: double.tryParse(paidCtrl.text) ?? 0.0,
-                      status: selectedStatus,
-                      createdAt: DateTime.now(),
-                    );
-
-                    final success = await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(newSub);
-                    if (context.mounted) {
-                      Navigator.pop(dialogCtx);
-                      if (success) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: const Text('Subcontractor vendor registered successfully'), backgroundColor: AppColors.secondary),
-                        );
-                      } else {
-                        final err = ref.read(subcontractorControllerProvider).error ?? 'Unknown error';
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text('Failed to register vendor: $err'), backgroundColor: AppColors.error),
-                        );
-                      }
-                    }
-                  },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.primaryColor(context),
-                    foregroundColor: Colors.white,
                   ),
-                  child: const Text('Register Vendor'),
-                ),
-              ],
-            ); // AlertDialog
-          }, // StatefulBuilder builder
-        ); // StatefulBuilder
-      }, // Consumer builder
-    ); // Consumer
-      }, // showDialog builder
-    ); // showDialog
+                  ...projects.map((p) => DropdownMenuItem<String?>(
+                        value: p.name,
+                        child: Row(
+                          children: [
+                            Icon(Icons.apartment, size: 16, color: AppColors.primaryColor(context)),
+                            const SizedBox(width: 8),
+                            Flexible(
+                              child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13), overflow: TextOverflow.ellipsis),
+                            ),
+                          ],
+                        ),
+                      )),
+                  const DropdownMenuItem<String?>(
+                    value: '__custom__',
+                    child: Row(
+                      children: [
+                        Icon(Icons.edit_location_alt_outlined, size: 16, color: Colors.deepOrange),
+                        SizedBox(width: 8),
+                        Text('Other (Type Custom Site)', style: TextStyle(color: Colors.deepOrange, fontSize: 13, fontWeight: FontWeight.w600)),
+                      ],
+                    ),
+                  ),
+                ];
+
+                return AlertDialog(
+                  backgroundColor: AppColors.cardBg(context),
+                  title: Text(
+                    existing == null ? 'Register Subcontractor Vendor' : 'Edit Subcontractor Details',
+                    style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold),
+                  ),
+                  content: SingleChildScrollView(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        TextField(
+                          controller: companyCtrl,
+                          style: TextStyle(color: AppColors.text(context)),
+                          decoration: InputDecoration(
+                            labelText: 'Company / Firm Name',
+                            hintText: 'e.g. Sri Laxmi Electricals',
+                            labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: personCtrl,
+                                style: TextStyle(color: AppColors.text(context)),
+                                decoration: InputDecoration(
+                                  labelText: 'Contact Person',
+                                  hintText: 'e.g. Srinivas Rao',
+                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: phoneCtrl,
+                                keyboardType: TextInputType.phone,
+                                style: TextStyle(color: AppColors.text(context)),
+                                decoration: InputDecoration(
+                                  labelText: 'Phone Number',
+                                  hintText: '+91 98765...',
+                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Assigned Site / Project Dropdown
+                        Text(
+                          'ASSIGNED SITE / PROJECT',
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                        ),
+                        const SizedBox(height: 6),
+                        DropdownButtonFormField<String?>(
+                          value: siteDropdownItems.any((i) => i.value == selectedSiteProject) ? selectedSiteProject : null,
+                          dropdownColor: AppColors.cardBg(context),
+                          isExpanded: true,
+                          decoration: InputDecoration(
+                            prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context), size: 20),
+                            hintText: 'Select active project site',
+                            hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                            labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                          ),
+                          items: siteDropdownItems,
+                          onChanged: (val) {
+                            setDialogState(() {
+                              selectedSiteProject = val;
+                              if (val != '__custom__') {
+                                siteCtrl.text = val ?? '';
+                              } else {
+                                siteCtrl.clear();
+                              }
+                            });
+                          },
+                        ),
+                        if (selectedSiteProject == '__custom__') ...[
+                          const SizedBox(height: 8),
+                          TextField(
+                            controller: siteCtrl,
+                            style: TextStyle(color: AppColors.text(context)),
+                            decoration: InputDecoration(
+                              labelText: 'Custom Site Name',
+                              hintText: 'e.g. Skyline Towers Phase 1',
+                              prefixIcon: const Icon(Icons.edit_location_alt_outlined, size: 18, color: Colors.deepOrange),
+                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: selectedTrade,
+                                dropdownColor: AppColors.cardBg(context),
+                                decoration: InputDecoration(
+                                  labelText: 'Trade Specialization',
+                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                ),
+                                items: ['Electrical & MEP', 'Steel Fabrication', 'Plumbing & Drainage', 'Tiling & Flooring', 'Civil Work', 'Painting & Finishing']
+                                    .map((t) => DropdownMenuItem(
+                                          value: t,
+                                          child: Text(t, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) => setDialogState(() => selectedTrade = val!),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: DropdownButtonFormField<String>(
+                                value: selectedStatus,
+                                dropdownColor: AppColors.cardBg(context),
+                                decoration: InputDecoration(
+                                  labelText: 'Contract Status',
+                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                ),
+                                items: ['Active', 'Completed', 'Pending']
+                                    .map((s) => DropdownMenuItem(
+                                          value: s,
+                                          child: Text(s, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                                        ))
+                                    .toList(),
+                                onChanged: (val) => setDialogState(() => selectedStatus = val!),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: TextField(
+                                controller: contractCtrl,
+                                keyboardType: TextInputType.number,
+                                style: TextStyle(color: AppColors.text(context)),
+                                decoration: InputDecoration(
+                                  labelText: 'Contract Amount (₹)',
+                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: TextField(
+                                controller: paidCtrl,
+                                keyboardType: TextInputType.number,
+                                style: TextStyle(color: AppColors.text(context)),
+                                decoration: InputDecoration(
+                                  labelText: 'Amount Paid (₹)',
+                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.pop(dialogCtx),
+                      child: const Text('Cancel'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () async {
+                        if (companyCtrl.text.trim().isEmpty) return;
+                        final newSub = Subcontractor(
+                          id: existing?.id ?? '',
+                          name: companyCtrl.text.trim(),
+                          companyNameProp: companyCtrl.text.trim(),
+                          contactPersonProp: personCtrl.text.trim().isEmpty ? 'Contractor' : personCtrl.text.trim(),
+                          phone: phoneCtrl.text.trim(),
+                          specialization: selectedTrade,
+                          siteNameProp: siteCtrl.text.trim().isEmpty ? 'Main Site' : siteCtrl.text.trim(),
+                          contractValue: double.tryParse(contractCtrl.text) ?? 0.0,
+                          paidAmount: double.tryParse(paidCtrl.text) ?? 0.0,
+                          status: selectedStatus,
+                          createdAt: existing?.createdAt ?? DateTime.now(),
+                        );
+
+                        final success = existing == null
+                            ? await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(newSub)
+                            : await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(newSub);
+
+                        if (context.mounted) {
+                          Navigator.pop(dialogCtx);
+                          if (success) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(existing == null
+                                    ? 'Subcontractor vendor registered successfully'
+                                    : 'Subcontractor details updated successfully'),
+                                backgroundColor: AppColors.secondary,
+                              ),
+                            );
+                          } else {
+                            final err = ref.read(subcontractorControllerProvider).error ?? 'Unknown error';
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('Failed to save vendor: $err'), backgroundColor: AppColors.error),
+                            );
+                          }
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryColor(context),
+                        foregroundColor: Colors.white,
+                      ),
+                      child: Text(existing == null ? 'Register Vendor' : 'Save Changes'),
+                    ),
+                  ],
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showRecordPaymentDialog(BuildContext context, Subcontractor vendor) {
+    final amountCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        title: Text('Record Payment: ${vendor.companyName}', style: TextStyle(color: AppColors.text(context))),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Current Disbursed: ₹${_fmt(vendor.paidAmount)} / Contract: ₹${_fmt(vendor.contractAmount)}',
+                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+            const SizedBox(height: 12),
+            TextField(
+              controller: amountCtrl,
+              keyboardType: TextInputType.number,
+              style: TextStyle(color: AppColors.text(context)),
+              decoration: InputDecoration(
+                labelText: 'New Payment Amount (₹)',
+                hintText: 'e.g. 50000',
+                labelStyle: TextStyle(color: AppColors.mutedText(context)),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final addAmount = double.tryParse(amountCtrl.text) ?? 0.0;
+              if (addAmount <= 0) return;
+              final updated = vendor.copyWith(paidAmount: vendor.paidAmount + addAmount);
+              final success = await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(updated);
+              if (context.mounted) {
+                Navigator.pop(ctx);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Recorded payment of ₹$addAmount to ${vendor.companyName}'), backgroundColor: AppColors.secondary),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+            child: const Text('Record Payment'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteSubcontractor(BuildContext context, Subcontractor vendor) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        title: const Text('Delete Subcontractor'),
+        content: Text('Are you sure you want to remove ${vendor.companyName} (${vendor.tradeSpecialization}) from vendor management?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          ElevatedButton(
+            onPressed: () async {
+              final success = await ref.read(subcontractorControllerProvider.notifier).deleteSubcontractor(vendor.id);
+              if (context.mounted) {
+                Navigator.pop(ctx);
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Subcontractor ${vendor.companyName} deleted'), backgroundColor: AppColors.secondary),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -302,7 +391,8 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
           v.contactPerson.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           v.siteName.toLowerCase().contains(_searchQuery.toLowerCase());
       final matchesTrade = _tradeFilter == null || v.tradeSpecialization == _tradeFilter;
-      return matchesSearch && matchesTrade;
+      final matchesStatus = _statusFilter == 'All' || v.status.toLowerCase() == _statusFilter.toLowerCase();
+      return matchesSearch && matchesTrade && matchesStatus;
     }).toList();
 
     final totalSubcontractors = vendors.length;
@@ -319,7 +409,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
         ),
         actions: [
           ElevatedButton.icon(
-            onPressed: () => _showAddSubcontractorDialog(context),
+            onPressed: () => _showSubcontractorFormDialog(context),
             icon: const Icon(Icons.add, size: 16),
             label: const Text('Add Partner'),
             style: ElevatedButton.styleFrom(
@@ -338,7 +428,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddSubcontractorDialog(context),
+        onPressed: () => _showSubcontractorFormDialog(context),
         backgroundColor: AppColors.primaryColor(context),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
@@ -348,7 +438,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
           ? const Center(child: CircularProgressIndicator())
           : Column(
               children: [
-                // Top Financial Metric Summary Cards
+                // Financial Metric Summary Cards
                 Padding(
                   padding: const EdgeInsets.all(16.0),
                   child: Column(
@@ -408,7 +498,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   ),
                 ),
 
-                // Search & Trade Filter
+                // Search & Filters Bar
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16.0),
                   child: Column(
@@ -419,6 +509,26 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                         filterOptions: trades,
                         activeFilter: _tradeFilter,
                         onFilterChanged: (val) => setState(() => _tradeFilter = val),
+                      ),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          Text('Status Filter: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.mutedText(context))),
+                          const SizedBox(width: 8),
+                          Wrap(
+                            spacing: 6,
+                            children: ['All', 'Active', 'Completed', 'Pending'].map((st) {
+                              final isSelected = _statusFilter.toLowerCase() == st.toLowerCase();
+                              return ChoiceChip(
+                                label: Text(st, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : AppColors.text(context))),
+                                selected: isSelected,
+                                selectedColor: AppColors.primaryColor(context),
+                                backgroundColor: AppColors.cardBg(context),
+                                onSelected: (_) => setState(() => _statusFilter = st),
+                              );
+                            }).toList(),
+                          ),
+                        ],
                       ),
                       const SizedBox(height: 12),
                     ],
@@ -570,21 +680,70 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   ],
                 ),
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-                ),
-                child: Text(
-                  vendor.status.toUpperCase(),
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.bold,
-                    color: statusColor,
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: statusColor.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                    ),
+                    child: Text(
+                      vendor.status.toUpperCase(),
+                      style: TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: statusColor,
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 4),
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, size: 20, color: AppColors.mutedText(context)),
+                    onSelected: (val) {
+                      if (val == 'edit') {
+                        _showSubcontractorFormDialog(context, existing: vendor);
+                      } else if (val == 'payment') {
+                        _showRecordPaymentDialog(context, vendor);
+                      } else if (val == 'delete') {
+                        _confirmDeleteSubcontractor(context, vendor);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      const PopupMenuItem(
+                        value: 'edit',
+                        child: Row(
+                          children: [
+                            Icon(Icons.edit_outlined, size: 18),
+                            SizedBox(width: 8),
+                            Text('Edit Subcontractor'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'payment',
+                        child: Row(
+                          children: [
+                            Icon(Icons.add_card_outlined, size: 18, color: AppColors.secondary),
+                            SizedBox(width: 8),
+                            Text('Record Payment'),
+                          ],
+                        ),
+                      ),
+                      const PopupMenuItem(
+                        value: 'delete',
+                        child: Row(
+                          children: [
+                            Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                            SizedBox(width: 8),
+                            Text('Delete Subcontractor', style: TextStyle(color: AppColors.error)),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
             ],
           ),
@@ -601,7 +760,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 ),
                 child: Text(
                   vendor.tradeSpecialization,
-                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary),
                 ),
               ),
               const SizedBox(width: 8),
@@ -638,7 +797,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   ),
                   Text(
                     '${(pctPaid * 100).toInt()}%',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
                   ),
                 ],
               ),
@@ -649,7 +808,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   value: pctPaid.clamp(0.0, 1.0),
                   minHeight: 6,
                   backgroundColor: AppColors.border(context),
-                  valueColor: AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
                 ),
               ),
             ],
@@ -663,13 +822,28 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 'Retention Pending:',
                 style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
               ),
-              Text(
-                '₹${_fmt(vendor.retentionPending)}',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.bold,
-                  color: vendor.retentionPending > 0 ? AppColors.warning : AppColors.secondary,
-                ),
+              Row(
+                children: [
+                  Text(
+                    '₹${_fmt(vendor.retentionPending)}',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: vendor.retentionPending > 0 ? AppColors.warning : AppColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _showSubcontractorFormDialog(context, existing: vendor),
+                    icon: const Icon(Icons.edit_outlined, size: 14),
+                    label: const Text('Edit', style: TextStyle(fontSize: 11)),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

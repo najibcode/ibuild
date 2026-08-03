@@ -43,11 +43,12 @@ class Subcontractor {
   bool get isOverpaid => paidAmount > contractValue && contractValue > 0;
 
   factory Subcontractor.fromJson(Map<String, dynamic> json) {
+    final rawName = json['name'] as String? ?? json['company_name'] as String? ?? '';
     return Subcontractor(
       id: json['id'] as String? ?? '',
-      name: json['name'] as String? ?? json['company_name'] as String? ?? '',
-      companyNameProp: json['company_name'] as String? ?? json['name'] as String?,
-      contactPersonProp: json['contact_person'] as String? ?? json['contactPerson'] as String?,
+      name: rawName,
+      companyNameProp: json['company_name'] as String? ?? rawName,
+      contactPersonProp: json['contact_person'] as String? ?? json['contactPerson'] as String? ?? rawName,
       specialization: json['specialization'] as String? ?? json['trade_specialization'] as String?,
       phone: json['phone'] as String?,
       email: json['email'] as String?,
@@ -68,24 +69,27 @@ class Subcontractor {
     );
   }
 
-  Map<String, dynamic> toJson() {
-    return {
-      if (id.isNotEmpty) 'id': id,
-      'name': name,
-      'company_name': companyName,
-      'contact_person': contactPerson,
+  /// Produce payload strictly matching physical Supabase `subcontractors` table columns
+  Map<String, dynamic> toDbJson() {
+    final map = <String, dynamic>{
+      'name': companyName,
       'specialization': tradeSpecialization,
       'phone': phone,
       'email': email,
       'address': address,
-      'site_name': siteName,
       'gst_number': gstNumber,
       'contract_value': contractValue,
       'paid_amount': paidAmount,
       'status': status,
       'is_archived': isArchived,
     };
+    if (id.isNotEmpty) {
+      map['id'] = id;
+    }
+    return map;
   }
+
+  Map<String, dynamic> toJson() => toDbJson();
 
   Subcontractor copyWith({
     String? id,

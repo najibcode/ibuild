@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
+
 class QuotationItem {
   final String particular;
   final String unit;
@@ -18,7 +21,7 @@ class QuotationItem {
     final rate = (json['unit_rate'] ?? json['rate'] ?? 0.0).toDouble();
     final total = (json['total_cost'] ?? json['total'] ?? (qty * rate)).toDouble();
     return QuotationItem(
-      particular: json['particular'] ?? '',
+      particular: json['particular'] ?? json['item'] ?? '',
       unit: json['unit'] ?? 'Sqft',
       quantity: qty,
       unitRate: rate,
@@ -83,47 +86,81 @@ class Quotation {
   }) : totalAmount = totalAmount ?? items.fold(0.0, (sum, i) => sum + i.totalCost);
 
   factory Quotation.fromJson(Map<String, dynamic> json) {
-    final rawItems = json['items'];
+    String parsedSubject = json['subject'] as String? ?? 'Construction Estimate';
+    String? parsedUserNotes = json['notes'] as String?;
     List<QuotationItem> parsedItems = [];
+
+    final rawItems = json['items'];
     if (rawItems is List) {
       parsedItems = rawItems.map((e) => QuotationItem.fromJson(Map<String, dynamic>.from(e))).toList();
+    }
+
+    final rawNotes = json['notes'] as String?;
+    if (rawNotes != null && rawNotes.contains('---QUOTATION_DATA---')) {
+      try {
+        final parts = rawNotes.split('---QUOTATION_DATA---\n');
+        final jsonStr = parts.length > 1 ? parts[1] : parts[0];
+        final decoded = jsonDecode(jsonStr) as Map<String, dynamic>;
+
+        if (decoded.containsKey('subject')) {
+          parsedSubject = decoded['subject'] as String;
+        }
+        if (decoded.containsKey('user_notes')) {
+          parsedUserNotes = decoded['user_notes'] as String?;
+        }
+        if (decoded.containsKey('items') && decoded['items'] is List) {
+          parsedItems = (decoded['items'] as List)
+              .map((e) => QuotationItem.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        }
+      } catch (e) {
+        debugPrint('[QuotationModel] Error decoding embedded quotation data: $e');
+      }
     }
 
     final computedTotal = parsedItems.fold(0.0, (sum, i) => sum + i.totalCost);
 
     return Quotation(
-      id: json['id'] ?? '',
-      projectId: json['project_id'],
-      projectName: json['projects'] != null ? json['projects']['name'] : json['project_name'],
-      clientName: json['client_name'] ?? 'Direct Client',
-      clientPhone: json['client_phone'],
-      subject: json['subject'] ?? 'Construction Estimate',
-      status: json['status'] ?? 'draft',
+      id: json['id'] as String? ?? '',
+      projectId: json['project_id'] as String?,
+      projectName: json['projects'] != null ? json['projects']['name'] as String? : json['project_name'] as String?,
+      clientName: json['client_name'] as String? ?? 'Direct Client',
+      clientPhone: json['client_phone'] as String?,
+      subject: parsedSubject,
+      status: json['status'] as String? ?? 'draft',
       items: parsedItems,
-      totalAmount: (json['total_amount'] ?? computedTotal).toDouble(),
-      validUntil: json['valid_until'],
-      notes: json['notes'],
-      createdAt: json['created_at'],
-      updatedAt: json['updated_at'],
+      totalAmount: (json['total_amount'] as num?)?.toDouble() ?? computedTotal,
+      validUntil: json['valid_until'] as String?,
+      notes: parsedUserNotes,
+      createdAt: json['created_at'] as String?,
+      updatedAt: json['updated_at'] as String?,
     );
   }
 
-  Map<String, dynamic> toJson() {
+  /// Produce payload strictly matching physical Supabase `quotations` table columns
+  Map<String, dynamic> toDbJson() {
+    final Map<String, dynamic> itemsData = {
+      'subject': subject,
+      'items': items.map((i) => i.toJson()).toList(),
+      'user_notes': notes ?? '',
+    };
+    final String encodedNotes = '---QUOTATION_DATA---\n${jsonEncode(itemsData)}';
+
     final map = <String, dynamic>{
       'client_name': clientName,
       'client_phone': clientPhone,
-      'subject': subject,
       'status': status,
-      'items': items.map((i) => i.toJson()).toList(),
       'total_amount': totalAmount,
       'valid_until': validUntil,
-      'notes': notes,
+      'notes': encodedNotes,
     };
     if (projectId != null && projectId!.isNotEmpty) {
       map['project_id'] = projectId;
     }
     return map;
   }
+
+  Map<String, dynamic> toJson() => toDbJson();
 
   Quotation copyWith({
     String? id,
