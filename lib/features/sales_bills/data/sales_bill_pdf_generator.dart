@@ -1,10 +1,11 @@
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'models/sales_bill_model.dart';
 
 /// Professional PDF Generator for Client Sales Invoices & Bills.
 class SalesBillPdfGenerator {
-  static Future<List<int>> generatePdf(SalesBill bill) async {
+  static Future<Uint8List> generatePdf(SalesBill bill) async {
     final pdf = pw.Document();
 
     final primaryColor = PdfColor.fromHex('#1E3A8A'); // Deep Navy Blue

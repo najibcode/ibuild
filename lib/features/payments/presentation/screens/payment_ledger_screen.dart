@@ -5,7 +5,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
-import '../data/payment_ledger_pdf_generator.dart';
+import '../../data/payment_ledger_pdf_generator.dart';
 import '../../data/models/payment_ledger_model.dart';
 import '../../data/repositories/supabase_payment_ledger_repository.dart';
 

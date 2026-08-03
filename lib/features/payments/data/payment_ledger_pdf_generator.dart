@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../data/models/payment_ledger_model.dart';
@@ -6,7 +7,7 @@ import '../data/models/payment_model.dart';
 /// Professional PDF Generator for Payment Ledger Reports & Transaction Receipts.
 class PaymentLedgerPdfGenerator {
   /// Generates a complete Payment Ledger Cash Flow Report
-  static Future<List<int>> generateLedgerReport(List<PaymentLedgerEntry> entries) async {
+  static Future<Uint8List> generateLedgerReport(List<PaymentLedgerEntry> entries) async {
     final pdf = pw.Document();
 
     final primaryColor = PdfColor.fromHex('#1E3A8A'); // Deep Navy Blue
@@ -98,7 +99,7 @@ class PaymentLedgerPdfGenerator {
   }
 
   /// Generates a single Site Payment Receipt PDF
-  static Future<List<int>> generatePaymentReceipt(ProjectPayment payment) async {
+  static Future<Uint8List> generatePaymentReceipt(ProjectPayment payment) async {
     final pdf = pw.Document();
 
     final primaryColor = PdfColor.fromHex('#1E3A8A');
