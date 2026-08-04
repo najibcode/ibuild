@@ -32,7 +32,7 @@ class BuildingPdfGenerator {
   }
 
   static String _currency(double amount) {
-    final formatter = NumberFormat.currency(locale: 'en_IN', symbol: '\u20B9', decimalDigits: 2);
+    final formatter = NumberFormat.currency(locale: 'en_IN', symbol: 'INR ', decimalDigits: 2);
     return formatter.format(amount);
   }
 
