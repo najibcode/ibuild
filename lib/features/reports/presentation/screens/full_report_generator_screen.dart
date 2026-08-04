@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'dart:html' as html;
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../expenses/presentation/controllers/expense_controller.dart';
 import '../../../inventory/presentation/controllers/inventory_controller.dart';
@@ -283,6 +285,84 @@ class _FullReportGeneratorScreenState
     );
   }
 
+  Future<void> _exportExcel(BuildContext context) async {
+    final expenseState = ref.read(expenseControllerProvider);
+    final inventoryState = ref.read(inventoryControllerProvider);
+
+    try {
+      final List<String> headers = [
+        'Record Type',
+        'ID / Date',
+        'Title / Item / Category',
+        'Amount / Stock / Wage',
+        'Payment Mode / Status',
+        'Project Site',
+        'Notes / Details'
+      ];
+
+      final List<List<dynamic>> rows = [];
+
+      if (_includeExpenses) {
+        for (final e in expenseState.expenses) {
+          if (_selectedProjectId != null && _selectedProjectId != 'all' && e.projectId != _selectedProjectId) {
+            continue;
+          }
+          rows.add([
+            'Expense',
+            e.expenseDate,
+            e.category,
+            e.amount,
+            e.paymentMode,
+            e.projectName ?? 'General',
+            e.notes ?? ''
+          ]);
+        }
+      }
+
+      if (_includeInventory) {
+        for (final item in inventoryState.items) {
+          rows.add([
+            'Inventory',
+            item.id.substring(0, 8),
+            '${item.materialName} (${item.category})',
+            '${item.availableStock} ${item.unit} @ ₹${item.purchasePrice}',
+            item.isLowStock ? 'LOW STOCK' : 'Healthy',
+            'Warehouse',
+            'Valuation: ₹${item.totalValuation}'
+          ]);
+        }
+      }
+
+      final excelBytes = ExcelGeneratorService.generateTableExcel(
+        sheetName: 'Audit_Report',
+        title: 'Full Operational Audit & Resource Report',
+        headers: headers,
+        rows: rows,
+      );
+
+      final fileName = 'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      await ExcelDownloadHelper.downloadExcel(bytes: excelBytes, filename: fileName);
+
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Excel (.xlsx) Report downloaded successfully!'),
+            backgroundColor: AppColors.secondary,
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to generate Excel: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
   Future<void> _exportPdf(BuildContext context) async {
     final projectState = ref.read(projectControllerProvider);
     final expenseState = ref.read(expenseControllerProvider);
@@ -302,16 +382,8 @@ class _FullReportGeneratorScreenState
         selectedProjectId: _selectedProjectId,
       );
 
-      final fileName =
-          'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
-
-      // Create a Blob and trigger browser download
-      final blob = html.Blob([pdfBytes], 'application/pdf');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', fileName)
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      final fileName = 'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      await PdfDownloadHelper.downloadPdf(bytes: pdfBytes, filename: fileName);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -539,6 +611,22 @@ class _FullReportGeneratorScreenState
                     ),
                   ),
                 ),
+                ElevatedButton.icon(
+                  onPressed: () => _exportExcel(context),
+                  icon: const Icon(Icons.table_chart),
+                  label: const Text(
+                    'Export as Excel (.xlsx)',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: const Size(220, 52),
+                    backgroundColor: Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
                 OutlinedButton.icon(
                   onPressed: () => _showReportPreviewModal(context),
                   icon: const Icon(Icons.visibility_outlined),
@@ -557,9 +645,9 @@ class _FullReportGeneratorScreenState
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _exportCsv(context),
-                  icon: const Icon(Icons.table_chart_outlined),
+                  icon: const Icon(Icons.copy),
                   label: const Text(
-                    'Export CSV Dataset',
+                    'Copy CSV Raw Text',
                     style: TextStyle(fontWeight: FontWeight.bold),
                   ),
                   style: OutlinedButton.styleFrom(

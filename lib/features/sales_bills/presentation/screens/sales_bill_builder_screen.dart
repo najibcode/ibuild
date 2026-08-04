@@ -4,6 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../../core/utils/document_number_generator.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/utils/excel_download_helper.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/sales_bill_pdf_generator.dart';
@@ -166,10 +169,9 @@ class _SalesBillBuilderScreenState
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.download_outlined),
-            tooltip: 'Download Sales Invoice PDF',
-            onPressed: () async {
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
               final bill = SalesBill(
                 id: '',
                 projectId: _selectedProjectId ?? '',
@@ -191,7 +193,28 @@ class _SalesBillBuilderScreenState
                 filename: 'Sales_Invoice_${bill.billNumber}.pdf',
               );
             },
+            onExportExcel: () async {
+              final billNum = _billNumberCtrl.text.trim();
+              final client = _clientNameCtrl.text.trim().isEmpty ? 'Valued Client' : _clientNameCtrl.text.trim();
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Sales_Invoice',
+                title: 'Official Client Sales Invoice #$billNum',
+                headers: ['Particular / Work Description', 'Qty', 'Unit Rate (INR)', 'Line Total (INR)'],
+                rows: _rows.map((row) => [
+                  row.particularCtrl.text,
+                  row.qtyCtrl.text,
+                  row.priceCtrl.text,
+                  row.total,
+                ]).toList(),
+                summaryRow: ['TOTAL DUE (Inc. 18% GST)', '', '', _grandTotal],
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'Sales_Invoice_$billNum.xlsx',
+              );
+            },
           ),
+          const SizedBox(width: 4),
         ],
       ),
       body: SingleChildScrollView(

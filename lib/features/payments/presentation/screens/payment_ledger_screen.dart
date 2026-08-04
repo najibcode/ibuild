@@ -3,6 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/utils/excel_download_helper.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/payment_ledger_pdf_generator.dart';
@@ -300,34 +303,42 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
       appBar: AppBar(
         title: const Text('Payment Ledger & Cash Flow'),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.print_outlined),
-            tooltip: 'Print Payment Ledger PDF',
-            onPressed: () async {
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
               final entries = ledgerAsync.valueOrNull ?? [];
               if (entries.isEmpty) return;
-              final pdfBytes =
-                  await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
-              await Printing.layoutPdf(
-                onLayout: (_) async => Uint8List.fromList(pdfBytes),
-                name: 'Payment_Ledger_Report.pdf',
-              );
-            },
-          ),
-          IconButton(
-            icon: const Icon(Icons.download_outlined),
-            tooltip: 'Download Payment Ledger Report PDF',
-            onPressed: () async {
-              final entries = ledgerAsync.valueOrNull ?? [];
-              if (entries.isEmpty) return;
-              final pdfBytes =
-                  await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
+              final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
               await PdfDownloadHelper.downloadPdf(
                 bytes: pdfBytes,
-                filename: 'IBUILD_Payment_Ledger_Report.pdf',
+                filename: 'IBUILD_Payment_Ledger_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final entries = ledgerAsync.valueOrNull ?? [];
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Payment_Ledger',
+                title: 'Payment Ledger & Cash Flow History',
+                headers: ['Entry ID', 'Payment Date', 'Counterparty Name', 'Type', 'Flow Direction', 'Amount (INR)', 'Payment Method', 'Running Balance (INR)', 'Remarks'],
+                rows: entries.map((e) => [
+                  e.id,
+                  e.paymentDate.toIso8601String().split('T').first,
+                  e.counterpartyName,
+                  e.counterpartyType,
+                  e.paymentType.toUpperCase(),
+                  e.amount,
+                  e.paymentMethod,
+                  e.runningBalance,
+                  e.remarks ?? '',
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Payment_Ledger_${DateTime.now().millisecondsSinceEpoch}.xlsx',
               );
             },
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: content,

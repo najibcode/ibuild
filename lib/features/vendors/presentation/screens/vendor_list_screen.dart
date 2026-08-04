@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../subcontractors/data/models/subcontractor_model.dart';
 import '../../../subcontractors/presentation/controllers/subcontractor_controller.dart';
@@ -607,6 +612,53 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
           ),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Subcontractors & Vendors Directory',
+                subtitle: 'Active trade partners, contract value & payments summary',
+                headers: ['Company Name', 'Trade / Specialty', 'Contact Person', 'Phone', 'Assigned Site', 'Contract (INR)', 'Paid (INR)', 'Status'],
+                data: vendors.map((v) => [
+                  v.companyName,
+                  v.tradeSpecialization,
+                  v.contactPerson,
+                  v.phone,
+                  v.siteName,
+                  'INR ${v.contractAmount.toStringAsFixed(2)}',
+                  'INR ${v.paidAmount.toStringAsFixed(2)}',
+                  v.status.toUpperCase(),
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Vendors_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Vendors_Subcontractors',
+                title: 'Subcontractor & Vendor Management Directory',
+                headers: ['Company Name', 'Trade Specialization', 'Contact Person', 'Phone', 'Assigned Site', 'Contract Value (INR)', 'Paid Amount (INR)', 'Retention Pending (INR)', 'Status'],
+                rows: vendors.map((v) => [
+                  v.companyName,
+                  v.tradeSpecialization,
+                  v.contactPerson,
+                  v.phone,
+                  v.siteName,
+                  v.contractAmount,
+                  v.paidAmount,
+                  v.retentionPending,
+                  v.status.toUpperCase(),
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Vendors_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           ElevatedButton.icon(
             onPressed: () => _showSubcontractorFormDialog(context),
             icon: const Icon(Icons.add, size: 16),

@@ -3,6 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
@@ -27,6 +32,50 @@ class ProjectListScreen extends ConsumerWidget {
           ),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final projects = state.projects;
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Projects Portfolio Report',
+                subtitle: 'Summary of active enterprise sites & budget allocations',
+                headers: ['Project Name', 'Client', 'Status', 'Allocated Budget (INR)', 'Spent (INR)', 'Utilization'],
+                data: projects.map((p) => [
+                  p.name,
+                  p.clientName ?? 'N/A',
+                  p.status.toUpperCase(),
+                  'INR ${p.budget.toStringAsFixed(2)}',
+                  'INR ${p.spent.toStringAsFixed(2)}',
+                  '${(p.budgetUtilization * 100).toStringAsFixed(1)}%'
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Projects_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final projects = state.projects;
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Projects',
+                title: 'Projects Directory & Budget Outflow',
+                headers: ['Project Name', 'Client Name', 'Status', 'Budget (INR)', 'Spent (INR)', 'Utilization %'],
+                rows: projects.map((p) => [
+                  p.name,
+                  p.clientName ?? 'N/A',
+                  p.status.toUpperCase(),
+                  p.budget,
+                  p.spent,
+                  (p.budgetUtilization * 100).toStringAsFixed(1)
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Projects_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           ElevatedButton.icon(
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ProjectFormScreen()),

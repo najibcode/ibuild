@@ -3,6 +3,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
@@ -312,19 +316,9 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
           ],
         ),
         actions: [
-          IconButton(
-            icon: Icon(
-              Icons.file_download_outlined,
-              color: AppColors.primaryColor(context),
-            ),
-            tooltip: 'Download Building Billing Summary PDF',
-            onPressed: () async {
-              if (state.bills.isEmpty) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('No building bills to export.')),
-                );
-                return;
-              }
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
               final bytes = await BuildingPdfGenerator.generateReport(
                 bills: state.bills,
                 totalAmount: totalBilled,
@@ -333,10 +327,32 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
               );
               await PdfDownloadHelper.downloadPdf(
                 bytes: bytes,
-                filename: 'IBUILD_Building_Billing_Report.pdf',
+                filename: 'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final bills = state.bills;
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Billing_Summary',
+                title: 'Vendor Bills & Operational Billing Hub',
+                headers: ['Bill Number', 'Vendor / Party', 'Category', 'Bill Date', 'Due Date', 'Amount (INR)', 'Status'],
+                rows: bills.map((b) => [
+                  b.billNumber,
+                  b.vendorName ?? 'N/A',
+                  b.category ?? 'Operational',
+                  b.billDate,
+                  b.dueDate ?? 'Net 30',
+                  b.amount,
+                  b.status.toUpperCase(),
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.xlsx',
               );
             },
           ),
+          const SizedBox(width: 4),
           ElevatedButton.icon(
             onPressed: _onPrimaryActionButtonPressed,
             icon: Icon(actionIcon, size: 16),

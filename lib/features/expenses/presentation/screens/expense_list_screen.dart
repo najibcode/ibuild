@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/models/expense_model.dart';
 import '../controllers/expense_controller.dart';
 import 'expense_form_screen.dart';
@@ -123,6 +128,52 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
           ),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final expenses = state.expenses;
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Site Expenses Outflow History',
+                subtitle: 'Log of operational outflows and petty cash transactions',
+                headers: ['ID', 'Date', 'Category', 'Amount (INR)', 'Mode', 'Project Site', 'Notes'],
+                data: expenses.map((e) => [
+                  e.id.substring(0, 8),
+                  e.expenseDate,
+                  e.category,
+                  'INR ${e.amount.toStringAsFixed(2)}',
+                  e.paymentMode.toUpperCase(),
+                  e.projectName ?? 'General',
+                  e.notes ?? '',
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Expenses_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final expenses = state.expenses;
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Expenses',
+                title: 'Site Expenses & Financial Outflows',
+                headers: ['Expense ID', 'Date', 'Category', 'Amount (INR)', 'Payment Mode', 'Project Site', 'Notes'],
+                rows: expenses.map((e) => [
+                  e.id,
+                  e.expenseDate,
+                  e.category,
+                  e.amount,
+                  e.paymentMode.toUpperCase(),
+                  e.projectName ?? 'General',
+                  e.notes ?? '',
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Expenses_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           ElevatedButton.icon(
             onPressed: _openAddForm,
             icon: const Icon(Icons.add, size: 16),

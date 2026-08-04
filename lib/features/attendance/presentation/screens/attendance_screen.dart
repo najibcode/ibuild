@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../controllers/attendance_controller.dart';
 import '../../data/models/attendance_model.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
@@ -111,6 +116,52 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           ),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final records = state.attendanceList;
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Worker Attendance & Deployment Log',
+                subtitle: 'Attendance log for Date: ${state.selectedDate}',
+                headers: ['Date', 'Worker Name', 'Site / Project', 'Morning Shift', 'Evening Shift', 'Wage (INR)', 'Overtime'],
+                data: records.map((a) => [
+                  a.date,
+                  a.employeeName ?? 'Worker',
+                  a.projectName ?? 'General',
+                  a.morningStatus.toUpperCase(),
+                  a.eveningStatus.toUpperCase(),
+                  'INR ${a.dailyWage.toStringAsFixed(2)}',
+                  'INR ${a.overtimePay.toStringAsFixed(2)}',
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Attendance_${state.selectedDate}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final records = state.attendanceList;
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Attendance',
+                title: 'Attendance & Daily Deployment Summary',
+                headers: ['Date', 'Worker Name', 'Site / Project', 'Morning Shift', 'Evening Shift', 'Daily Wage (INR)', 'Overtime (INR)'],
+                rows: records.map((a) => [
+                  a.date,
+                  a.employeeName ?? 'Worker',
+                  a.projectName ?? 'General',
+                  a.morningStatus.toUpperCase(),
+                  a.eveningStatus.toUpperCase(),
+                  a.dailyWage,
+                  a.overtimePay,
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Attendance_${state.selectedDate}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             tooltip: 'Refresh Data',

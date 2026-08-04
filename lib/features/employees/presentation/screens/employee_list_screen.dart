@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/employee_model.dart';
 import '../controllers/employee_controller.dart';
@@ -35,6 +40,52 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           ),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final employees = ref.read(employeeListControllerProvider).value ?? [];
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Workforce & Staff Directory',
+                subtitle: 'Active staff, daily wages, and roles summary',
+                headers: ['Employee ID', 'Name', 'Role', 'Phone', 'Daily Wage (INR)', 'Tea Allowance', 'Status'],
+                data: employees.map((e) => [
+                  e.id.substring(0, 8),
+                  e.name,
+                  e.role.toUpperCase(),
+                  e.phone,
+                  'INR ${e.salary.toStringAsFixed(2)}',
+                  'INR ${e.teaSnackAllowance.toStringAsFixed(2)}',
+                  e.status.toUpperCase(),
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Employees_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final employees = ref.read(employeeListControllerProvider).value ?? [];
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Employees',
+                title: 'Workforce & Staff Directory',
+                headers: ['Employee ID', 'Name', 'Role', 'Phone', 'Daily Wage (INR)', 'Tea Allowance (INR)', 'Status'],
+                rows: employees.map((e) => [
+                  e.id,
+                  e.name,
+                  e.role.toUpperCase(),
+                  e.phone,
+                  e.salary,
+                  e.teaSnackAllowance,
+                  e.status.toUpperCase(),
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Employees_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           Padding(
             padding: const EdgeInsets.only(right: 4.0),
             child: FilledButton.icon(

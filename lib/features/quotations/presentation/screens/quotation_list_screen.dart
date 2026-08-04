@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/models/quotation_model.dart';
 import '../../data/quotation_pdf_generator.dart';
@@ -154,6 +158,52 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
           ),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final quotes = state.quotations;
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Project Quotations & Estimates',
+                subtitle: 'Commercial proposals & scope estimates',
+                headers: ['Quote No', 'Client Name', 'Subject', 'Project Site', 'Total Estimate (INR)', 'Status'],
+                data: quotes.map((q) => [
+                  q.quotationNumber,
+                  q.clientName,
+                  q.subject,
+                  q.projectName ?? 'General',
+                  'INR ${q.totalAmount.toStringAsFixed(2)}',
+                  q.status.toUpperCase(),
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Quotations_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final quotes = state.quotations;
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Quotations',
+                title: 'Project Quotations & Commercial Estimates Directory',
+                headers: ['Quote Number', 'Client Name', 'Phone', 'Subject', 'Project Site', 'Total Estimate (INR)', 'Valid Until', 'Status'],
+                rows: quotes.map((q) => [
+                  q.quotationNumber,
+                  q.clientName,
+                  q.clientPhone ?? '',
+                  q.subject,
+                  q.projectName ?? 'General',
+                  q.totalAmount,
+                  q.validUntil ?? '',
+                  q.status.toUpperCase(),
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Quotations_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           ElevatedButton.icon(
             onPressed: () async {
               await Navigator.of(context).push(

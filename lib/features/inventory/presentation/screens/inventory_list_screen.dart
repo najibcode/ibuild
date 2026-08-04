@@ -4,6 +4,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../controllers/inventory_controller.dart';
@@ -241,6 +246,53 @@ class InventoryListScreen extends ConsumerWidget {
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final items = state.items;
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Material Inventory Stock Report',
+                subtitle: 'Valuation & Low Stock Reorder Status',
+                headers: ['Item ID', 'Material Name', 'Category', 'Available Stock', 'Price (INR)', 'Total Valuation', 'Status'],
+                data: items.map((item) => [
+                  item.id.substring(0, 8),
+                  item.materialName,
+                  item.category,
+                  '${item.availableStock} ${item.unit}',
+                  'INR ${item.purchasePrice.toStringAsFixed(2)}',
+                  'INR ${item.totalValuation.toStringAsFixed(2)}',
+                  item.isLowStock ? 'LOW STOCK' : 'Healthy',
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Inventory_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final items = state.items;
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Inventory',
+                title: 'Material Inventory Stock Directory',
+                headers: ['Item ID', 'Material Name', 'Category', 'Available Stock', 'Unit', 'Purchase Price (INR)', 'Total Valuation (INR)', 'Low Stock Alert'],
+                rows: items.map((item) => [
+                  item.id,
+                  item.materialName,
+                  item.category,
+                  item.availableStock,
+                  item.unit,
+                  item.purchasePrice,
+                  item.totalValuation,
+                  item.isLowStock ? 'YES' : 'NO',
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Inventory_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           ElevatedButton.icon(
             onPressed: () async {
               await Navigator.of(context).push(
