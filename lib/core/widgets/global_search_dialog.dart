@@ -44,7 +44,7 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
 
     try {
       final client = ref.read(supabaseClientProvider);
-      
+
       // Perform 3 concurrent searches
       final Future<List<dynamic>> projectsFuture = client
           .from('projects')
@@ -64,7 +64,11 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
           .ilike('name', '%$query%')
           .limit(5);
 
-      final results = await Future.wait([projectsFuture, inventoryFuture, employeesFuture]);
+      final results = await Future.wait([
+        projectsFuture,
+        inventoryFuture,
+        employeesFuture,
+      ]);
 
       final List<Map<String, dynamic>> combinedResults = [];
 
@@ -151,10 +155,11 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
                           const Padding(
                             padding: EdgeInsets.only(right: 16),
                             child: SizedBox(
-                              width: 16, height: 16, 
-                              child: CircularProgressIndicator(strokeWidth: 2)
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
                             ),
-                          )
+                          ),
                       ],
                     ),
                   ),
@@ -178,25 +183,40 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
                     )
                   : ListView.separated(
                       itemCount: _results.length,
-                      separatorBuilder: (context, index) => const Divider(height: 1),
+                      separatorBuilder: (context, index) =>
+                          const Divider(height: 1),
                       itemBuilder: (context, index) {
                         final item = _results[index];
                         return ListTile(
                           leading: CircleAvatar(
-                            backgroundColor: (item['color'] as Color).withOpacity(0.1),
-                            child: Icon(item['icon'] as IconData, color: item['color'] as Color, size: 20),
+                            backgroundColor: (item['color'] as Color)
+                                .withValues(alpha: 0.1),
+                            child: Icon(
+                              item['icon'] as IconData,
+                              color: item['color'] as Color,
+                              size: 20,
+                            ),
                           ),
-                          title: Text(item['title'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                          title: Text(
+                            item['title'],
+                            style: const TextStyle(fontWeight: FontWeight.bold),
+                          ),
                           subtitle: Text(item['subtitle']),
                           trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.background,
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               item['type'],
-                              style: const TextStyle(fontSize: 11, color: AppColors.textMuted),
+                              style: const TextStyle(
+                                fontSize: 11,
+                                color: AppColors.textMuted,
+                              ),
                             ),
                           ),
                           onTap: () {

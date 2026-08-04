@@ -17,17 +17,21 @@ class SalesBillBuilderItem {
   TextEditingController priceCtrl = TextEditingController(text: '0');
   String unit = 'Pcs';
 
-  double get total => (double.tryParse(qtyCtrl.text) ?? 0) * (double.tryParse(priceCtrl.text) ?? 0);
+  double get total =>
+      (double.tryParse(qtyCtrl.text) ?? 0) *
+      (double.tryParse(priceCtrl.text) ?? 0);
 }
 
 class SalesBillBuilderScreen extends ConsumerStatefulWidget {
   const SalesBillBuilderScreen({super.key});
 
   @override
-  ConsumerState<SalesBillBuilderScreen> createState() => _SalesBillBuilderScreenState();
+  ConsumerState<SalesBillBuilderScreen> createState() =>
+      _SalesBillBuilderScreenState();
 }
 
-class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen> {
+class _SalesBillBuilderScreenState
+    extends ConsumerState<SalesBillBuilderScreen> {
   final _clientNameCtrl = TextEditingController();
   final _billNumberCtrl = TextEditingController();
   String? _selectedProjectId;
@@ -63,7 +67,10 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
   Future<void> _save() async {
     if (_clientNameCtrl.text.trim().isEmpty || _selectedProjectId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select project and enter client name'), backgroundColor: AppColors.error),
+        const SnackBar(
+          content: Text('Please select project and enter client name'),
+          backgroundColor: AppColors.error,
+        ),
       );
       return;
     }
@@ -92,7 +99,10 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
       ref.invalidate(allSalesBillsProvider);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Sales bill created successfully'), backgroundColor: AppColors.secondary),
+        const SnackBar(
+          content: Text('Sales bill created successfully'),
+          backgroundColor: AppColors.secondary,
+        ),
       );
 
       if (Navigator.of(context).canPop()) {
@@ -100,7 +110,8 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
       } else {
         setState(() {
           _clientNameCtrl.clear();
-          _billNumberCtrl.text = DocumentNumberGenerator.generateSalesBillNumber();
+          _billNumberCtrl.text =
+              DocumentNumberGenerator.generateSalesBillNumber();
           _rows.clear();
           _addRow();
         });
@@ -108,7 +119,10 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Could not create sales bill: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Could not create sales bill: $e'),
+            backgroundColor: AppColors.error,
+          ),
         );
       }
     } finally {
@@ -134,7 +148,9 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                 id: '',
                 projectId: _selectedProjectId ?? '',
                 billNumber: _billNumberCtrl.text.trim(),
-                clientName: _clientNameCtrl.text.trim().isEmpty ? 'Valued Client' : _clientNameCtrl.text.trim(),
+                clientName: _clientNameCtrl.text.trim().isEmpty
+                    ? 'Valued Client'
+                    : _clientNameCtrl.text.trim(),
                 amount: _subtotal,
                 taxAmount: _tax,
                 totalAmount: _grandTotal,
@@ -158,7 +174,9 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                 id: '',
                 projectId: _selectedProjectId ?? '',
                 billNumber: _billNumberCtrl.text.trim(),
-                clientName: _clientNameCtrl.text.trim().isEmpty ? 'Valued Client' : _clientNameCtrl.text.trim(),
+                clientName: _clientNameCtrl.text.trim().isEmpty
+                    ? 'Valued Client'
+                    : _clientNameCtrl.text.trim(),
                 amount: _subtotal,
                 taxAmount: _tax,
                 totalAmount: _grandTotal,
@@ -188,12 +206,25 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Invoice Header', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              Text(
+                'Invoice Header',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.text(context),
+                ),
+              ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: _selectedProjectId,
-                decoration: const InputDecoration(labelText: 'Select Project *'),
-                items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                initialValue: _selectedProjectId,
+                decoration: const InputDecoration(
+                  labelText: 'Select Project *',
+                ),
+                items: projects
+                    .map(
+                      (p) => DropdownMenuItem(value: p.id, child: Text(p.name)),
+                    )
+                    .toList(),
                 onChanged: (v) => setState(() => _selectedProjectId = v),
               ),
               const SizedBox(height: 12),
@@ -202,7 +233,9 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                   Expanded(
                     child: TextField(
                       controller: _clientNameCtrl,
-                      decoration: const InputDecoration(labelText: 'Client Name *'),
+                      decoration: const InputDecoration(
+                        labelText: 'Client Name *',
+                      ),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -213,7 +246,11 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                       decoration: const InputDecoration(
                         labelText: 'Invoice / Bill No.',
                         helperText: 'Auto-generated anti-fraud number',
-                        suffixIcon: Icon(Icons.verified_user_outlined, color: AppColors.secondary, size: 20),
+                        suffixIcon: Icon(
+                          Icons.verified_user_outlined,
+                          color: AppColors.secondary,
+                          size: 20,
+                        ),
                       ),
                     ),
                   ),
@@ -223,7 +260,14 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Invoice Items', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+                  Text(
+                    'Invoice Items',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                      color: AppColors.text(context),
+                    ),
+                  ),
                   ElevatedButton.icon(
                     onPressed: _addRow,
                     icon: const Icon(Icons.add, size: 16),
@@ -243,7 +287,9 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                         flex: 3,
                         child: TextField(
                           controller: row.particularCtrl,
-                          decoration: const InputDecoration(labelText: 'Particular / Work Description'),
+                          decoration: const InputDecoration(
+                            labelText: 'Particular / Work Description',
+                          ),
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
@@ -260,15 +306,27 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                       Expanded(
                         child: TextField(
                           controller: row.priceCtrl,
-                          decoration: const InputDecoration(labelText: 'Rate (₹)'),
+                          decoration: const InputDecoration(
+                            labelText: 'Rate (₹)',
+                          ),
                           keyboardType: TextInputType.number,
                           onChanged: (_) => setState(() {}),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Text('₹${row.total.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                      Text(
+                        '₹${row.total.toInt()}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text(context),
+                        ),
+                      ),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline, color: AppColors.error, size: 20),
+                        icon: const Icon(
+                          Icons.delete_outline,
+                          color: AppColors.error,
+                          size: 20,
+                        ),
                         onPressed: () => _removeRow(i),
                       ),
                     ],
@@ -279,19 +337,41 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('Subtotal: ₹${_subtotal.toInt()}', style: TextStyle(fontSize: 14, color: AppColors.text(context))),
-                  Text('GST (18%): ₹${_tax.toInt()}', style: TextStyle(fontSize: 14, color: AppColors.mutedText(context))),
+                  Text(
+                    'Subtotal: ₹${_subtotal.toInt()}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.text(context),
+                    ),
+                  ),
+                  Text(
+                    'GST (18%): ₹${_tax.toInt()}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.mutedText(context),
+                    ),
+                  ),
                   const SizedBox(height: 4),
-                  Text('Total Bill Amount: ₹${_grandTotal.toInt()}', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context))),
+                  Text(
+                    'Total Bill Amount: ₹${_grandTotal.toInt()}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primaryColor(context),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 24),
               DropdownButtonFormField<String>(
-                value: _status,
+                initialValue: _status,
                 decoration: const InputDecoration(labelText: 'Payment Status'),
                 items: const [
                   DropdownMenuItem(value: 'Unpaid', child: Text('Unpaid')),
-                  DropdownMenuItem(value: 'Partially Paid', child: Text('Partially Paid')),
+                  DropdownMenuItem(
+                    value: 'Partially Paid',
+                    child: Text('Partially Paid'),
+                  ),
                   DropdownMenuItem(value: 'Paid', child: Text('Paid')),
                 ],
                 onChanged: (v) => setState(() => _status = v ?? 'Unpaid'),
@@ -305,7 +385,14 @@ class _SalesBillBuilderScreenState extends ConsumerState<SalesBillBuilderScreen>
                   foregroundColor: Colors.white,
                 ),
                 child: _isSaving
-                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
                     : const Text('Save Sales Bill'),
               ),
             ],

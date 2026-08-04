@@ -7,7 +7,10 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl(this._client);
 
   @override
-  Future<AuthResponse> signIn({required String email, required String password}) async {
+  Future<AuthResponse> signIn({
+    required String email,
+    required String password,
+  }) async {
     return await _client.auth.signInWithPassword(
       email: email,
       password: password,
@@ -15,11 +18,11 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
-  Future<AuthResponse> signUp({required String email, required String password}) async {
-    return await _client.auth.signUp(
-      email: email,
-      password: password,
-    );
+  Future<AuthResponse> signUp({
+    required String email,
+    required String password,
+  }) async {
+    return await _client.auth.signUp(email: email, password: password);
   }
 
   @override
@@ -80,10 +83,9 @@ class AuthRepositoryImpl implements AuthRepository {
       'full_name': fullName,
       'phone': phone,
       'company_name': companyName,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
+      'avatar_url': ?avatarUrl,
       'updated_at': DateTime.now().toIso8601String(),
     };
     await _client.from('profiles').upsert(payload);
   }
 }
-

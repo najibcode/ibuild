@@ -26,9 +26,13 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.employee?.name ?? '');
-    _phoneController = TextEditingController(text: widget.employee?.phone ?? '');
+    _phoneController = TextEditingController(
+      text: widget.employee?.phone ?? '',
+    );
     _roleController = TextEditingController(text: widget.employee?.role ?? '');
-    _salaryController = TextEditingController(text: widget.employee?.salary.toString() ?? '');
+    _salaryController = TextEditingController(
+      text: widget.employee?.salary.toString() ?? '',
+    );
     _teaSnackController = TextEditingController(
       text: (widget.employee?.teaSnackAllowance ?? 20.0).toStringAsFixed(0),
     );
@@ -68,16 +72,22 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
       );
 
       final success = widget.employee == null
-          ? await ref.read(employeeListControllerProvider.notifier).addEmployee(employee)
-          : await ref.read(employeeListControllerProvider.notifier).editEmployee(employee);
+          ? await ref
+                .read(employeeListControllerProvider.notifier)
+                .addEmployee(employee)
+          : await ref
+                .read(employeeListControllerProvider.notifier)
+                .editEmployee(employee);
 
       if (success && mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.employee == null
-                ? 'Employee added successfully'
-                : 'Employee updated successfully'),
+            content: Text(
+              widget.employee == null
+                  ? 'Employee added successfully'
+                  : 'Employee updated successfully',
+            ),
             backgroundColor: AppColors.secondary,
           ),
         );
@@ -101,9 +111,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit Employee' : 'Add Employee'),
-      ),
+      appBar: AppBar(title: Text(isEditing ? 'Edit Employee' : 'Add Employee')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
         child: Form(
@@ -123,53 +131,92 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Name
-                    const Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Full Name',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(hintText: 'Enter name'),
-                      validator: (v) => v == null || v.isEmpty ? 'Please enter name' : null,
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Please enter name' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Phone
-                    const Text('Phone Number', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Phone Number',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(hintText: 'Enter phone number'),
-                      validator: (v) => v == null || v.isEmpty ? 'Please enter phone' : null,
+                      decoration: const InputDecoration(
+                        hintText: 'Enter phone number',
+                      ),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Please enter phone' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Role
-                    const Text('Role / Designation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Role / Designation',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _roleController,
-                      decoration: const InputDecoration(hintText: 'e.g. Mason, Supervisor, Carpenter'),
-                      validator: (v) => v == null || v.isEmpty ? 'Please enter role' : null,
+                      decoration: const InputDecoration(
+                        hintText: 'e.g. Mason, Supervisor, Carpenter',
+                      ),
+                      validator: (v) =>
+                          v == null || v.isEmpty ? 'Please enter role' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Base Salary
-                    const Text('Base Daily Salary (₹/day)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Base Daily Salary (₹/day)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _salaryController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(hintText: '₹/day'),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Please enter daily salary';
-                        if (double.tryParse(v) == null) return 'Please enter a valid amount';
+                        if (v == null || v.isEmpty)
+                          return 'Please enter daily salary';
+                        if (double.tryParse(v) == null)
+                          return 'Please enter a valid amount';
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
 
                     // Daily Tea & Snacks Budget
-                    const Text('Daily Tea & Snacks Budget (₹/day)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Daily Tea & Snacks Budget (₹/day)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 4),
                     const Text(
                       'Spent by owner per working day (Default ₹20/day)',
@@ -181,8 +228,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(hintText: '₹20'),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Please enter tea & snacks budget';
-                        if (double.tryParse(v) == null || double.parse(v) < 0) return 'Enter valid amount';
+                        if (v == null || v.isEmpty)
+                          return 'Please enter tea & snacks budget';
+                        if (double.tryParse(v) == null || double.parse(v) < 0)
+                          return 'Enter valid amount';
                         return null;
                       },
                     ),
@@ -195,14 +244,19 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.primaryContainer.withAlpha(30),
                         borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(color: AppColors.primary.withAlpha(60)),
+                        border: Border.all(
+                          color: AppColors.primary.withAlpha(60),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           const Text(
                             'Total Daily Cost (Base + Snacks):',
-                            style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            style: TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 13,
+                            ),
                           ),
                           Text(
                             '₹${totalDailyCost.toStringAsFixed(0)}/day',
@@ -218,14 +272,31 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                     const SizedBox(height: 20),
 
                     // Status (Dropdown)
-                    const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Status',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _status,
-                      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
+                      initialValue: _status,
+                      decoration: const InputDecoration(
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
+                      ),
                       items: const [
-                        DropdownMenuItem(value: 'active', child: Text('Active')),
-                        DropdownMenuItem(value: 'inactive', child: Text('Inactive')),
+                        DropdownMenuItem(
+                          value: 'active',
+                          child: Text('Active'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'inactive',
+                          child: Text('Inactive'),
+                        ),
                       ],
                       onChanged: (val) {
                         if (val != null) {
@@ -251,7 +322,10 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                     borderRadius: BorderRadius.circular(AppRadius.defaultValue),
                   ),
                 ),
-                child: const Text('Save Employee', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Save Employee',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -260,4 +334,3 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     );
   }
 }
-

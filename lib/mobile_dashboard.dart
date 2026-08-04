@@ -86,7 +86,9 @@ class MobileDashboard extends ConsumerWidget {
                           context: context,
                           isScrollControlled: true,
                           shape: const RoundedRectangleBorder(
-                            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(20),
+                            ),
                           ),
                           builder: (ctx) => Container(
                             height: MediaQuery.of(ctx).size.height * 0.65,
@@ -94,10 +96,21 @@ class MobileDashboard extends ConsumerWidget {
                             child: Column(
                               children: [
                                 Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text('Site Activity Notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.text(ctx))),
-                                    IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.pop(ctx)),
+                                    Text(
+                                      'Site Activity Notifications',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 18,
+                                        color: AppColors.text(ctx),
+                                      ),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.close),
+                                      onPressed: () => Navigator.pop(ctx),
+                                    ),
                                   ],
                                 ),
                                 const Divider(),
@@ -118,10 +131,17 @@ class MobileDashboard extends ConsumerWidget {
                             color: AppColors.error,
                             shape: BoxShape.circle,
                           ),
-                          constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
                           child: Text(
                             '$count',
-                            style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                             textAlign: TextAlign.center,
                           ),
                         ),
@@ -340,7 +360,7 @@ class MobileDashboard extends ConsumerWidget {
           toY: y,
           color: isActive
               ? AppColors.primary
-              : AppColors.primaryContainer.withOpacity(0.2),
+              : AppColors.primaryContainer.withValues(alpha: 0.2),
           width: 22,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(6)),
         ),
@@ -388,7 +408,7 @@ class MobileDashboard extends ConsumerWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: badgeColor.withOpacity(0.1),
+                    color: badgeColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(AppRadius.full),
                   ),
                   child: Text(
@@ -575,7 +595,7 @@ class MobileDashboard extends ConsumerWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: tagColor.withOpacity(0.08),
+                          color: tagColor.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(AppRadius.full),
                         ),
                         child: Text(

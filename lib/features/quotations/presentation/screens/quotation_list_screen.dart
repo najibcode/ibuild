@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:printing/printing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
-import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/quotation_model.dart';
 import '../../data/quotation_pdf_generator.dart';
 import '../controllers/quotation_controller.dart';
@@ -14,11 +12,18 @@ class QuotationListScreen extends ConsumerStatefulWidget {
   const QuotationListScreen({super.key});
 
   @override
-  ConsumerState<QuotationListScreen> createState() => _QuotationListScreenState();
+  ConsumerState<QuotationListScreen> createState() =>
+      _QuotationListScreenState();
 }
 
 class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
-  static const List<String> _statuses = ['All', 'Draft', 'Sent', 'Approved', 'Rejected'];
+  static const List<String> _statuses = [
+    'All',
+    'Draft',
+    'Sent',
+    'Approved',
+    'Rejected',
+  ];
 
   Color _getStatusColor(String status) {
     switch (status.toLowerCase()) {
@@ -34,13 +39,19 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
     }
   }
 
-  void _confirmDelete(BuildContext context, WidgetRef ref, Quotation quotation) async {
+  void _confirmDelete(
+    BuildContext context,
+    WidgetRef ref,
+    Quotation quotation,
+  ) async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBg(context),
         title: const Text('Delete Quotation Estimate'),
-        content: Text('Are you sure you want to delete the quote "${quotation.subject}" for ${quotation.clientName} (₹${quotation.totalAmount.toStringAsFixed(2)})?'),
+        content: Text(
+          'Are you sure you want to delete the quote "${quotation.subject}" for ${quotation.clientName} (₹${quotation.totalAmount.toStringAsFixed(2)})?',
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -59,7 +70,9 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
     );
 
     if (confirm == true) {
-      final success = await ref.read(quotationControllerProvider.notifier).removeQuotation(quotation.id);
+      final success = await ref
+          .read(quotationControllerProvider.notifier)
+          .removeQuotation(quotation.id);
       if (context.mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -67,7 +80,10 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
           );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Failed to delete quotation'), backgroundColor: AppColors.error),
+            const SnackBar(
+              content: Text('Failed to delete quotation'),
+              backgroundColor: AppColors.error,
+            ),
           );
         }
       }
@@ -76,10 +92,14 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
 
   void _shareQuotationDraft(BuildContext context, Quotation quotation) {
     final itemsText = quotation.items
-        .map((item) => "• ${item.particular}: ${item.quantity} ${item.unit} @ ₹${item.unitRate}/${item.unit} = ₹${item.totalCost.toStringAsFixed(2)}")
+        .map(
+          (item) =>
+              "• ${item.particular}: ${item.quantity} ${item.unit} @ ₹${item.unitRate}/${item.unit} = ₹${item.totalCost.toStringAsFixed(2)}",
+        )
         .join("\n");
 
-    final text = """
+    final text =
+        """
 ========================================
 ESTIMATION QUOTATION - IBUILD ERP
 ========================================
@@ -99,7 +119,11 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
 
     Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Copied Quotation estimate breakdown to clipboard! Ready to share.')),
+      const SnackBar(
+        content: Text(
+          'Copied Quotation estimate breakdown to clipboard! Ready to share.',
+        ),
+      ),
     );
   }
 
@@ -107,9 +131,16 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
   Widget build(BuildContext context) {
     final state = ref.watch(quotationControllerProvider);
 
-    final double totalEstimatedCapital = state.quotations.fold(0.0, (sum, q) => sum + q.totalAmount);
-    final int approvedCount = state.quotations.where((q) => q.status.toLowerCase() == 'approved').length;
-    final int draftCount = state.quotations.where((q) => q.status.toLowerCase() == 'draft').length;
+    final double totalEstimatedCapital = state.quotations.fold(
+      0.0,
+      (sum, q) => sum + q.totalAmount,
+    );
+    final int approvedCount = state.quotations
+        .where((q) => q.status.toLowerCase() == 'approved')
+        .length;
+    final int draftCount = state.quotations
+        .where((q) => q.status.toLowerCase() == 'draft')
+        .length;
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -117,7 +148,10 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
         titleSpacing: 16,
         title: Text(
           'Quotations & Project Estimator',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryColor(context),
+          ),
         ),
         actions: [
           ElevatedButton.icon(
@@ -133,13 +167,17 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
               backgroundColor: AppColors.primaryColor(context),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
-            onPressed: () => ref.read(quotationControllerProvider.notifier).loadQuotations(),
+            onPressed: () =>
+                ref.read(quotationControllerProvider.notifier).loadQuotations(),
             tooltip: 'Refresh Quotations',
           ),
           const SizedBox(width: 8),
@@ -203,10 +241,14 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
           // Interactive 1-Tap Status Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 16.0,
+              vertical: 6.0,
+            ),
             child: Row(
               children: _statuses.map((status) {
-                final isSelected = (state.statusFilter == null && status == 'All') ||
+                final isSelected =
+                    (state.statusFilter == null && status == 'All') ||
                     (state.statusFilter?.toLowerCase() == status.toLowerCase());
                 return Padding(
                   padding: const EdgeInsets.only(right: 6),
@@ -217,18 +259,31 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                       style: TextStyle(
                         fontSize: 12,
                         fontWeight: FontWeight.w600,
-                        color: isSelected ? Colors.white : AppColors.text(context),
+                        color: isSelected
+                            ? Colors.white
+                            : AppColors.text(context),
                       ),
                     ),
                     onSelected: (selected) {
-                      ref.read(quotationControllerProvider.notifier).setStatusFilter(status == 'All' ? null : status);
+                      ref
+                          .read(quotationControllerProvider.notifier)
+                          .setStatusFilter(status == 'All' ? null : status);
                     },
                     backgroundColor: AppColors.cardBg(context),
                     selectedColor: AppColors.primaryColor(context),
-                    side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                    side: BorderSide(
+                      color: isSelected
+                          ? AppColors.primaryColor(context)
+                          : AppColors.border(context),
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
                     showCheckmark: false,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 2,
+                    ),
                   ),
                 );
               }).toList(),
@@ -238,9 +293,7 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
           const SizedBox(height: 6),
 
           // Quotation List Body
-          Expanded(
-            child: _buildBody(context, ref, state),
-          ),
+          Expanded(child: _buildBody(context, ref, state)),
         ],
       ),
     );
@@ -270,7 +323,12 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
               Flexible(
                 child: Text(
                   title.toUpperCase(),
-                  style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                  style: TextStyle(
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.mutedText(context),
+                    letterSpacing: 0.5,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -280,7 +338,11 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(context),
+            ),
             overflow: TextOverflow.ellipsis,
           ),
           const SizedBox(height: 2),
@@ -294,7 +356,11 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, QuotationListState state) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    QuotationListState state,
+  ) {
     if (state.isLoading && state.quotations.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -304,12 +370,21 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.cloud_off, size: 56, color: AppColors.error.withValues(alpha: 0.5)),
+            Icon(
+              Icons.cloud_off,
+              size: 56,
+              color: AppColors.error.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            Text('Error: ${state.errorMessage}', style: TextStyle(color: AppColors.mutedText(context))),
+            Text(
+              'Error: ${state.errorMessage}',
+              style: TextStyle(color: AppColors.mutedText(context)),
+            ),
             const SizedBox(height: 16),
             ElevatedButton.icon(
-              onPressed: () => ref.read(quotationControllerProvider.notifier).loadQuotations(),
+              onPressed: () => ref
+                  .read(quotationControllerProvider.notifier)
+                  .loadQuotations(),
               icon: const Icon(Icons.refresh),
               label: const Text('Retry'),
             ),
@@ -323,11 +398,28 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.request_quote_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+            Icon(
+              Icons.request_quote_outlined,
+              size: 64,
+              color: AppColors.mutedText(context).withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
-            Text('No quotation estimates found.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+            Text(
+              'No quotation estimates found.',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppColors.text(context),
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Tap "+ New Quotation" to build an itemized project estimate.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+            Text(
+              'Tap "+ New Quotation" to build an itemized project estimate.',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.mutedText(context),
+              ),
+            ),
           ],
         ),
       );
@@ -371,10 +463,16 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                         Container(
                           padding: const EdgeInsets.all(8),
                           decoration: BoxDecoration(
-                            color: AppColors.primaryColor(context).withValues(alpha: 0.12),
+                            color: AppColors.primaryColor(
+                              context,
+                            ).withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: Icon(Icons.request_quote, color: AppColors.primaryColor(context), size: 18),
+                          child: Icon(
+                            Icons.request_quote,
+                            color: AppColors.primaryColor(context),
+                            size: 18,
+                          ),
                         ),
                         const SizedBox(width: 10),
                         Column(
@@ -382,18 +480,29 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                           children: [
                             Text(
                               quotation.clientName,
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColors.text(context),
+                              ),
                             ),
                             Row(
                               children: [
                                 Text(
                                   quotation.quotationNumber,
-                                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppColors.secondary),
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: AppColors.secondary,
+                                  ),
                                 ),
                                 if (quotation.clientPhone != null) ...[
                                   Text(
                                     ' • ${quotation.clientPhone!}',
-                                    style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.mutedText(context),
+                                    ),
                                   ),
                                 ],
                               ],
@@ -405,26 +514,41 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: statusColor.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                            border: Border.all(
+                              color: statusColor.withValues(alpha: 0.3),
+                            ),
                           ),
                           child: Text(
                             quotation.status.toUpperCase(),
-                            style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              color: statusColor,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                         const SizedBox(width: 4),
                         IconButton(
-                          icon: const Icon(Icons.file_download_outlined, size: 18),
+                          icon: const Icon(
+                            Icons.file_download_outlined,
+                            size: 18,
+                          ),
                           color: AppColors.primaryColor(context),
                           onPressed: () async {
-                            final bytes = await QuotationPdfGenerator.generate(quotation);
+                            final bytes = await QuotationPdfGenerator.generate(
+                              quotation,
+                            );
                             await PdfDownloadHelper.downloadPdf(
                               bytes: bytes,
-                              filename: 'Quotation_${quotation.clientName.replaceAll(' ', '_')}.pdf',
+                              filename:
+                                  'Quotation_${quotation.clientName.replaceAll(' ', '_')}.pdf',
                             );
                           },
                           tooltip: 'Download Quotation PDF',
@@ -432,7 +556,8 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                         IconButton(
                           icon: const Icon(Icons.share_outlined, size: 18),
                           color: AppColors.primaryColor(context),
-                          onPressed: () => _shareQuotationDraft(context, quotation),
+                          onPressed: () =>
+                              _shareQuotationDraft(context, quotation),
                           tooltip: 'Copy Estimate to Clipboard',
                         ),
                         IconButton(
@@ -440,16 +565,22 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                           color: AppColors.primaryColor(context),
                           onPressed: () async {
                             await Navigator.of(context).push(
-                              MaterialPageRoute(builder: (_) => QuotationFormScreen(quotation: quotation)),
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    QuotationFormScreen(quotation: quotation),
+                              ),
                             );
-                            ref.read(quotationControllerProvider.notifier).loadQuotations();
+                            ref
+                                .read(quotationControllerProvider.notifier)
+                                .loadQuotations();
                           },
                           tooltip: 'Edit Quotation',
                         ),
                         IconButton(
                           icon: const Icon(Icons.delete_outline, size: 18),
                           color: AppColors.error,
-                          onPressed: () => _confirmDelete(context, ref, quotation),
+                          onPressed: () =>
+                              _confirmDelete(context, ref, quotation),
                           tooltip: 'Delete Quotation',
                         ),
                       ],
@@ -468,18 +599,29 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                         children: [
                           Text(
                             quotation.subject,
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.text(context)),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppColors.text(context),
+                            ),
                           ),
                           Text(
                             '${quotation.items.length} Estimation Particulars • ${quotation.projectName ?? 'General Site'}',
-                            style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.mutedText(context),
+                            ),
                           ),
                         ],
                       ),
                     ),
                     Text(
                       '₹${quotation.totalAmount.toStringAsFixed(2)}',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.primaryColor(context)),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                        color: AppColors.primaryColor(context),
+                      ),
                     ),
                   ],
                 ),
@@ -501,9 +643,21 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
-                              Text('• ${item.particular}', style: TextStyle(fontSize: 11, color: AppColors.text(context))),
-                              Text('${item.quantity} ${item.unit} @ ₹${item.unitRate} = ₹${item.totalCost.toStringAsFixed(0)}',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context))),
+                              Text(
+                                '• ${item.particular}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.text(context),
+                                ),
+                              ),
+                              Text(
+                                '${item.quantity} ${item.unit} @ ₹${item.unitRate} = ₹${item.totalCost.toStringAsFixed(0)}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.mutedText(context),
+                                ),
+                              ),
                             ],
                           ),
                         );

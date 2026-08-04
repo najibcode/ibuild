@@ -31,7 +31,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     final profile = authState.profile;
     final user = authState.user;
 
-    final defaultName = profile?['full_name'] as String? ??
+    final defaultName =
+        profile?['full_name'] as String? ??
         (user?.email != null && user!.email!.contains('@')
             ? user.email!.split('@').first
             : 'Business Owner');
@@ -112,9 +113,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      appBar: AppBar(
-        title: const Text('My Profile'),
-      ),
+      appBar: AppBar(title: const Text('My Profile')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
         child: Center(
@@ -195,8 +194,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                       hintText: 'Enter your name',
                       prefixIcon: Icon(Icons.person_outline, size: 20),
                     ),
-                    validator: (v) =>
-                        v == null || v.isEmpty ? 'Please enter full name' : null,
+                    validator: (v) => v == null || v.isEmpty
+                        ? 'Please enter full name'
+                        : null,
                   ),
                   const SizedBox(height: 16),
 
@@ -252,23 +252,32 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                   const SizedBox(height: 14),
 
                   DropdownButtonFormField<String>(
-                    value: _notificationScope,
+                    initialValue: _notificationScope,
                     decoration: const InputDecoration(
                       labelText: 'ERP Notification Alert Scope',
-                      prefixIcon: Icon(Icons.notifications_active_outlined, size: 20),
+                      prefixIcon: Icon(
+                        Icons.notifications_active_outlined,
+                        size: 20,
+                      ),
                     ),
                     items: const [
                       DropdownMenuItem(
                         value: 'all',
-                        child: Text('All Site & Operational Updates (Recommended)'),
+                        child: Text(
+                          'All Site & Operational Updates (Recommended)',
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 'financial',
-                        child: Text('High-Priority & Financial Only (Bills, Payments)'),
+                        child: Text(
+                          'High-Priority & Financial Only (Bills, Payments)',
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 'site',
-                        child: Text('Site Execution Only (Drawings, Checklists)'),
+                        child: Text(
+                          'Site Execution Only (Drawings, Checklists)',
+                        ),
                       ),
                       DropdownMenuItem(
                         value: 'muted',
@@ -281,17 +290,25 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
 
                   SwitchListTile(
                     value: _enablePushNotifications,
-                    activeColor: AppColors.secondary,
+                    activeThumbColor: AppColors.secondary,
                     contentPadding: EdgeInsets.zero,
                     title: Text(
                       'Mobile Push Banners & Unread Badges',
-                      style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: AppColors.text(context)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text(context),
+                      ),
                     ),
                     subtitle: Text(
                       'Receive live unread badges on mobile header bell icon',
-                      style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                      ),
                     ),
-                    onChanged: (val) => setState(() => _enablePushNotifications = val),
+                    onChanged: (val) =>
+                        setState(() => _enablePushNotifications = val),
                   ),
                   const SizedBox(height: 28),
 

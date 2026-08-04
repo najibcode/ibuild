@@ -27,12 +27,13 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
   @override
   void initState() {
     super.initState();
-    final initialBillNo = widget.bill?.billNumber ?? DocumentNumberGenerator.generateBillNumber();
+    final initialBillNo =
+        widget.bill?.billNumber ?? DocumentNumberGenerator.generateBillNumber();
     _billNumberController = TextEditingController(text: initialBillNo);
-    _amountController =
-        TextEditingController(text: widget.bill?.amount.toString() ?? '');
-    _notesController =
-        TextEditingController(text: widget.bill?.notes ?? '');
+    _amountController = TextEditingController(
+      text: widget.bill?.amount.toString() ?? '',
+    );
+    _notesController = TextEditingController(text: widget.bill?.notes ?? '');
     _status = widget.bill?.status ?? 'pending';
     _selectedProjectId = widget.bill?.projectId;
     if (widget.bill != null) {
@@ -86,20 +87,18 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
       );
 
       final success = widget.bill == null
-          ? await ref
-              .read(billingControllerProvider.notifier)
-              .addBill(bill)
-          : await ref
-              .read(billingControllerProvider.notifier)
-              .editBill(bill);
+          ? await ref.read(billingControllerProvider.notifier).addBill(bill)
+          : await ref.read(billingControllerProvider.notifier).editBill(bill);
 
       if (success && mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.bill == null
-                ? 'Bill added successfully'
-                : 'Bill updated successfully'),
+            content: Text(
+              widget.bill == null
+                  ? 'Bill added successfully'
+                  : 'Bill updated successfully',
+            ),
             backgroundColor: AppColors.secondary,
           ),
         );
@@ -121,9 +120,7 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      appBar: AppBar(
-        title: Text(isEditing ? 'Edit Bill' : 'Add Bill'),
-      ),
+      appBar: AppBar(title: Text(isEditing ? 'Edit Bill' : 'Add Bill')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
         child: Form(
@@ -142,22 +139,27 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Project Selector
-                    const Text('Project',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Project',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _selectedProjectId,
+                      initialValue: _selectedProjectId,
                       decoration: const InputDecoration(
                         contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                         hintText: 'Select a project',
                       ),
                       items: projectsState.projects.map((p) {
                         return DropdownMenuItem(
                           value: p.id,
-                          child: Text(p.name,
-                              overflow: TextOverflow.ellipsis),
+                          child: Text(p.name, overflow: TextOverflow.ellipsis),
                         );
                       }).toList(),
                       onChanged: (val) =>
@@ -170,23 +172,40 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                     // Bill Number (Auto-Generated & Verified)
                     Row(
                       children: [
-                        const Text('Bill Number',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 14)),
+                        const Text(
+                          'Bill Number',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.secondary.withOpacity(0.1),
+                            color: AppColors.secondary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: const [
-                              Icon(Icons.lock_outline, size: 12, color: AppColors.secondary),
+                              Icon(
+                                Icons.lock_outline,
+                                size: 12,
+                                color: AppColors.secondary,
+                              ),
                               SizedBox(width: 4),
-                              Text('Auto-Generated (Anti-Fraud)',
-                                  style: TextStyle(color: AppColors.secondary, fontSize: 11, fontWeight: FontWeight.w600)),
+                              Text(
+                                'Auto-Generated (Anti-Fraud)',
+                                style: TextStyle(
+                                  color: AppColors.secondary,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -197,8 +216,13 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                       controller: _billNumberController,
                       readOnly: true,
                       decoration: const InputDecoration(
-                        suffixIcon: Icon(Icons.verified_user_outlined, color: AppColors.secondary, size: 20),
-                        helperText: 'Standardized anti-fraud authentic bill number',
+                        suffixIcon: Icon(
+                          Icons.verified_user_outlined,
+                          color: AppColors.secondary,
+                          size: 20,
+                        ),
+                        helperText:
+                            'Standardized anti-fraud authentic bill number',
                       ),
                       validator: (v) => v == null || v.isEmpty
                           ? 'Please enter bill number'
@@ -207,24 +231,30 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                     const SizedBox(height: 20),
 
                     // Bill Date
-                    const Text('Bill Date',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Bill Date',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: _pickDate,
                       child: InputDecorator(
                         decoration: const InputDecoration(
                           contentPadding: EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 12),
-                          suffixIcon:
-                              Icon(Icons.calendar_today, size: 18),
+                            horizontal: 12,
+                            vertical: 12,
+                          ),
+                          suffixIcon: Icon(Icons.calendar_today, size: 18),
                         ),
                         child: Text(
                           _selectedDate != null
-                              ? _selectedDate!
-                                  .toIso8601String()
-                                  .substring(0, 10)
+                              ? _selectedDate!.toIso8601String().substring(
+                                  0,
+                                  10,
+                                )
                               : 'Select date',
                           style: TextStyle(
                             color: _selectedDate != null
@@ -237,15 +267,18 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                     const SizedBox(height: 20),
 
                     // Amount
-                    const Text('Amount',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Amount',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _amountController,
                       keyboardType: TextInputType.number,
-                      decoration:
-                          const InputDecoration(hintText: '₹'),
+                      decoration: const InputDecoration(hintText: '₹'),
                       validator: (v) {
                         if (v == null || v.isEmpty) {
                           return 'Please enter amount';
@@ -259,26 +292,36 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                     const SizedBox(height: 20),
 
                     // Status
-                    const Text('Status',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Status',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _status,
+                      initialValue: _status,
                       decoration: const InputDecoration(
                         contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12, vertical: 10),
+                          horizontal: 12,
+                          vertical: 10,
+                        ),
                       ),
                       items: const [
                         DropdownMenuItem(
-                            value: 'pending', child: Text('Pending')),
+                          value: 'pending',
+                          child: Text('Pending'),
+                        ),
+                        DropdownMenuItem(value: 'paid', child: Text('Paid')),
                         DropdownMenuItem(
-                            value: 'paid', child: Text('Paid')),
+                          value: 'overdue',
+                          child: Text('Overdue'),
+                        ),
                         DropdownMenuItem(
-                            value: 'overdue', child: Text('Overdue')),
-                        DropdownMenuItem(
-                            value: 'cancelled',
-                            child: Text('Cancelled')),
+                          value: 'cancelled',
+                          child: Text('Cancelled'),
+                        ),
                       ],
                       onChanged: (val) {
                         if (val != null) setState(() => _status = val);
@@ -287,15 +330,20 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                     const SizedBox(height: 20),
 
                     // Notes
-                    const Text('Notes (Optional)',
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 14)),
+                    const Text(
+                      'Notes (Optional)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _notesController,
                       maxLines: 3,
                       decoration: const InputDecoration(
-                          hintText: 'Additional notes...'),
+                        hintText: 'Additional notes...',
+                      ),
                     ),
                   ],
                 ),
@@ -310,14 +358,15 @@ class _BillingFormScreenState extends ConsumerState<BillingFormScreen> {
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 54),
                   shape: RoundedRectangleBorder(
-                    borderRadius:
-                        BorderRadius.circular(AppRadius.defaultValue),
+                    borderRadius: BorderRadius.circular(AppRadius.defaultValue),
                   ),
                 ),
                 child: Text(
                   isEditing ? 'Update Bill' : 'Save Bill',
                   style: const TextStyle(
-                      fontSize: 16, fontWeight: FontWeight.bold),
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],

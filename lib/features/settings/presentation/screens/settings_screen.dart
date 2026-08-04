@@ -9,9 +9,6 @@ import '../../../../features/rbac/presentation/providers/permission_provider.dar
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
-
-
-
 // State Provider to hold draft theme selection before user clicks Apply
 final draftThemeSelectionProvider = StateProvider<ThemeMode>((ref) {
   return ref.watch(themeProvider);
@@ -48,7 +45,7 @@ class SettingsScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: isSelected
-              ? primaryColor.withOpacity(0.12)
+              ? primaryColor.withValues(alpha: 0.12)
               : AppColors.cardBg(context),
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
@@ -61,7 +58,9 @@ class SettingsScreen extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: isSelected ? primaryColor : AppColors.border(context).withOpacity(0.3),
+                color: isSelected
+                    ? primaryColor
+                    : AppColors.border(context).withValues(alpha: 0.3),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -88,9 +87,12 @@ class SettingsScreen extends ConsumerWidget {
                       if (isCurrentlyActive) ...[
                         const SizedBox(width: 8),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.secondary.withOpacity(0.15),
+                            color: AppColors.secondary.withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Text(
@@ -167,7 +169,12 @@ class SettingsScreen extends ConsumerWidget {
             // User Profile Section
             Text(
               'MY USER PROFILE',
-              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(
+                fontSize: 11,
+                color: mutedText,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -186,13 +193,18 @@ class SettingsScreen extends ConsumerWidget {
                 ),
                 title: Text(
                   profile?['full_name'] as String? ?? 'Business Owner / Admin',
-                  style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
                 ),
                 subtitle: Text(userEmail, style: TextStyle(color: mutedText)),
                 trailing: OutlinedButton.icon(
                   onPressed: () {
                     Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                      MaterialPageRoute(
+                        builder: (_) => const UserProfileScreen(),
+                      ),
                     );
                   },
                   icon: const Icon(Icons.edit, size: 14),
@@ -205,7 +217,12 @@ class SettingsScreen extends ConsumerWidget {
             // Company Profile Section
             Text(
               'COMPANY PROFILE',
-              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(
+                fontSize: 11,
+                color: mutedText,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -218,13 +235,31 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.business, color: mutedText),
-                    title: Text('Company Name', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                    subtitle: Text(companyName, style: TextStyle(color: mutedText)),
+                    title: Text(
+                      'Company Name',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    subtitle: Text(
+                      companyName,
+                      style: TextStyle(color: mutedText),
+                    ),
                   ),
                   Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
-                    leading: Icon(Icons.receipt_long_outlined, color: mutedText),
-                    title: Text('GSTIN Number', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    leading: Icon(
+                      Icons.receipt_long_outlined,
+                      color: mutedText,
+                    ),
+                    title: Text(
+                      'GSTIN Number',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
                     subtitle: Text(gstin, style: TextStyle(color: mutedText)),
                   ),
                 ],
@@ -236,7 +271,12 @@ class SettingsScreen extends ConsumerWidget {
             // Theme Calibration Section
             Text(
               'APPEARANCE & THEME CALIBRATION',
-              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(
+                fontSize: 11,
+                color: mutedText,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -254,7 +294,8 @@ class SettingsScreen extends ConsumerWidget {
                     ref,
                     mode: ThemeMode.light,
                     title: 'Light Mode ☀️',
-                    description: 'Crisp high-contrast light theme for bright daylight environments.',
+                    description:
+                        'Crisp high-contrast light theme for bright daylight environments.',
                     icon: Icons.wb_sunny_outlined,
                   ),
                   const SizedBox(height: 10),
@@ -263,7 +304,8 @@ class SettingsScreen extends ConsumerWidget {
                     ref,
                     mode: ThemeMode.dark,
                     title: 'Dark Mode 🌙',
-                    description: 'Calibrated deep slate dark theme with enhanced text visibility.',
+                    description:
+                        'Calibrated deep slate dark theme with enhanced text visibility.',
                     icon: Icons.nightlight_round_outlined,
                   ),
                   const SizedBox(height: 10),
@@ -272,7 +314,8 @@ class SettingsScreen extends ConsumerWidget {
                     ref,
                     mode: ThemeMode.system,
                     title: 'System Default 💻',
-                    description: 'Automatically match device operating system theme settings.',
+                    description:
+                        'Automatically match device operating system theme settings.',
                     icon: Icons.settings_brightness_outlined,
                   ),
                   const SizedBox(height: 16),
@@ -286,7 +329,11 @@ class SettingsScreen extends ConsumerWidget {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                             content: Text(
-                              'Installed ${draftMode == ThemeMode.dark ? "Dark" : draftMode == ThemeMode.light ? "Light" : "System"} Mode across IBUILD ERP!',
+                              'Installed ${draftMode == ThemeMode.dark
+                                  ? "Dark"
+                                  : draftMode == ThemeMode.light
+                                  ? "Light"
+                                  : "System"} Mode across IBUILD ERP!',
                             ),
                             backgroundColor: AppColors.secondary,
                             duration: const Duration(seconds: 2),
@@ -301,7 +348,10 @@ class SettingsScreen extends ConsumerWidget {
                         hasUnsavedChanges
                             ? 'Install Selected Theme'
                             : 'Theme Preference Applied',
-                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: hasUnsavedChanges
@@ -323,7 +373,12 @@ class SettingsScreen extends ConsumerWidget {
             // Role Simulator
             Text(
               'ROLE SIMULATOR & PERMISSIONS',
-              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(
+                fontSize: 11,
+                color: mutedText,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -335,21 +390,56 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(Icons.admin_panel_settings_outlined, color: mutedText),
-                    title: Text('Active Role (Simulator)', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                    subtitle: Text('Current: ${ref.watch(currentRoleProvider).toUpperCase()}', style: TextStyle(color: mutedText)),
+                    leading: Icon(
+                      Icons.admin_panel_settings_outlined,
+                      color: mutedText,
+                    ),
+                    title: Text(
+                      'Active Role (Simulator)',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Current: ${ref.watch(currentRoleProvider).toUpperCase()}',
+                      style: TextStyle(color: mutedText),
+                    ),
                     trailing: DropdownButton<String>(
-                      value: ref.watch(currentRoleProvider) == 'unknown' ? 'admin' : ref.watch(currentRoleProvider),
+                      value: ref.watch(currentRoleProvider) == 'unknown'
+                          ? 'admin'
+                          : ref.watch(currentRoleProvider),
                       underline: const SizedBox(),
                       dropdownColor: cardBg,
                       items: [
-                        DropdownMenuItem(value: 'admin', child: Text('ADMIN', style: TextStyle(color: AppColors.text(context)))),
-                        DropdownMenuItem(value: 'owner', child: Text('OWNER', style: TextStyle(color: AppColors.text(context)))),
-                        DropdownMenuItem(value: 'supervisor', child: Text('SUPERVISOR', style: TextStyle(color: AppColors.text(context)))),
+                        DropdownMenuItem(
+                          value: 'admin',
+                          child: Text(
+                            'ADMIN',
+                            style: TextStyle(color: AppColors.text(context)),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'owner',
+                          child: Text(
+                            'OWNER',
+                            style: TextStyle(color: AppColors.text(context)),
+                          ),
+                        ),
+                        DropdownMenuItem(
+                          value: 'supervisor',
+                          child: Text(
+                            'SUPERVISOR',
+                            style: TextStyle(color: AppColors.text(context)),
+                          ),
+                        ),
                       ],
                       onChanged: (newRole) {
                         if (newRole != null) {
-                          ref.read(selectedRoleOverrideProvider.notifier).state = newRole;
+                          ref
+                                  .read(selectedRoleOverrideProvider.notifier)
+                                  .state =
+                              newRole;
                           ref.invalidate(userPermissionsProvider);
                         }
                       },
@@ -361,9 +451,21 @@ class SettingsScreen extends ConsumerWidget {
                       children: [
                         Divider(height: 1, color: borderCol, indent: 52),
                         ListTile(
-                          leading: Icon(Icons.backup_outlined, color: mutedText),
-                          title: Text('Backup Database', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                          subtitle: Text('Last backed up: Today, 04:00 AM', style: TextStyle(color: mutedText)),
+                          leading: Icon(
+                            Icons.backup_outlined,
+                            color: mutedText,
+                          ),
+                          title: Text(
+                            'Backup Database',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.text(context),
+                            ),
+                          ),
+                          subtitle: Text(
+                            'Last backed up: Today, 04:00 AM',
+                            style: TextStyle(color: mutedText),
+                          ),
                         ),
                       ],
                     ),
@@ -376,7 +478,12 @@ class SettingsScreen extends ConsumerWidget {
             // Account & Support
             Text(
               'ABOUT',
-              style: TextStyle(fontSize: 11, color: mutedText, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(
+                fontSize: 11,
+                color: mutedText,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5,
+              ),
             ),
             const SizedBox(height: 8),
             Container(
@@ -389,20 +496,47 @@ class SettingsScreen extends ConsumerWidget {
                 children: [
                   ListTile(
                     leading: Icon(Icons.info_outline, color: mutedText),
-                    title: Text('App Version', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                    subtitle: Text('v1.0.0 (Phase 1 Build)', style: TextStyle(color: mutedText)),
+                    title: Text(
+                      'App Version',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    subtitle: Text(
+                      'v1.0.0 (Phase 1 Build)',
+                      style: TextStyle(color: mutedText),
+                    ),
                   ),
                   Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
                     leading: Icon(Icons.help_outline, color: mutedText),
-                    title: Text('Logged in as', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                    subtitle: Text(userEmail, style: TextStyle(color: mutedText)),
+                    title: Text(
+                      'Logged in as',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    subtitle: Text(
+                      userEmail,
+                      style: TextStyle(color: mutedText),
+                    ),
                   ),
                   Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
                     leading: Icon(Icons.shield_outlined, color: mutedText),
-                    title: Text('Role', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                    subtitle: Text(ref.watch(currentRoleProvider).toUpperCase(), style: TextStyle(color: mutedText)),
+                    title: Text(
+                      'Role',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    subtitle: Text(
+                      ref.watch(currentRoleProvider).toUpperCase(),
+                      style: TextStyle(color: mutedText),
+                    ),
                   ),
                 ],
               ),
@@ -419,7 +553,9 @@ class SettingsScreen extends ConsumerWidget {
                 foregroundColor: AppColors.error,
                 elevation: 0,
                 minimumSize: const Size(double.infinity, 52),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppRadius.md),
+                ),
               ),
             ),
           ],

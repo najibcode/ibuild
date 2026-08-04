@@ -18,13 +18,24 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
   String? _tradeFilter;
   String _statusFilter = 'All';
 
-  void _showSubcontractorFormDialog(BuildContext context, {Subcontractor? existing}) {
-    final companyCtrl = TextEditingController(text: existing?.companyName ?? '');
-    final personCtrl = TextEditingController(text: existing?.contactPerson ?? '');
+  void _showSubcontractorFormDialog(
+    BuildContext context, {
+    Subcontractor? existing,
+  }) {
+    final companyCtrl = TextEditingController(
+      text: existing?.companyName ?? '',
+    );
+    final personCtrl = TextEditingController(
+      text: existing?.contactPerson ?? '',
+    );
     final phoneCtrl = TextEditingController(text: existing?.phone ?? '');
     final siteCtrl = TextEditingController(text: existing?.siteName ?? '');
-    final contractCtrl = TextEditingController(text: (existing?.contractValue ?? 2500000).toStringAsFixed(0));
-    final paidCtrl = TextEditingController(text: (existing?.paidAmount ?? 1000000).toStringAsFixed(0));
+    final contractCtrl = TextEditingController(
+      text: (existing?.contractValue ?? 2500000).toStringAsFixed(0),
+    );
+    final paidCtrl = TextEditingController(
+      text: (existing?.paidAmount ?? 1000000).toStringAsFixed(0),
+    );
     String selectedTrade = existing?.tradeSpecialization ?? 'Electrical & MEP';
     String selectedStatus = existing?.status ?? 'Active';
     String? selectedSiteProject = existing?.siteName;
@@ -37,7 +48,9 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
       builder: (dialogCtx) {
         return Consumer(
           builder: (context, dialogRef, _) {
-            final projects = dialogRef.watch(projectControllerProvider).projects;
+            final projects = dialogRef
+                .watch(projectControllerProvider)
+                .projects;
             return StatefulBuilder(
               builder: (context, setDialogState) {
                 final siteDropdownItems = <DropdownMenuItem<String?>>[
@@ -45,31 +58,65 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                     value: null,
                     child: Row(
                       children: [
-                        Icon(Icons.public, size: 16, color: AppColors.mutedText(context)),
+                        Icon(
+                          Icons.public,
+                          size: 16,
+                          color: AppColors.mutedText(context),
+                        ),
                         const SizedBox(width: 8),
-                        Text('General (No Specific Project)', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                        Text(
+                          'General (No Specific Project)',
+                          style: TextStyle(
+                            color: AppColors.text(context),
+                            fontSize: 13,
+                          ),
+                        ),
                       ],
                     ),
                   ),
-                  ...projects.map((p) => DropdownMenuItem<String?>(
-                        value: p.name,
-                        child: Row(
-                          children: [
-                            Icon(Icons.apartment, size: 16, color: AppColors.primaryColor(context)),
-                            const SizedBox(width: 8),
-                            Flexible(
-                              child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13), overflow: TextOverflow.ellipsis),
+                  ...projects.map(
+                    (p) => DropdownMenuItem<String?>(
+                      value: p.name,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.apartment,
+                            size: 16,
+                            color: AppColors.primaryColor(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Text(
+                              p.name,
+                              style: TextStyle(
+                                color: AppColors.text(context),
+                                fontSize: 13,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                          ],
-                        ),
-                      )),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
                   const DropdownMenuItem<String?>(
                     value: '__custom__',
                     child: Row(
                       children: [
-                        Icon(Icons.edit_location_alt_outlined, size: 16, color: Colors.deepOrange),
+                        Icon(
+                          Icons.edit_location_alt_outlined,
+                          size: 16,
+                          color: Colors.deepOrange,
+                        ),
                         SizedBox(width: 8),
-                        Text('Other (Type Custom Site)', style: TextStyle(color: Colors.deepOrange, fontSize: 13, fontWeight: FontWeight.w600)),
+                        Text(
+                          'Other (Type Custom Site)',
+                          style: TextStyle(
+                            color: Colors.deepOrange,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -78,8 +125,13 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 return AlertDialog(
                   backgroundColor: AppColors.cardBg(context),
                   title: Text(
-                    existing == null ? 'Register Subcontractor Vendor' : 'Edit Subcontractor Details',
-                    style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold),
+                    existing == null
+                        ? 'Register Subcontractor Vendor'
+                        : 'Edit Subcontractor Details',
+                    style: TextStyle(
+                      color: AppColors.text(context),
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   content: SingleChildScrollView(
                     child: Column(
@@ -91,7 +143,9 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                           decoration: InputDecoration(
                             labelText: 'Company / Firm Name',
                             hintText: 'e.g. Sri Laxmi Electricals',
-                            labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                            labelStyle: TextStyle(
+                              color: AppColors.mutedText(context),
+                            ),
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -100,11 +154,15 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                             Expanded(
                               child: TextField(
                                 controller: personCtrl,
-                                style: TextStyle(color: AppColors.text(context)),
+                                style: TextStyle(
+                                  color: AppColors.text(context),
+                                ),
                                 decoration: InputDecoration(
                                   labelText: 'Contact Person',
                                   hintText: 'e.g. Srinivas Rao',
-                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                  labelStyle: TextStyle(
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
                               ),
                             ),
@@ -113,11 +171,15 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                               child: TextField(
                                 controller: phoneCtrl,
                                 keyboardType: TextInputType.phone,
-                                style: TextStyle(color: AppColors.text(context)),
+                                style: TextStyle(
+                                  color: AppColors.text(context),
+                                ),
                                 decoration: InputDecoration(
                                   labelText: 'Phone Number',
                                   hintText: '+91 98765...',
-                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                  labelStyle: TextStyle(
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
                               ),
                             ),
@@ -128,18 +190,36 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                         // Assigned Site / Project Dropdown
                         Text(
                           'ASSIGNED SITE / PROJECT',
-                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5),
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.mutedText(context),
+                            letterSpacing: 0.5,
+                          ),
                         ),
                         const SizedBox(height: 6),
                         DropdownButtonFormField<String?>(
-                          value: siteDropdownItems.any((i) => i.value == selectedSiteProject) ? selectedSiteProject : null,
+                          initialValue:
+                              siteDropdownItems.any(
+                                (i) => i.value == selectedSiteProject,
+                              )
+                              ? selectedSiteProject
+                              : null,
                           dropdownColor: AppColors.cardBg(context),
                           isExpanded: true,
                           decoration: InputDecoration(
-                            prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context), size: 20),
+                            prefixIcon: Icon(
+                              Icons.apartment_outlined,
+                              color: AppColors.primaryColor(context),
+                              size: 20,
+                            ),
                             hintText: 'Select active project site',
-                            hintStyle: TextStyle(color: AppColors.mutedText(context)),
-                            labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                            hintStyle: TextStyle(
+                              color: AppColors.mutedText(context),
+                            ),
+                            labelStyle: TextStyle(
+                              color: AppColors.mutedText(context),
+                            ),
                           ),
                           items: siteDropdownItems,
                           onChanged: (val) {
@@ -161,8 +241,14 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                             decoration: InputDecoration(
                               labelText: 'Custom Site Name',
                               hintText: 'e.g. Skyline Towers Phase 1',
-                              prefixIcon: const Icon(Icons.edit_location_alt_outlined, size: 18, color: Colors.deepOrange),
-                              labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                              prefixIcon: const Icon(
+                                Icons.edit_location_alt_outlined,
+                                size: 18,
+                                color: Colors.deepOrange,
+                              ),
+                              labelStyle: TextStyle(
+                                color: AppColors.mutedText(context),
+                              ),
                             ),
                           ),
                         ],
@@ -171,37 +257,67 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                           children: [
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: selectedTrade,
+                                initialValue: selectedTrade,
                                 dropdownColor: AppColors.cardBg(context),
                                 decoration: InputDecoration(
                                   labelText: 'Trade Specialization',
-                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                  labelStyle: TextStyle(
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
-                                items: ['Electrical & MEP', 'Steel Fabrication', 'Plumbing & Drainage', 'Tiling & Flooring', 'Civil Work', 'Painting & Finishing']
-                                    .map((t) => DropdownMenuItem(
-                                          value: t,
-                                          child: Text(t, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
-                                        ))
-                                    .toList(),
-                                onChanged: (val) => setDialogState(() => selectedTrade = val!),
+                                items:
+                                    [
+                                          'Electrical & MEP',
+                                          'Steel Fabrication',
+                                          'Plumbing & Drainage',
+                                          'Tiling & Flooring',
+                                          'Civil Work',
+                                          'Painting & Finishing',
+                                        ]
+                                        .map(
+                                          (t) => DropdownMenuItem(
+                                            value: t,
+                                            child: Text(
+                                              t,
+                                              style: TextStyle(
+                                                color: AppColors.text(context),
+                                                fontSize: 13,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                        .toList(),
+                                onChanged: (val) =>
+                                    setDialogState(() => selectedTrade = val!),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: DropdownButtonFormField<String>(
-                                value: selectedStatus,
+                                initialValue: selectedStatus,
                                 dropdownColor: AppColors.cardBg(context),
                                 decoration: InputDecoration(
                                   labelText: 'Contract Status',
-                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                  labelStyle: TextStyle(
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
                                 items: ['Active', 'Completed', 'Pending']
-                                    .map((s) => DropdownMenuItem(
-                                          value: s,
-                                          child: Text(s, style: TextStyle(color: AppColors.text(context), fontSize: 13)),
-                                        ))
+                                    .map(
+                                      (s) => DropdownMenuItem(
+                                        value: s,
+                                        child: Text(
+                                          s,
+                                          style: TextStyle(
+                                            color: AppColors.text(context),
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                      ),
+                                    )
                                     .toList(),
-                                onChanged: (val) => setDialogState(() => selectedStatus = val!),
+                                onChanged: (val) =>
+                                    setDialogState(() => selectedStatus = val!),
                               ),
                             ),
                           ],
@@ -213,10 +329,14 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                               child: TextField(
                                 controller: contractCtrl,
                                 keyboardType: TextInputType.number,
-                                style: TextStyle(color: AppColors.text(context)),
+                                style: TextStyle(
+                                  color: AppColors.text(context),
+                                ),
                                 decoration: InputDecoration(
                                   labelText: 'Contract Amount (₹)',
-                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                  labelStyle: TextStyle(
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
                               ),
                             ),
@@ -225,10 +345,14 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                               child: TextField(
                                 controller: paidCtrl,
                                 keyboardType: TextInputType.number,
-                                style: TextStyle(color: AppColors.text(context)),
+                                style: TextStyle(
+                                  color: AppColors.text(context),
+                                ),
                                 decoration: InputDecoration(
                                   labelText: 'Amount Paid (₹)',
-                                  labelStyle: TextStyle(color: AppColors.mutedText(context)),
+                                  labelStyle: TextStyle(
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
                               ),
                             ),
@@ -249,35 +373,57 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                           id: existing?.id ?? '',
                           name: companyCtrl.text.trim(),
                           companyNameProp: companyCtrl.text.trim(),
-                          contactPersonProp: personCtrl.text.trim().isEmpty ? 'Contractor' : personCtrl.text.trim(),
+                          contactPersonProp: personCtrl.text.trim().isEmpty
+                              ? 'Contractor'
+                              : personCtrl.text.trim(),
                           phone: phoneCtrl.text.trim(),
                           specialization: selectedTrade,
-                          siteNameProp: siteCtrl.text.trim().isEmpty ? 'Main Site' : siteCtrl.text.trim(),
-                          contractValue: double.tryParse(contractCtrl.text) ?? 0.0,
+                          siteNameProp: siteCtrl.text.trim().isEmpty
+                              ? 'Main Site'
+                              : siteCtrl.text.trim(),
+                          contractValue:
+                              double.tryParse(contractCtrl.text) ?? 0.0,
                           paidAmount: double.tryParse(paidCtrl.text) ?? 0.0,
                           status: selectedStatus,
                           createdAt: existing?.createdAt ?? DateTime.now(),
                         );
 
                         final success = existing == null
-                            ? await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(newSub)
-                            : await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(newSub);
+                            ? await ref
+                                  .read(
+                                    subcontractorControllerProvider.notifier,
+                                  )
+                                  .addSubcontractor(newSub)
+                            : await ref
+                                  .read(
+                                    subcontractorControllerProvider.notifier,
+                                  )
+                                  .updateSubcontractor(newSub);
 
                         if (context.mounted) {
                           Navigator.pop(dialogCtx);
                           if (success) {
                             ScaffoldMessenger.of(context).showSnackBar(
                               SnackBar(
-                                content: Text(existing == null
-                                    ? 'Subcontractor vendor registered successfully'
-                                    : 'Subcontractor details updated successfully'),
+                                content: Text(
+                                  existing == null
+                                      ? 'Subcontractor vendor registered successfully'
+                                      : 'Subcontractor details updated successfully',
+                                ),
                                 backgroundColor: AppColors.secondary,
                               ),
                             );
                           } else {
-                            final err = ref.read(subcontractorControllerProvider).error ?? 'Unknown error';
+                            final err =
+                                ref
+                                    .read(subcontractorControllerProvider)
+                                    .error ??
+                                'Unknown error';
                             ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text('Failed to save vendor: $err'), backgroundColor: AppColors.error),
+                              SnackBar(
+                                content: Text('Failed to save vendor: $err'),
+                                backgroundColor: AppColors.error,
+                              ),
                             );
                           }
                         }
@@ -286,7 +432,9 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                         backgroundColor: AppColors.primaryColor(context),
                         foregroundColor: Colors.white,
                       ),
-                      child: Text(existing == null ? 'Register Vendor' : 'Save Changes'),
+                      child: Text(
+                        existing == null ? 'Register Vendor' : 'Save Changes',
+                      ),
                     ),
                   ],
                 );
@@ -304,13 +452,21 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBg(context),
-        title: Text('Record Payment: ${vendor.companyName}', style: TextStyle(color: AppColors.text(context))),
+        title: Text(
+          'Record Payment: ${vendor.companyName}',
+          style: TextStyle(color: AppColors.text(context)),
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Current Disbursed: ₹${_fmt(vendor.paidAmount)} / Contract: ₹${_fmt(vendor.contractAmount)}',
-                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+            Text(
+              'Current Disbursed: ₹${_fmt(vendor.paidAmount)} / Contract: ₹${_fmt(vendor.contractAmount)}',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.mutedText(context),
+              ),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: amountCtrl,
@@ -325,23 +481,38 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               final addAmount = double.tryParse(amountCtrl.text) ?? 0.0;
               if (addAmount <= 0) return;
-              final updated = vendor.copyWith(paidAmount: vendor.paidAmount + addAmount);
-              final success = await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(updated);
+              final updated = vendor.copyWith(
+                paidAmount: vendor.paidAmount + addAmount,
+              );
+              final success = await ref
+                  .read(subcontractorControllerProvider.notifier)
+                  .updateSubcontractor(updated);
               if (context.mounted) {
                 Navigator.pop(ctx);
                 if (success) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Recorded payment of ₹$addAmount to ${vendor.companyName}'), backgroundColor: AppColors.secondary),
+                    SnackBar(
+                      content: Text(
+                        'Recorded payment of ₹$addAmount to ${vendor.companyName}',
+                      ),
+                      backgroundColor: AppColors.secondary,
+                    ),
                   );
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Record Payment'),
           ),
         ],
@@ -355,22 +526,37 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardBg(context),
         title: const Text('Delete Subcontractor'),
-        content: Text('Are you sure you want to remove ${vendor.companyName} (${vendor.tradeSpecialization}) from vendor management?'),
+        content: Text(
+          'Are you sure you want to remove ${vendor.companyName} (${vendor.tradeSpecialization}) from vendor management?',
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
-              final success = await ref.read(subcontractorControllerProvider.notifier).deleteSubcontractor(vendor.id);
+              final success = await ref
+                  .read(subcontractorControllerProvider.notifier)
+                  .deleteSubcontractor(vendor.id);
               if (context.mounted) {
                 Navigator.pop(ctx);
                 if (success) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Subcontractor ${vendor.companyName} deleted'), backgroundColor: AppColors.secondary),
+                    SnackBar(
+                      content: Text(
+                        'Subcontractor ${vendor.companyName} deleted',
+                      ),
+                      backgroundColor: AppColors.secondary,
+                    ),
                   );
                 }
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
             child: const Text('Delete'),
           ),
         ],
@@ -386,26 +572,39 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
     final trades = vendors.map((v) => v.tradeSpecialization).toSet().toList();
 
     final filtered = vendors.where((v) {
-      final matchesSearch = _searchQuery.isEmpty ||
+      final matchesSearch =
+          _searchQuery.isEmpty ||
           v.companyName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           v.contactPerson.toLowerCase().contains(_searchQuery.toLowerCase()) ||
           v.siteName.toLowerCase().contains(_searchQuery.toLowerCase());
-      final matchesTrade = _tradeFilter == null || v.tradeSpecialization == _tradeFilter;
-      final matchesStatus = _statusFilter == 'All' || v.status.toLowerCase() == _statusFilter.toLowerCase();
+      final matchesTrade =
+          _tradeFilter == null || v.tradeSpecialization == _tradeFilter;
+      final matchesStatus =
+          _statusFilter == 'All' ||
+          v.status.toLowerCase() == _statusFilter.toLowerCase();
       return matchesSearch && matchesTrade && matchesStatus;
     }).toList();
 
     final totalSubcontractors = vendors.length;
-    final totalContractValue = vendors.fold<double>(0, (sum, v) => sum + v.contractAmount);
+    final totalContractValue = vendors.fold<double>(
+      0,
+      (sum, v) => sum + v.contractAmount,
+    );
     final totalPaid = vendors.fold<double>(0, (sum, v) => sum + v.paidAmount);
-    final totalRetentionPending = vendors.fold<double>(0, (sum, v) => sum + v.retentionPending);
+    final totalRetentionPending = vendors.fold<double>(
+      0,
+      (sum, v) => sum + v.retentionPending,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(
           'Subcontractor & Vendor Management',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryColor(context),
+          ),
         ),
         actions: [
           ElevatedButton.icon(
@@ -416,13 +615,18 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
               backgroundColor: AppColors.primaryColor(context),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
-            onPressed: () => ref.read(subcontractorControllerProvider.notifier).loadSubcontractors(),
+            onPressed: () => ref
+                .read(subcontractorControllerProvider.notifier)
+                .loadSubcontractors(),
           ),
           const SizedBox(width: 8),
         ],
@@ -505,28 +709,52 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                     children: [
                       SearchFilterBar(
                         hintText: 'Search company, contact person, site...',
-                        onSearchChanged: (val) => setState(() => _searchQuery = val),
+                        onSearchChanged: (val) =>
+                            setState(() => _searchQuery = val),
                         filterOptions: trades,
                         activeFilter: _tradeFilter,
-                        onFilterChanged: (val) => setState(() => _tradeFilter = val),
+                        onFilterChanged: (val) =>
+                            setState(() => _tradeFilter = val),
                       ),
                       const SizedBox(height: 10),
                       Row(
                         children: [
-                          Text('Status Filter: ', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.mutedText(context))),
+                          Text(
+                            'Status Filter: ',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.mutedText(context),
+                            ),
+                          ),
                           const SizedBox(width: 8),
                           Wrap(
                             spacing: 6,
-                            children: ['All', 'Active', 'Completed', 'Pending'].map((st) {
-                              final isSelected = _statusFilter.toLowerCase() == st.toLowerCase();
-                              return ChoiceChip(
-                                label: Text(st, style: TextStyle(fontSize: 11, color: isSelected ? Colors.white : AppColors.text(context))),
-                                selected: isSelected,
-                                selectedColor: AppColors.primaryColor(context),
-                                backgroundColor: AppColors.cardBg(context),
-                                onSelected: (_) => setState(() => _statusFilter = st),
-                              );
-                            }).toList(),
+                            children: ['All', 'Active', 'Completed', 'Pending']
+                                .map((st) {
+                                  final isSelected =
+                                      _statusFilter.toLowerCase() ==
+                                      st.toLowerCase();
+                                  return ChoiceChip(
+                                    label: Text(
+                                      st,
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: isSelected
+                                            ? Colors.white
+                                            : AppColors.text(context),
+                                      ),
+                                    ),
+                                    selected: isSelected,
+                                    selectedColor: AppColors.primaryColor(
+                                      context,
+                                    ),
+                                    backgroundColor: AppColors.cardBg(context),
+                                    onSelected: (_) =>
+                                        setState(() => _statusFilter = st),
+                                  );
+                                })
+                                .toList(),
                           ),
                         ],
                       ),
@@ -542,11 +770,21 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Icon(Icons.assignment_ind_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                              Icon(
+                                Icons.assignment_ind_outlined,
+                                size: 64,
+                                color: AppColors.mutedText(
+                                  context,
+                                ).withValues(alpha: 0.4),
+                              ),
                               const SizedBox(height: 12),
                               Text(
                                 'No subcontractors found.',
-                                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                  color: AppColors.text(context),
+                                ),
                               ),
                             ],
                           ),
@@ -615,7 +853,10 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 ),
                 Text(
                   subtitle,
-                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.mutedText(context),
+                  ),
                 ),
               ],
             ),
@@ -626,7 +867,9 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
   }
 
   Widget _buildVendorCard(BuildContext context, Subcontractor vendor) {
-    final double pctPaid = vendor.contractAmount > 0 ? (vendor.paidAmount / vendor.contractAmount) : 0.0;
+    final double pctPaid = vendor.contractAmount > 0
+        ? (vendor.paidAmount / vendor.contractAmount)
+        : 0.0;
     Color statusColor = vendor.status.toLowerCase() == 'completed'
         ? AppColors.secondary
         : AppColors.primaryColor(context);
@@ -651,10 +894,16 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                        color: AppColors.primaryColor(
+                          context,
+                        ).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: Icon(Icons.business_outlined, color: AppColors.primaryColor(context), size: 20),
+                      child: Icon(
+                        Icons.business_outlined,
+                        color: AppColors.primaryColor(context),
+                        size: 20,
+                      ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
@@ -672,7 +921,10 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                           ),
                           Text(
                             '${vendor.contactPerson} • ${vendor.phone ?? "-"}',
-                            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText(context),
+                            ),
                           ),
                         ],
                       ),
@@ -683,11 +935,16 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+                      border: Border.all(
+                        color: statusColor.withValues(alpha: 0.3),
+                      ),
                     ),
                     child: Text(
                       vendor.status.toUpperCase(),
@@ -700,7 +957,11 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   ),
                   const SizedBox(width: 4),
                   PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 20, color: AppColors.mutedText(context)),
+                    icon: Icon(
+                      Icons.more_vert,
+                      size: 20,
+                      color: AppColors.mutedText(context),
+                    ),
                     onSelected: (val) {
                       if (val == 'edit') {
                         _showSubcontractorFormDialog(context, existing: vendor);
@@ -725,7 +986,11 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                         value: 'payment',
                         child: Row(
                           children: [
-                            Icon(Icons.add_card_outlined, size: 18, color: AppColors.secondary),
+                            Icon(
+                              Icons.add_card_outlined,
+                              size: 18,
+                              color: AppColors.secondary,
+                            ),
                             SizedBox(width: 8),
                             Text('Record Payment'),
                           ],
@@ -735,9 +1000,16 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                         value: 'delete',
                         child: Row(
                           children: [
-                            Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+                            Icon(
+                              Icons.delete_outline,
+                              size: 18,
+                              color: AppColors.error,
+                            ),
                             SizedBox(width: 8),
-                            Text('Delete Subcontractor', style: TextStyle(color: AppColors.error)),
+                            Text(
+                              'Delete Subcontractor',
+                              style: TextStyle(color: AppColors.error),
+                            ),
                           ],
                         ),
                       ),
@@ -760,19 +1032,30 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 ),
                 child: Text(
                   vendor.tradeSpecialization,
-                  style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                  style: const TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.secondary,
+                  ),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: Row(
                   children: [
-                    Icon(Icons.location_on_outlined, size: 12, color: AppColors.mutedText(context)),
+                    Icon(
+                      Icons.location_on_outlined,
+                      size: 12,
+                      color: AppColors.mutedText(context),
+                    ),
                     const SizedBox(width: 2),
                     Expanded(
                       child: Text(
                         vendor.siteName,
-                        style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.mutedText(context),
+                        ),
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
@@ -793,11 +1076,19 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 children: [
                   Text(
                     'Disbursed: ₹${_fmt(vendor.paidAmount)} of ₹${_fmt(vendor.contractAmount)}',
-                    style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text(context)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text(context),
+                    ),
                   ),
                   Text(
                     '${(pctPaid * 100).toInt()}%',
-                    style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                    ),
                   ),
                 ],
               ),
@@ -808,7 +1099,9 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   value: pctPaid.clamp(0.0, 1.0),
                   minHeight: 6,
                   backgroundColor: AppColors.border(context),
-                  valueColor: const AlwaysStoppedAnimation<Color>(AppColors.secondary),
+                  valueColor: const AlwaysStoppedAnimation<Color>(
+                    AppColors.secondary,
+                  ),
                 ),
               ),
             ],
@@ -820,7 +1113,10 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
             children: [
               Text(
                 'Retention Pending:',
-                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.mutedText(context),
+                ),
               ),
               Row(
                 children: [
@@ -829,16 +1125,22 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                     style: TextStyle(
                       fontSize: 13,
                       fontWeight: FontWeight.bold,
-                      color: vendor.retentionPending > 0 ? AppColors.warning : AppColors.secondary,
+                      color: vendor.retentionPending > 0
+                          ? AppColors.warning
+                          : AppColors.secondary,
                     ),
                   ),
                   const SizedBox(width: 8),
                   OutlinedButton.icon(
-                    onPressed: () => _showSubcontractorFormDialog(context, existing: vendor),
+                    onPressed: () =>
+                        _showSubcontractorFormDialog(context, existing: vendor),
                     icon: const Icon(Icons.edit_outlined, size: 14),
                     label: const Text('Edit', style: TextStyle(fontSize: 11)),
                     style: OutlinedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
                       minimumSize: Size.zero,
                       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     ),

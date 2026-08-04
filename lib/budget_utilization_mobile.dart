@@ -41,7 +41,10 @@ class BudgetUtilizationMobile extends ConsumerWidget {
             ),
             Text(
               'Q4 Financial Overview & Outflows',
-              style: TextStyle(fontSize: 14, color: AppColors.mutedText(context)),
+              style: TextStyle(
+                fontSize: 14,
+                color: AppColors.mutedText(context),
+              ),
             ),
             const SizedBox(height: 16),
 
@@ -85,7 +88,9 @@ class BudgetUtilizationMobile extends ConsumerWidget {
                                 radius: 20,
                               ),
                               PieChartSectionData(
-                                color: AppColors.mutedText(context).withOpacity(0.3),
+                                color: AppColors.mutedText(
+                                  context,
+                                ).withValues(alpha: 0.3),
                                 value: 10,
                                 title: '',
                                 radius: 20,
@@ -122,7 +127,11 @@ class BudgetUtilizationMobile extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      _buildLegendItem(context, 'Materials', AppColors.primaryColor(context)),
+                      _buildLegendItem(
+                        context,
+                        'Materials',
+                        AppColors.primaryColor(context),
+                      ),
                       _buildLegendItem(context, 'Labour', AppColors.secondary),
                       _buildLegendItem(context, 'Equipment', Colors.deepOrange),
                     ],
@@ -214,7 +223,11 @@ class BudgetUtilizationMobile extends ConsumerWidget {
         const SizedBox(width: 6),
         Text(
           label,
-          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text(context),
+          ),
         ),
       ],
     );
@@ -288,7 +301,13 @@ class BudgetUtilizationMobile extends ConsumerWidget {
             ],
           ),
         ),
-        if (showDivider) Divider(height: 1, color: AppColors.border(context), indent: 16, endIndent: 16),
+        if (showDivider)
+          Divider(
+            height: 1,
+            color: AppColors.border(context),
+            indent: 16,
+            endIndent: 16,
+          ),
       ],
     );
   }

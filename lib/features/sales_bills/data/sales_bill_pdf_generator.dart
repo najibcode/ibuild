@@ -27,7 +27,7 @@ class SalesBillPdfGenerator {
         margin: const pw.EdgeInsets.all(36),
         build: (pw.Context context) {
           return pw.Column(
-            cross pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Header Row: Corporate Brand & Invoice Badge
               pw.Row(
@@ -89,7 +89,7 @@ class SalesBillPdfGenerator {
                       pw.Container(
                         padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                         decoration: pw.BoxDecoration(
-                          color: (isPaid ? PdfColor.fromHex('#059669') : PdfColor.fromHex('#D97706')).withOpacity(0.15),
+                          color: isPaid ? PdfColor.fromHex('#D1FAE5') : PdfColor.fromHex('#FEF3C7'),
                           borderRadius: pw.BorderRadius.circular(3),
                         ),
                         child: pw.Text(

@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
-import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
@@ -38,7 +37,10 @@ class ProjectListScreen extends ConsumerWidget {
               backgroundColor: AppColors.primaryColor(context),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -51,9 +53,9 @@ class ProjectListScreen extends ConsumerWidget {
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const ProjectFormScreen()),
-        ),
+        onPressed: () => Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => const ProjectFormScreen())),
         backgroundColor: AppColors.primaryColor(context),
         foregroundColor: Colors.white,
         icon: const Icon(Icons.add),
@@ -236,7 +238,9 @@ class _ProjectCard extends StatelessWidget {
                   value: utilization.clamp(0.0, 1.0),
                   backgroundColor: AppColors.border(context),
                   valueColor: AlwaysStoppedAnimation(
-                    utilization > 0.9 ? AppColors.error : AppColors.primaryColor(context),
+                    utilization > 0.9
+                        ? AppColors.error
+                        : AppColors.primaryColor(context),
                   ),
                   minHeight: 4,
                 ),

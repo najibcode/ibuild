@@ -5,10 +5,14 @@ import '../../data/models/inventory_item_model.dart';
 import '../../data/models/inventory_history_model.dart';
 import '../controllers/inventory_controller.dart';
 
-final inventoryHistoryProvider = FutureProvider.family<List<InventoryHistory>, String>((ref, inventoryId) async {
-  final repo = ref.watch(inventoryRepositoryProvider);
-  return repo.getHistory(inventoryId);
-});
+final inventoryHistoryProvider =
+    FutureProvider.family<List<InventoryHistory>, String>((
+      ref,
+      inventoryId,
+    ) async {
+      final repo = ref.watch(inventoryRepositoryProvider);
+      return repo.getHistory(inventoryId);
+    });
 
 class InventoryHistoryScreen extends ConsumerWidget {
   final InventoryItem item;
@@ -37,18 +41,39 @@ class InventoryHistoryScreen extends ConsumerWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _summaryCol(context, 'Category', item.category),
-                _summaryCol(context, 'Available', '${item.availableStock.toStringAsFixed(1)} ${item.unit}'),
-                _summaryCol(context, 'Min Level', '${item.minimumStock.toStringAsFixed(1)} ${item.unit}'),
-                _summaryCol(context, 'Price', '₹${item.purchasePrice.toStringAsFixed(2)}'),
+                _summaryCol(
+                  context,
+                  'Available',
+                  '${item.availableStock.toStringAsFixed(1)} ${item.unit}',
+                ),
+                _summaryCol(
+                  context,
+                  'Min Level',
+                  '${item.minimumStock.toStringAsFixed(1)} ${item.unit}',
+                ),
+                _summaryCol(
+                  context,
+                  'Price',
+                  '₹${item.purchasePrice.toStringAsFixed(2)}',
+                ),
               ],
             ),
           ),
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.containerMargin),
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.containerMargin,
+            ),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text('Change History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+                Text(
+                  'Change History',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 16,
+                    color: AppColors.text(context),
+                  ),
+                ),
                 TextButton.icon(
                   onPressed: () => _showAddEntry(context, ref),
                   icon: const Icon(Icons.add, size: 16),
@@ -65,17 +90,29 @@ class InventoryHistoryScreen extends ConsumerWidget {
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Icon(Icons.history, size: 48, color: AppColors.mutedText(context).withOpacity(0.4)),
+                        Icon(
+                          Icons.history,
+                          size: 48,
+                          color: AppColors.mutedText(
+                            context,
+                          ).withValues(alpha: 0.4),
+                        ),
                         const SizedBox(height: 12),
-                        Text('No history entries yet.', style: TextStyle(color: AppColors.mutedText(context))),
+                        Text(
+                          'No history entries yet.',
+                          style: TextStyle(color: AppColors.mutedText(context)),
+                        ),
                       ],
                     ),
                   );
                 }
                 return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: AppSpacing.containerMargin),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: AppSpacing.containerMargin,
+                  ),
                   itemCount: entries.length,
-                  itemBuilder: (context, index) => _HistoryTile(entry: entries[index]),
+                  itemBuilder: (context, index) =>
+                      _HistoryTile(entry: entries[index]),
                 );
               },
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -90,9 +127,19 @@ class InventoryHistoryScreen extends ConsumerWidget {
   Widget _summaryCol(BuildContext context, String label, String value) {
     return Column(
       children: [
-        Text(value, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context))),
+        Text(
+          value,
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 14,
+            color: AppColors.text(context),
+          ),
+        ),
         const SizedBox(height: 4),
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+        ),
       ],
     );
   }
@@ -105,18 +152,28 @@ class InventoryHistoryScreen extends ConsumerWidget {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setModalState) => Padding(
-          padding: EdgeInsets.fromLTRB(24, 24, 24, MediaQuery.of(ctx).viewInsets.bottom + 24),
+          padding: EdgeInsets.fromLTRB(
+            24,
+            24,
+            24,
+            MediaQuery.of(ctx).viewInsets.bottom + 24,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Add Stock Entry', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+              const Text(
+                'Add Stock Entry',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
               const SizedBox(height: 16),
               DropdownButtonFormField<String>(
-                value: changeType,
+                initialValue: changeType,
                 decoration: const InputDecoration(labelText: 'Type'),
                 items: const [
                   DropdownMenuItem(value: 'added', child: Text('Added')),
@@ -124,7 +181,8 @@ class InventoryHistoryScreen extends ConsumerWidget {
                   DropdownMenuItem(value: 'adjusted', child: Text('Adjusted')),
                   DropdownMenuItem(value: 'returned', child: Text('Returned')),
                 ],
-                onChanged: (v) => setModalState(() => changeType = v ?? 'added'),
+                onChanged: (v) =>
+                    setModalState(() => changeType = v ?? 'added'),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -135,7 +193,9 @@ class InventoryHistoryScreen extends ConsumerWidget {
               const SizedBox(height: 16),
               TextFormField(
                 controller: notesCtrl,
-                decoration: const InputDecoration(labelText: 'Notes (optional)'),
+                decoration: const InputDecoration(
+                  labelText: 'Notes (optional)',
+                ),
               ),
               const SizedBox(height: 24),
               ElevatedButton(
@@ -148,7 +208,9 @@ class InventoryHistoryScreen extends ConsumerWidget {
                     inventoryId: item.id,
                     changeType: changeType,
                     quantityChange: qty,
-                    notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                    notes: notesCtrl.text.trim().isEmpty
+                        ? null
+                        : notesCtrl.text.trim(),
                   );
 
                   final repo = ref.read(inventoryRepositoryProvider);
@@ -161,7 +223,10 @@ class InventoryHistoryScreen extends ConsumerWidget {
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 50),
                 ),
-                child: const Text('Save Entry', style: TextStyle(fontWeight: FontWeight.bold)),
+                child: const Text(
+                  'Save Entry',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
             ],
           ),
@@ -177,19 +242,27 @@ class _HistoryTile extends StatelessWidget {
 
   IconData _icon() {
     switch (entry.changeType) {
-      case 'added': return Icons.add_circle_outline;
-      case 'used': return Icons.remove_circle_outline;
-      case 'returned': return Icons.undo;
-      default: return Icons.tune;
+      case 'added':
+        return Icons.add_circle_outline;
+      case 'used':
+        return Icons.remove_circle_outline;
+      case 'returned':
+        return Icons.undo;
+      default:
+        return Icons.tune;
     }
   }
 
   Color _color() {
     switch (entry.changeType) {
-      case 'added': return AppColors.secondary;
-      case 'used': return AppColors.error;
-      case 'returned': return AppColors.primary;
-      default: return AppColors.warning;
+      case 'added':
+        return AppColors.secondary;
+      case 'used':
+        return AppColors.error;
+      case 'returned':
+        return AppColors.primary;
+      default:
+        return AppColors.warning;
     }
   }
 
@@ -214,17 +287,33 @@ class _HistoryTile extends StatelessWidget {
               children: [
                 Text(
                   '${entry.changeType.toUpperCase()} — ${entry.quantityChange.toStringAsFixed(1)}',
-                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: color),
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 13,
+                    color: color,
+                  ),
                 ),
                 if (entry.notes != null) ...[
                   const SizedBox(height: 3),
-                  Text(entry.notes!, style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                  Text(
+                    entry.notes!,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.mutedText(context),
+                    ),
+                  ),
                 ],
               ],
             ),
           ),
           if (entry.createdAt != null)
-            Text(entry.createdAt!.substring(0, 10), style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+            Text(
+              entry.createdAt!.substring(0, 10),
+              style: TextStyle(
+                fontSize: 11,
+                color: AppColors.mutedText(context),
+              ),
+            ),
         ],
       ),
     );

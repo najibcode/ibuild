@@ -28,7 +28,8 @@ class BillingListScreen extends ConsumerStatefulWidget {
   ConsumerState<BillingListScreen> createState() => _BillingListScreenState();
 }
 
-class _BillingListScreenState extends ConsumerState<BillingListScreen> with SingleTickerProviderStateMixin {
+class _BillingListScreenState extends ConsumerState<BillingListScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -51,15 +52,15 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
     final activeIndex = _tabController.index;
     if (activeIndex == 0) {
       // New Vendor Bill
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const BillingFormScreen()),
-      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const BillingFormScreen()));
       ref.read(billingControllerProvider.notifier).loadBills();
     } else if (activeIndex == 1) {
       // New Client Sales Invoice
-      await Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
-      );
+      await Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()));
       ref.invalidate(allSalesBillsProvider);
     } else {
       // Record Payment
@@ -90,24 +91,42 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<String>(
-                  value: selectedProjectId,
-                  decoration: const InputDecoration(labelText: 'Select Project *'),
-                  items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                  initialValue: selectedProjectId,
+                  decoration: const InputDecoration(
+                    labelText: 'Select Project *',
+                  ),
+                  items: projects
+                      .map(
+                        (p) =>
+                            DropdownMenuItem(value: p.id, child: Text(p.name)),
+                      )
+                      .toList(),
                   onChanged: (v) => setDlgState(() => selectedProjectId = v),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: partyCtrl,
-                  decoration: const InputDecoration(labelText: 'Payer / Payee Name *', hintText: 'e.g. City Developers / Apex Hardware'),
+                  decoration: const InputDecoration(
+                    labelText: 'Payer / Payee Name *',
+                    hintText: 'e.g. City Developers / Apex Hardware',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: partyType,
-                  decoration: const InputDecoration(labelText: 'Counterparty Type'),
+                  initialValue: partyType,
+                  decoration: const InputDecoration(
+                    labelText: 'Counterparty Type',
+                  ),
                   items: const [
                     DropdownMenuItem(value: 'Client', child: Text('Client')),
-                    DropdownMenuItem(value: 'Supplier', child: Text('Supplier / Vendor')),
-                    DropdownMenuItem(value: 'Subcontractor', child: Text('Subcontractor')),
+                    DropdownMenuItem(
+                      value: 'Supplier',
+                      child: Text('Supplier / Vendor'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Subcontractor',
+                      child: Text('Subcontractor'),
+                    ),
                     DropdownMenuItem(value: 'Other', child: Text('Other')),
                   ],
                   onChanged: (v) => setDlgState(() => partyType = v!),
@@ -115,30 +134,47 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
                 const SizedBox(height: 12),
                 TextField(
                   controller: titleCtrl,
-                  decoration: const InputDecoration(labelText: 'Transaction Description / Notes *', hintText: 'e.g. Milestone 2 Advance Payment'),
+                  decoration: const InputDecoration(
+                    labelText: 'Transaction Description / Notes *',
+                    hintText: 'e.g. Milestone 2 Advance Payment',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 TextField(
                   controller: amountCtrl,
                   keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(labelText: 'Amount (₹) *', prefixText: '₹ '),
+                  decoration: const InputDecoration(
+                    labelText: 'Amount (₹) *',
+                    prefixText: '₹ ',
+                  ),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: pType,
+                  initialValue: pType,
                   decoration: const InputDecoration(labelText: 'Payment Flow'),
                   items: const [
-                    DropdownMenuItem(value: 'Received', child: Text('Received (+ Inflow)')),
-                    DropdownMenuItem(value: 'Paid', child: Text('Paid (- Outflow)')),
+                    DropdownMenuItem(
+                      value: 'Received',
+                      child: Text('Received (+ Inflow)'),
+                    ),
+                    DropdownMenuItem(
+                      value: 'Paid',
+                      child: Text('Paid (- Outflow)'),
+                    ),
                   ],
                   onChanged: (v) => setDlgState(() => pType = v!),
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: pMethod,
-                  decoration: const InputDecoration(labelText: 'Payment Method'),
+                  initialValue: pMethod,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment Method',
+                  ),
                   items: const [
-                    DropdownMenuItem(value: 'Bank Transfer', child: Text('Bank Transfer / NEFT')),
+                    DropdownMenuItem(
+                      value: 'Bank Transfer',
+                      child: Text('Bank Transfer / NEFT'),
+                    ),
                     DropdownMenuItem(value: 'UPI', child: Text('UPI / GPay')),
                     DropdownMenuItem(value: 'Cheque', child: Text('Cheque')),
                     DropdownMenuItem(value: 'Cash', child: Text('Cash')),
@@ -148,19 +184,28 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
                 const SizedBox(height: 12),
                 TextField(
                   controller: refCtrl,
-                  decoration: const InputDecoration(labelText: 'Reference / UTR No.', hintText: 'e.g. UTR-9823411'),
+                  decoration: const InputDecoration(
+                    labelText: 'Reference / UTR No.',
+                    hintText: 'e.g. UTR-9823411',
+                  ),
                 ),
               ],
             ),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
             ElevatedButton(
               onPressed: () async {
                 final amount = double.tryParse(amountCtrl.text) ?? 0;
                 if (partyCtrl.text.trim().isEmpty || amount <= 0) {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please enter party name and valid amount'), backgroundColor: AppColors.error),
+                    const SnackBar(
+                      content: Text('Please enter party name and valid amount'),
+                      backgroundColor: AppColors.error,
+                    ),
                   );
                   return;
                 }
@@ -181,12 +226,19 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
                   createdAt: DateTime.now(),
                 );
 
-                await SupabasePaymentLedgerRepository(client).recordLedgerEntry(entry);
+                await SupabasePaymentLedgerRepository(
+                  client,
+                ).recordLedgerEntry(entry);
                 ref.invalidate(allPaymentLedgerProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
 
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Payment ledger transaction recorded successfully'), backgroundColor: AppColors.secondary),
+                  const SnackBar(
+                    content: Text(
+                      'Payment ledger transaction recorded successfully',
+                    ),
+                    backgroundColor: AppColors.secondary,
+                  ),
                 );
               },
               child: const Text('Save Record'),
@@ -213,9 +265,20 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
       actionIcon = Icons.account_balance_wallet;
     }
 
-    final double totalBilled = state.bills.fold(0.0, (sum, b) => sum + b.amount);
-    final double totalPaid = state.bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.amount);
-    final double totalPending = state.bills.where((b) => b.status.toLowerCase() == 'pending' || b.status.toLowerCase() == 'overdue').fold(0.0, (sum, b) => sum + b.amount);
+    final double totalBilled = state.bills.fold(
+      0.0,
+      (sum, b) => sum + b.amount,
+    );
+    final double totalPaid = state.bills
+        .where((b) => b.status.toLowerCase() == 'paid')
+        .fold(0.0, (sum, b) => sum + b.amount);
+    final double totalPending = state.bills
+        .where(
+          (b) =>
+              b.status.toLowerCase() == 'pending' ||
+              b.status.toLowerCase() == 'overdue',
+        )
+        .fold(0.0, (sum, b) => sum + b.amount);
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -223,7 +286,10 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
         titleSpacing: 16,
         title: const Text(
           'Billing & Financial Hub',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primary),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primary,
+          ),
         ),
         bottom: TabBar(
           controller: _tabController,
@@ -231,14 +297,26 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
           unselectedLabelColor: AppColors.mutedText(context),
           indicatorColor: AppColors.primaryColor(context),
           tabs: const [
-            Tab(icon: Icon(Icons.receipt_long, size: 18), text: 'Vendor & Operational Bills'),
-            Tab(icon: Icon(Icons.point_of_sale, size: 18), text: 'Client Sales Invoices'),
-            Tab(icon: Icon(Icons.account_balance, size: 18), text: 'Payment Ledger & Cash Flow'),
+            Tab(
+              icon: Icon(Icons.receipt_long, size: 18),
+              text: 'Vendor & Operational Bills',
+            ),
+            Tab(
+              icon: Icon(Icons.point_of_sale, size: 18),
+              text: 'Client Sales Invoices',
+            ),
+            Tab(
+              icon: Icon(Icons.account_balance, size: 18),
+              text: 'Payment Ledger & Cash Flow',
+            ),
           ],
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.file_download_outlined, color: AppColors.primaryColor(context)),
+            icon: Icon(
+              Icons.file_download_outlined,
+              color: AppColors.primaryColor(context),
+            ),
             tooltip: 'Download Building Billing Summary PDF',
             onPressed: () async {
               if (state.bills.isEmpty) {
@@ -267,7 +345,10 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
               backgroundColor: AppColors.primaryColor(context),
               foregroundColor: Colors.white,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              textStyle: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -286,7 +367,14 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
         controller: _tabController,
         children: [
           // Tab 1: Vendor & Operational Bills
-          _buildVendorBillsTab(context, ref, state, totalBilled, totalPaid, totalPending),
+          _buildVendorBillsTab(
+            context,
+            ref,
+            state,
+            totalBilled,
+            totalPaid,
+            totalPending,
+          ),
 
           // Tab 2: Client Sales Invoices
           _buildClientSalesInvoicesTab(context, ref, salesBillsAsync),
@@ -351,21 +439,33 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: SearchFilterBar(
             hintText: 'Search by bill number, project, or notes...',
-            onSearchChanged: (q) => ref.read(billingControllerProvider.notifier).setSearch(q),
-            filterOptions: const ['All', 'Paid', 'Pending', 'Overdue', 'Cancelled'],
+            onSearchChanged: (q) =>
+                ref.read(billingControllerProvider.notifier).setSearch(q),
+            filterOptions: const [
+              'All',
+              'Paid',
+              'Pending',
+              'Overdue',
+              'Cancelled',
+            ],
             activeFilter: state.statusFilter,
-            onFilterChanged: (f) => ref.read(billingControllerProvider.notifier).setStatusFilter(f),
+            onFilterChanged: (f) =>
+                ref.read(billingControllerProvider.notifier).setStatusFilter(f),
             sortOptions: const ['Bill Date', 'Amount', 'Status'],
             onSortChanged: (s) {
-              final map = {'Bill Date': 'bill_date', 'Amount': 'amount', 'Status': 'status'};
-              ref.read(billingControllerProvider.notifier).setSort(map[s] ?? 'created_at');
+              final map = {
+                'Bill Date': 'bill_date',
+                'Amount': 'amount',
+                'Status': 'status',
+              };
+              ref
+                  .read(billingControllerProvider.notifier)
+                  .setSort(map[s] ?? 'created_at');
             },
           ),
         ),
         const SizedBox(height: 8),
-        Expanded(
-          child: _buildBody(context, ref, state),
-        ),
+        Expanded(child: _buildBody(context, ref, state)),
       ],
     );
   }
@@ -377,8 +477,13 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
   ) {
     return salesBillsAsync.when(
       data: (bills) {
-        final double totalInvoiced = bills.fold(0.0, (sum, b) => sum + b.totalAmount);
-        final double totalCollected = bills.where((b) => b.status.toLowerCase() == 'paid').fold(0.0, (sum, b) => sum + b.totalAmount);
+        final double totalInvoiced = bills.fold(
+          0.0,
+          (sum, b) => sum + b.totalAmount,
+        );
+        final double totalCollected = bills
+            .where((b) => b.status.toLowerCase() == 'paid')
+            .fold(0.0, (sum, b) => sum + b.totalAmount);
 
         return Column(
           children: [
@@ -416,11 +521,28 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.point_of_sale_outlined, size: 64, color: AppColors.mutedText(context)),
+                      Icon(
+                        Icons.point_of_sale_outlined,
+                        size: 64,
+                        color: AppColors.mutedText(context),
+                      ),
                       const SizedBox(height: 16),
-                      Text('No client sales invoices recorded', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+                      Text(
+                        'No client sales invoices recorded',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.text(context),
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('Click "+ New Sales Invoice" above to issue client bills', style: TextStyle(color: AppColors.mutedText(context), fontSize: 12)),
+                      Text(
+                        'Click "+ New Sales Invoice" above to issue client bills',
+                        style: TextStyle(
+                          color: AppColors.mutedText(context),
+                          fontSize: 12,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -428,7 +550,10 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
             else
               Expanded(
                 child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   itemCount: bills.length,
                   itemBuilder: (context, i) {
                     final b = bills[i];
@@ -437,9 +562,20 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
                       color: AppColors.cardBg(context),
                       margin: const EdgeInsets.only(bottom: 12),
                       child: ListTile(
-                        leading: const Icon(Icons.receipt_long_outlined, color: AppColors.primary),
-                        title: Text('INVOICE #${b.billNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                        subtitle: Text('Client: ${b.clientName} • Date: ${b.createdAt.toIso8601String().split('T').first}'),
+                        leading: const Icon(
+                          Icons.receipt_long_outlined,
+                          color: AppColors.primary,
+                        ),
+                        title: Text(
+                          'INVOICE #${b.billNumber}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.text(context),
+                          ),
+                        ),
+                        subtitle: Text(
+                          'Client: ${b.clientName} • Date: ${b.createdAt.toIso8601String().split('T').first}',
+                        ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -447,17 +583,34 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
                               mainAxisAlignment: MainAxisAlignment.center,
                               crossAxisAlignment: CrossAxisAlignment.end,
                               children: [
-                                Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                                Text(b.status, style: TextStyle(color: isPaid ? AppColors.secondary : AppColors.error, fontSize: 11, fontWeight: FontWeight.bold)),
+                                Text(
+                                  '₹${b.totalAmount.toInt()}',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.text(context),
+                                  ),
+                                ),
+                                Text(
+                                  b.status,
+                                  style: TextStyle(
+                                    color: isPaid
+                                        ? AppColors.secondary
+                                        : AppColors.error,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
                               ],
                             ),
                             IconButton(
                               icon: const Icon(Icons.print_outlined, size: 18),
                               tooltip: 'Print Invoice PDF',
                               onPressed: () async {
-                                final pdfBytes = await SalesBillPdfGenerator.generatePdf(b);
+                                final pdfBytes =
+                                    await SalesBillPdfGenerator.generatePdf(b);
                                 await Printing.layoutPdf(
-                                  onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                                  onLayout: (_) async =>
+                                      Uint8List.fromList(pdfBytes),
                                   name: 'Sales_Invoice_${b.billNumber}.pdf',
                                 );
                               },
@@ -501,7 +654,11 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
               Flexible(
                 child: Text(
                   title,
-                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.mutedText(context),
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -511,7 +668,11 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(context),
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -524,7 +685,11 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
     );
   }
 
-  Widget _buildBody(BuildContext context, WidgetRef ref, BillingListState state) {
+  Widget _buildBody(
+    BuildContext context,
+    WidgetRef ref,
+    BillingListState state,
+  ) {
     if (state.isLoading && state.bills.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -534,12 +699,20 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.error_outline, size: 48, color: AppColors.error.withOpacity(0.5)),
+            Icon(
+              Icons.error_outline,
+              size: 48,
+              color: AppColors.error.withValues(alpha: 0.5),
+            ),
             const SizedBox(height: 16),
-            Text('Error: ${state.errorMessage}', style: TextStyle(color: AppColors.mutedText(context))),
+            Text(
+              'Error: ${state.errorMessage}',
+              style: TextStyle(color: AppColors.mutedText(context)),
+            ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: () => ref.read(billingControllerProvider.notifier).loadBills(),
+              onPressed: () =>
+                  ref.read(billingControllerProvider.notifier).loadBills(),
               child: const Text('Retry'),
             ),
           ],
@@ -552,11 +725,28 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.receipt_long_outlined, size: 64, color: AppColors.mutedText(context).withOpacity(0.4)),
+            Icon(
+              Icons.receipt_long_outlined,
+              size: 64,
+              color: AppColors.mutedText(context).withValues(alpha: 0.4),
+            ),
             const SizedBox(height: 16),
-            Text('No vendor bills recorded.', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+            Text(
+              'No vendor bills recorded.',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                color: AppColors.text(context),
+              ),
+            ),
             const SizedBox(height: 4),
-            Text('Create vendor bills to track operational expenses.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+            Text(
+              'Create vendor bills to track operational expenses.',
+              style: TextStyle(
+                fontSize: 12,
+                color: AppColors.mutedText(context),
+              ),
+            ),
           ],
         ),
       );
@@ -586,9 +776,13 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> with Sing
             ref.read(billingControllerProvider.notifier).loadBills();
           },
           onTogglePaid: () async {
-            final newStatus = state.bills[index].status.toLowerCase() == 'paid' ? 'pending' : 'paid';
+            final newStatus = state.bills[index].status.toLowerCase() == 'paid'
+                ? 'pending'
+                : 'paid';
             final updated = state.bills[index].copyWith(status: newStatus);
-            await ref.read(billingControllerProvider.notifier).editBill(updated);
+            await ref
+                .read(billingControllerProvider.notifier)
+                .editBill(updated);
           },
         );
       },
@@ -601,7 +795,11 @@ class _BillCard extends StatelessWidget {
   final VoidCallback onEdit;
   final VoidCallback onTogglePaid;
 
-  const _BillCard({required this.bill, required this.onEdit, required this.onTogglePaid});
+  const _BillCard({
+    required this.bill,
+    required this.onEdit,
+    required this.onTogglePaid,
+  });
 
   Color _statusColor(String status) {
     switch (status.toLowerCase()) {
@@ -628,7 +826,11 @@ class _BillCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: isPaid ? AppColors.secondary.withOpacity(0.3) : AppColors.border(context)),
+        border: Border.all(
+          color: isPaid
+              ? AppColors.secondary.withValues(alpha: 0.3)
+              : AppColors.border(context),
+        ),
       ),
       child: InkWell(
         onTap: onEdit,
@@ -642,31 +844,49 @@ class _BillCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: AppColors.secondary.withOpacity(0.12),
+                      color: AppColors.secondary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Row(
                       children: [
-                        const Icon(Icons.receipt_long_outlined, size: 14, color: AppColors.secondary),
+                        const Icon(
+                          Icons.receipt_long_outlined,
+                          size: 14,
+                          color: AppColors.secondary,
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           'BILL #${bill.billNumber}',
-                          style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 11),
+                          style: const TextStyle(
+                            color: AppColors.secondary,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.15),
+                      color: statusColor.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       bill.status.toUpperCase(),
-                      style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                 ],
@@ -681,12 +901,19 @@ class _BillCard extends StatelessWidget {
                       children: [
                         Text(
                           bill.projectName ?? 'General Project',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.text(context),
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
                           'Bill Date: ${bill.billDate}',
-                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                          style: TextStyle(
+                            color: AppColors.mutedText(context),
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -696,11 +923,18 @@ class _BillCard extends StatelessWidget {
                     children: [
                       Text(
                         '₹${bill.amount.toStringAsFixed(2)}',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: AppColors.secondary),
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 18,
+                          color: AppColors.secondary,
+                        ),
                       ),
                       Text(
                         'Vendor Expense',
-                        style: TextStyle(color: AppColors.mutedText(context), fontSize: 10),
+                        style: TextStyle(
+                          color: AppColors.mutedText(context),
+                          fontSize: 10,
+                        ),
                       ),
                     ],
                   ),
@@ -710,7 +944,11 @@ class _BillCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   'Notes: ${bill.notes}',
-                  style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontStyle: FontStyle.italic),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.mutedText(context),
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
               ],
               const SizedBox(height: 14),
@@ -726,20 +964,35 @@ class _BillCard extends StatelessWidget {
                       ),
                       label: Text(
                         isPaid ? 'Mark Pending' : '✓ Mark as Paid',
-                        style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: isPaid ? AppColors.warning : AppColors.secondary,
-                        side: BorderSide(color: isPaid ? AppColors.warning : AppColors.secondary),
+                        foregroundColor: isPaid
+                            ? AppColors.warning
+                            : AppColors.secondary,
+                        side: BorderSide(
+                          color: isPaid
+                              ? AppColors.warning
+                              : AppColors.secondary,
+                        ),
                         padding: const EdgeInsets.symmetric(vertical: 8),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.file_download_outlined, size: 20, color: AppColors.primary),
+                    icon: const Icon(
+                      Icons.file_download_outlined,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     onPressed: () async {
-                      final bytes = await BuildingPdfGenerator.generateBill(bill);
+                      final bytes = await BuildingPdfGenerator.generateBill(
+                        bill,
+                      );
                       await PdfDownloadHelper.downloadPdf(
                         bytes: bytes,
                         filename: 'Building_Invoice_${bill.billNumber}.pdf',
@@ -748,18 +1001,29 @@ class _BillCard extends StatelessWidget {
                     tooltip: 'Download Vendor Bill PDF',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.share_outlined, size: 20, color: AppColors.primary),
+                    icon: const Icon(
+                      Icons.share_outlined,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     onPressed: () {
-                      final invoiceText = "VENDOR BILL #${bill.billNumber}\nProject: ${bill.projectName}\nDate: ${bill.billDate}\nAmount: ₹${bill.amount.toStringAsFixed(2)}\nStatus: ${bill.status.toUpperCase()}";
+                      final invoiceText =
+                          "VENDOR BILL #${bill.billNumber}\nProject: ${bill.projectName}\nDate: ${bill.billDate}\nAmount: ₹${bill.amount.toStringAsFixed(2)}\nStatus: ${bill.status.toUpperCase()}";
                       Clipboard.setData(ClipboardData(text: invoiceText));
                       ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('Copied Bill details to clipboard!')),
+                        const SnackBar(
+                          content: Text('Copied Bill details to clipboard!'),
+                        ),
                       );
                     },
                     tooltip: 'Share Bill Details',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.outline),
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: AppColors.outline,
+                    ),
                     onPressed: onEdit,
                     tooltip: 'Edit Bill',
                   ),

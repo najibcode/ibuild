@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'core/theme/app_colors.dart';
-import 'core/widgets/logout_dialog.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/dashboard/data/models/dashboard_stats_model.dart';
 import 'features/profile/presentation/screens/user_profile_screen.dart';
@@ -31,35 +30,47 @@ class WebDashboard extends ConsumerWidget {
                     children: [
                       Text(
                         'Portfolio Overview',
-                        style: Theme.of(context).textTheme.headlineLarge?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.headlineLarge
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         '${stats.activeProjects} active projects across all sites.',
-                        style: const TextStyle(color: AppColors.textMuted, fontSize: 14),
+                        style: const TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
                   Row(
                     children: [
-                      _buildOutlineButton(context, Icons.refresh, 'Refresh', onPressed: () {
-                        ref.invalidate(dashboardStatsProvider);
-                      }),
+                      _buildOutlineButton(
+                        context,
+                        Icons.refresh,
+                        'Refresh',
+                        onPressed: () {
+                          ref.invalidate(dashboardStatsProvider);
+                        },
+                      ),
                       const SizedBox(width: 8),
-                      _buildOutlineButton(context, Icons.person_outline, 'My Profile', onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const UserProfileScreen()),
-                        );
-                      }),
+                      _buildOutlineButton(
+                        context,
+                        Icons.person_outline,
+                        'My Profile',
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const UserProfileScreen(),
+                            ),
+                          );
+                        },
+                      ),
                     ],
                   ),
                 ],
               ),
               const SizedBox(height: 16),
-
-
 
               // ── KPI Cards Grid ──
               Row(
@@ -71,7 +82,8 @@ class WebDashboard extends ConsumerWidget {
                       icon: Icons.payments,
                       value: '₹${_formatCurrency(stats.totalBudget)}',
                       label: 'Total Budget',
-                      trend: '${stats.budgetUtilizationPct.toStringAsFixed(1)}% utilized',
+                      trend:
+                          '${stats.budgetUtilizationPct.toStringAsFixed(1)}% utilized',
                       trendColor: stats.budgetUtilizationPct > 90
                           ? AppColors.error
                           : AppColors.secondary,
@@ -86,7 +98,8 @@ class WebDashboard extends ConsumerWidget {
                       icon: Icons.group,
                       value: '${stats.employeesPresent}',
                       label: 'Workers Present',
-                      trend: '${stats.attendancePct.toStringAsFixed(0)}% attendance',
+                      trend:
+                          '${stats.attendancePct.toStringAsFixed(0)}% attendance',
                       trendColor: stats.attendancePct >= 80
                           ? AppColors.secondary
                           : AppColors.warning,
@@ -101,7 +114,9 @@ class WebDashboard extends ConsumerWidget {
                       icon: Icons.pending_actions,
                       value: '${stats.delayedProjects}',
                       label: 'Delayed Projects',
-                      trend: stats.delayedProjects > 0 ? 'Needs Attention' : 'All On Track',
+                      trend: stats.delayedProjects > 0
+                          ? 'Needs Attention'
+                          : 'All On Track',
                       trendColor: stats.delayedProjects > 0
                           ? AppColors.error
                           : AppColors.secondary,
@@ -150,7 +165,9 @@ class WebDashboard extends ConsumerWidget {
                       icon: Icons.inventory_2,
                       value: '${stats.lowStockItems}',
                       label: 'Low Stock Items',
-                      trend: stats.lowStockItems > 0 ? 'Restock Needed' : 'Stock OK',
+                      trend: stats.lowStockItems > 0
+                          ? 'Restock Needed'
+                          : 'Stock OK',
                       trendColor: stats.lowStockItems > 0
                           ? AppColors.error
                           : AppColors.secondary,
@@ -185,8 +202,10 @@ class WebDashboard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _buildVelocityChart(context, stats.weeklyProgressCounts),
-
+                        _buildVelocityChart(
+                          context,
+                          stats.weeklyProgressCounts,
+                        ),
                       ],
                     ),
                   ),
@@ -206,7 +225,10 @@ class WebDashboard extends ConsumerWidget {
                           ),
                         ),
                         const SizedBox(height: 12),
-                        _buildRecentActivityList(context, stats.recentActivities),
+                        _buildRecentActivityList(
+                          context,
+                          stats.recentActivities,
+                        ),
                       ],
                     ),
                   ),
@@ -223,8 +245,10 @@ class WebDashboard extends ConsumerWidget {
           children: [
             const Icon(Icons.error_outline, size: 48, color: AppColors.error),
             const SizedBox(height: 12),
-            Text('Failed to load dashboard: $e',
-                style: const TextStyle(color: AppColors.textMuted)),
+            Text(
+              'Failed to load dashboard: $e',
+              style: const TextStyle(color: AppColors.textMuted),
+            ),
           ],
         ),
       ),
@@ -235,7 +259,8 @@ class WebDashboard extends ConsumerWidget {
 
   /// Formats a number in Indian currency shorthand.
   static String _formatCurrency(double amount) {
-    if (amount >= 10000000) return '${(amount / 10000000).toStringAsFixed(1)}Cr';
+    if (amount >= 10000000)
+      return '${(amount / 10000000).toStringAsFixed(1)}Cr';
     if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
     if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
     return amount.toStringAsFixed(0);
@@ -301,15 +326,22 @@ class WebDashboard extends ConsumerWidget {
 
   // ── Widgets ───────────────────────────────────────────────────────────────
 
-  Widget _buildOutlineButton(BuildContext context, IconData icon, String label,
-      {VoidCallback? onPressed}) {
+  Widget _buildOutlineButton(
+    BuildContext context,
+    IconData icon,
+    String label, {
+    VoidCallback? onPressed,
+  }) {
     return OutlinedButton.icon(
       onPressed: onPressed ?? () {},
       icon: Icon(icon, size: 14, color: AppColors.text(context)),
       label: Text(
         label,
         style: TextStyle(
-            color: AppColors.text(context), fontSize: 13, fontWeight: FontWeight.bold),
+          color: AppColors.text(context),
+          fontSize: 13,
+          fontWeight: FontWeight.bold,
+        ),
       ),
       style: OutlinedButton.styleFrom(
         side: BorderSide(color: AppColors.border(context)),
@@ -347,12 +379,18 @@ class WebDashboard extends ConsumerWidget {
                   color: AppColors.primaryColor(context).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(icon, color: AppColors.primaryColor(context), size: 20),
+                child: Icon(
+                  icon,
+                  color: AppColors.primaryColor(context),
+                  size: 20,
+                ),
               ),
               Flexible(
                 child: Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: trendColor.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(12),
@@ -360,9 +398,10 @@ class WebDashboard extends ConsumerWidget {
                   child: Text(
                     trend,
                     style: TextStyle(
-                        color: trendColor,
-                        fontSize: 11,
-                        fontWeight: FontWeight.bold),
+                      color: trendColor,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -373,18 +412,20 @@ class WebDashboard extends ConsumerWidget {
           Text(
             label.toUpperCase(),
             style: TextStyle(
-                fontSize: 10,
-                color: AppColors.mutedText(context),
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5),
+              fontSize: 10,
+              color: AppColors.mutedText(context),
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             value,
             style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text(context)),
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(context),
+            ),
           ),
           const SizedBox(height: 8),
           Text(
@@ -399,7 +440,9 @@ class WebDashboard extends ConsumerWidget {
   Widget _buildVelocityChart(BuildContext context, List<int> weeklyCounts) {
     final maxVal = weeklyCounts.isEmpty
         ? 1.0
-        : (weeklyCounts.reduce((a, b) => a > b ? a : b)).toDouble().clamp(1.0, double.infinity);
+        : (weeklyCounts.reduce(
+            (a, b) => a > b ? a : b,
+          )).toDouble().clamp(1.0, double.infinity);
 
     // Day labels for last 7 days
     const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
@@ -443,22 +486,30 @@ class WebDashboard extends ConsumerWidget {
                 ),
                 titlesData: FlTitlesData(
                   show: true,
-                  topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                  leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                  topTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  rightTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
+                  leftTitles: const AxisTitles(
+                    sideTitles: SideTitles(showTitles: false),
+                  ),
                   bottomTitles: AxisTitles(
                     sideTitles: SideTitles(
                       showTitles: true,
                       getTitlesWidget: (value, meta) {
-                        final dayIdx = (weekAgo.weekday - 1 + value.toInt()) % 7;
+                        final dayIdx =
+                            (weekAgo.weekday - 1 + value.toInt()) % 7;
                         return Padding(
                           padding: const EdgeInsets.only(top: 8),
                           child: Text(
                             dayLabels[dayIdx],
                             style: const TextStyle(
-                                color: AppColors.textMuted,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w600),
+                              color: AppColors.textMuted,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         );
                       },
@@ -478,8 +529,9 @@ class WebDashboard extends ConsumerWidget {
                             ? AppColors.primary
                             : AppColors.primaryContainer.withValues(alpha: 0.3),
                         width: 28,
-                        borderRadius:
-                            const BorderRadius.vertical(top: Radius.circular(8)),
+                        borderRadius: const BorderRadius.vertical(
+                          top: Radius.circular(8),
+                        ),
                       ),
                     ],
                   );
@@ -489,10 +541,10 @@ class WebDashboard extends ConsumerWidget {
     );
   }
 
-
-
   Widget _buildRecentActivityList(
-      BuildContext context, List<RecentActivity> activities) {
+    BuildContext context,
+    List<RecentActivity> activities,
+  ) {
     if (activities.isEmpty) {
       return Container(
         padding: const EdgeInsets.all(20),
@@ -567,24 +619,29 @@ class WebDashboard extends ConsumerWidget {
                     child: Text(
                       title,
                       style: const TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: AppColors.textMain),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                        color: AppColors.textMain,
+                      ),
                       overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Text(
                     time,
                     style: const TextStyle(
-                        color: AppColors.textMuted, fontSize: 11),
+                      color: AppColors.textMuted,
+                      fontSize: 11,
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 2),
               Text(
                 subtitle,
-                style:
-                    const TextStyle(color: AppColors.textMuted, fontSize: 12),
+                style: const TextStyle(
+                  color: AppColors.textMuted,
+                  fontSize: 12,
+                ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -597,6 +654,4 @@ class WebDashboard extends ConsumerWidget {
 
   static String _capitalize(String s) =>
       s.isEmpty ? s : '${s[0].toUpperCase()}${s.substring(1)}';
-
-
 }

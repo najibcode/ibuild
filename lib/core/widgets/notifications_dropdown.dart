@@ -8,7 +8,8 @@ class NotificationsDropdown extends ConsumerStatefulWidget {
   const NotificationsDropdown({super.key});
 
   @override
-  ConsumerState<NotificationsDropdown> createState() => _NotificationsDropdownState();
+  ConsumerState<NotificationsDropdown> createState() =>
+      _NotificationsDropdownState();
 }
 
 class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
@@ -55,13 +56,22 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Notifications', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    const Text(
+                      'Notifications',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
                     TextButton(
                       onPressed: () {
                         _fetchNotifications();
                       },
-                      child: const Text('Refresh', style: TextStyle(fontSize: 12)),
-                    )
+                      child: const Text(
+                        'Refresh',
+                        style: TextStyle(fontSize: 12),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -86,14 +96,15 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: _notifications.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    separatorBuilder: (_, _) => const Divider(height: 1),
                     itemBuilder: (context, index) {
                       final n = _notifications[index];
                       String type = 'Activity';
                       IconData icon = Icons.info_outline;
                       Color iconColor = AppColors.primary;
 
-                      if (n.actionType.contains('created') || n.actionType.contains('added')) {
+                      if (n.actionType.contains('created') ||
+                          n.actionType.contains('added')) {
                         type = 'Added';
                         icon = Icons.add_circle_outline;
                         iconColor = const Color(0xFF4CAF50);
@@ -101,7 +112,8 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                         type = 'Updated';
                         icon = Icons.edit_outlined;
                         iconColor = const Color(0xFF2196F3);
-                      } else if (n.actionType.contains('deleted') || n.actionType.contains('archived')) {
+                      } else if (n.actionType.contains('deleted') ||
+                          n.actionType.contains('archived')) {
                         type = 'Removed';
                         icon = Icons.remove_circle_outline;
                         iconColor = const Color(0xFFF44336);
@@ -123,17 +135,21 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                         final empName = n.details['employee_name'] ?? '';
                         detail = '$empName: ${n.details['morning_status']}';
                       } else if (n.details.containsKey('progress_percentage')) {
-                        detail = '${n.details['progress_percentage']}% complete';
+                        detail =
+                            '${n.details['progress_percentage']}% complete';
                       }
 
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: iconColor.withOpacity(0.1),
+                          backgroundColor: iconColor.withValues(alpha: 0.1),
                           child: Icon(icon, color: iconColor, size: 20),
                         ),
                         title: Text(
                           '$type ${n.entityType}',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 13,
+                          ),
                         ),
                         subtitle: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -141,13 +157,19 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
                             if (detail.isNotEmpty)
                               Text(
                                 detail,
-                                style: TextStyle(color: AppColors.text(context), fontSize: 12),
+                                style: TextStyle(
+                                  color: AppColors.text(context),
+                                  fontSize: 12,
+                                ),
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                               ),
                             Text(
                               'By ${n.userName ?? "Unknown"} • ${_timeAgo(n.createdAt)}',
-                              style: TextStyle(color: AppColors.mutedText(context), fontSize: 11),
+                              style: TextStyle(
+                                color: AppColors.mutedText(context),
+                                fontSize: 11,
+                              ),
                             ),
                           ],
                         ),
@@ -161,7 +183,11 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
         ),
       ],
       child: IconButton(
-        icon: const Icon(Icons.notifications_none, color: AppColors.outline, size: 20),
+        icon: const Icon(
+          Icons.notifications_none,
+          color: AppColors.outline,
+          size: 20,
+        ),
         tooltip: 'Notifications',
         onPressed: () {
           if (_menuController.isOpen) {

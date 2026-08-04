@@ -20,7 +20,8 @@ class DailyProgressScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<DailyProgressScreen> createState() => _DailyProgressScreenState();
+  ConsumerState<DailyProgressScreen> createState() =>
+      _DailyProgressScreenState();
 }
 
 class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
@@ -29,7 +30,9 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
   void _shareDailySummary(BuildContext context, List<DailyProgress> entries) {
     if (entries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No site progress logs available to share.')),
+        const SnackBar(
+          content: Text('No site progress logs available to share.'),
+        ),
       );
       return;
     }
@@ -44,7 +47,9 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
 
     for (int i = 0; i < entries.length && i < 5; i++) {
       final entry = entries[i];
-      buffer.writeln('• *[${entry.date}]* (${entry.progressPercentage}% completion)');
+      buffer.writeln(
+        '• *[${entry.date}]* (${entry.progressPercentage}% completion)',
+      );
       final notes = entry.allNotes;
       if (notes.isNotEmpty) {
         for (final n in notes) {
@@ -79,7 +84,9 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final progressAsync = ref.watch(dailyProgressListProvider(widget.projectId));
+    final progressAsync = ref.watch(
+      dailyProgressListProvider(widget.projectId),
+    );
 
     final Widget bodyContent = progressAsync.when(
       data: (entries) {
@@ -87,12 +94,16 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
           if (_searchQuery.isEmpty) return true;
           final query = _searchQuery.toLowerCase();
           final dateMatch = e.date.toLowerCase().contains(query);
-          final notesMatch = e.allNotes.any((n) => n.toLowerCase().contains(query));
+          final notesMatch = e.allNotes.any(
+            (n) => n.toLowerCase().contains(query),
+          );
           return dateMatch || notesMatch;
         }).toList();
 
         final int totalEntries = entries.length;
-        final int latestPercentage = entries.isNotEmpty ? entries.first.progressPercentage : 0;
+        final int latestPercentage = entries.isNotEmpty
+            ? entries.first.progressPercentage
+            : 0;
 
         return Column(
           children: [
@@ -124,12 +135,20 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                         children: [
                           Text(
                             'Overall Site Completion',
-                            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText(context),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
                             '$latestPercentage%',
-                            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                            style: TextStyle(
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor(context),
+                            ),
                           ),
                         ],
                       ),
@@ -137,7 +156,8 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                         spacing: 8,
                         children: [
                           IconButton(
-                            onPressed: () => _shareDailySummary(context, entries),
+                            onPressed: () =>
+                                _shareDailySummary(context, entries),
                             icon: const Icon(Icons.share_outlined, size: 20),
                             color: AppColors.primaryColor(context),
                             tooltip: 'Share Daily Progress Report',
@@ -149,7 +169,9 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.secondary,
                               foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
                             ),
                           ),
                         ],
@@ -162,14 +184,20 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                     child: LinearProgressIndicator(
                       value: latestPercentage / 100,
                       backgroundColor: AppColors.border(context),
-                      valueColor: const AlwaysStoppedAnimation(AppColors.secondary),
+                      valueColor: const AlwaysStoppedAnimation(
+                        AppColors.secondary,
+                      ),
                       minHeight: 8,
                     ),
                   ),
                   const SizedBox(height: 8),
                   Text(
                     'Daily Site Progress History: $totalEntries Record${totalEntries == 1 ? '' : 's'} Logged',
-                    style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.mutedText(context),
+                      fontWeight: FontWeight.w600,
+                    ),
                   ),
                 ],
               ),
@@ -178,14 +206,27 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
             // Search Bar
             if (entries.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 4,
+                ),
                 child: TextField(
                   onChanged: (val) => setState(() => _searchQuery = val.trim()),
-                  style: TextStyle(fontSize: 13, color: AppColors.text(context)),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.text(context),
+                  ),
                   decoration: InputDecoration(
                     hintText: 'Search progress logs by date or description...',
-                    hintStyle: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
-                    prefixIcon: Icon(Icons.search, size: 18, color: AppColors.mutedText(context)),
+                    hintStyle: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.mutedText(context),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      size: 18,
+                      color: AppColors.mutedText(context),
+                    ),
                     suffixIcon: _searchQuery.isNotEmpty
                         ? IconButton(
                             icon: const Icon(Icons.clear, size: 16),
@@ -213,16 +254,33 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.camera_enhance_outlined, size: 64, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                          Icon(
+                            Icons.camera_enhance_outlined,
+                            size: 64,
+                            color: AppColors.mutedText(
+                              context,
+                            ).withValues(alpha: 0.4),
+                          ),
                           const SizedBox(height: 16),
                           Text(
-                            entries.isEmpty ? 'No daily progress updates recorded yet.' : 'No matching logs found.',
-                            style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.bold, fontSize: 16),
+                            entries.isEmpty
+                                ? 'No daily progress updates recorded yet.'
+                                : 'No matching logs found.',
+                            style: TextStyle(
+                              color: AppColors.text(context),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            entries.isEmpty ? 'Upload site photos and daily work notes to track construction progress.' : 'Try adjusting your search query.',
-                            style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                            entries.isEmpty
+                                ? 'Upload site photos and daily work notes to track construction progress.'
+                                : 'Try adjusting your search query.',
+                            style: TextStyle(
+                              color: AppColors.mutedText(context),
+                              fontSize: 12,
+                            ),
                           ),
                           const SizedBox(height: 20),
                           if (entries.isEmpty)
@@ -243,7 +301,9 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                       itemCount: filteredEntries.length,
                       itemBuilder: (context, index) => _ProgressCard(
                         entry: filteredEntries[index],
-                        onEdit: filteredEntries[index].isToday ? () => _openForm(context, filteredEntries[index]) : null,
+                        onEdit: filteredEntries[index].isToday
+                            ? () => _openForm(context, filteredEntries[index])
+                            : null,
                       ),
                     ),
             ),
@@ -266,7 +326,8 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
             tooltip: 'Refresh Daily Progress Feed',
-            onPressed: () => ref.invalidate(dailyProgressListProvider(widget.projectId)),
+            onPressed: () =>
+                ref.invalidate(dailyProgressListProvider(widget.projectId)),
           ),
         ],
       ),
@@ -295,7 +356,13 @@ class _ProgressCard extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                   IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.of(context).pop(),
@@ -307,8 +374,13 @@ class _ProgressCard extends StatelessWidget {
               child: CachedNetworkImage(
                 imageUrl: imageUrl,
                 fit: BoxFit.contain,
-                placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
-                errorWidget: (_, __, ___) => const Icon(Icons.broken_image, color: Colors.white, size: 48),
+                placeholder: (_, _) =>
+                    const Center(child: CircularProgressIndicator()),
+                errorWidget: (_, _, _) => const Icon(
+                  Icons.broken_image,
+                  color: Colors.white,
+                  size: 48,
+                ),
               ),
             ),
           ],
@@ -323,7 +395,8 @@ class _ProgressCard extends StatelessWidget {
     final images = entry.allImageUrls;
     final notesList = entry.allNotes;
 
-    final bool hasMorningAndEvening = entry.morningImageUrl != null &&
+    final bool hasMorningAndEvening =
+        entry.morningImageUrl != null &&
         entry.eveningImageUrl != null &&
         entry.morningImageUrl != entry.eveningImageUrl;
 
@@ -344,31 +417,50 @@ class _ProgressCard extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(Icons.event_note_outlined, size: 18, color: AppColors.primaryColor(context)),
+                  Icon(
+                    Icons.event_note_outlined,
+                    size: 18,
+                    color: AppColors.primaryColor(context),
+                  ),
                   const SizedBox(width: 8),
                   Text(
                     'Date: ${entry.date}',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.text(context)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                      color: AppColors.text(context),
+                    ),
                   ),
                 ],
               ),
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 4,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.secondary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: Text(
                       '${entry.progressPercentage}% Completed',
-                      style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 12),
+                      style: const TextStyle(
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                      ),
                     ),
                   ),
                   if (!isReadOnly) ...[
                     const SizedBox(width: 8),
                     IconButton(
-                      icon: const Icon(Icons.edit, size: 18, color: AppColors.primary),
+                      icon: const Icon(
+                        Icons.edit,
+                        size: 18,
+                        color: AppColors.primary,
+                      ),
                       onPressed: onEdit,
                       tooltip: 'Edit Today\'s Progress Record',
                     ),
@@ -409,14 +501,22 @@ class _ProgressCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.secondary.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: const Text(
                     'SITE WORK PHOTO EVIDENCE',
-                    style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5),
+                    style: TextStyle(
+                      color: AppColors.secondary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 10,
+                      letterSpacing: 0.5,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 8),
@@ -431,13 +531,19 @@ class _ProgressCard extends StatelessWidget {
                         margin: const EdgeInsets.only(right: 12),
                         width: 180,
                         child: InkWell(
-                          onTap: () => _showImagePreview(context, url, 'Site Progress Photo ${idx + 1}'),
+                          onTap: () => _showImagePreview(
+                            context,
+                            url,
+                            'Site Progress Photo ${idx + 1}',
+                          ),
                           borderRadius: BorderRadius.circular(12),
                           child: Container(
                             decoration: BoxDecoration(
                               color: AppColors.bg(context),
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.border(context)),
+                              border: Border.all(
+                                color: AppColors.border(context),
+                              ),
                             ),
                             clipBehavior: Clip.antiAlias,
                             child: Stack(
@@ -446,16 +552,31 @@ class _ProgressCard extends StatelessWidget {
                                 CachedNetworkImage(
                                   imageUrl: url,
                                   fit: BoxFit.cover,
-                                  placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
-                                  errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 36, color: AppColors.outline),
+                                  placeholder: (_, _) => const Center(
+                                    child: CircularProgressIndicator(),
+                                  ),
+                                  errorWidget: (_, _, _) => const Icon(
+                                    Icons.broken_image,
+                                    size: 36,
+                                    color: AppColors.outline,
+                                  ),
                                 ),
                                 Positioned(
                                   bottom: 6,
                                   right: 6,
                                   child: Container(
                                     padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
-                                    child: const Icon(Icons.fullscreen, color: Colors.white, size: 14),
+                                    decoration: BoxDecoration(
+                                      color: Colors.black.withValues(
+                                        alpha: 0.6,
+                                      ),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(
+                                      Icons.fullscreen,
+                                      color: Colors.white,
+                                      size: 14,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -485,12 +606,20 @@ class _ProgressCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(Icons.notes, size: 16, color: AppColors.primaryColor(context)),
+                    Icon(
+                      Icons.notes,
+                      size: 16,
+                      color: AppColors.primaryColor(context),
+                    ),
                     const SizedBox(width: 8),
                     Expanded(
                       child: Text(
                         text,
-                        style: TextStyle(fontSize: 13, color: AppColors.text(context), height: 1.3),
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.text(context),
+                          height: 1.3,
+                        ),
                       ),
                     ),
                   ],
@@ -521,7 +650,12 @@ class _ProgressCard extends StatelessWidget {
           ),
           child: Text(
             badgeLabel,
-            style: TextStyle(color: badgeColor, fontWeight: FontWeight.bold, fontSize: 10, letterSpacing: 0.5),
+            style: TextStyle(
+              color: badgeColor,
+              fontWeight: FontWeight.bold,
+              fontSize: 10,
+              letterSpacing: 0.5,
+            ),
           ),
         ),
         const SizedBox(height: 6),
@@ -544,16 +678,28 @@ class _ProgressCard extends StatelessWidget {
                   CachedNetworkImage(
                     imageUrl: imageUrl,
                     fit: BoxFit.cover,
-                    placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
-                    errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 36, color: AppColors.outline),
+                    placeholder: (_, _) =>
+                        const Center(child: CircularProgressIndicator()),
+                    errorWidget: (_, _, _) => const Icon(
+                      Icons.broken_image,
+                      size: 36,
+                      color: AppColors.outline,
+                    ),
                   ),
                   Positioned(
                     bottom: 6,
                     right: 6,
                     child: Container(
                       padding: const EdgeInsets.all(4),
-                      decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
-                      child: const Icon(Icons.fullscreen, color: Colors.white, size: 14),
+                      decoration: BoxDecoration(
+                        color: Colors.black.withValues(alpha: 0.6),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.fullscreen,
+                        color: Colors.white,
+                        size: 14,
+                      ),
                     ),
                   ),
                 ],

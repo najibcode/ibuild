@@ -14,10 +14,12 @@ class FullReportGeneratorScreen extends ConsumerStatefulWidget {
   const FullReportGeneratorScreen({super.key, this.showAppBar = true});
 
   @override
-  ConsumerState<FullReportGeneratorScreen> createState() => _FullReportGeneratorScreenState();
+  ConsumerState<FullReportGeneratorScreen> createState() =>
+      _FullReportGeneratorScreenState();
 }
 
-class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorScreen> {
+class _FullReportGeneratorScreenState
+    extends ConsumerState<FullReportGeneratorScreen> {
   String? _selectedProjectId; // null means 'All Projects'
   String _selectedReportType = 'Full Operational Audit';
   bool _includeExpenses = true;
@@ -39,23 +41,34 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
 
     final projects = _selectedProjectId == null || _selectedProjectId == 'all'
         ? projectState.projects
-        : projectState.projects.where((p) => p.id == _selectedProjectId).toList();
+        : projectState.projects
+              .where((p) => p.id == _selectedProjectId)
+              .toList();
 
     final projectName = projects.isEmpty
         ? 'All Enterprise Sites'
-        : (projects.length == 1 ? projects.first.name : '${projects.length} Selected Projects');
+        : (projects.length == 1
+              ? projects.first.name
+              : '${projects.length} Selected Projects');
 
     final double totalBudget = projects.fold(0.0, (sum, p) => sum + p.budget);
     final double totalSpent = projects.fold(0.0, (sum, p) => sum + p.spent);
 
     final expenses = expenseState.expenses.where((e) {
-      if (_selectedProjectId == null || _selectedProjectId == 'all') return true;
+      if (_selectedProjectId == null || _selectedProjectId == 'all')
+        return true;
       return e.projectId == _selectedProjectId;
     }).toList();
-    final double totalExpensesAmount = expenses.fold(0.0, (sum, e) => sum + e.amount);
+    final double totalExpensesAmount = expenses.fold(
+      0.0,
+      (sum, e) => sum + e.amount,
+    );
 
     final inventory = inventoryState.items;
-    final double totalValuation = inventory.fold(0.0, (sum, i) => sum + i.totalValuation);
+    final double totalValuation = inventory.fold(
+      0.0,
+      (sum, i) => sum + i.totalValuation,
+    );
     final int lowStockCount = inventory.where((i) => i.isLowStock).length;
 
     final attendanceRecords = attendanceState.attendanceList;
@@ -65,21 +78,33 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
     buffer.writeln("IBUILD ERP - AUDIT & OPERATIONAL REPORT");
     buffer.writeln("Report Type: $_selectedReportType");
     buffer.writeln("Scope: $projectName");
-    buffer.writeln("Generated On: ${DateTime.now().toString().substring(0, 16)}");
+    buffer.writeln(
+      "Generated On: ${DateTime.now().toString().substring(0, 16)}",
+    );
     buffer.writeln("==================================================\n");
 
     buffer.writeln("1. FINANCIAL & PORTFOLIO EXECUTIVE SUMMARY");
     buffer.writeln("--------------------------------------------------");
-    buffer.writeln("• Total Allocated Budget: ₹${totalBudget.toStringAsFixed(2)}");
-    buffer.writeln("• Total Capital Spent:    ₹${totalSpent.toStringAsFixed(2)}");
-    buffer.writeln("• Overall Utilization:   ${totalBudget > 0 ? (totalSpent / totalBudget * 100).toStringAsFixed(1) : 0}%");
-    buffer.writeln("• Logged Site Outflows:  ₹${totalExpensesAmount.toStringAsFixed(2)} (${expenses.length} records)\n");
+    buffer.writeln(
+      "• Total Allocated Budget: ₹${totalBudget.toStringAsFixed(2)}",
+    );
+    buffer.writeln(
+      "• Total Capital Spent:    ₹${totalSpent.toStringAsFixed(2)}",
+    );
+    buffer.writeln(
+      "• Overall Utilization:   ${totalBudget > 0 ? (totalSpent / totalBudget * 100).toStringAsFixed(1) : 0}%",
+    );
+    buffer.writeln(
+      "• Logged Site Outflows:  ₹${totalExpensesAmount.toStringAsFixed(2)} (${expenses.length} records)\n",
+    );
 
     if (_includeExpenses && expenses.isNotEmpty) {
       buffer.writeln("2. SITE EXPENSE OUTFLOW LOGS");
       buffer.writeln("--------------------------------------------------");
       for (final e in expenses.take(15)) {
-        buffer.writeln("• ${e.expenseDate} | [${e.category.toUpperCase()}] ₹${e.amount.toStringAsFixed(2)} (${e.paymentMode.toUpperCase()}) - ${e.projectName ?? 'General'}");
+        buffer.writeln(
+          "• ${e.expenseDate} | [${e.category.toUpperCase()}] ₹${e.amount.toStringAsFixed(2)} (${e.paymentMode.toUpperCase()}) - ${e.projectName ?? 'General'}",
+        );
       }
       buffer.writeln();
     }
@@ -87,10 +112,16 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
     if (_includeInventory && inventory.isNotEmpty) {
       buffer.writeln("3. MATERIAL INVENTORY & STOCK VALUATION");
       buffer.writeln("--------------------------------------------------");
-      buffer.writeln("• Total Stock Valuation: ₹${totalValuation.toStringAsFixed(2)}");
-      buffer.writeln("• Low Stock Alert Count: $lowStockCount items requiring reorder\n");
+      buffer.writeln(
+        "• Total Stock Valuation: ₹${totalValuation.toStringAsFixed(2)}",
+      );
+      buffer.writeln(
+        "• Low Stock Alert Count: $lowStockCount items requiring reorder\n",
+      );
       for (final item in inventory.take(15)) {
-        buffer.writeln("• ${item.materialName} (${item.category}): ${item.availableStock.toStringAsFixed(1)} ${item.unit} @ ₹${item.purchasePrice}/${item.unit} | Status: ${item.isLowStock ? 'LOW STOCK' : 'Healthy'}");
+        buffer.writeln(
+          "• ${item.materialName} (${item.category}): ${item.availableStock.toStringAsFixed(1)} ${item.unit} @ ₹${item.purchasePrice}/${item.unit} | Status: ${item.isLowStock ? 'LOW STOCK' : 'Healthy'}",
+        );
       }
       buffer.writeln();
     }
@@ -98,9 +129,13 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
     if (_includeAttendance && attendanceRecords.isNotEmpty) {
       buffer.writeln("4. WORKER ATTENDANCE & WAGE SUMMARY");
       buffer.writeln("--------------------------------------------------");
-      buffer.writeln("• Total Logged Shifts: ${attendanceRecords.length} worker entries");
+      buffer.writeln(
+        "• Total Logged Shifts: ${attendanceRecords.length} worker entries",
+      );
       for (final a in attendanceRecords.take(10)) {
-        buffer.writeln("• Date: ${a.date} | Worker: ${a.employeeName ?? 'Worker'} | Status: ${a.status.toUpperCase()} | Site: ${a.projectName ?? 'General'}");
+        buffer.writeln(
+          "• Date: ${a.date} | Worker: ${a.employeeName ?? 'Worker'} | Status: ${a.status.toUpperCase()} | Site: ${a.projectName ?? 'General'}",
+        );
       }
       buffer.writeln();
     }
@@ -120,18 +155,28 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
 
     // Expenses CSV Section
     buffer.writeln("--- EXPENSES DATA ---");
-    buffer.writeln("ID,Expense Date,Category,Amount,Payment Mode,Project Site,Notes");
+    buffer.writeln(
+      "ID,Expense Date,Category,Amount,Payment Mode,Project Site,Notes",
+    );
     for (final e in expenseState.expenses) {
-      final safeNotes = (e.notes ?? '').replaceAll(',', ';').replaceAll('\n', ' ');
-      buffer.writeln("${e.id},${e.expenseDate},${e.category},${e.amount},${e.paymentMode},${e.projectName ?? 'General'},$safeNotes");
+      final safeNotes = (e.notes ?? '')
+          .replaceAll(',', ';')
+          .replaceAll('\n', ' ');
+      buffer.writeln(
+        "${e.id},${e.expenseDate},${e.category},${e.amount},${e.paymentMode},${e.projectName ?? 'General'},$safeNotes",
+      );
     }
 
     buffer.writeln();
     // Inventory CSV Section
     buffer.writeln("--- MATERIAL INVENTORY DATA ---");
-    buffer.writeln("ID,Material Name,Category,Available Stock,Unit,Purchase Price,Total Valuation,Low Stock Alert");
+    buffer.writeln(
+      "ID,Material Name,Category,Available Stock,Unit,Purchase Price,Total Valuation,Low Stock Alert",
+    );
     for (final item in inventoryState.items) {
-      buffer.writeln("${item.id},${item.materialName},${item.category},${item.availableStock},${item.unit},${item.purchasePrice},${item.totalValuation},${item.isLowStock}");
+      buffer.writeln(
+        "${item.id},${item.materialName},${item.category},${item.availableStock},${item.unit},${item.purchasePrice},${item.totalValuation},${item.isLowStock}",
+      );
     }
 
     return buffer.toString();
@@ -147,11 +192,19 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            const Icon(Icons.picture_as_pdf_outlined, color: Colors.deepOrange, size: 22),
+            const Icon(
+              Icons.picture_as_pdf_outlined,
+              color: Colors.deepOrange,
+              size: 22,
+            ),
             const SizedBox(width: 8),
             Text(
               'Audit Report Preview',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(context),
+              ),
             ),
           ],
         ),
@@ -167,7 +220,12 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
               ),
               child: SelectableText(
                 reportText,
-                style: TextStyle(fontFamily: 'monospace', fontSize: 11, color: AppColors.text(context), height: 1.4),
+                style: TextStyle(
+                  fontFamily: 'monospace',
+                  fontSize: 11,
+                  color: AppColors.text(context),
+                  height: 1.4,
+                ),
               ),
             ),
           ),
@@ -181,7 +239,11 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
             onPressed: () {
               Clipboard.setData(ClipboardData(text: reportText));
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Copied full Audit Report to clipboard! Ready to save/print.')),
+                const SnackBar(
+                  content: Text(
+                    'Copied full Audit Report to clipboard! Ready to save/print.',
+                  ),
+                ),
               );
               Navigator.of(ctx).pop();
             },
@@ -204,7 +266,6 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
             ),
           ),
         ],
-
       ),
     );
   }
@@ -214,7 +275,9 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
     Clipboard.setData(ClipboardData(text: csvContent));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Exported CSV Dataset! Copied raw CSV table to clipboard.'),
+        content: Text(
+          'Exported CSV Dataset! Copied raw CSV table to clipboard.',
+        ),
         backgroundColor: AppColors.secondary,
       ),
     );
@@ -239,7 +302,8 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
         selectedProjectId: _selectedProjectId,
       );
 
-      final fileName = 'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName =
+          'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
 
       // Create a Blob and trigger browser download
       final blob = html.Blob([pdfBytes], 'application/pdf');
@@ -269,8 +333,6 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
     }
   }
 
-
-
   @override
   Widget build(BuildContext context) {
     final projectState = ref.watch(projectControllerProvider);
@@ -293,18 +355,37 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: AppColors.primaryColor(context).withValues(alpha: 0.12),
+                    color: AppColors.primaryColor(
+                      context,
+                    ).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Icon(Icons.assessment_outlined, size: 28, color: AppColors.primaryColor(context)),
+                  child: Icon(
+                    Icons.assessment_outlined,
+                    size: 28,
+                    color: AppColors.primaryColor(context),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('PDF & CSV Operational Report Exporter', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
-                      Text('Generate enterprise audit reports directly from live database', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                      Text(
+                        'PDF & CSV Operational Report Exporter',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.text(context),
+                        ),
+                      ),
+                      Text(
+                        'Generate enterprise audit reports directly from live database',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.mutedText(context),
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -313,57 +394,125 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
             const Divider(height: 32),
 
             // Select Project (Default: All Projects)
-            Text('PROJECT SCOPE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+            Text(
+              'PROJECT SCOPE',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.mutedText(context),
+                letterSpacing: 0.5,
+              ),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String?>(
-              value: _selectedProjectId,
+              initialValue: _selectedProjectId,
               dropdownColor: AppColors.cardBg(context),
               decoration: InputDecoration(
-                prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context)),
+                prefixIcon: Icon(
+                  Icons.apartment_outlined,
+                  color: AppColors.primaryColor(context),
+                ),
               ),
               items: [
                 DropdownMenuItem<String?>(
                   value: null,
-                  child: Text('All Projects / Full Company Summary (Default)', style: TextStyle(color: AppColors.text(context), fontSize: 13, fontWeight: FontWeight.bold)),
+                  child: Text(
+                    'All Projects / Full Company Summary (Default)',
+                    style: TextStyle(
+                      color: AppColors.text(context),
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ),
-                ...projects.map((p) => DropdownMenuItem<String?>(value: p.id, child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13)))),
+                ...projects.map(
+                  (p) => DropdownMenuItem<String?>(
+                    value: p.id,
+                    child: Text(
+                      p.name,
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
               ],
               onChanged: (v) => setState(() => _selectedProjectId = v),
             ),
             const SizedBox(height: 20),
 
             // Report Type Selection
-            Text('REPORT CATEGORY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+            Text(
+              'REPORT CATEGORY',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.mutedText(context),
+                letterSpacing: 0.5,
+              ),
+            ),
             const SizedBox(height: 8),
             DropdownButtonFormField<String>(
-              value: _selectedReportType,
+              initialValue: _selectedReportType,
               dropdownColor: AppColors.cardBg(context),
               decoration: InputDecoration(
-                prefixIcon: Icon(Icons.table_chart_outlined, color: AppColors.primaryColor(context)),
+                prefixIcon: Icon(
+                  Icons.table_chart_outlined,
+                  color: AppColors.primaryColor(context),
+                ),
               ),
-              items: _reportTypes.map((r) => DropdownMenuItem(value: r, child: Text(r, style: TextStyle(color: AppColors.text(context), fontSize: 13)))).toList(),
-              onChanged: (v) => setState(() => _selectedReportType = v ?? _reportTypes.first),
+              items: _reportTypes
+                  .map(
+                    (r) => DropdownMenuItem(
+                      value: r,
+                      child: Text(
+                        r,
+                        style: TextStyle(
+                          color: AppColors.text(context),
+                          fontSize: 13,
+                        ),
+                      ),
+                    ),
+                  )
+                  .toList(),
+              onChanged: (v) =>
+                  setState(() => _selectedReportType = v ?? _reportTypes.first),
             ),
             const SizedBox(height: 24),
 
             // Section Toggles
-            Text('REPORT SECTIONS TO INCLUDE', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+            Text(
+              'REPORT SECTIONS TO INCLUDE',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                color: AppColors.mutedText(context),
+                letterSpacing: 0.5,
+              ),
+            ),
             const SizedBox(height: 8),
             CheckboxListTile(
               title: const Text('Expenses & Financial Outflow History'),
-              subtitle: const Text('Includes petty cash, vendor payments, and category totals'),
+              subtitle: const Text(
+                'Includes petty cash, vendor payments, and category totals',
+              ),
               value: _includeExpenses,
               onChanged: (v) => setState(() => _includeExpenses = v ?? true),
             ),
             CheckboxListTile(
               title: const Text('Inventory & Material Dispatches'),
-              subtitle: const Text('Includes stock valuation and low stock reorder alerts'),
+              subtitle: const Text(
+                'Includes stock valuation and low stock reorder alerts',
+              ),
               value: _includeInventory,
               onChanged: (v) => setState(() => _includeInventory = v ?? true),
             ),
             CheckboxListTile(
               title: const Text('Worker Attendance & Daily Wage Log'),
-              subtitle: const Text('Includes shift counts and daily wage tallies'),
+              subtitle: const Text(
+                'Includes shift counts and daily wage tallies',
+              ),
               value: _includeAttendance,
               onChanged: (v) => setState(() => _includeAttendance = v ?? true),
             ),
@@ -377,34 +526,49 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
                 ElevatedButton.icon(
                   onPressed: () => _exportPdf(context),
                   icon: const Icon(Icons.picture_as_pdf),
-                  label: const Text('Export as PDF Document', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    'Export as PDF Document',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   style: ElevatedButton.styleFrom(
                     minimumSize: const Size(220, 52),
                     backgroundColor: Colors.deepOrange,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _showReportPreviewModal(context),
                   icon: const Icon(Icons.visibility_outlined),
-                  label: const Text('Preview Text Summary', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    'Preview Text Summary',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(180, 52),
                     side: BorderSide(color: AppColors.primaryColor(context)),
                     foregroundColor: AppColors.primaryColor(context),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => _exportCsv(context),
                   icon: const Icon(Icons.table_chart_outlined),
-                  label: const Text('Export CSV Dataset', style: TextStyle(fontWeight: FontWeight.bold)),
+                  label: const Text(
+                    'Export CSV Dataset',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
                   style: OutlinedButton.styleFrom(
                     minimumSize: const Size(180, 52),
                     side: BorderSide(color: AppColors.border(context)),
                     foregroundColor: AppColors.text(context),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
                 ),
               ],
@@ -413,7 +577,6 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
         ),
       ),
     );
-
 
     if (!widget.showAppBar) {
       return bodyContent;
@@ -425,7 +588,10 @@ class _FullReportGeneratorScreenState extends ConsumerState<FullReportGeneratorS
         titleSpacing: 16,
         title: Text(
           'Reports & Audit Exporter',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryColor(context),
+          ),
         ),
       ),
       body: bodyContent,

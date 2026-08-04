@@ -10,7 +10,9 @@ import '../../data/models/payment_ledger_model.dart';
 import '../../data/repositories/supabase_payment_ledger_repository.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 
-final allPaymentLedgerProvider = FutureProvider<List<PaymentLedgerEntry>>((ref) async {
+final allPaymentLedgerProvider = FutureProvider<List<PaymentLedgerEntry>>((
+  ref,
+) async {
   final client = ref.watch(supabaseClientProvider);
   return await SupabasePaymentLedgerRepository(client).fetchAllLedgerEntries();
 });
@@ -20,7 +22,8 @@ class PaymentLedgerScreen extends ConsumerStatefulWidget {
   const PaymentLedgerScreen({super.key, this.isEmbedded = false});
 
   @override
-  ConsumerState<PaymentLedgerScreen> createState() => _PaymentLedgerScreenState();
+  ConsumerState<PaymentLedgerScreen> createState() =>
+      _PaymentLedgerScreenState();
 }
 
 class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
@@ -37,7 +40,8 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
           TextField(
             onChanged: (q) => setState(() => _searchQuery = q),
             decoration: InputDecoration(
-              hintText: 'Search ledger by counterparty name or payment method...',
+              hintText:
+                  'Search ledger by counterparty name or payment method...',
               prefixIcon: const Icon(Icons.search),
               fillColor: AppColors.cardBg(context),
             ),
@@ -47,8 +51,12 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
             child: ledgerAsync.when(
               data: (entries) {
                 final filtered = entries.where((e) {
-                  return e.counterpartyName.toLowerCase().contains(_searchQuery.toLowerCase()) ||
-                      e.paymentMethod.toLowerCase().contains(_searchQuery.toLowerCase());
+                  return e.counterpartyName.toLowerCase().contains(
+                        _searchQuery.toLowerCase(),
+                      ) ||
+                      e.paymentMethod.toLowerCase().contains(
+                        _searchQuery.toLowerCase(),
+                      );
                 }).toList();
 
                 if (filtered.isEmpty) {
@@ -65,7 +73,9 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                     final isPaid = e.paymentType == 'Paid';
 
                     // Resolve Project Name
-                    final proj = projects.where((p) => p.id == e.projectId).firstOrNull;
+                    final proj = projects
+                        .where((p) => p.id == e.projectId)
+                        .firstOrNull;
                     final projName = proj?.name ?? 'General Site Project';
 
                     return Container(
@@ -85,32 +95,56 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primary.withOpacity(0.12),
+                                    color: AppColors.primary.withValues(
+                                      alpha: 0.12,
+                                    ),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.business, size: 13, color: AppColors.primary),
+                                      const Icon(
+                                        Icons.business,
+                                        size: 13,
+                                        color: AppColors.primary,
+                                      ),
                                       const SizedBox(width: 4),
                                       Text(
                                         projName,
-                                        style: const TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 11),
+                                        style: const TextStyle(
+                                          color: AppColors.primary,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 11,
+                                        ),
                                       ),
                                     ],
                                   ),
                                 ),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 10,
+                                    vertical: 4,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: (isPaid ? AppColors.error : AppColors.secondary).withOpacity(0.15),
+                                    color:
+                                        (isPaid
+                                                ? AppColors.error
+                                                : AppColors.secondary)
+                                            .withValues(alpha: 0.15),
                                     borderRadius: BorderRadius.circular(20),
                                   ),
                                   child: Text(
-                                    isPaid ? 'OUTFLOW (- PAID)' : 'INFLOW (+ RECEIVED)',
+                                    isPaid
+                                        ? 'OUTFLOW (- PAID)'
+                                        : 'INFLOW (+ RECEIVED)',
                                     style: TextStyle(
-                                      color: isPaid ? AppColors.error : AppColors.secondary,
+                                      color: isPaid
+                                          ? AppColors.error
+                                          : AppColors.secondary,
                                       fontSize: 10,
                                       fontWeight: FontWeight.bold,
                                     ),
@@ -126,16 +160,24 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                               children: [
                                 Expanded(
                                   child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
                                       Text(
                                         e.counterpartyName,
-                                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 16,
+                                          color: AppColors.text(context),
+                                        ),
                                       ),
                                       const SizedBox(height: 2),
                                       Text(
                                         'Type: ${e.counterpartyType} • Method: ${e.paymentMethod}',
-                                        style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                                        style: TextStyle(
+                                          color: AppColors.mutedText(context),
+                                          fontSize: 12,
+                                        ),
                                       ),
                                     ],
                                   ),
@@ -148,12 +190,18 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                                       style: TextStyle(
                                         fontWeight: FontWeight.bold,
                                         fontSize: 18,
-                                        color: isPaid ? AppColors.error : AppColors.secondary,
+                                        color: isPaid
+                                            ? AppColors.error
+                                            : AppColors.secondary,
                                       ),
                                     ),
                                     Text(
                                       'Run Bal: ₹${e.runningBalance.toInt()}',
-                                      style: TextStyle(color: AppColors.mutedText(context), fontSize: 11, fontWeight: FontWeight.bold),
+                                      style: TextStyle(
+                                        color: AppColors.mutedText(context),
+                                        fontSize: 11,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ],
                                 ),
@@ -164,7 +212,11 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                               const SizedBox(height: 10),
                               Text(
                                 'Notes: ${e.remarks}',
-                                style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontStyle: FontStyle.italic),
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.mutedText(context),
+                                  fontStyle: FontStyle.italic,
+                                ),
                               ),
                             ],
                             const SizedBox(height: 12),
@@ -175,29 +227,48 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                               children: [
                                 Text(
                                   'Date: ${e.paymentDate.toIso8601String().split('T').first}',
-                                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
                                 Row(
                                   children: [
                                     IconButton(
-                                      icon: const Icon(Icons.print_outlined, size: 18, color: AppColors.primary),
+                                      icon: const Icon(
+                                        Icons.print_outlined,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
                                       tooltip: 'Print Receipt PDF',
                                       onPressed: () async {
-                                        final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport([e]);
+                                        final pdfBytes =
+                                            await PaymentLedgerPdfGenerator.generateLedgerReport(
+                                              [e],
+                                            );
                                         await Printing.layoutPdf(
-                                          onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                                          onLayout: (_) async =>
+                                              Uint8List.fromList(pdfBytes),
                                           name: 'Receipt_${e.id}.pdf',
                                         );
                                       },
                                     ),
                                     IconButton(
-                                      icon: const Icon(Icons.file_download_outlined, size: 18, color: AppColors.primary),
+                                      icon: const Icon(
+                                        Icons.file_download_outlined,
+                                        size: 18,
+                                        color: AppColors.primary,
+                                      ),
                                       tooltip: 'Download Receipt PDF',
                                       onPressed: () async {
-                                        final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport([e]);
+                                        final pdfBytes =
+                                            await PaymentLedgerPdfGenerator.generateLedgerReport(
+                                              [e],
+                                            );
                                         await PdfDownloadHelper.downloadPdf(
                                           bytes: pdfBytes,
-                                          filename: 'Payment_Receipt_${e.counterpartyName}.pdf',
+                                          filename:
+                                              'Payment_Receipt_${e.counterpartyName}.pdf',
                                         );
                                       },
                                     ),
@@ -235,7 +306,8 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
             onPressed: () async {
               final entries = ledgerAsync.valueOrNull ?? [];
               if (entries.isEmpty) return;
-              final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
+              final pdfBytes =
+                  await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
               await Printing.layoutPdf(
                 onLayout: (_) async => Uint8List.fromList(pdfBytes),
                 name: 'Payment_Ledger_Report.pdf',
@@ -248,7 +320,8 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
             onPressed: () async {
               final entries = ledgerAsync.valueOrNull ?? [];
               if (entries.isEmpty) return;
-              final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
+              final pdfBytes =
+                  await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
               await PdfDownloadHelper.downloadPdf(
                 bytes: pdfBytes,
                 filename: 'IBUILD_Payment_Ledger_Report.pdf',
@@ -266,11 +339,25 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(Icons.account_balance_outlined, size: 64, color: AppColors.mutedText(context)),
+          Icon(
+            Icons.account_balance_outlined,
+            size: 64,
+            color: AppColors.mutedText(context),
+          ),
           const SizedBox(height: 16),
-          Text('No ledger entries recorded', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+          Text(
+            'No ledger entries recorded',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppColors.text(context),
+            ),
+          ),
           const SizedBox(height: 4),
-          Text('Payment transactions linked to suppliers & trade partners will appear here', style: TextStyle(color: AppColors.mutedText(context), fontSize: 12)),
+          Text(
+            'Payment transactions linked to suppliers & trade partners will appear here',
+            style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+          ),
         ],
       ),
     );

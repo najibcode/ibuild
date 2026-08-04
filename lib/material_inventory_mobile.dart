@@ -60,7 +60,9 @@ class _MaterialInventoryMobileState
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
                         hintText: 'Search materials...',
-                        hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                        hintStyle: TextStyle(
+                          color: AppColors.mutedText(context),
+                        ),
                         prefixIcon: Icon(
                           Icons.search,
                           color: AppColors.mutedText(context),
@@ -168,9 +170,7 @@ class _MaterialInventoryMobileState
       child: OutlinedButton(
         onPressed: onTap,
         style: OutlinedButton.styleFrom(
-          backgroundColor: isActive
-              ? primaryCol
-              : AppColors.cardBg(context),
+          backgroundColor: isActive ? primaryCol : AppColors.cardBg(context),
           side: BorderSide(
             color: isActive ? primaryCol : AppColors.border(context),
           ),
@@ -233,13 +233,17 @@ class _MaterialInventoryMobileState
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.12),
+                    color: AppColors.error.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.error_outline, size: 12, color: AppColors.error),
+                      Icon(
+                        Icons.error_outline,
+                        size: 12,
+                        color: AppColors.error,
+                      ),
                       SizedBox(width: 4),
                       Text(
                         'LOW STOCK',
@@ -303,18 +307,30 @@ class _MaterialInventoryMobileState
             children: [
               Text(
                 timeUpdated,
-                style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                style: TextStyle(
+                  fontSize: 11,
+                  color: AppColors.mutedText(context),
+                ),
               ),
               ElevatedButton.icon(
                 onPressed: () {},
                 icon: Icon(buttonIcon, size: 14),
-                label: Text(buttonText, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                label: Text(
+                  buttonText,
+                  style: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: isLowStock
                       ? Colors.deepOrange
                       : AppColors.primaryColor(context),
                   foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 8,
+                  ),
                 ),
               ),
             ],

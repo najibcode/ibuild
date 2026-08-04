@@ -42,28 +42,38 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 await Navigator.of(context).push(
                   MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
                 );
-                ref.read(employeeListControllerProvider.notifier).loadEmployees();
+                ref
+                    .read(employeeListControllerProvider.notifier)
+                    .loadEmployees();
               },
               icon: const Icon(Icons.person_add, size: 16),
-              label: const Text('+ Add Employee', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+              label: const Text(
+                '+ Add Employee',
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              ),
               style: FilledButton.styleFrom(
                 backgroundColor: AppColors.primaryColor(context),
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
               ),
             ),
           ),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
-            onPressed: () => ref.read(employeeListControllerProvider.notifier).loadEmployees(),
+            onPressed: () => ref
+                .read(employeeListControllerProvider.notifier)
+                .loadEmployees(),
           ),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
-          await Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
-          );
+          await Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const EmployeeFormScreen()));
           ref.read(employeeListControllerProvider.notifier).loadEmployees();
         },
         backgroundColor: AppColors.primaryColor(context),
@@ -74,19 +84,27 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       body: employeesAsync.when(
         data: (employees) {
           // Compute Workforce & Daily Wage Metrics
-          final activeCount = employees.where((e) => e.status.toLowerCase() == 'active').length;
-          final totalDailyWageEst = employees.fold(0.0, (sum, e) => sum + e.totalDailyCost);
+          final activeCount = employees
+              .where((e) => e.status.toLowerCase() == 'active')
+              .length;
+          final totalDailyWageEst = employees.fold(
+            0.0,
+            (sum, e) => sum + e.totalDailyCost,
+          );
 
           // Extract unique roles for filter chips
           final roles = employees.map((e) => e.role).toSet().toList();
 
           // Apply client-side search and role filtering
           final filtered = employees.where((e) {
-            final matchesSearch = _searchQuery.isEmpty ||
+            final matchesSearch =
+                _searchQuery.isEmpty ||
                 e.name.toLowerCase().contains(_searchQuery.toLowerCase()) ||
                 e.phone.contains(_searchQuery) ||
                 e.role.toLowerCase().contains(_searchQuery.toLowerCase());
-            final matchesRole = _roleFilter == null || e.role.toLowerCase() == _roleFilter!.toLowerCase();
+            final matchesRole =
+                _roleFilter == null ||
+                e.role.toLowerCase() == _roleFilter!.toLowerCase();
             return matchesSearch && matchesRole;
           }).toList();
 
@@ -112,7 +130,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                       child: _buildMetricCard(
                         context,
                         title: 'Active Ratio',
-                        value: '${employees.isEmpty ? 0 : ((activeCount / employees.length) * 100).toInt()}%',
+                        value:
+                            '${employees.isEmpty ? 0 : ((activeCount / employees.length) * 100).toInt()}%',
                         subtitle: '$activeCount On Duty',
                         icon: Icons.check_circle_outline,
                         color: AppColors.secondary,
@@ -153,29 +172,50 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Icon(Icons.people_outline, size: 64, color: AppColors.mutedText(context).withOpacity(0.4)),
+                            Icon(
+                              Icons.people_outline,
+                              size: 64,
+                              color: AppColors.mutedText(
+                                context,
+                              ).withValues(alpha: 0.4),
+                            ),
                             const SizedBox(height: 16),
                             Text(
                               'No staff records found.',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                                color: AppColors.text(context),
+                              ),
                             ),
                             const SizedBox(height: 4),
                             Text(
                               'Add construction workers, supervisors, or site staff.',
-                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText(context),
+                              ),
                             ),
                             const SizedBox(height: 16),
                             ElevatedButton.icon(
                               onPressed: () async {
                                 await Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
+                                  MaterialPageRoute(
+                                    builder: (_) => const EmployeeFormScreen(),
+                                  ),
                                 );
-                                ref.read(employeeListControllerProvider.notifier).loadEmployees();
+                                ref
+                                    .read(
+                                      employeeListControllerProvider.notifier,
+                                    )
+                                    .loadEmployees();
                               },
                               icon: const Icon(Icons.person_add),
                               label: const Text('Add New Employee'),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryColor(context),
+                                backgroundColor: AppColors.primaryColor(
+                                  context,
+                                ),
                                 foregroundColor: Colors.white,
                               ),
                             ),
@@ -197,7 +237,6 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, s) => Center(child: Text('Error loading employees: $e')),
       ),
-
     );
   }
 
@@ -225,7 +264,11 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
               Flexible(
                 child: Text(
                   title,
-                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.mutedText(context),
+                    fontWeight: FontWeight.w600,
+                  ),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -235,7 +278,11 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
           const SizedBox(height: 6),
           Text(
             value,
-            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(context),
+            ),
           ),
           const SizedBox(height: 2),
           Text(
@@ -261,7 +308,9 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       ),
       child: InkWell(
         onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => EmployeeDetailScreen(employee: employee)),
+          MaterialPageRoute(
+            builder: (_) => EmployeeDetailScreen(employee: employee),
+          ),
         ),
         borderRadius: BorderRadius.circular(16),
         child: Padding(
@@ -270,7 +319,8 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
             children: [
               // Avatar
               CircleAvatar(
-                backgroundImage: employee.photoUrl != null && employee.photoUrl!.isNotEmpty
+                backgroundImage:
+                    employee.photoUrl != null && employee.photoUrl!.isNotEmpty
                     ? NetworkImage(employee.photoUrl!)
                     : null,
                 backgroundColor: primaryCol.withValues(alpha: 0.12),
@@ -301,7 +351,10 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
                             color: isActive
                                 ? AppColors.secondary.withValues(alpha: 0.12)
@@ -311,7 +364,9 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                           child: Text(
                             employee.status.toUpperCase(),
                             style: TextStyle(
-                              color: isActive ? AppColors.secondary : AppColors.error,
+                              color: isActive
+                                  ? AppColors.secondary
+                                  : AppColors.error,
                               fontSize: 9,
                               fontWeight: FontWeight.bold,
                             ),
@@ -323,7 +378,10 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                           decoration: BoxDecoration(
                             color: primaryCol.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
@@ -346,17 +404,23 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                             color: AppColors.secondary,
                           ),
                         ),
-
                       ],
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
-                        Icon(Icons.phone_outlined, size: 12, color: AppColors.mutedText(context)),
+                        Icon(
+                          Icons.phone_outlined,
+                          size: 12,
+                          color: AppColors.mutedText(context),
+                        ),
                         const SizedBox(width: 4),
                         Text(
                           employee.phone,
-                          style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.mutedText(context),
+                          ),
                         ),
                       ],
                     ),
@@ -364,7 +428,11 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 ),
               ),
               const SizedBox(width: 8),
-              Icon(Icons.chevron_right, color: AppColors.mutedText(context), size: 20),
+              Icon(
+                Icons.chevron_right,
+                color: AppColors.mutedText(context),
+                size: 20,
+              ),
             ],
           ),
         ),

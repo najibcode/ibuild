@@ -30,37 +30,56 @@ import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 
 // Providers
-final projectChecklistProvider = FutureProvider.family<List<ChecklistItem>, String>((ref, projectId) async {
-  final client = ref.watch(supabaseClientProvider);
-  return await SupabaseChecklistRepository(client).fetchChecklistForProject(projectId);
-});
+final projectChecklistProvider =
+    FutureProvider.family<List<ChecklistItem>, String>((ref, projectId) async {
+      final client = ref.watch(supabaseClientProvider);
+      return await SupabaseChecklistRepository(
+        client,
+      ).fetchChecklistForProject(projectId);
+    });
 
-final projectSalesBillsProvider = FutureProvider.family<List<SalesBill>, String>((ref, projectId) async {
-  final client = ref.watch(supabaseClientProvider);
-  return await SupabaseSalesBillRepository(client).fetchSalesBillsForProject(projectId);
-});
+final projectSalesBillsProvider =
+    FutureProvider.family<List<SalesBill>, String>((ref, projectId) async {
+      final client = ref.watch(supabaseClientProvider);
+      return await SupabaseSalesBillRepository(
+        client,
+      ).fetchSalesBillsForProject(projectId);
+    });
 
-final projectPaymentsProvider = FutureProvider.family<List<ProjectPayment>, String>((ref, projectId) async {
-  final client = ref.watch(supabaseClientProvider);
-  return await SupabasePaymentRepository(client).fetchPaymentsForProject(projectId);
-});
+final projectPaymentsProvider =
+    FutureProvider.family<List<ProjectPayment>, String>((ref, projectId) async {
+      final client = ref.watch(supabaseClientProvider);
+      return await SupabasePaymentRepository(
+        client,
+      ).fetchPaymentsForProject(projectId);
+    });
 
-final projectDrawingsProvider = FutureProvider.family<List<SiteDrawing>, String>((ref, projectId) async {
-  final client = ref.watch(supabaseClientProvider);
-  return await SupabaseDrawingRepository(client).fetchDrawingsForProject(projectId);
-});
+final projectDrawingsProvider =
+    FutureProvider.family<List<SiteDrawing>, String>((ref, projectId) async {
+      final client = ref.watch(supabaseClientProvider);
+      return await SupabaseDrawingRepository(
+        client,
+      ).fetchDrawingsForProject(projectId);
+    });
 
-final projectSubcontractorsProvider = FutureProvider<List<Subcontractor>>((ref) async {
+final projectSubcontractorsProvider = FutureProvider<List<Subcontractor>>((
+  ref,
+) async {
   final client = ref.watch(supabaseClientProvider);
   return await SupabaseSubcontractorRepository(client).fetchSubcontractors();
 });
 
-final projectInventoryProvider = FutureProvider<List<InventoryItem>>((ref) async {
+final projectInventoryProvider = FutureProvider<List<InventoryItem>>((
+  ref,
+) async {
   final repo = ref.watch(inventoryRepositoryProvider);
   return await repo.getItems();
 });
 
-final projectDetailByIdProvider = FutureProvider.family<Project?, String>((ref, id) async {
+final projectDetailByIdProvider = FutureProvider.family<Project?, String>((
+  ref,
+  id,
+) async {
   final repo = ref.watch(projectRepositoryProvider);
   return await repo.getProjectById(id);
 });
@@ -78,10 +97,12 @@ class ProjectOperationsScreen extends ConsumerStatefulWidget {
   });
 
   @override
-  ConsumerState<ProjectOperationsScreen> createState() => _ProjectOperationsScreenState();
+  ConsumerState<ProjectOperationsScreen> createState() =>
+      _ProjectOperationsScreenState();
 }
 
-class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScreen> {
+class _ProjectOperationsScreenState
+    extends ConsumerState<ProjectOperationsScreen> {
   late int _activeSection; // 0 = Grid, 1..10 = Submodules
 
   @override
@@ -144,8 +165,18 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           title: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(widget.projectName, style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
-              Text(_sectionTitles[_activeSection] ?? 'Site Operations', style: TextStyle(fontSize: 12, color: mutedText)),
+              Text(
+                widget.projectName,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text(context),
+                ),
+              ),
+              Text(
+                _sectionTitles[_activeSection] ?? 'Site Operations',
+                style: TextStyle(fontSize: 12, color: mutedText),
+              ),
             ],
           ),
           actions: [
@@ -187,7 +218,11 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       case 7:
         return _buildSalesBillsTab();
       case 8:
-        return DailyProgressScreen(projectId: widget.projectId, projectName: widget.projectName, showAppBar: false);
+        return DailyProgressScreen(
+          projectId: widget.projectId,
+          projectName: widget.projectName,
+          showAppBar: false,
+        );
       case 9:
         return _buildAboutSiteTab();
       case 10:
@@ -202,12 +237,32 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     final projectAsync = ref.watch(projectDetailByIdProvider(widget.projectId));
 
     final cards = [
-      _CardData('Today\nAttendance', Icons.calendar_today_outlined, AppColors.primary, 1),
+      _CardData(
+        'Today\nAttendance',
+        Icons.calendar_today_outlined,
+        AppColors.primary,
+        1,
+      ),
       _CardData('Daily Progress', Icons.analytics_outlined, Colors.pink, 8),
       _CardData('Materials', Icons.inventory_2_outlined, Colors.orange, 2),
-      _CardData('SubContractor', Icons.groups_outlined, Colors.amber.shade700, 3),
-      _CardData('Payment\nStatus', Icons.account_balance_wallet_outlined, Colors.green, 4),
-      _CardData('Check List', Icons.assignment_turned_in_outlined, Colors.blue, 5),
+      _CardData(
+        'SubContractor',
+        Icons.groups_outlined,
+        Colors.amber.shade700,
+        3,
+      ),
+      _CardData(
+        'Payment\nStatus',
+        Icons.account_balance_wallet_outlined,
+        Colors.green,
+        4,
+      ),
+      _CardData(
+        'Check List',
+        Icons.assignment_turned_in_outlined,
+        Colors.blue,
+        5,
+      ),
       _CardData('Drawing', Icons.architecture_outlined, Colors.indigo, 6),
       _CardData('Sales Bill', Icons.receipt_long_outlined, Colors.teal, 7),
       _CardData('About Site', Icons.info_outline, Colors.purple, 9),
@@ -216,7 +271,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        int crossAxisCount = constraints.maxWidth > 900 ? 5 : (constraints.maxWidth > 600 ? 4 : 2);
+        int crossAxisCount = constraints.maxWidth > 900
+            ? 5
+            : (constraints.maxWidth > 600 ? 4 : 2);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(24.0),
@@ -226,15 +283,45 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
               // Breadcrumb Header
               Row(
                 children: [
-                  Icon(Icons.home_outlined, size: 18, color: AppColors.mutedText(context)),
+                  Icon(
+                    Icons.home_outlined,
+                    size: 18,
+                    color: AppColors.mutedText(context),
+                  ),
                   const SizedBox(width: 6),
-                  Text('>', style: TextStyle(color: AppColors.mutedText(context), fontSize: 13)),
+                  Text(
+                    '>',
+                    style: TextStyle(
+                      color: AppColors.mutedText(context),
+                      fontSize: 13,
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  Text('Site', style: TextStyle(color: AppColors.mutedText(context), fontWeight: FontWeight.w600, fontSize: 13)),
+                  Text(
+                    'Site',
+                    style: TextStyle(
+                      color: AppColors.mutedText(context),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  Text('>', style: TextStyle(color: AppColors.mutedText(context), fontSize: 13)),
+                  Text(
+                    '>',
+                    style: TextStyle(
+                      color: AppColors.mutedText(context),
+                      fontSize: 13,
+                    ),
+                  ),
                   const SizedBox(width: 6),
-                  Text(widget.projectName, style: TextStyle(color: AppColors.primaryColor(context), fontWeight: FontWeight.bold, fontSize: 13)),
+                  Text(
+                    widget.projectName,
+                    style: TextStyle(
+                      color: AppColors.primaryColor(context),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: 16),
@@ -244,7 +331,10 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 data: (p) {
                   if (p == null) return const SizedBox.shrink();
                   return Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 20,
+                      vertical: 16,
+                    ),
                     decoration: BoxDecoration(
                       color: AppColors.cardBg(context),
                       borderRadius: BorderRadius.circular(12),
@@ -255,7 +345,10 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                       children: [
                         _metricCol('Budget', '₹${p.budget.toInt()}'),
                         _metricCol('Spent', '₹${p.spent.toInt()}'),
-                        _metricCol('Customer', p.customerName ?? 'Direct Client'),
+                        _metricCol(
+                          'Customer',
+                          p.customerName ?? 'Direct Client',
+                        ),
                         _metricCol('Status', p.status.toUpperCase()),
                       ],
                     ),
@@ -280,7 +373,12 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 itemCount: cards.length,
                 itemBuilder: (context, index) {
                   final card = cards[index];
-                  return _buildSymmetricCard(card.title, card.icon, card.iconColor, () => _openSection(card.sectionIndex));
+                  return _buildSymmetricCard(
+                    card.title,
+                    card.icon,
+                    card.iconColor,
+                    () => _openSection(card.sectionIndex),
+                  );
                 },
               ),
             ],
@@ -290,7 +388,12 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     );
   }
 
-  Widget _buildSymmetricCard(String title, IconData icon, Color iconColor, VoidCallback onTap) {
+  Widget _buildSymmetricCard(
+    String title,
+    IconData icon,
+    Color iconColor,
+    VoidCallback onTap,
+  ) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
@@ -339,9 +442,19 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+        ),
         const SizedBox(height: 2),
-        Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text(context),
+          ),
+        ),
       ],
     );
   }
@@ -359,7 +472,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
-            final currentAttendance = ref.watch(attendanceControllerProvider).attendanceList;
+            final currentAttendance = ref
+                .watch(attendanceControllerProvider)
+                .attendanceList;
             return Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
@@ -371,7 +486,11 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                     children: [
                       Text(
                         'Deploy Workers to Site',
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text(context),
+                        ),
                       ),
                       IconButton(
                         icon: const Icon(Icons.close),
@@ -392,35 +511,68 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                         itemCount: activeEmployees.length,
                         itemBuilder: (context, idx) {
                           final emp = activeEmployees[idx];
-                          final match = currentAttendance.where((a) => a.employeeId == emp.id);
-                          final currentRecord = match.isNotEmpty ? match.first : null;
-                          final isAssignedHere = currentRecord?.projectId == widget.projectId;
+                          final match = currentAttendance.where(
+                            (a) => a.employeeId == emp.id,
+                          );
+                          final currentRecord = match.isNotEmpty
+                              ? match.first
+                              : null;
+                          final isAssignedHere =
+                              currentRecord?.projectId == widget.projectId;
 
                           return ListTile(
                             leading: CircleAvatar(
-                              backgroundColor: isAssignedHere ? AppColors.secondary : AppColors.primaryColor(context),
+                              backgroundColor: isAssignedHere
+                                  ? AppColors.secondary
+                                  : AppColors.primaryColor(context),
                               child: Text(
-                                emp.name.isNotEmpty ? emp.name.substring(0, 1).toUpperCase() : 'W',
-                                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                                emp.name.isNotEmpty
+                                    ? emp.name.substring(0, 1).toUpperCase()
+                                    : 'W',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                ),
                               ),
                             ),
-                            title: Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                            subtitle: Text('${emp.role} • \u20B9${emp.salary.toInt()}/day + \u20B9${emp.teaSnackAllowance.toInt()} tea', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                            title: Text(
+                              emp.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                            subtitle: Text(
+                              '${emp.role} • \u20B9${emp.salary.toInt()}/day + \u20B9${emp.teaSnackAllowance.toInt()} tea',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText(context),
+                              ),
+                            ),
                             trailing: ElevatedButton(
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: isAssignedHere ? AppColors.secondary : AppColors.primaryColor(context),
+                                backgroundColor: isAssignedHere
+                                    ? AppColors.secondary
+                                    : AppColors.primaryColor(context),
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 12,
+                                  vertical: 8,
+                                ),
                               ),
                               onPressed: () async {
-                                await ref.read(attendanceControllerProvider.notifier).markAttendance(
-                                  employeeId: emp.id,
-                                  status: 'Present',
-                                  projectId: widget.projectId,
-                                );
+                                await ref
+                                    .read(attendanceControllerProvider.notifier)
+                                    .markAttendance(
+                                      employeeId: emp.id,
+                                      status: 'Present',
+                                      projectId: widget.projectId,
+                                    );
                                 setModalState(() {});
                               },
-                              child: Text(isAssignedHere ? 'Deployed ✓' : 'Deploy Here'),
+                              child: Text(
+                                isAssignedHere ? 'Deployed ✓' : 'Deploy Here',
+                              ),
                             ),
                           );
                         },
@@ -437,7 +589,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
 
   // 1. Project-Scoped Attendance Tab
   Widget _buildAttendanceTab() {
-    final projectAttendanceAsync = ref.watch(projectAttendanceProvider(widget.projectId));
+    final projectAttendanceAsync = ref.watch(
+      projectAttendanceProvider(widget.projectId),
+    );
 
     return projectAttendanceAsync.when(
       loading: () => const Center(child: CircularProgressIndicator()),
@@ -446,7 +600,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
         final todayRecords = data.todayRecords;
         // Recent history excluding today to avoid duplicates
         final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-        final historyRecords = data.recentHistory.where((r) => r.date != todayStr).toList();
+        final historyRecords = data.recentHistory
+            .where((r) => r.date != todayStr)
+            .toList();
 
         return Padding(
           padding: const EdgeInsets.all(16.0),
@@ -457,10 +613,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
               Card(
                 color: AppColors.cardBg(context),
                 child: ListTile(
-                  leading: Icon(Icons.badge_outlined, color: AppColors.primaryColor(context)),
+                  leading: Icon(
+                    Icons.badge_outlined,
+                    color: AppColors.primaryColor(context),
+                  ),
                   title: Text(
                     'Site Attendance - Today',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
                   ),
                   subtitle: Text(
                     'Workers on site: ${todayRecords.where((r) => r.status == 'Present').length} present • ${todayRecords.where((r) => r.status != 'Present').length} absent',
@@ -472,16 +634,28 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                       ElevatedButton.icon(
                         onPressed: () => _showDeployWorkerSheet(context),
                         icon: const Icon(Icons.person_add_alt_1, size: 16),
-                        label: const Text('Deploy', style: TextStyle(fontSize: 12)),
+                        label: const Text(
+                          'Deploy',
+                          style: TextStyle(fontSize: 12),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppColors.primaryColor(context),
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 10,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                       IconButton(
-                        onPressed: () => ref.invalidate(projectAttendanceProvider(widget.projectId)),
-                        icon: Icon(Icons.refresh, color: AppColors.primaryColor(context), size: 20),
+                        onPressed: () => ref.invalidate(
+                          projectAttendanceProvider(widget.projectId),
+                        ),
+                        icon: Icon(
+                          Icons.refresh,
+                          color: AppColors.primaryColor(context),
+                          size: 20,
+                        ),
                         tooltip: 'Refresh',
                       ),
                     ],
@@ -497,16 +671,28 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.group_off_outlined, size: 48, color: AppColors.mutedText(context).withValues(alpha: 0.4)),
+                        Icon(
+                          Icons.group_off_outlined,
+                          size: 48,
+                          color: AppColors.mutedText(
+                            context,
+                          ).withValues(alpha: 0.4),
+                        ),
                         const SizedBox(height: 12),
                         Text(
                           'No workers assigned to this site today.',
-                          style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.mutedText(context)),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.mutedText(context),
+                          ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           'Deploy workers here or assign them from the main Attendance tab.',
-                          style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: AppColors.mutedText(context),
+                          ),
                         ),
                         const SizedBox(height: 16),
                         ElevatedButton.icon(
@@ -523,18 +709,32 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                   ),
                 )
               else
-                ...todayRecords.map((record) => _buildProjectWorkerCard(record)),
+                ...todayRecords.map(
+                  (record) => _buildProjectWorkerCard(record),
+                ),
 
               // Recent History Section
               if (historyRecords.isNotEmpty) ...[
                 const SizedBox(height: 20),
                 Row(
                   children: [
-                    Container(width: 4, height: 18, decoration: BoxDecoration(color: AppColors.primaryColor(context), borderRadius: BorderRadius.circular(2))),
+                    Container(
+                      width: 4,
+                      height: 18,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor(context),
+                        borderRadius: BorderRadius.circular(2),
+                      ),
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'SITE WORKER ATTENDANCE LOGS & PAST RECORDS',
-                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.primaryColor(context), letterSpacing: 0.5),
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 12,
+                        color: AppColors.primaryColor(context),
+                        letterSpacing: 0.5,
+                      ),
                     ),
                   ],
                 ),
@@ -556,7 +756,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
 
     final name = emp?.name ?? record.employeeName ?? 'Worker';
     final role = emp?.role.toUpperCase() ?? 'STAFF';
-    final rate = emp != null ? 'Rate: \u20B9${emp.salary.toInt()}/day + \u20B9${emp.teaSnackAllowance.toInt()} tea' : '';
+    final rate = emp != null
+        ? 'Rate: \u20B9${emp.salary.toInt()}/day + \u20B9${emp.teaSnackAllowance.toInt()} tea'
+        : '';
     final isPresent = record.status.toLowerCase() == 'present';
 
     return Card(
@@ -567,11 +769,17 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: isPresent ? AppColors.secondary : AppColors.error,
+              backgroundColor: isPresent
+                  ? AppColors.secondary
+                  : AppColors.error,
               radius: 20,
               child: Text(
                 name.isNotEmpty ? name.substring(0, 1).toUpperCase() : 'W',
-                style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
+                ),
               ),
             ),
             const SizedBox(width: 12),
@@ -579,11 +787,21 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context))),
+                  Text(
+                    name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 15,
+                      color: AppColors.text(context),
+                    ),
+                  ),
                   const SizedBox(height: 2),
                   Text(
                     rate.isNotEmpty ? '$role • $rate' : role,
-                    style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.mutedText(context),
+                    ),
                   ),
                 ],
               ),
@@ -602,21 +820,34 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                   ),
                   selected: isPresent,
                   onSelected: (_) {
-                    ref.read(attendanceControllerProvider.notifier).markAttendance(
-                      employeeId: record.employeeId,
-                      status: 'Present',
-                      projectId: widget.projectId,
-                    );
+                    ref
+                        .read(attendanceControllerProvider.notifier)
+                        .markAttendance(
+                          employeeId: record.employeeId,
+                          status: 'Present',
+                          projectId: widget.projectId,
+                        );
                     Future.delayed(const Duration(milliseconds: 300), () {
-                      ref.invalidate(projectAttendanceProvider(widget.projectId));
+                      ref.invalidate(
+                        projectAttendanceProvider(widget.projectId),
+                      );
                     });
                   },
                   backgroundColor: AppColors.cardBg(context),
                   selectedColor: AppColors.secondary,
-                  side: BorderSide(color: isPresent ? AppColors.secondary : AppColors.border(context)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  side: BorderSide(
+                    color: isPresent
+                        ? AppColors.secondary
+                        : AppColors.border(context),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   showCheckmark: false,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                 ),
                 FilterChip(
                   label: Text(
@@ -624,26 +855,41 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                     style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.bold,
-                      color: !isPresent ? Colors.white : AppColors.text(context),
+                      color: !isPresent
+                          ? Colors.white
+                          : AppColors.text(context),
                     ),
                   ),
                   selected: !isPresent,
                   onSelected: (_) {
-                    ref.read(attendanceControllerProvider.notifier).markAttendance(
-                      employeeId: record.employeeId,
-                      status: 'Absent',
-                      projectId: widget.projectId,
-                    );
+                    ref
+                        .read(attendanceControllerProvider.notifier)
+                        .markAttendance(
+                          employeeId: record.employeeId,
+                          status: 'Absent',
+                          projectId: widget.projectId,
+                        );
                     Future.delayed(const Duration(milliseconds: 300), () {
-                      ref.invalidate(projectAttendanceProvider(widget.projectId));
+                      ref.invalidate(
+                        projectAttendanceProvider(widget.projectId),
+                      );
                     });
                   },
                   backgroundColor: AppColors.cardBg(context),
                   selectedColor: AppColors.error,
-                  side: BorderSide(color: !isPresent ? AppColors.error : AppColors.border(context)),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  side: BorderSide(
+                    color: !isPresent
+                        ? AppColors.error
+                        : AppColors.border(context),
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(20),
+                  ),
                   showCheckmark: false,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
                 ),
               ],
             ),
@@ -678,13 +924,46 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
             decoration: BoxDecoration(
               color: AppColors.primaryColor(context).withValues(alpha: 0.08),
-              borderRadius: const BorderRadius.only(topLeft: Radius.circular(10), topRight: Radius.circular(10)),
+              borderRadius: const BorderRadius.only(
+                topLeft: Radius.circular(10),
+                topRight: Radius.circular(10),
+              ),
             ),
             child: Row(
               children: [
-                Expanded(flex: 2, child: Text('Date', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
-                Expanded(flex: 3, child: Text('Worker Details', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
-                Expanded(flex: 2, child: Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.primaryColor(context)))),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Date',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      color: AppColors.primaryColor(context),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: Text(
+                    'Worker Details',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      color: AppColors.primaryColor(context),
+                    ),
+                  ),
+                ),
+                Expanded(
+                  flex: 2,
+                  child: Text(
+                    'Status',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 11,
+                      color: AppColors.primaryColor(context),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -698,28 +977,61 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
               final role = emp?.role ?? '';
 
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
-                  border: Border(top: BorderSide(color: AppColors.border(context), width: 0.5)),
+                  border: Border(
+                    top: BorderSide(
+                      color: AppColors.border(context),
+                      width: 0.5,
+                    ),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    Expanded(flex: 2, child: Text(r.date, style: TextStyle(fontSize: 12, color: AppColors.text(context)))),
+                    Expanded(
+                      flex: 2,
+                      child: Text(
+                        r.date,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.text(context),
+                        ),
+                      ),
+                    ),
                     Expanded(
                       flex: 3,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(workerName, style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                          Text(
+                            workerName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.text(context),
+                            ),
+                          ),
                           if (role.isNotEmpty)
-                            Text(role.toUpperCase(), style: TextStyle(fontSize: 10, color: AppColors.mutedText(context))),
+                            Text(
+                              role.toUpperCase(),
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: AppColors.mutedText(context),
+                              ),
+                            ),
                         ],
                       ),
                     ),
                     Expanded(
                       flex: 2,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
                         decoration: BoxDecoration(
                           color: r.status == 'Present'
                               ? AppColors.secondary.withValues(alpha: 0.12)
@@ -731,7 +1043,9 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                           style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
-                            color: r.status == 'Present' ? AppColors.secondary : AppColors.error,
+                            color: r.status == 'Present'
+                                ? AppColors.secondary
+                                : AppColors.error,
                           ),
                           textAlign: TextAlign.center,
                         ),
@@ -747,8 +1061,6 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     );
   }
 
-
-
   // 2. Materials Tab
   Widget _buildMaterialsTab() {
     final invAsync = ref.watch(projectInventoryProvider);
@@ -756,10 +1068,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
     return invAsync.when(
       data: (items) {
         if (items.isEmpty) {
-          return _emptyState('No materials in stock', 'Register or assign site inventory for this project');
+          return _emptyState(
+            'No materials in stock',
+            'Register or assign site inventory for this project',
+          );
         }
 
-        final double totalValuation = items.fold(0.0, (sum, i) => sum + (i.availableStock * i.purchasePrice));
+        final double totalValuation = items.fold(
+          0.0,
+          (sum, i) => sum + (i.availableStock * i.purchasePrice),
+        );
         final int lowStockCount = items.where((i) => i.isLowStock).length;
 
         return ListView(
@@ -780,25 +1098,59 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Site Material Valuation', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+                      Text(
+                        'Site Material Valuation',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.mutedText(context),
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
                       const SizedBox(height: 4),
-                      Text('₹${totalValuation.toInt()}', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context))),
+                      Text(
+                        '₹${totalValuation.toInt()}',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.primaryColor(context),
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text('${items.length} Material Types Tracked', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                      Text(
+                        '${items.length} Material Types Tracked',
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.mutedText(context),
+                        ),
+                      ),
                     ],
                   ),
                   if (lowStockCount > 0)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
                       decoration: BoxDecoration(
-                        color: AppColors.error.withOpacity(0.12),
+                        color: AppColors.error.withValues(alpha: 0.12),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.warning_amber_rounded, size: 14, color: AppColors.error),
+                          const Icon(
+                            Icons.warning_amber_rounded,
+                            size: 14,
+                            color: AppColors.error,
+                          ),
                           const SizedBox(width: 4),
-                          Text('$lowStockCount Low Stock', style: const TextStyle(color: AppColors.error, fontWeight: FontWeight.bold, fontSize: 11)),
+                          Text(
+                            '$lowStockCount Low Stock',
+                            style: const TextStyle(
+                              color: AppColors.error,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 11,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -820,7 +1172,11 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 decoration: BoxDecoration(
                   color: AppColors.cardBg(context),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: item.isLowStock ? AppColors.error.withOpacity(0.4) : AppColors.border(context)),
+                  border: Border.all(
+                    color: item.isLowStock
+                        ? AppColors.error.withValues(alpha: 0.4)
+                        : AppColors.border(context),
+                  ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -829,38 +1185,64 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 3,
+                          ),
                           decoration: BoxDecoration(
-                            color: AppColors.primary.withOpacity(0.1),
+                            color: AppColors.primary.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             item.category.toUpperCase(),
-                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.primary),
+                            style: const TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primary,
+                            ),
                           ),
                         ),
                         Row(
                           children: [
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
-                                color: runwayColor.withOpacity(0.12),
+                                color: runwayColor.withValues(alpha: 0.12),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
-                                runwayDays > 90 ? 'Runway: 90+ Days' : 'Runway: $runwayDays Days',
-                                style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: runwayColor),
+                                runwayDays > 90
+                                    ? 'Runway: 90+ Days'
+                                    : 'Runway: $runwayDays Days',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: runwayColor,
+                                ),
                               ),
                             ),
                             if (item.isLowStock) ...[
                               const SizedBox(width: 6),
                               Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.error.withOpacity(0.1),
+                                  color: AppColors.error.withValues(alpha: 0.1),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
-                                child: const Text('LOW STOCK', style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.error)),
+                                child: const Text(
+                                  'LOW STOCK',
+                                  style: TextStyle(
+                                    fontSize: 9,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.error,
+                                  ),
+                                ),
                               ),
                             ],
                           ],
@@ -874,16 +1256,43 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(item.materialName, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context))),
+                            Text(
+                              item.materialName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColors.text(context),
+                              ),
+                            ),
                             const SizedBox(height: 2),
-                            Text('Burn Rate: ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day • Rate: ₹${item.purchasePrice.toStringAsFixed(2)}', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                            Text(
+                              'Burn Rate: ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day • Rate: ₹${item.purchasePrice.toStringAsFixed(2)}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.mutedText(context),
+                              ),
+                            ),
                           ],
                         ),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.end,
                           children: [
-                            Text('₹${valuation.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primaryColor(context))),
-                            Text('Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                            Text(
+                              '₹${valuation.toInt()}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
+                                color: AppColors.primaryColor(context),
+                              ),
+                            ),
+                            Text(
+                              'Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(context),
+                              ),
+                            ),
                           ],
                         ),
                       ],
@@ -893,17 +1302,27 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                       Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.amber.withOpacity(0.1),
+                          color: Colors.amber.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                          border: Border.all(
+                            color: Colors.amber.withValues(alpha: 0.3),
+                          ),
                         ),
                         child: Row(
                           children: [
-                            const Icon(Icons.bolt, size: 14, color: Colors.amber),
+                            const Icon(
+                              Icons.bolt,
+                              size: 14,
+                              color: Colors.amber,
+                            ),
                             const SizedBox(width: 6),
                             Text(
                               'Auto Reorder Suggestion: Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est ₹${item.estimatedReorderCost.toInt()})',
-                              style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(context),
+                              ),
                             ),
                           ],
                         ),
@@ -935,15 +1354,40 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             color: AppColors.cardBg(context),
             margin: const EdgeInsets.only(bottom: 12),
             child: ListTile(
-              leading: const Icon(Icons.engineering_outlined, color: AppColors.primary),
-              title: Text(sub.name, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-              subtitle: Text('Trade: ${sub.specialization ?? 'General'} • Phone: ${sub.phone ?? 'N/A'}'),
+              leading: const Icon(
+                Icons.engineering_outlined,
+                color: AppColors.primary,
+              ),
+              title: Text(
+                sub.name,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text(context),
+                ),
+              ),
+              subtitle: Text(
+                'Trade: ${sub.specialization ?? 'General'} • Phone: ${sub.phone ?? 'N/A'}',
+              ),
               trailing: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text('₹${sub.contractValue.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                  Text(sub.status, style: TextStyle(color: sub.status == 'Active' ? AppColors.secondary : AppColors.textMuted, fontSize: 11)),
+                  Text(
+                    '₹${sub.contractValue.toInt()}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
+                  ),
+                  Text(
+                    sub.status,
+                    style: TextStyle(
+                      color: sub.status == 'Active'
+                          ? AppColors.secondary
+                          : AppColors.textMuted,
+                      fontSize: 11,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -966,12 +1410,22 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Payment Ledger & Receipts', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              Text(
+                'Payment Ledger & Receipts',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.text(context),
+                ),
+              ),
               ElevatedButton.icon(
                 onPressed: _showAddPaymentDialog,
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Record Payment'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.secondary, foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -980,10 +1434,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: payAsync.when(
             data: (payments) {
               if (payments.isEmpty) {
-                return _emptyState('No payment records', 'Record payments received or paid for this project');
+                return _emptyState(
+                  'No payment records',
+                  'Record payments received or paid for this project',
+                );
               }
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 itemCount: payments.length,
                 itemBuilder: (context, i) {
                   final p = payments[i];
@@ -996,8 +1456,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                         isRec ? Icons.arrow_downward : Icons.arrow_upward,
                         color: isRec ? AppColors.secondary : AppColors.error,
                       ),
-                      title: Text(p.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                      subtitle: Text('Method: ${p.paymentMethod} • Ref: ${p.referenceNo ?? 'N/A'}'),
+                      title: Text(
+                        p.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text(context),
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Method: ${p.paymentMethod} • Ref: ${p.referenceNo ?? 'N/A'}',
+                      ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -1005,16 +1473,22 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                             '${isRec ? '+' : '-'}₹${p.amount.toInt()}',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: isRec ? AppColors.secondary : AppColors.error,
+                              color: isRec
+                                  ? AppColors.secondary
+                                  : AppColors.error,
                             ),
                           ),
                           IconButton(
                             icon: const Icon(Icons.print_outlined, size: 18),
                             tooltip: 'Print Payment Receipt PDF',
                             onPressed: () async {
-                              final pdfBytes = await PaymentLedgerPdfGenerator.generatePaymentReceipt(p);
+                              final pdfBytes =
+                                  await PaymentLedgerPdfGenerator.generatePaymentReceipt(
+                                    p,
+                                  );
                               await Printing.layoutPdf(
-                                onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                                onLayout: (_) async =>
+                                    Uint8List.fromList(pdfBytes),
                                 name: 'Payment_Receipt_${p.id}.pdf',
                               );
                             },
@@ -1045,12 +1519,22 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Site Inspection Checklist', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              Text(
+                'Site Inspection Checklist',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.text(context),
+                ),
+              ),
               ElevatedButton.icon(
                 onPressed: _showAddChecklistDialog,
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Add Task'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor(context), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor(context),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -1059,10 +1543,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: checkAsync.when(
             data: (items) {
               if (items.isEmpty) {
-                return _emptyState('No checklist items', 'Add quality inspection tasks for this site');
+                return _emptyState(
+                  'No checklist items',
+                  'Add quality inspection tasks for this site',
+                );
               }
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 itemCount: items.length,
                 itemBuilder: (context, i) {
                   final item = items[i];
@@ -1076,15 +1566,23 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                         style: TextStyle(
                           fontWeight: FontWeight.bold,
                           color: AppColors.text(context),
-                          decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                          decoration: item.isCompleted
+                              ? TextDecoration.lineThrough
+                              : null,
                         ),
                       ),
-                      subtitle: Text('Phase: ${item.phaseGroup} • Status: ${item.approvalStatus}'),
+                      subtitle: Text(
+                        'Phase: ${item.phaseGroup} • Status: ${item.approvalStatus}',
+                      ),
                       onChanged: (val) async {
                         if (val != null) {
                           final client = ref.read(supabaseClientProvider);
-                          await SupabaseChecklistRepository(client).toggleChecklistItem(item.id, val);
-                          ref.invalidate(projectChecklistProvider(widget.projectId));
+                          await SupabaseChecklistRepository(
+                            client,
+                          ).toggleChecklistItem(item.id, val);
+                          ref.invalidate(
+                            projectChecklistProvider(widget.projectId),
+                          );
                         }
                       },
                     ),
@@ -1111,12 +1609,22 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Blueprints & Site Drawings', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              Text(
+                'Blueprints & Site Drawings',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.text(context),
+                ),
+              ),
               ElevatedButton.icon(
                 onPressed: _showAddDrawingDialog,
                 icon: const Icon(Icons.add, size: 16),
                 label: const Text('Add Drawing'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor(context), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor(context),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -1125,10 +1633,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: dwgAsync.when(
             data: (drawings) {
               if (drawings.isEmpty) {
-                return _emptyState('No site drawings', 'Blueprints and structural layouts will appear here');
+                return _emptyState(
+                  'No site drawings',
+                  'Blueprints and structural layouts will appear here',
+                );
               }
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 itemCount: drawings.length,
                 itemBuilder: (context, i) {
                   final d = drawings[i];
@@ -1136,10 +1650,24 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                     color: AppColors.cardBg(context),
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
-                      leading: const Icon(Icons.draw_outlined, color: AppColors.primary),
-                      title: Text(d.title, style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                      subtitle: Text('Category: ${d.category} • Version: ${d.version}'),
-                      trailing: const Icon(Icons.download, color: AppColors.primary),
+                      leading: const Icon(
+                        Icons.draw_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: Text(
+                        d.title,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text(context),
+                        ),
+                      ),
+                      subtitle: Text(
+                        'Category: ${d.category} • Version: ${d.version}',
+                      ),
+                      trailing: const Icon(
+                        Icons.download,
+                        color: AppColors.primary,
+                      ),
                     ),
                   );
                 },
@@ -1164,17 +1692,29 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Sales Invoices & Client Billing', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+              Text(
+                'Sales Invoices & Client Billing',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 16,
+                  color: AppColors.text(context),
+                ),
+              ),
               ElevatedButton.icon(
                 onPressed: () async {
                   await Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const SalesBillBuilderScreen(),
+                    ),
                   );
                   ref.invalidate(projectSalesBillsProvider(widget.projectId));
                 },
                 icon: const Icon(Icons.point_of_sale, size: 16),
                 label: const Text('Draw Invoice'),
-                style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryColor(context), foregroundColor: Colors.white),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor(context),
+                  foregroundColor: Colors.white,
+                ),
               ),
             ],
           ),
@@ -1183,10 +1723,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           child: billsAsync.when(
             data: (bills) {
               if (bills.isEmpty) {
-                return _emptyState('No sales bills', 'Invoices generated for client billing');
+                return _emptyState(
+                  'No sales bills',
+                  'Invoices generated for client billing',
+                );
               }
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 itemCount: bills.length,
                 itemBuilder: (context, i) {
                   final b = bills[i];
@@ -1194,8 +1740,17 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                     color: AppColors.cardBg(context),
                     margin: const EdgeInsets.only(bottom: 12),
                     child: ListTile(
-                      leading: const Icon(Icons.receipt_outlined, color: AppColors.primary),
-                      title: Text('Bill #${b.billNumber}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                      leading: const Icon(
+                        Icons.receipt_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: Text(
+                        'Bill #${b.billNumber}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text(context),
+                        ),
+                      ),
                       subtitle: Text('Client: ${b.clientName}'),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
@@ -1204,17 +1759,33 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                             mainAxisAlignment: MainAxisAlignment.center,
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              Text('₹${b.totalAmount.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.text(context))),
-                              Text(b.status, style: TextStyle(color: b.status == 'Paid' ? AppColors.secondary : AppColors.error, fontSize: 11)),
+                              Text(
+                                '₹${b.totalAmount.toInt()}',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.text(context),
+                                ),
+                              ),
+                              Text(
+                                b.status,
+                                style: TextStyle(
+                                  color: b.status == 'Paid'
+                                      ? AppColors.secondary
+                                      : AppColors.error,
+                                  fontSize: 11,
+                                ),
+                              ),
                             ],
                           ),
                           IconButton(
                             icon: const Icon(Icons.print_outlined, size: 18),
                             tooltip: 'Print Sales Invoice PDF',
                             onPressed: () async {
-                              final pdfBytes = await SalesBillPdfGenerator.generatePdf(b);
+                              final pdfBytes =
+                                  await SalesBillPdfGenerator.generatePdf(b);
                               await Printing.layoutPdf(
-                                onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                                onLayout: (_) async =>
+                                    Uint8List.fromList(pdfBytes),
                                 name: 'Sales_Invoice_${b.billNumber}.pdf',
                               );
                             },
@@ -1227,7 +1798,8 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
               );
             },
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => Center(child: Text('Error loading sales bills: $e')),
+            error: (e, s) =>
+                Center(child: Text('Error loading sales bills: $e')),
           ),
         ),
       ],
@@ -1251,37 +1823,57 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Drawing Title *', hintText: 'e.g. Structural Foundation Layout'),
+                decoration: const InputDecoration(
+                  labelText: 'Drawing Title *',
+                  hintText: 'e.g. Structural Foundation Layout',
+                ),
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: category,
+                initialValue: category,
                 decoration: const InputDecoration(labelText: 'Category'),
-                items: ['Architectural', 'Structural', 'Electrical', 'Plumbing', 'HVAC', 'Other']
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
+                items:
+                    [
+                          'Architectural',
+                          'Structural',
+                          'Electrical',
+                          'Plumbing',
+                          'HVAC',
+                          'Other',
+                        ]
+                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                        .toList(),
                 onChanged: (v) => category = v ?? category,
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: versionCtrl,
-                decoration: const InputDecoration(labelText: 'Version (e.g. v1.0, v2.1)'),
+                decoration: const InputDecoration(
+                  labelText: 'Version (e.g. v1.0, v2.1)',
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: fileUrlCtrl,
-                decoration: const InputDecoration(labelText: 'Blueprint File URL / Document Ref'),
+                decoration: const InputDecoration(
+                  labelText: 'Blueprint File URL / Document Ref',
+                ),
               ),
               const SizedBox(height: 12),
               TextField(
                 controller: notesCtrl,
-                decoration: const InputDecoration(labelText: 'Notes / Revision Details'),
+                decoration: const InputDecoration(
+                  labelText: 'Notes / Revision Details',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty) return;
@@ -1290,19 +1882,30 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 projectId: widget.projectId,
                 title: titleCtrl.text.trim(),
                 category: category,
-                version: versionCtrl.text.trim().isEmpty ? 'v1.0' : versionCtrl.text.trim(),
-                fileUrl: fileUrlCtrl.text.trim().isEmpty ? 'https://storage.supabase.co/drawings/site_blueprint.pdf' : fileUrlCtrl.text.trim(),
-                notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                version: versionCtrl.text.trim().isEmpty
+                    ? 'v1.0'
+                    : versionCtrl.text.trim(),
+                fileUrl: fileUrlCtrl.text.trim().isEmpty
+                    ? 'https://storage.supabase.co/drawings/site_blueprint.pdf'
+                    : fileUrlCtrl.text.trim(),
+                notes: notesCtrl.text.trim().isEmpty
+                    ? null
+                    : notesCtrl.text.trim(),
                 createdAt: DateTime.now(),
               );
               final client = ref.read(supabaseClientProvider);
-              final saved = await SupabaseDrawingRepository(client).addDrawing(drawing);
+              final saved = await SupabaseDrawingRepository(
+                client,
+              ).addDrawing(drawing);
               if (saved != null) {
-                await SupabaseActivityRepository(client).logSiteActivityAndNotify(
+                await SupabaseActivityRepository(
+                  client,
+                ).logSiteActivityAndNotify(
                   actionType: 'drawing_added',
                   entityType: 'site_drawings',
                   entityId: saved.id,
-                  title: 'New Site Blueprint: ${saved.title} (${saved.category})',
+                  title:
+                      'New Site Blueprint: ${saved.title} (${saved.category})',
                   projectId: widget.projectId,
                 );
               }
@@ -1331,21 +1934,30 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
           children: [
             TextField(
               controller: titleCtrl,
-              decoration: const InputDecoration(labelText: 'Inspection Task Title *', hintText: 'e.g. Slump Test & Rebar Quality Check'),
+              decoration: const InputDecoration(
+                labelText: 'Inspection Task Title *',
+                hintText: 'e.g. Slump Test & Rebar Quality Check',
+              ),
             ),
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
-              value: category,
+              initialValue: category,
               decoration: const InputDecoration(labelText: 'Category'),
-              items: ['Quality Control', 'Safety Inspection', 'General Inspection', 'Site Preparation']
-                  .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                  .toList(),
+              items: [
+                'Quality Control',
+                'Safety Inspection',
+                'General Inspection',
+                'Site Preparation',
+              ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
               onChanged: (v) => category = v ?? category,
             ),
           ],
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty) return;
@@ -1358,9 +1970,13 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 createdAt: DateTime.now(),
               );
               final client = ref.read(supabaseClientProvider);
-              final saved = await SupabaseChecklistRepository(client).addChecklistItem(item);
+              final saved = await SupabaseChecklistRepository(
+                client,
+              ).addChecklistItem(item);
               if (saved != null) {
-                await SupabaseActivityRepository(client).logSiteActivityAndNotify(
+                await SupabaseActivityRepository(
+                  client,
+                ).logSiteActivityAndNotify(
                   actionType: 'checklist_item_added',
                   entityType: 'project_checklists',
                   entityId: saved.id,
@@ -1397,17 +2013,22 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             children: [
               TextField(
                 controller: titleCtrl,
-                decoration: const InputDecoration(labelText: 'Payment Title *', hintText: 'e.g. Milestone 1 Client Advance'),
+                decoration: const InputDecoration(
+                  labelText: 'Payment Title *',
+                  hintText: 'e.g. Milestone 1 Client Advance',
+                ),
               ),
               const SizedBox(height: 12),
               Row(
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: paymentType,
+                      initialValue: paymentType,
                       decoration: const InputDecoration(labelText: 'Type'),
                       items: ['Received', 'Paid']
-                          .map((t) => DropdownMenuItem(value: t, child: Text(t)))
+                          .map(
+                            (t) => DropdownMenuItem(value: t, child: Text(t)),
+                          )
                           .toList(),
                       onChanged: (v) => paymentType = v ?? paymentType,
                     ),
@@ -1417,14 +2038,16 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                     child: TextField(
                       controller: amountCtrl,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(labelText: 'Amount (₹) *'),
+                      decoration: const InputDecoration(
+                        labelText: 'Amount (₹) *',
+                      ),
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: paymentMethod,
+                initialValue: paymentMethod,
                 decoration: const InputDecoration(labelText: 'Payment Method'),
                 items: ['Bank Transfer', 'UPI', 'Cash', 'Cheque', 'Credit Card']
                     .map((m) => DropdownMenuItem(value: m, child: Text(m)))
@@ -1434,16 +2057,23 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
               const SizedBox(height: 12),
               TextField(
                 controller: refNoCtrl,
-                decoration: const InputDecoration(labelText: 'Reference / Transaction No.'),
+                decoration: const InputDecoration(
+                  labelText: 'Reference / Transaction No.',
+                ),
               ),
             ],
           ),
         ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
           ElevatedButton(
             onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty || amountCtrl.text.trim().isEmpty) return;
+              if (titleCtrl.text.trim().isEmpty ||
+                  amountCtrl.text.trim().isEmpty)
+                return;
               final amount = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
               final payment = ProjectPayment(
                 id: '',
@@ -1452,18 +2082,25 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 paymentType: paymentType,
                 amount: amount,
                 paymentMethod: paymentMethod,
-                referenceNo: refNoCtrl.text.trim().isEmpty ? null : refNoCtrl.text.trim(),
+                referenceNo: refNoCtrl.text.trim().isEmpty
+                    ? null
+                    : refNoCtrl.text.trim(),
                 paymentDate: DateTime.now(),
                 createdAt: DateTime.now(),
               );
               final client = ref.read(supabaseClientProvider);
-              final saved = await SupabasePaymentRepository(client).recordPayment(payment);
+              final saved = await SupabasePaymentRepository(
+                client,
+              ).recordPayment(payment);
               if (saved != null) {
-                await SupabaseActivityRepository(client).logSiteActivityAndNotify(
+                await SupabaseActivityRepository(
+                  client,
+                ).logSiteActivityAndNotify(
                   actionType: 'payment_recorded',
                   entityType: 'project_payments',
                   entityId: saved.id,
-                  title: 'Payment ${paymentType}: ₹${amount.toInt()} - ${saved.title}',
+                  title:
+                      'Payment $paymentType: ₹${amount.toInt()} - ${saved.title}',
                   projectId: widget.projectId,
                   details: {'amount': amount, 'type': paymentType},
                 );
@@ -1489,7 +2126,8 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
       padding: const EdgeInsets.all(16.0),
       child: projectAsync.when(
         data: (p) {
-          if (p == null) return _emptyState('Site Not Found', 'Could not load site details');
+          if (p == null)
+            return _emptyState('Site Not Found', 'Could not load site details');
           return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
@@ -1500,13 +2138,32 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Detailed Site Specifications', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                Text(
+                  'Detailed Site Specifications',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
+                ),
                 const Divider(height: 24),
                 _infoTile('Site Name', p.name),
-                _infoTile('Site Address & Location', (p.address != null && p.address!.isNotEmpty) ? p.address! : 'N/A'),
+                _infoTile(
+                  'Site Address & Location',
+                  (p.address != null && p.address!.isNotEmpty)
+                      ? p.address!
+                      : 'N/A',
+                ),
                 _infoTile('Project Status', p.status.toUpperCase()),
                 const Divider(height: 24),
-                Text('Customer / Owner Information', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                Text(
+                  'Customer / Owner Information',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
+                ),
                 const SizedBox(height: 8),
                 _infoTile('Customer Name', p.customerName ?? 'Direct Client'),
                 _infoTile('Customer Mobile', p.customerMobile ?? 'N/A'),
@@ -1514,12 +2171,31 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
                 _infoTile('Customer Address', p.customerAddress ?? 'N/A'),
                 _infoTile('Customer Date of Birth', p.customerDob ?? 'N/A'),
                 const Divider(height: 24),
-                Text('Site Engineering Metrics', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                Text(
+                  'Site Engineering Metrics',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
+                ),
                 const SizedBox(height: 8),
-                _infoTile('Built-Up Area', p.builtUpArea > 0 ? '${p.builtUpArea.toInt()} sqft' : 'N/A'),
-                _infoTile('Flat Area', p.flatArea > 0 ? '${p.flatArea.toInt()} sqft' : 'N/A'),
-                _infoTile('Project Duration', p.duration != null ? '${p.duration} Months' : 'N/A'),
-                _infoTile('Assigned Supervisor', p.supervisorId ?? 'Unassigned'),
+                _infoTile(
+                  'Built-Up Area',
+                  p.builtUpArea > 0 ? '${p.builtUpArea.toInt()} sqft' : 'N/A',
+                ),
+                _infoTile(
+                  'Flat Area',
+                  p.flatArea > 0 ? '${p.flatArea.toInt()} sqft' : 'N/A',
+                ),
+                _infoTile(
+                  'Project Duration',
+                  p.duration != null ? '${p.duration} Months' : 'N/A',
+                ),
+                _infoTile(
+                  'Assigned Supervisor',
+                  p.supervisorId ?? 'Unassigned',
+                ),
                 _infoTile('Total Budget Amount', '₹${p.budget.toInt()}'),
                 _infoTile('Total Amount Spent', '₹${p.spent.toInt()}'),
               ],
@@ -1540,10 +2216,24 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
         children: [
           SizedBox(
             width: 180,
-            child: Text(label, style: TextStyle(fontSize: 13, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                color: AppColors.mutedText(context),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
           ),
           Expanded(
-            child: Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(context),
+              ),
+            ),
           ),
         ],
       ),
@@ -1557,9 +2247,19 @@ class _ProjectOperationsScreenState extends ConsumerState<ProjectOperationsScree
         children: [
           const Icon(Icons.inbox_outlined, size: 48, color: AppColors.outline),
           const SizedBox(height: 12),
-          Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context))),
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: AppColors.text(context),
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(subtitle, style: TextStyle(color: AppColors.mutedText(context), fontSize: 12)),
+          Text(
+            subtitle,
+            style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+          ),
         ],
       ),
     );

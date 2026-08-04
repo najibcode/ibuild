@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_colors.dart';
 import 'global_search_dialog.dart';
 import 'notifications_dropdown.dart';
-import 'logout_dialog.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
 /// Shared top header bar for the web (desktop) layout.
@@ -17,12 +16,7 @@ class WebHeader extends ConsumerWidget {
 
   final VoidCallback? onMenuPressed;
 
-  const WebHeader({
-    super.key,
-    this.title,
-    this.trailing,
-    this.onMenuPressed,
-  });
+  const WebHeader({super.key, this.title, this.trailing, this.onMenuPressed});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -32,14 +26,13 @@ class WebHeader extends ConsumerWidget {
         color: AppColors.cardBg(context),
         border: Border(bottom: BorderSide(color: AppColors.border(context))),
       ),
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.containerMargin),
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.containerMargin,
+      ),
       child: Row(
         children: [
           if (onMenuPressed != null) ...[
-            IconButton(
-              icon: const Icon(Icons.menu),
-              onPressed: onMenuPressed,
-            ),
+            IconButton(icon: const Icon(Icons.menu), onPressed: onMenuPressed),
             const SizedBox(width: AppSpacing.gutter),
           ],
           // Search Input
@@ -59,19 +52,26 @@ class WebHeader extends ConsumerWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: TextField(
-                      style: TextStyle(fontSize: 14, color: AppColors.text(context)),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: AppColors.text(context),
+                      ),
                       textAlignVertical: TextAlignVertical.center,
                       decoration: InputDecoration(
                         isDense: true,
                         contentPadding: const EdgeInsets.only(bottom: 15),
                         hintText: 'Search projects, materials, or reports...',
-                        hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 13),
+                        hintStyle: TextStyle(
+                          color: AppColors.mutedText(context),
+                          fontSize: 13,
+                        ),
                         border: InputBorder.none,
                       ),
                       onSubmitted: (query) {
                         showDialog(
                           context: context,
-                          builder: (_) => GlobalSearchDialog(initialQuery: query),
+                          builder: (_) =>
+                              GlobalSearchDialog(initialQuery: query),
                         );
                       },
                     ),
@@ -87,16 +87,26 @@ class WebHeader extends ConsumerWidget {
             children: [
               const NotificationsDropdown(),
               IconButton(
-                icon: const Icon(Icons.account_circle_outlined, color: AppColors.outline, size: 22),
+                icon: const Icon(
+                  Icons.account_circle_outlined,
+                  color: AppColors.outline,
+                  size: 22,
+                ),
                 onPressed: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                    MaterialPageRoute(
+                      builder: (_) => const UserProfileScreen(),
+                    ),
                   );
                 },
                 tooltip: 'My Profile',
               ),
               IconButton(
-                icon: const Icon(Icons.help_outline, color: AppColors.outline, size: 20),
+                icon: const Icon(
+                  Icons.help_outline,
+                  color: AppColors.outline,
+                  size: 20,
+                ),
                 onPressed: () {},
                 tooltip: 'Help',
               ),
@@ -111,7 +121,6 @@ class WebHeader extends ConsumerWidget {
               ],
             ],
           ),
-
         ],
       ),
     );

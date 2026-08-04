@@ -63,7 +63,9 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
 
   @override
   Widget build(BuildContext context) {
-    final hasImage = _localBytes != null || (widget.existingUrl != null && widget.existingUrl!.isNotEmpty);
+    final hasImage =
+        _localBytes != null ||
+        (widget.existingUrl != null && widget.existingUrl!.isNotEmpty);
 
     return GestureDetector(
       onTap: widget.isUploading ? null : _pick,
@@ -83,22 +85,35 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
           children: [
             if (_localBytes != null)
               Image.memory(_localBytes!, fit: BoxFit.cover)
-            else if (widget.existingUrl != null && widget.existingUrl!.isNotEmpty)
+            else if (widget.existingUrl != null &&
+                widget.existingUrl!.isNotEmpty)
               CachedNetworkImage(
                 imageUrl: widget.existingUrl!,
                 fit: BoxFit.cover,
-                placeholder: (_, __) => const Center(child: CircularProgressIndicator()),
-                errorWidget: (_, __, ___) => const Icon(Icons.broken_image, size: 40, color: AppColors.outline),
+                placeholder: (_, _) =>
+                    const Center(child: CircularProgressIndicator()),
+                errorWidget: (_, _, _) => const Icon(
+                  Icons.broken_image,
+                  size: 40,
+                  color: AppColors.outline,
+                ),
               )
             else
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.add_a_photo_outlined, size: 36, color: AppColors.mutedText(context).withOpacity(0.5)),
+                  Icon(
+                    Icons.add_a_photo_outlined,
+                    size: 36,
+                    color: AppColors.mutedText(context).withValues(alpha: 0.5),
+                  ),
                   const SizedBox(height: 8),
                   Text(
                     widget.label,
-                    style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                    style: TextStyle(
+                      color: AppColors.mutedText(context),
+                      fontSize: 12,
+                    ),
                   ),
                 ],
               ),
@@ -110,11 +125,19 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      CircularProgressIndicator(value: widget.uploadProgress > 0 ? widget.uploadProgress : null, color: Colors.white),
+                      CircularProgressIndicator(
+                        value: widget.uploadProgress > 0
+                            ? widget.uploadProgress
+                            : null,
+                        color: Colors.white,
+                      ),
                       const SizedBox(height: 8),
                       Text(
                         '${(widget.uploadProgress * 100).toInt()}%',
-                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ],
                   ),

@@ -12,7 +12,8 @@ class QuotationFormScreen extends ConsumerStatefulWidget {
   const QuotationFormScreen({super.key, this.quotation});
 
   @override
-  ConsumerState<QuotationFormScreen> createState() => _QuotationFormScreenState();
+  ConsumerState<QuotationFormScreen> createState() =>
+      _QuotationFormScreenState();
 }
 
 class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
@@ -28,16 +29,31 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
 
   final List<Map<String, dynamic>> _itemRows = [];
 
-  static const List<String> _units = ['Sqft', 'Rft', 'Bags', 'Nos', 'Kg', 'Ton', 'Trip', 'Lump Sum'];
+  static const List<String> _units = [
+    'Sqft',
+    'Rft',
+    'Bags',
+    'Nos',
+    'Kg',
+    'Ton',
+    'Trip',
+    'Lump Sum',
+  ];
 
   @override
   void initState() {
     super.initState();
     final q = widget.quotation;
-    _quotationNumberCtrl = TextEditingController(text: q?.quotationNumber ?? DocumentNumberGenerator.generateQuotationNumber());
+    _quotationNumberCtrl = TextEditingController(
+      text:
+          q?.quotationNumber ??
+          DocumentNumberGenerator.generateQuotationNumber(),
+    );
     _clientNameCtrl = TextEditingController(text: q?.clientName ?? '');
     _clientPhoneCtrl = TextEditingController(text: q?.clientPhone ?? '');
-    _subjectCtrl = TextEditingController(text: q?.subject ?? 'Construction Project Estimate');
+    _subjectCtrl = TextEditingController(
+      text: q?.subject ?? 'Construction Project Estimate',
+    );
     _notesCtrl = TextEditingController(text: q?.notes ?? '');
     _status = Quotation.normalizeStatus(q?.status ?? 'Draft');
     _selectedProjectId = q?.projectId;
@@ -57,11 +73,19 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
       }
     } else {
       // Add initial default estimation row
-      _addEmptyItemRow(particular: 'Civil Concrete & Foundation Work', qty: '1000', rate: '150');
+      _addEmptyItemRow(
+        particular: 'Civil Concrete & Foundation Work',
+        qty: '1000',
+        rate: '150',
+      );
     }
   }
 
-  void _addEmptyItemRow({String particular = '', String qty = '', String rate = ''}) {
+  void _addEmptyItemRow({
+    String particular = '',
+    String qty = '',
+    String rate = '',
+  }) {
     setState(() {
       _itemRows.add({
         'particular': TextEditingController(text: particular),
@@ -111,7 +135,8 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
   void _pickDate() async {
     final picked = await showDatePicker(
       context: context,
-      initialDate: _validUntilDate ?? DateTime.now().add(const Duration(days: 30)),
+      initialDate:
+          _validUntilDate ?? DateTime.now().add(const Duration(days: 30)),
       firstDate: DateTime.now(),
       lastDate: DateTime(2030),
     );
@@ -129,18 +154,18 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
         final q = double.tryParse(row['qty'].text) ?? 0.0;
         final r = double.tryParse(row['rate'].text) ?? 0.0;
         if (p.isNotEmpty && q > 0) {
-          items.add(QuotationItem(
-            particular: p,
-            unit: u,
-            quantity: q,
-            unitRate: r,
-          ));
+          items.add(
+            QuotationItem(particular: p, unit: u, quantity: q, unitRate: r),
+          );
         }
       }
 
       if (items.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please add at least one valid estimation item'), backgroundColor: AppColors.error),
+          const SnackBar(
+            content: Text('Please add at least one valid estimation item'),
+            backgroundColor: AppColors.error,
+          ),
         );
         return;
       }
@@ -150,7 +175,9 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
         projectId: _selectedProjectId,
         quotationNumber: _quotationNumberCtrl.text.trim(),
         clientName: _clientNameCtrl.text.trim(),
-        clientPhone: _clientPhoneCtrl.text.trim().isEmpty ? null : _clientPhoneCtrl.text.trim(),
+        clientPhone: _clientPhoneCtrl.text.trim().isEmpty
+            ? null
+            : _clientPhoneCtrl.text.trim(),
         subject: _subjectCtrl.text.trim(),
         status: _status,
         items: items,
@@ -160,19 +187,29 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
       );
 
       final success = widget.quotation == null
-          ? await ref.read(quotationControllerProvider.notifier).addQuotation(quotation)
-          : await ref.read(quotationControllerProvider.notifier).editQuotation(quotation);
+          ? await ref
+                .read(quotationControllerProvider.notifier)
+                .addQuotation(quotation)
+          : await ref
+                .read(quotationControllerProvider.notifier)
+                .editQuotation(quotation);
 
       if (success && mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.quotation == null ? 'Quotation estimate created successfully' : 'Quotation estimate updated successfully'),
+            content: Text(
+              widget.quotation == null
+                  ? 'Quotation estimate created successfully'
+                  : 'Quotation estimate updated successfully',
+            ),
             backgroundColor: AppColors.secondary,
           ),
         );
       } else if (mounted) {
-        final err = ref.read(quotationControllerProvider).errorMessage ?? 'Failed to save quotation';
+        final err =
+            ref.read(quotationControllerProvider).errorMessage ??
+            'Failed to save quotation';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(err), backgroundColor: AppColors.error),
         );
@@ -191,7 +228,10 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
       appBar: AppBar(
         title: Text(
           isEditing ? 'Edit Quotation Estimate' : 'New Client Quotation',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryColor(context),
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -212,32 +252,57 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('CLIENT & ESTIMATE DETAILS',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'CLIENT & ESTIMATE DETAILS',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 12),
 
                     TextFormField(
                       controller: _quotationNumberCtrl,
                       readOnly: true,
-                      style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Quotation / Estimate No.',
                         helperText: 'Auto-generated anti-fraud estimate number',
-                        prefixIcon: Icon(Icons.receipt_long_outlined, color: AppColors.primaryColor(context)),
-                        suffixIcon: const Icon(Icons.verified_user_outlined, color: AppColors.secondary, size: 20),
+                        prefixIcon: Icon(
+                          Icons.receipt_long_outlined,
+                          color: AppColors.primaryColor(context),
+                        ),
+                        suffixIcon: const Icon(
+                          Icons.verified_user_outlined,
+                          color: AppColors.secondary,
+                          size: 20,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 14),
 
                     TextFormField(
                       controller: _clientNameCtrl,
-                      style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
                         labelText: 'Client Name *',
                         hintText: 'e.g. Ramesh Kumar',
-                        prefixIcon: Icon(Icons.person_outline, color: AppColors.primaryColor(context)),
+                        prefixIcon: Icon(
+                          Icons.person_outline,
+                          color: AppColors.primaryColor(context),
+                        ),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter client name' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter client name'
+                          : null,
                     ),
                     const SizedBox(height: 14),
 
@@ -251,32 +316,52 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                             decoration: InputDecoration(
                               labelText: 'Phone Number',
                               hintText: '+91 9876543210',
-                              prefixIcon: Icon(Icons.phone_outlined, color: AppColors.primaryColor(context)),
+                              prefixIcon: Icon(
+                                Icons.phone_outlined,
+                                color: AppColors.primaryColor(context),
+                              ),
                             ),
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: DropdownButtonFormField<String?>(
-                            value: _selectedProjectId,
+                            initialValue: _selectedProjectId,
                             dropdownColor: AppColors.cardBg(context),
                             decoration: InputDecoration(
                               labelText: 'Project Site',
-                              prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context)),
+                              prefixIcon: Icon(
+                                Icons.apartment_outlined,
+                                color: AppColors.primaryColor(context),
+                              ),
                             ),
                             items: [
                               DropdownMenuItem<String?>(
                                 value: null,
-                                child: Text('General Client Quote', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                                child: Text(
+                                  'General Client Quote',
+                                  style: TextStyle(
+                                    color: AppColors.text(context),
+                                    fontSize: 13,
+                                  ),
+                                ),
                               ),
                               ...projectsState.projects.map((p) {
                                 return DropdownMenuItem<String?>(
                                   value: p.id,
-                                  child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13), overflow: TextOverflow.ellipsis),
+                                  child: Text(
+                                    p.name,
+                                    style: TextStyle(
+                                      color: AppColors.text(context),
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 );
                               }),
                             ],
-                            onChanged: (val) => setState(() => _selectedProjectId = val),
+                            onChanged: (val) =>
+                                setState(() => _selectedProjectId = val),
                           ),
                         ),
                       ],
@@ -289,9 +374,14 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                       decoration: InputDecoration(
                         labelText: 'Quotation Title / Subject *',
                         hintText: 'e.g. 3BHK Residential Construction Estimate',
-                        prefixIcon: Icon(Icons.title, color: AppColors.primaryColor(context)),
+                        prefixIcon: Icon(
+                          Icons.title,
+                          color: AppColors.primaryColor(context),
+                        ),
                       ),
-                      validator: (v) => (v == null || v.trim().isEmpty) ? 'Please enter quotation subject' : null,
+                      validator: (v) => (v == null || v.trim().isEmpty)
+                          ? 'Please enter quotation subject'
+                          : null,
                     ),
                     const SizedBox(height: 14),
 
@@ -299,14 +389,28 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                       children: [
                         Expanded(
                           child: DropdownButtonFormField<String>(
-                            value: _status,
+                            initialValue: _status,
                             dropdownColor: AppColors.cardBg(context),
-                            decoration: const InputDecoration(labelText: 'Quote Status'),
+                            decoration: const InputDecoration(
+                              labelText: 'Quote Status',
+                            ),
                             items: const [
-                              DropdownMenuItem(value: 'Draft', child: Text('🟡 Draft')),
-                              DropdownMenuItem(value: 'Sent', child: Text('🟦 Sent to Client')),
-                              DropdownMenuItem(value: 'Approved', child: Text('🟢 Approved')),
-                              DropdownMenuItem(value: 'Rejected', child: Text('🔴 Rejected')),
+                              DropdownMenuItem(
+                                value: 'Draft',
+                                child: Text('🟡 Draft'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Sent',
+                                child: Text('🟦 Sent to Client'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Approved',
+                                child: Text('🟢 Approved'),
+                              ),
+                              DropdownMenuItem(
+                                value: 'Rejected',
+                                child: Text('🔴 Rejected'),
+                              ),
                             ],
                             onChanged: (val) => setState(() => _status = val!),
                           ),
@@ -318,13 +422,21 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                             child: InputDecorator(
                               decoration: const InputDecoration(
                                 labelText: 'Valid Until Date',
-                                suffixIcon: Icon(Icons.calendar_today_outlined, size: 18),
+                                suffixIcon: Icon(
+                                  Icons.calendar_today_outlined,
+                                  size: 18,
+                                ),
                               ),
                               child: Text(
                                 _validUntilDate != null
-                                    ? _validUntilDate!.toIso8601String().substring(0, 10)
+                                    ? _validUntilDate!
+                                          .toIso8601String()
+                                          .substring(0, 10)
                                     : 'Select valid date',
-                                style: TextStyle(color: AppColors.text(context), fontSize: 13),
+                                style: TextStyle(
+                                  color: AppColors.text(context),
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),
@@ -350,8 +462,15 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('ITEMIZED ESTIMATION PARTICULARS',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                        Text(
+                          'ITEMIZED ESTIMATION PARTICULARS',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 11,
+                            color: AppColors.mutedText(context),
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                         TextButton.icon(
                           onPressed: () => _addEmptyItemRow(),
                           icon: const Icon(Icons.add, size: 16),
@@ -365,7 +484,7 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
                       itemCount: _itemRows.length,
-                      separatorBuilder: (_, __) => const Divider(height: 20),
+                      separatorBuilder: (_, _) => const Divider(height: 20),
                       itemBuilder: (context, index) {
                         final row = _itemRows[index];
                         final qty = double.tryParse(row['qty'].text) ?? 0.0;
@@ -381,35 +500,62 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                                   flex: 3,
                                   child: TextFormField(
                                     controller: row['particular'],
-                                    style: TextStyle(color: AppColors.text(context), fontSize: 13),
+                                    style: TextStyle(
+                                      color: AppColors.text(context),
+                                      fontSize: 13,
+                                    ),
                                     decoration: InputDecoration(
-                                      labelText: 'Particular Description #${index + 1}',
+                                      labelText:
+                                          'Particular Description #${index + 1}',
                                       hintText: 'e.g. Concrete Slab RCC Work',
                                       isDense: true,
                                     ),
                                     onChanged: (_) => setState(() {}),
-                                    validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                                    validator: (v) =>
+                                        (v == null || v.trim().isEmpty)
+                                        ? 'Required'
+                                        : null,
                                   ),
                                 ),
                                 const SizedBox(width: 8),
                                 DropdownButtonHideUnderline(
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                    ),
                                     decoration: BoxDecoration(
-                                      border: Border.all(color: AppColors.border(context)),
+                                      border: Border.all(
+                                        color: AppColors.border(context),
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: DropdownButton<String>(
                                       value: row['unit'],
                                       dropdownColor: AppColors.cardBg(context),
-                                      style: TextStyle(fontSize: 12, color: AppColors.text(context), fontWeight: FontWeight.bold),
-                                      items: _units.map((u) => DropdownMenuItem(value: u, child: Text(u))).toList(),
-                                      onChanged: (val) => setState(() => row['unit'] = val!),
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.text(context),
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                      items: _units
+                                          .map(
+                                            (u) => DropdownMenuItem(
+                                              value: u,
+                                              child: Text(u),
+                                            ),
+                                          )
+                                          .toList(),
+                                      onChanged: (val) =>
+                                          setState(() => row['unit'] = val!),
                                     ),
                                   ),
                                 ),
                                 IconButton(
-                                  icon: const Icon(Icons.remove_circle_outline, color: AppColors.error, size: 20),
+                                  icon: const Icon(
+                                    Icons.remove_circle_outline,
+                                    color: AppColors.error,
+                                    size: 20,
+                                  ),
                                   onPressed: () => _removeItemRow(index),
                                   tooltip: 'Remove Row',
                                 ),
@@ -422,8 +568,15 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                                   child: TextFormField(
                                     controller: row['qty'],
                                     keyboardType: TextInputType.number,
-                                    style: TextStyle(color: AppColors.text(context), fontSize: 13),
-                                    decoration: const InputDecoration(labelText: 'Quantity', hintText: '0', isDense: true),
+                                    style: TextStyle(
+                                      color: AppColors.text(context),
+                                      fontSize: 13,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Quantity',
+                                      hintText: '0',
+                                      isDense: true,
+                                    ),
                                     onChanged: (_) => setState(() {}),
                                   ),
                                 ),
@@ -432,21 +585,37 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                                   child: TextFormField(
                                     controller: row['rate'],
                                     keyboardType: TextInputType.number,
-                                    style: TextStyle(color: AppColors.text(context), fontSize: 13),
-                                    decoration: const InputDecoration(labelText: 'Unit Rate (₹)', hintText: '0', isDense: true),
+                                    style: TextStyle(
+                                      color: AppColors.text(context),
+                                      fontSize: 13,
+                                    ),
+                                    decoration: const InputDecoration(
+                                      labelText: 'Unit Rate (₹)',
+                                      hintText: '0',
+                                      isDense: true,
+                                    ),
                                     onChanged: (_) => setState(() {}),
                                   ),
                                 ),
                                 const SizedBox(width: 10),
                                 Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 12,
+                                    vertical: 10,
+                                  ),
                                   decoration: BoxDecoration(
-                                    color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                                    color: AppColors.primaryColor(
+                                      context,
+                                    ).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(8),
                                   ),
                                   child: Text(
                                     '₹${rowTotal.toStringAsFixed(0)}',
-                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppColors.primaryColor(context)),
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: AppColors.primaryColor(context),
+                                    ),
                                   ),
                                 ),
                               ],
@@ -461,16 +630,28 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryColor(context).withValues(alpha: 0.08),
+                        color: AppColors.primaryColor(
+                          context,
+                        ).withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text('GRAND ESTIMATED TOTAL:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          const Text(
+                            'GRAND ESTIMATED TOTAL:',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                            ),
+                          ),
                           Text(
                             '₹${grandTotal.toStringAsFixed(2)}',
-                            style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor(context),
+                            ),
                           ),
                         ],
                       ),
@@ -491,15 +672,23 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('REMARKS & TERMS OF PAYMENT',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'REMARKS & TERMS OF PAYMENT',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _notesCtrl,
                       maxLines: 3,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: const InputDecoration(
-                        hintText: 'e.g. Advance 30% upon booking, 50% on RCC slab, 20% on completion.',
+                        hintText:
+                            'e.g. Advance 30% upon booking, 50% on RCC slab, 20% on completion.',
                       ),
                     ),
                   ],
@@ -510,16 +699,26 @@ class _QuotationFormScreenState extends ConsumerState<QuotationFormScreen> {
               // Save Action Button
               ElevatedButton.icon(
                 onPressed: _onSave,
-                icon: Icon(isEditing ? Icons.save : Icons.check_circle, size: 20),
+                icon: Icon(
+                  isEditing ? Icons.save : Icons.check_circle,
+                  size: 20,
+                ),
                 label: Text(
-                  isEditing ? 'Update Quotation Estimate' : 'Save & Build Quotation',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  isEditing
+                      ? 'Update Quotation Estimate'
+                      : 'Save & Build Quotation',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryColor(context),
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ],

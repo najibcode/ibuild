@@ -38,7 +38,7 @@ class PaymentLedgerPdfGenerator {
         margin: const pw.EdgeInsets.all(32),
         build: (pw.Context context) {
           return pw.Column(
-            cross pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Corporate Header Block
               pw.Row(
@@ -167,7 +167,7 @@ class PaymentLedgerPdfGenerator {
         margin: const pw.EdgeInsets.all(36),
         build: (pw.Context context) {
           return pw.Column(
-            cross pw.CrossAxisAlignment.start,
+            crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
               // Classic Website Commercial Header
               pw.Row(

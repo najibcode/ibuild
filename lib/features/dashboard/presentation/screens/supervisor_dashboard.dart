@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
-import 'package:ibuild/core/widgets/logout_dialog.dart';
 import 'package:ibuild/features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
@@ -31,14 +30,16 @@ class SupervisorDashboard extends ConsumerWidget {
                     children: [
                       Text(
                         'Supervisor Dashboard',
-                        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                        style: Theme.of(context).textTheme.headlineMedium
+                            ?.copyWith(fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         'Your daily operations overview',
-                        style: TextStyle(color: AppColors.textMuted, fontSize: 14),
+                        style: TextStyle(
+                          color: AppColors.textMuted,
+                          fontSize: 14,
+                        ),
                       ),
                     ],
                   ),
@@ -47,13 +48,18 @@ class SupervisorDashboard extends ConsumerWidget {
                       OutlinedButton.icon(
                         onPressed: () {
                           Navigator.of(context).push(
-                            MaterialPageRoute(builder: (_) => const UserProfileScreen()),
+                            MaterialPageRoute(
+                              builder: (_) => const UserProfileScreen(),
+                            ),
                           );
                         },
                         icon: const Icon(Icons.person_outline, size: 16),
                         label: const Text('My Profile'),
                         style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 8,
+                          ),
                         ),
                       ),
                     ],
@@ -107,13 +113,16 @@ class SupervisorDashboard extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.update, color: AppColors.primary, size: 20),
+                        const Icon(
+                          Icons.update,
+                          color: AppColors.primary,
+                          size: 20,
+                        ),
                         const SizedBox(width: 8),
                         Text(
                           'Recent Activity',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style: Theme.of(context).textTheme.titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
                         ),
                       ],
                     ),
@@ -129,7 +138,9 @@ class SupervisorDashboard extends ConsumerWidget {
                         ),
                       )
                     else
-                      ...stats.recentActivities.take(5).map(
+                      ...stats.recentActivities
+                          .take(5)
+                          .map(
                             (activity) => Padding(
                               padding: const EdgeInsets.symmetric(vertical: 6),
                               child: Row(
@@ -145,7 +156,8 @@ class SupervisorDashboard extends ConsumerWidget {
                                   const SizedBox(width: 12),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         Text(
                                           activity.title,
@@ -202,12 +214,15 @@ class SupervisorDashboard extends ConsumerWidget {
           const SizedBox(height: 12),
           Text(
             value,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+            style: Theme.of(
+              context,
+            ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          Text(
+            label,
+            style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+          ),
         ],
       ),
     );

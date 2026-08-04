@@ -37,65 +37,94 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     'Miscellaneous',
   ];
 
-  static const _paymentModes = [
-    'cash',
-    'bank',
-    'upi',
-    'cheque',
-  ];
+  static const _paymentModes = ['cash', 'bank', 'upi', 'cheque'];
 
   // ── Category-Specific Helpers ──
   String _getCategoryEmoji(String cat) {
     switch (cat) {
-      case 'Materials': return '🧱';
-      case 'Equipment': return '🔧';
-      case 'Labour': return '👷';
-      case 'Transport': return '🚛';
-      case 'Fuel': return '⛽';
-      case 'Food': return '🍱';
-      case 'Office & Admin': return '🏢';
-      case 'Safety & PPE': return '🦺';
-      default: return '📋';
+      case 'Materials':
+        return '🧱';
+      case 'Equipment':
+        return '🔧';
+      case 'Labour':
+        return '👷';
+      case 'Transport':
+        return '🚛';
+      case 'Fuel':
+        return '⛽';
+      case 'Food':
+        return '🍱';
+      case 'Office & Admin':
+        return '🏢';
+      case 'Safety & PPE':
+        return '🦺';
+      default:
+        return '📋';
     }
   }
 
   String _nameHint(String cat) {
     switch (cat) {
-      case 'Materials': return 'e.g. 50 bags Ultratech Cement, 10 TMT Steel Rods';
-      case 'Equipment': return 'e.g. Bosch Angle Grinder, Safety Harness Set';
-      case 'Labour': return 'e.g. Mason daily wages (3 workers × 2 days)';
-      case 'Transport': return 'e.g. Lorry hire for sand delivery, Auto fare';
-      case 'Fuel': return 'e.g. Diesel for generator 50L, Petrol for site vehicle';
-      case 'Food': return 'e.g. Lunch for site workers (15 pax), Tea & snacks';
-      case 'Office & Admin': return 'e.g. Printing plans, Stationery supplies';
-      case 'Safety & PPE': return 'e.g. Hard hats × 10, Safety shoes, Gloves';
-      default: return 'e.g. Describe what was purchased or paid for';
+      case 'Materials':
+        return 'e.g. 50 bags Ultratech Cement, 10 TMT Steel Rods';
+      case 'Equipment':
+        return 'e.g. Bosch Angle Grinder, Safety Harness Set';
+      case 'Labour':
+        return 'e.g. Mason daily wages (3 workers × 2 days)';
+      case 'Transport':
+        return 'e.g. Lorry hire for sand delivery, Auto fare';
+      case 'Fuel':
+        return 'e.g. Diesel for generator 50L, Petrol for site vehicle';
+      case 'Food':
+        return 'e.g. Lunch for site workers (15 pax), Tea & snacks';
+      case 'Office & Admin':
+        return 'e.g. Printing plans, Stationery supplies';
+      case 'Safety & PPE':
+        return 'e.g. Hard hats × 10, Safety shoes, Gloves';
+      default:
+        return 'e.g. Describe what was purchased or paid for';
     }
   }
 
   String _vendorHint(String cat) {
     switch (cat) {
-      case 'Materials': return 'e.g. Ramesh Building Supplies, Kerala Cements Agency';
-      case 'Equipment': return 'e.g. Bosch Service Centre, Stanley Hardware Shop';
-      case 'Labour': return 'e.g. Labour contractor name, Direct worker payment';
-      case 'Transport': return 'e.g. Sri Balaji Transport, Ola/Uber, Local auto';
-      case 'Fuel': return 'e.g. Indian Oil Pump, HP Petrol Station';
-      case 'Food': return 'e.g. Annapoorna Hotel, Canteen, Swiggy';
-      default: return 'e.g. Shop name, vendor, or payee';
+      case 'Materials':
+        return 'e.g. Ramesh Building Supplies, Kerala Cements Agency';
+      case 'Equipment':
+        return 'e.g. Bosch Service Centre, Stanley Hardware Shop';
+      case 'Labour':
+        return 'e.g. Labour contractor name, Direct worker payment';
+      case 'Transport':
+        return 'e.g. Sri Balaji Transport, Ola/Uber, Local auto';
+      case 'Fuel':
+        return 'e.g. Indian Oil Pump, HP Petrol Station';
+      case 'Food':
+        return 'e.g. Annapoorna Hotel, Canteen, Swiggy';
+      default:
+        return 'e.g. Shop name, vendor, or payee';
     }
   }
 
   IconData _getCategoryIcon(String cat) {
     switch (cat) {
-      case 'Materials': return Icons.inventory_2_outlined;
-      case 'Equipment': return Icons.build_outlined;
-      case 'Labour': return Icons.engineering_outlined;
-      case 'Transport': return Icons.local_shipping_outlined;
-      case 'Fuel': return Icons.local_gas_station_outlined;
-      case 'Food': return Icons.restaurant_outlined;
-      case 'Office & Admin': return Icons.business_outlined;
-      case 'Safety & PPE': return Icons.health_and_safety_outlined;
-      default: return Icons.receipt_long_outlined;
+      case 'Materials':
+        return Icons.inventory_2_outlined;
+      case 'Equipment':
+        return Icons.build_outlined;
+      case 'Labour':
+        return Icons.engineering_outlined;
+      case 'Transport':
+        return Icons.local_shipping_outlined;
+      case 'Fuel':
+        return Icons.local_gas_station_outlined;
+      case 'Food':
+        return Icons.restaurant_outlined;
+      case 'Office & Admin':
+        return Icons.business_outlined;
+      case 'Safety & PPE':
+        return Icons.health_and_safety_outlined;
+      default:
+        return Icons.receipt_long_outlined;
     }
   }
 
@@ -109,8 +138,12 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     if (widget.expense?.notes != null && widget.expense!.notes!.isNotEmpty) {
       final notes = widget.expense!.notes!;
       // Try to parse structured format: "Item: ... | Vendor: ... | Notes: ..."
-      final itemMatch = RegExp(r'Item:\s*(.+?)(?:\s*\|\s*Vendor:|\s*\|\s*Notes:|$)').firstMatch(notes);
-      final vendorMatch = RegExp(r'Vendor:\s*(.+?)(?:\s*\|\s*Notes:|$)').firstMatch(notes);
+      final itemMatch = RegExp(
+        r'Item:\s*(.+?)(?:\s*\|\s*Vendor:|\s*\|\s*Notes:|$)',
+      ).firstMatch(notes);
+      final vendorMatch = RegExp(
+        r'Vendor:\s*(.+?)(?:\s*\|\s*Notes:|$)',
+      ).firstMatch(notes);
       final notesMatch = RegExp(r'Notes:\s*(.+)$').firstMatch(notes);
       if (itemMatch != null) {
         existingName = itemMatch.group(1)?.trim() ?? '';
@@ -122,7 +155,9 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       }
     }
 
-    _amountController = TextEditingController(text: widget.expense?.amount.toString() ?? '');
+    _amountController = TextEditingController(
+      text: widget.expense?.amount.toString() ?? '',
+    );
     _expenseNameController = TextEditingController(text: existingName);
     _vendorController = TextEditingController(text: existingVendor);
     _notesController = TextEditingController(text: existingNotes);
@@ -184,16 +219,22 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       );
 
       final success = widget.expense == null
-          ? await ref.read(expenseControllerProvider.notifier).addExpense(expense)
-          : await ref.read(expenseControllerProvider.notifier).editExpense(expense);
+          ? await ref
+                .read(expenseControllerProvider.notifier)
+                .addExpense(expense)
+          : await ref
+                .read(expenseControllerProvider.notifier)
+                .editExpense(expense);
 
       if (success && mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(widget.expense == null
-                ? 'Expense recorded successfully'
-                : 'Expense updated successfully'),
+            content: Text(
+              widget.expense == null
+                  ? 'Expense recorded successfully'
+                  : 'Expense updated successfully',
+            ),
             backgroundColor: AppColors.secondary,
           ),
         );
@@ -218,7 +259,10 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
       appBar: AppBar(
         title: Text(
           isEditing ? 'Edit Expense Record' : 'Record Site Expense',
-          style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryColor(context),
+          ),
         ),
       ),
       body: SingleChildScrollView(
@@ -239,19 +283,35 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── 1. Expense Category ──
-                    Text('EXPENSE CATEGORY *',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'EXPENSE CATEGORY *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
-                      value: _category,
+                      initialValue: _category,
                       dropdownColor: AppColors.cardBg(context),
                       decoration: InputDecoration(
-                        prefixIcon: Icon(_getCategoryIcon(_category), color: Colors.deepOrange),
+                        prefixIcon: Icon(
+                          _getCategoryIcon(_category),
+                          color: Colors.deepOrange,
+                        ),
                       ),
                       items: _categories.map((c) {
                         return DropdownMenuItem(
                           value: c,
-                          child: Text('${_getCategoryEmoji(c)}  $c', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                          child: Text(
+                            '${_getCategoryEmoji(c)}  $c',
+                            style: TextStyle(
+                              color: AppColors.text(context),
+                              fontSize: 13,
+                            ),
+                          ),
                         );
                       }).toList(),
                       onChanged: (val) {
@@ -261,71 +321,132 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                     const SizedBox(height: 20),
 
                     // ── 2. Expense Name / What was purchased ──
-                    Text('EXPENSE NAME / ITEM DESCRIPTION *',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'EXPENSE NAME / ITEM DESCRIPTION *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _expenseNameController,
-                      style: TextStyle(color: AppColors.text(context), fontSize: 15, fontWeight: FontWeight.w600),
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                      ),
                       decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.shopping_bag_outlined, color: AppColors.primaryColor(context)),
+                        prefixIcon: Icon(
+                          Icons.shopping_bag_outlined,
+                          color: AppColors.primaryColor(context),
+                        ),
                         hintText: _nameHint(_category),
-                        hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 13, fontWeight: FontWeight.normal),
+                        hintStyle: TextStyle(
+                          color: AppColors.mutedText(context),
+                          fontSize: 13,
+                          fontWeight: FontWeight.normal,
+                        ),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty) return 'Please describe what was purchased';
+                        if (v == null || v.trim().isEmpty)
+                          return 'Please describe what was purchased';
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
 
                     // ── 3. Amount ──
-                    Text('EXPENSE AMOUNT (₹) *',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'EXPENSE AMOUNT (₹) *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _amountController,
                       keyboardType: TextInputType.number,
-                      style: TextStyle(color: AppColors.text(context), fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        color: AppColors.text(context),
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                       decoration: InputDecoration(
-                        prefixIcon: const Icon(Icons.currency_rupee, color: Colors.deepOrange),
+                        prefixIcon: const Icon(
+                          Icons.currency_rupee,
+                          color: Colors.deepOrange,
+                        ),
                         hintText: '0.00',
-                        hintStyle: TextStyle(color: AppColors.mutedText(context)),
+                        hintStyle: TextStyle(
+                          color: AppColors.mutedText(context),
+                        ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty) return 'Please enter expense amount';
-                        if (double.tryParse(v) == null) return 'Please enter a valid number';
-                        if (double.parse(v) <= 0) return 'Amount must be greater than 0';
+                        if (v == null || v.isEmpty)
+                          return 'Please enter expense amount';
+                        if (double.tryParse(v) == null)
+                          return 'Please enter a valid number';
+                        if (double.parse(v) <= 0)
+                          return 'Amount must be greater than 0';
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
 
                     // ── 4. Vendor / Shop Name ──
-                    Text('VENDOR / SHOP / PAID TO',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'VENDOR / SHOP / PAID TO',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _vendorController,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.storefront_outlined, color: AppColors.primaryColor(context)),
+                        prefixIcon: Icon(
+                          Icons.storefront_outlined,
+                          color: AppColors.primaryColor(context),
+                        ),
                         hintText: _vendorHint(_category),
-                        hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 13),
+                        hintStyle: TextStyle(
+                          color: AppColors.mutedText(context),
+                          fontSize: 13,
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
 
                     // ── 5. Project Assignment ──
-                    Text('ASSIGNED PROJECT SITE',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'ASSIGNED PROJECT SITE',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String?>(
-                      value: _selectedProjectId,
+                      initialValue: _selectedProjectId,
                       dropdownColor: AppColors.cardBg(context),
                       isExpanded: true,
                       decoration: InputDecoration(
-                        prefixIcon: Icon(Icons.apartment_outlined, color: AppColors.primaryColor(context)),
+                        prefixIcon: Icon(
+                          Icons.apartment_outlined,
+                          color: AppColors.primaryColor(context),
+                        ),
                         hintText: 'General Expense (No Project)',
                       ),
                       items: [
@@ -333,9 +454,19 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                           value: null,
                           child: Row(
                             children: [
-                              Icon(Icons.public, size: 16, color: AppColors.mutedText(context)),
+                              Icon(
+                                Icons.public,
+                                size: 16,
+                                color: AppColors.mutedText(context),
+                              ),
                               const SizedBox(width: 8),
-                              Text('General Site Expense (No specific project)', style: TextStyle(color: AppColors.text(context), fontSize: 13)),
+                              Text(
+                                'General Site Expense (No specific project)',
+                                style: TextStyle(
+                                  color: AppColors.text(context),
+                                  fontSize: 13,
+                                ),
+                              ),
                             ],
                           ),
                         ),
@@ -344,64 +475,109 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                             value: p.id,
                             child: Row(
                               children: [
-                                Icon(Icons.apartment, size: 16, color: AppColors.primaryColor(context)),
+                                Icon(
+                                  Icons.apartment,
+                                  size: 16,
+                                  color: AppColors.primaryColor(context),
+                                ),
                                 const SizedBox(width: 8),
                                 Flexible(
-                                  child: Text(p.name, style: TextStyle(color: AppColors.text(context), fontSize: 13), overflow: TextOverflow.ellipsis),
+                                  child: Text(
+                                    p.name,
+                                    style: TextStyle(
+                                      color: AppColors.text(context),
+                                      fontSize: 13,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
                               ],
                             ),
                           );
                         }),
                       ],
-                      onChanged: (val) => setState(() => _selectedProjectId = val),
+                      onChanged: (val) =>
+                          setState(() => _selectedProjectId = val),
                     ),
                     const SizedBox(height: 20),
 
                     // ── 6. Date ──
-                    Text('EXPENSE DATE *',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'EXPENSE DATE *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     InkWell(
                       onTap: _pickDate,
                       borderRadius: BorderRadius.circular(12),
                       child: InputDecorator(
                         decoration: InputDecoration(
-                          prefixIcon: Icon(Icons.calendar_today_outlined, color: AppColors.primaryColor(context)),
+                          prefixIcon: Icon(
+                            Icons.calendar_today_outlined,
+                            color: AppColors.primaryColor(context),
+                          ),
                           suffixIcon: const Icon(Icons.arrow_drop_down),
                         ),
                         child: Text(
                           _selectedDate != null
                               ? '${_selectedDate!.day.toString().padLeft(2, '0')}/${_selectedDate!.month.toString().padLeft(2, '0')}/${_selectedDate!.year}'
                               : 'Select expense date',
-                          style: TextStyle(color: AppColors.text(context), fontWeight: FontWeight.w600, fontSize: 14),
+                          style: TextStyle(
+                            color: AppColors.text(context),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ),
                     const SizedBox(height: 20),
 
                     // ── 7. Payment Mode Selection ──
-                    Text('PAYMENT MODE *',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'PAYMENT MODE *',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: _paymentModes.map((m) {
-                        final isSelected = _paymentMode.toLowerCase() == m.toLowerCase();
-                        final icon = m == 'cash' ? Icons.money
-                            : m == 'bank' ? Icons.account_balance_outlined
-                            : m == 'upi' ? Icons.phone_android_outlined
+                        final isSelected =
+                            _paymentMode.toLowerCase() == m.toLowerCase();
+                        final icon = m == 'cash'
+                            ? Icons.money
+                            : m == 'bank'
+                            ? Icons.account_balance_outlined
+                            : m == 'upi'
+                            ? Icons.phone_android_outlined
                             : Icons.receipt_long_outlined;
                         return FilterChip(
                           selected: isSelected,
-                          avatar: Icon(icon, size: 16, color: isSelected ? Colors.white : AppColors.primaryColor(context)),
+                          avatar: Icon(
+                            icon,
+                            size: 16,
+                            color: isSelected
+                                ? Colors.white
+                                : AppColors.primaryColor(context),
+                          ),
                           label: Text(
                             m.toUpperCase(),
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
-                              color: isSelected ? Colors.white : AppColors.text(context),
+                              color: isSelected
+                                  ? Colors.white
+                                  : AppColors.text(context),
                             ),
                           ),
                           onSelected: (selected) {
@@ -409,10 +585,19 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                           },
                           backgroundColor: AppColors.cardBg(context),
                           selectedColor: AppColors.primaryColor(context),
-                          side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                          side: BorderSide(
+                            color: isSelected
+                                ? AppColors.primaryColor(context)
+                                : AppColors.border(context),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(20),
+                          ),
                           showCheckmark: false,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 2,
+                          ),
                         );
                       }).toList(),
                     ),
@@ -420,17 +605,31 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                     const SizedBox(height: 20),
 
                     // ── 8. Additional Remarks ──
-                    Text('ADDITIONAL REMARKS',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: AppColors.mutedText(context), letterSpacing: 0.5)),
+                    Text(
+                      'ADDITIONAL REMARKS',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                        letterSpacing: 0.5,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _notesController,
                       maxLines: 3,
                       style: TextStyle(color: AppColors.text(context)),
                       decoration: InputDecoration(
-                        hintText: 'e.g. Urgent purchase for foundation work, receipt collected',
-                        hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 13),
-                        prefixIcon: Icon(Icons.notes_outlined, color: AppColors.mutedText(context)),
+                        hintText:
+                            'e.g. Urgent purchase for foundation work, receipt collected',
+                        hintStyle: TextStyle(
+                          color: AppColors.mutedText(context),
+                          fontSize: 13,
+                        ),
+                        prefixIcon: Icon(
+                          Icons.notes_outlined,
+                          color: AppColors.mutedText(context),
+                        ),
                       ),
                     ),
                   ],
@@ -444,13 +643,18 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                 icon: Icon(isEditing ? Icons.save : Icons.check, size: 20),
                 label: Text(
                   isEditing ? 'Update Expense Record' : 'Save Expense Record',
-                  style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.deepOrange,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 52),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ],
