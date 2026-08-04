@@ -173,20 +173,10 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
               );
             },
           ),
-          const SizedBox(width: 4),
-          ElevatedButton.icon(
+          IconButton(
+            icon: Icon(Icons.add_card_outlined, color: AppColors.primaryColor(context)),
+            tooltip: 'Add Expense',
             onPressed: _openAddForm,
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Expense'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrange,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
           const SizedBox(width: 8),
           IconButton(

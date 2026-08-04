@@ -24,6 +24,19 @@ class Employee {
   double get effectiveTeaSnackAllowance => teaSnackAllowance;
   double get totalDailyCost => salary + teaSnackAllowance;
 
+  /// Returns a concise, user-friendly Employee ID (e.g. EMP-101 or EMP-A1B2C3)
+  String get shortId {
+    if (id.isEmpty) return 'EMP-000';
+    final cleanId = id.replaceAll('-', '').toUpperCase();
+    if (cleanId.startsWith('EMP')) {
+      final code = cleanId.substring(3);
+      return code.length > 6 ? 'EMP-${code.substring(0, 6)}' : 'EMP-$code';
+    }
+    return cleanId.length >= 6
+        ? 'EMP-${cleanId.substring(0, 6)}'
+        : 'EMP-$cleanId';
+  }
+
   // Earnings & Cost Calculations
   double calculateTotalEarnings(int daysPresent) => daysPresent * dailyRate;
   double calculateBaseEarnings(int daysPresent) => daysPresent * salary;

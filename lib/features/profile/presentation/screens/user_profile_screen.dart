@@ -1,9 +1,13 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/image_upload_card.dart';
 import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../../features/rbac/presentation/providers/permission_provider.dart';
+import '../../../../models/image_model.dart';
+import '../../../../providers/image_provider.dart';
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   const UserProfileScreen({super.key});
@@ -20,6 +24,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
   late TextEditingController _avatarUrlController;
   String _notificationScope = 'all';
   bool _enablePushNotifications = true;
+  bool _isUploadingAvatar = false;
 
   static const String _defaultAvatar =
       'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc';
@@ -60,6 +65,22 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
     super.dispose();
   }
 
+  void _onAvatarPicked(Uint8List bytes, String ext) async {
+    setState(() => _isUploadingAvatar = true);
+    final imageNotifier = ref.read(imageNotifierProvider.notifier);
+
+    final uploadedUrl = await imageNotifier.uploadImage(
+      bytes: bytes,
+      fileExtension: ext,
+      folder: ImageFolder.settings,
+    );
+
+    if (uploadedUrl != null) {
+      _avatarUrlController.text = uploadedUrl;
+    }
+    setState(() => _isUploadingAvatar = false);
+  }
+
   void _onSave() async {
     if (_formKey.currentState!.validate()) {
       final success = await ref
@@ -76,7 +97,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
           SnackBar(
             content: Text(
               success
-                  ? 'Profile updated successfully'
+                  ? 'Profile updated with ImageKit avatar ✓'
                   : 'Failed to update profile',
             ),
             backgroundColor: success ? AppColors.secondary : AppColors.error,
@@ -130,11 +151,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  // Profile Header & Avatar
-                  CircleAvatar(
-                    backgroundImage: NetworkImage(avatarUrl),
-                    radius: 46,
-                    backgroundColor: AppColors.primaryContainer,
+                  // Profile Avatar Card with ImageKit picker
+                  ImageUploadCard(
+                    existingUrl: avatarUrl,
+                    label: 'Tap to change avatar via ImageKit',
+                    isUploading: _isUploadingAvatar,
+                    onImagePicked: _onAvatarPicked,
+                    onDeleteRequested: () {
+                      _avatarUrlController.text = _defaultAvatar;
+                    },
                   ),
                   const SizedBox(height: 12),
                   Text(
@@ -227,8 +252,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                   TextFormField(
                     controller: _avatarUrlController,
                     decoration: const InputDecoration(
-                      labelText: 'Profile Picture Image URL',
-                      hintText: 'https://...',
+                      labelText: 'Profile Picture Image URL (ImageKit)',
+                      hintText: 'https://ik.imagekit.io/...',
                       prefixIcon: Icon(Icons.image_outlined, size: 20),
                     ),
                   ),

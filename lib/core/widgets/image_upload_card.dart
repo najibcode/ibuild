@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/cached_image.dart';
 import '../theme/app_colors.dart';
 import '../services/image_compression_service.dart';
 
@@ -8,6 +8,7 @@ class ImageUploadCard extends StatefulWidget {
   final String? existingUrl;
   final String label;
   final void Function(Uint8List bytes, String extension) onImagePicked;
+  final VoidCallback? onDeleteRequested;
   final bool isUploading;
   final double uploadProgress;
 
@@ -16,6 +17,7 @@ class ImageUploadCard extends StatefulWidget {
     this.existingUrl,
     required this.label,
     required this.onImagePicked,
+    this.onDeleteRequested,
     this.isUploading = false,
     this.uploadProgress = 0.0,
   });
@@ -44,12 +46,26 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
               title: const Text('Choose from Gallery'),
               onTap: () => Navigator.pop(context, 'gallery'),
             ),
+            if (widget.onDeleteRequested != null &&
+                (_localBytes != null || widget.existingUrl != null))
+              ListTile(
+                leading: const Icon(Icons.delete, color: AppColors.error),
+                title: const Text('Remove Photo',
+                    style: TextStyle(color: AppColors.error)),
+                onTap: () => Navigator.pop(context, 'delete'),
+              ),
           ],
         ),
       ),
     );
 
     if (result == null) return;
+
+    if (result == 'delete') {
+      setState(() => _localBytes = null);
+      widget.onDeleteRequested?.call();
+      return;
+    }
 
     final image = result == 'camera'
         ? await ImageCompressionService.pickFromCamera()
@@ -87,16 +103,10 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
               Image.memory(_localBytes!, fit: BoxFit.cover)
             else if (widget.existingUrl != null &&
                 widget.existingUrl!.isNotEmpty)
-              CachedNetworkImage(
+              AppCachedImage(
                 imageUrl: widget.existingUrl!,
                 fit: BoxFit.cover,
-                placeholder: (_, _) =>
-                    const Center(child: CircularProgressIndicator()),
-                errorWidget: (_, _, _) => const Icon(
-                  Icons.broken_image,
-                  size: 40,
-                  color: AppColors.outline,
-                ),
+                enableZoom: true,
               )
             else
               Column(
@@ -120,7 +130,7 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
             // Upload overlay
             if (widget.isUploading)
               Container(
-                color: Colors.black38,
+                color: Colors.black45,
                 child: Center(
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
@@ -133,13 +143,30 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${(widget.uploadProgress * 100).toInt()}%',
+                        'Uploading to ImageKit... ${(widget.uploadProgress * 100).toInt()}%',
                         style: const TextStyle(
                           color: Colors.white,
+                          fontSize: 12,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
                     ],
+                  ),
+                ),
+              ),
+            if (hasImage && !widget.isUploading)
+              Positioned(
+                top: 8,
+                right: 8,
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.edit, color: Colors.white, size: 18),
+                    onPressed: _pick,
+                    tooltip: 'Change / Delete Image',
                   ),
                 ),
               ),

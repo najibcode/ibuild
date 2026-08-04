@@ -135,51 +135,58 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Overall Site Completion',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.mutedText(context),
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            '$latestPercentage%',
-                            style: TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryColor(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Wrap(
-                        spacing: 8,
-                        children: [
-                          IconButton(
-                            onPressed: () =>
-                                _shareDailySummary(context, entries),
-                            icon: const Icon(Icons.share_outlined, size: 20),
-                            color: AppColors.primaryColor(context),
-                            tooltip: 'Share Daily Progress Report',
-                          ),
-                          ElevatedButton.icon(
-                            onPressed: () => _openForm(context, null),
-                            icon: const Icon(Icons.add_a_photo, size: 16),
-                            label: const Text('Log Progress'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: AppColors.secondary,
-                              foregroundColor: Colors.white,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Overall Site Completion',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText(context),
+                                fontWeight: FontWeight.w600,
                               ),
                             ),
-                          ),
-                        ],
+                            const SizedBox(height: 4),
+                            Text(
+                              '$latestPercentage%',
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryColor(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Flexible(
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 4,
+                          children: [
+                            IconButton(
+                              onPressed: () =>
+                                  _shareDailySummary(context, entries),
+                              icon: const Icon(Icons.share_outlined, size: 20),
+                              color: AppColors.primaryColor(context),
+                              tooltip: 'Share Daily Progress Report',
+                            ),
+                            ElevatedButton.icon(
+                              onPressed: () => _openForm(context, null),
+                              icon: const Icon(Icons.add_a_photo, size: 16),
+                              label: const Text('Log Progress'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.secondary,
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ],
                   ),

@@ -1,6 +1,10 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/image_upload_card.dart';
+import '../../../../models/image_model.dart';
+import '../../../../providers/image_provider.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../controllers/inventory_controller.dart';
@@ -25,6 +29,10 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
   late final TextEditingController _minStockCtrl;
   late final TextEditingController _remarksCtrl;
   late String _category;
+
+  Uint8List? _pendingPhotoBytes;
+  String? _pendingPhotoExt;
+  bool _isUploadingPhoto = false;
 
   static const _categories = [
     'Cement',
@@ -75,6 +83,18 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
   void _save() async {
     if (!_formKey.currentState!.validate()) return;
 
+    setState(() => _isUploadingPhoto = true);
+
+    if (_pendingPhotoBytes != null) {
+      final imageNotifier = ref.read(imageNotifierProvider.notifier);
+      await imageNotifier.uploadImage(
+        bytes: _pendingPhotoBytes!,
+        fileExtension: _pendingPhotoExt ?? 'jpg',
+        folder: ImageFolder.inventory,
+        inventoryId: widget.item?.id,
+      );
+    }
+
     final item = InventoryItem(
       id: widget.item?.id ?? '',
       materialName: _nameCtrl.text.trim(),
@@ -97,13 +117,15 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
         ? await ctrl.addItem(item)
         : await ctrl.editItem(item);
 
+    setState(() => _isUploadingPhoto = false);
+
     if (success && mounted) {
       ref.invalidate(recentActivitiesProvider);
       ref.invalidate(unreadNotificationsCountProvider);
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.item == null ? 'Item added' : 'Item updated'),
+          content: Text(widget.item == null ? 'Material item added with ImageKit photo ✓' : 'Material updated ✓'),
           backgroundColor: AppColors.secondary,
         ),
       );
@@ -131,6 +153,26 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const Text(
+                  'MATERIAL PHOTO / SPECIFICATIONS',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                    color: AppColors.primary,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ImageUploadCard(
+                  label: 'Tap to attach material / delivery photo to ImageKit',
+                  isUploading: _isUploadingPhoto,
+                  onImagePicked: (bytes, ext) {
+                    _pendingPhotoBytes = bytes;
+                    _pendingPhotoExt = ext;
+                  },
+                ),
+                const SizedBox(height: 20),
+
                 _field('Material Name *', _nameCtrl, validator: _required),
                 const Text(
                   'Category',
@@ -194,7 +236,7 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
                 ),
                 _field('Remarks', _remarksCtrl, maxLines: 2),
                 ElevatedButton(
-                  onPressed: _save,
+                  onPressed: _isUploadingPhoto ? null : _save,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.primary,
                     foregroundColor: Colors.white,
@@ -205,13 +247,15 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
                       ),
                     ),
                   ),
-                  child: Text(
-                    widget.item != null ? 'Update Material' : 'Add Material',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
+                  child: _isUploadingPhoto
+                      ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : Text(
+                          widget.item != null ? 'Update Material' : 'Add Material',
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                          ),
+                        ),
                 ),
               ],
             ),

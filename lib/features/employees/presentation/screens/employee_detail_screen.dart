@@ -105,9 +105,26 @@ class EmployeeDetailScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text(context)),
                   ),
                   const SizedBox(height: 4),
-                  Text(
-                    employee.role.toUpperCase(),
-                    style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.bold, letterSpacing: 1),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: AppColors.mutedText(context).withValues(alpha: 0.12),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Text(
+                          employee.shortId,
+                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context)),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Text(
+                        employee.role.toUpperCase(),
+                        style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.bold, letterSpacing: 1),
+                      ),
+                    ],
                   ),
                   const SizedBox(height: 12),
                   Chip(

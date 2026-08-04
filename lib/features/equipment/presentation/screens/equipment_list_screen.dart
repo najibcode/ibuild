@@ -1194,20 +1194,10 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
               );
             },
           ),
-          const SizedBox(width: 4),
-          ElevatedButton.icon(
+          IconButton(
+            icon: Icon(Icons.build_circle_outlined, color: AppColors.primaryColor(context)),
+            tooltip: 'Add Equipment',
             onPressed: () => _showEquipmentFormDialog(context),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Equipment'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor(context),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
           const SizedBox(width: 8),
           IconButton(

@@ -293,34 +293,20 @@ class InventoryListScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(width: 4),
-          ElevatedButton.icon(
+          IconButton(
+            icon: const Icon(Icons.add_box_outlined, color: AppColors.secondary),
+            tooltip: 'Add Material',
             onPressed: () async {
               await Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const InventoryFormScreen()),
               );
               ref.read(inventoryControllerProvider.notifier).loadItems();
             },
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Material'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-            ),
           ),
-          const SizedBox(width: 8),
-          Padding(
-            padding: const EdgeInsets.only(right: 8.0),
-            child: ElevatedButton.icon(
-              onPressed: () => _showBulkPurchaseOrderModal(context, state.items),
-              icon: const Icon(Icons.bolt, size: 16, color: Colors.amber),
-              label: const Text('Auto-Generate PO'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryColor(context),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 12),
-              ),
-            ),
+          IconButton(
+            icon: const Icon(Icons.bolt, color: Colors.amber),
+            tooltip: 'Auto-Generate PO',
+            onPressed: () => _showBulkPurchaseOrderModal(context, state.items),
           ),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
@@ -723,46 +709,53 @@ class _InventoryCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  Row(
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: runwayColor.withValues(alpha: 0.12),
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.timer_outlined, size: 12, color: runwayColor),
-                            const SizedBox(width: 4),
-                            Text(
-                              runwayDays > 90 ? 'Runway: 90+ Days' : 'Runway: $runwayDays Days Left',
-                              style: TextStyle(color: runwayColor, fontSize: 10, fontWeight: FontWeight.bold),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: runwayColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.timer_outlined, size: 12, color: runwayColor),
+                                const SizedBox(width: 4),
+                                Text(
+                                  runwayDays > 90 ? 'Runway: 90+ Days' : 'Runway: $runwayDays Days Left',
+                                  style: TextStyle(color: runwayColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ],
+                            ),
+                          ),
+                          if (item.isLowStock) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: const Row(
+                                children: [
+                                  Icon(Icons.warning_amber_rounded, size: 12, color: AppColors.error),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'LOW STOCK',
+                                    style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
-                        ),
+                        ],
                       ),
-                      if (item.isLowStock) ...[
-                        const SizedBox(width: 6),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: AppColors.error.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(20),
-                          ),
-                          child: const Row(
-                            children: [
-                              Icon(Icons.warning_amber_rounded, size: 12, color: AppColors.error),
-                              SizedBox(width: 4),
-                              Text(
-                                'LOW STOCK',
-                                style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                      const SizedBox(width: 4),
+                    ),
+                  ),
+                  const SizedBox(width: 4),
                       IconButton(
                         icon: const Icon(Icons.delete_outline, size: 18),
                         color: AppColors.error,
@@ -771,9 +764,7 @@ class _InventoryCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                ],
-              ),
-              const SizedBox(height: 12),
+                  const SizedBox(height: 12),
 
               // Material Name, Supplier & Financial Valuation
               Row(

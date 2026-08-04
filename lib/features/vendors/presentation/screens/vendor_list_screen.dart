@@ -658,20 +658,10 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
               );
             },
           ),
-          const SizedBox(width: 4),
-          ElevatedButton.icon(
+          IconButton(
+            icon: Icon(Icons.person_add_outlined, color: AppColors.primaryColor(context)),
+            tooltip: 'Add Partner',
             onPressed: () => _showSubcontractorFormDialog(context),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('Add Partner'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor(context),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
           const SizedBox(width: 8),
           IconButton(
@@ -769,46 +759,49 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                             setState(() => _tradeFilter = val),
                       ),
                       const SizedBox(height: 10),
-                      Row(
-                        children: [
-                          Text(
-                            'Status Filter: ',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.mutedText(context),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            Text(
+                              'Status Filter: ',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.mutedText(context),
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          Wrap(
-                            spacing: 6,
-                            children: ['All', 'Active', 'Completed', 'Pending']
-                                .map((st) {
-                                  final isSelected =
-                                      _statusFilter.toLowerCase() ==
-                                      st.toLowerCase();
-                                  return ChoiceChip(
-                                    label: Text(
-                                      st,
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: isSelected
-                                            ? Colors.white
-                                            : AppColors.text(context),
+                            const SizedBox(width: 8),
+                            Wrap(
+                              spacing: 6,
+                              children: ['All', 'Active', 'Completed', 'Pending']
+                                  .map((st) {
+                                    final isSelected =
+                                        _statusFilter.toLowerCase() ==
+                                        st.toLowerCase();
+                                    return ChoiceChip(
+                                      label: Text(
+                                        st,
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          color: isSelected
+                                              ? Colors.white
+                                              : AppColors.text(context),
+                                        ),
                                       ),
-                                    ),
-                                    selected: isSelected,
-                                    selectedColor: AppColors.primaryColor(
-                                      context,
-                                    ),
-                                    backgroundColor: AppColors.cardBg(context),
-                                    onSelected: (_) =>
-                                        setState(() => _statusFilter = st),
-                                  );
-                                })
-                                .toList(),
-                          ),
-                        ],
+                                      selected: isSelected,
+                                      selectedColor: AppColors.primaryColor(
+                                        context,
+                                      ),
+                                      backgroundColor: AppColors.cardBg(context),
+                                      onSelected: (_) =>
+                                          setState(() => _statusFilter = st),
+                                    );
+                                  })
+                                  .toList(),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 12),
                     ],

@@ -2,8 +2,9 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
-import '../../../../core/services/storage_service.dart';
 import '../../../../core/widgets/image_upload_card.dart';
+import '../../../../models/image_model.dart';
+import '../../../../providers/image_provider.dart';
 import '../../data/models/daily_progress_model.dart';
 import '../controllers/daily_progress_controller.dart';
 
@@ -57,27 +58,27 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
   Future<void> _save() async {
     setState(() => _isSaving = true);
 
-    final storage = ref.read(storageServiceProvider);
+    final imageNotifier = ref.read(imageNotifierProvider.notifier);
     final repo = ref.read(dailyProgressRepositoryProvider);
 
-    // Upload before/morning image if pending
+    // Upload before/morning image to ImageKit if pending
     if (_morningPendingBytes != null) {
-      final url = await storage.uploadImage(
-        bucket: 'progress-images',
-        fileBytes: _morningPendingBytes!,
+      final url = await imageNotifier.uploadImage(
+        bytes: _morningPendingBytes!,
         fileExtension: _morningPendingExt ?? 'jpg',
-        folder: widget.projectId,
+        folder: ImageFolder.projectsBefore,
+        projectId: widget.projectId,
       );
       if (url != null) _morningImageUrl = url;
     }
 
-    // Upload after/evening image if pending
+    // Upload after/evening image to ImageKit if pending
     if (_eveningPendingBytes != null) {
-      final url = await storage.uploadImage(
-        bucket: 'progress-images',
-        fileBytes: _eveningPendingBytes!,
+      final url = await imageNotifier.uploadImage(
+        bytes: _eveningPendingBytes!,
         fileExtension: _eveningPendingExt ?? 'jpg',
-        folder: widget.projectId,
+        folder: ImageFolder.projectsAfter,
+        projectId: widget.projectId,
       );
       if (url != null) _eveningImageUrl = url;
     }
@@ -109,7 +110,7 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Site progress log saved successfully ✓'), backgroundColor: AppColors.secondary),
+          const SnackBar(content: Text('Site progress log saved to ImageKit & Supabase ✓'), backgroundColor: AppColors.secondary),
         );
       }
     } catch (e) {
@@ -247,6 +248,9 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
                 _morningPendingBytes = bytes;
                 _morningPendingExt = ext;
               },
+              onDeleteRequested: () {
+                setState(() => _morningImageUrl = null);
+              },
             ),
             const SizedBox(height: 12),
             TextField(
@@ -285,6 +289,9 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
               onImagePicked: (bytes, ext) {
                 _eveningPendingBytes = bytes;
                 _eveningPendingExt = ext;
+              },
+              onDeleteRequested: () {
+                setState(() => _eveningImageUrl = null);
               },
             ),
             const SizedBox(height: 12),

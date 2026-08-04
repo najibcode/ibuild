@@ -326,144 +326,144 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   void _showMoreMenu(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
       builder: (context) {
         return SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: AppColors.borderSubtle,
-                    borderRadius: BorderRadius.circular(2),
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: AppColors.borderSubtle,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
                   ),
-                ),
-                const SizedBox(height: 16),
-                if (_hasPerm('billing.view'))
+                  const SizedBox(height: 16),
+                  if (_hasPerm('billing.view'))
+                    ListTile(
+                      leading: const Icon(
+                        Icons.receipt_long_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Billing',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _setMobileTab(MobileScreen.billing);
+                      },
+                    ),
                   ListTile(
                     leading: const Icon(
-                      Icons.receipt_long_outlined,
+                      Icons.request_quote_outlined,
                       color: AppColors.primary,
                     ),
                     title: const Text(
-                      'Billing',
+                      'Quotations & Estimates',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.billing);
+                      _setMobileTab(MobileScreen.quotations);
                     },
                   ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.request_quote_outlined,
-                    color: AppColors.primary,
-                  ),
-                  title: const Text(
-                    'Quotations & Estimates',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.quotations);
-                  },
-                ),
-                if (_hasPerm('expense.view'))
-
+                  if (_hasPerm('expense.view'))
+                    ListTile(
+                      leading: const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Expenses',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _setMobileTab(MobileScreen.expenses);
+                      },
+                    ),
                   ListTile(
                     leading: const Icon(
-                      Icons.account_balance_wallet_outlined,
+                      Icons.construction_outlined,
                       color: AppColors.primary,
                     ),
                     title: const Text(
-                      'Expenses',
+                      'Equipment, Machinery & Tools',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.expenses);
+                      _setMobileTab(MobileScreen.equipment);
                     },
                   ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.construction_outlined,
-                    color: AppColors.primary,
+                  ListTile(
+                    leading: const Icon(
+                      Icons.assignment_ind_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Subcontractors',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.vendors);
+                    },
                   ),
-                  title: const Text(
-                    'Equipment, Machinery & Tools',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.assessment_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Reports & Export',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.reports);
+                    },
                   ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.equipment);
-                  },
-
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.assignment_ind_outlined,
-                    color: AppColors.primary,
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.account_circle_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'My Profile',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.profile);
+                    },
                   ),
-                  title: const Text(
-                    'Subcontractors',
-                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.settings_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Settings',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.settings);
+                    },
                   ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.vendors);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.assessment_outlined,
-                    color: AppColors.primary,
-                  ),
-                  title: const Text(
-                    'Reports & Export',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.reports);
-                  },
-                ),
-                const Divider(),
-                ListTile(
-                  leading: const Icon(
-                    Icons.account_circle_outlined,
-                    color: AppColors.primary,
-                  ),
-                  title: const Text(
-                    'My Profile',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.profile);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.settings_outlined,
-                    color: AppColors.primary,
-                  ),
-                  title: const Text(
-                    'Settings',
-                    style: TextStyle(fontWeight: FontWeight.w600),
-                  ),
-                  onTap: () {
-                    Navigator.pop(context);
-                    _setMobileTab(MobileScreen.settings);
-                  },
-                ),
-
-              ],
+                ],
+              ),
             ),
           ),
         );

@@ -200,92 +200,97 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               // Date Picker & Shift Arrows
-                              Row(
-                                children: [
-                                  if (_canChangeDates)
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_left, size: 20),
-                                      onPressed: () => _shiftDate(-1, state.selectedDate),
-                                      tooltip: 'Previous Day',
-                                    ),
-                                  InkWell(
-                                    onTap: _canChangeDates ? () => _pickDate(context, state.selectedDate) : null,
-                                    borderRadius: BorderRadius.circular(8),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.primaryColor(context).withValues(alpha: 0.08),
+                              Expanded(
+                                child: SingleChildScrollView(
+                                  scrollDirection: Axis.horizontal,
+                                  child: Row(
+                                    children: [
+                                      if (_canChangeDates)
+                                        IconButton(
+                                          icon: const Icon(Icons.chevron_left, size: 20),
+                                          onPressed: () => _shiftDate(-1, state.selectedDate),
+                                          tooltip: 'Previous Day',
+                                        ),
+                                      InkWell(
+                                        onTap: _canChangeDates ? () => _pickDate(context, state.selectedDate) : null,
                                         borderRadius: BorderRadius.circular(8),
-                                        border: Border.all(color: AppColors.primaryColor(context).withValues(alpha: 0.2)),
-                                      ),
-                                      child: Row(
-                                        children: [
-                                          Icon(Icons.calendar_month, size: 16, color: AppColors.primaryColor(context)),
-                                          const SizedBox(width: 6),
-                                          Text(
-                                            formattedDateStr,
-                                            style: TextStyle(
-                                              fontWeight: FontWeight.bold,
-                                              fontSize: 13,
-                                              color: AppColors.primaryColor(context),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: isToday
-                                                  ? AppColors.secondary.withValues(alpha: 0.15)
-                                                  : Colors.amber.withValues(alpha: 0.18),
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(
-                                                color: isToday
-                                                    ? AppColors.secondary.withValues(alpha: 0.3)
-                                                    : Colors.amber.withValues(alpha: 0.4),
-                                              ),
-                                            ),
-                                            child: Text(
-                                              _getRelativeDateLabel(state.selectedDate),
-                                              style: TextStyle(
-                                                fontSize: 10,
-                                                fontWeight: FontWeight.bold,
-                                                color: isToday ? AppColors.secondary : Colors.amber.shade900,
-                                              ),
-                                            ),
-                                          ),
-                                          if (_isSupervisor) ...[
-                                            const SizedBox(width: 6),
-                                            Icon(Icons.lock_outline, size: 12, color: AppColors.mutedText(context)),
-                                          ],
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  if (_canChangeDates)
-                                    IconButton(
-                                      icon: const Icon(Icons.chevron_right, size: 20),
-                                      onPressed: () => _shiftDate(1, state.selectedDate),
-                                      tooltip: 'Next Day',
-                                    ),
-                                  if (!isToday && _canChangeDates)
-                                    Padding(
-                                      padding: const EdgeInsets.only(left: 4.0),
-                                      child: OutlinedButton.icon(
-                                        onPressed: () {
-                                          final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-                                          ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(todayStr);
-                                        },
-                                        icon: const Icon(Icons.today, size: 14),
-                                        label: const Text('Go to Today', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
-                                        style: OutlinedButton.styleFrom(
+                                        child: Container(
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                          side: BorderSide(color: AppColors.primaryColor(context)),
-                                          foregroundColor: AppColors.primaryColor(context),
-                                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                          decoration: BoxDecoration(
+                                            color: AppColors.primaryColor(context).withValues(alpha: 0.08),
+                                            borderRadius: BorderRadius.circular(8),
+                                            border: Border.all(color: AppColors.primaryColor(context).withValues(alpha: 0.2)),
+                                          ),
+                                          child: Row(
+                                            children: [
+                                              Icon(Icons.calendar_month, size: 16, color: AppColors.primaryColor(context)),
+                                              const SizedBox(width: 6),
+                                              Text(
+                                                formattedDateStr,
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.bold,
+                                                  fontSize: 13,
+                                                  color: AppColors.primaryColor(context),
+                                                ),
+                                              ),
+                                              const SizedBox(width: 8),
+                                              Container(
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                                decoration: BoxDecoration(
+                                                  color: isToday
+                                                      ? AppColors.secondary.withValues(alpha: 0.15)
+                                                      : Colors.amber.withValues(alpha: 0.18),
+                                                  borderRadius: BorderRadius.circular(6),
+                                                  border: Border.all(
+                                                    color: isToday
+                                                        ? AppColors.secondary.withValues(alpha: 0.3)
+                                                        : Colors.amber.withValues(alpha: 0.4),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  _getRelativeDateLabel(state.selectedDate),
+                                                  style: TextStyle(
+                                                    fontSize: 10,
+                                                    fontWeight: FontWeight.bold,
+                                                    color: isToday ? AppColors.secondary : Colors.amber.shade900,
+                                                  ),
+                                                ),
+                                              ),
+                                              if (_isSupervisor) ...[
+                                                const SizedBox(width: 6),
+                                                Icon(Icons.lock_outline, size: 12, color: AppColors.mutedText(context)),
+                                              ],
+                                            ],
+                                          ),
                                         ),
                                       ),
-                                    ),
-                                ],
+                                      if (_canChangeDates)
+                                        IconButton(
+                                          icon: const Icon(Icons.chevron_right, size: 20),
+                                          onPressed: () => _shiftDate(1, state.selectedDate),
+                                          tooltip: 'Next Day',
+                                        ),
+                                      if (!isToday && _canChangeDates)
+                                        Padding(
+                                          padding: const EdgeInsets.only(left: 4.0),
+                                          child: OutlinedButton.icon(
+                                            onPressed: () {
+                                              final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+                                              ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(todayStr);
+                                            },
+                                            icon: const Icon(Icons.today, size: 14),
+                                            label: const Text('Go to Today', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                                            style: OutlinedButton.styleFrom(
+                                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                              side: BorderSide(color: AppColors.primaryColor(context)),
+                                              foregroundColor: AppColors.primaryColor(context),
+                                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                            ),
+                                          ),
+                                        ),
+                                    ],
+                                  ),
+                                ),
                               ),
 
                               // Quick Bulk Actions Menu (only for owners/admins, or supervisors on today)
@@ -483,14 +488,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       children: [
                         Row(
                           children: [
-                            Text(
-                              employee.name,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: AppColors.text(context),
+                            Flexible(
+                              child: Text(
+                                employee.name,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                  color: AppColors.text(context),
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
-                              overflow: TextOverflow.ellipsis,
                             ),
                             const SizedBox(width: 8),
                             Container(
@@ -516,6 +523,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         Text(
                           '${employee.role.toUpperCase()} • Rate: ₹${employee.salary.toInt()}/day + ₹${employee.teaSnackAllowance.toInt()} tea',
                           style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),

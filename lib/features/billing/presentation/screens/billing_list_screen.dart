@@ -352,20 +352,10 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
               );
             },
           ),
-          const SizedBox(width: 4),
-          ElevatedButton.icon(
+          IconButton(
+            icon: Icon(actionIcon, color: AppColors.primaryColor(context)),
+            tooltip: actionLabel,
             onPressed: _onPrimaryActionButtonPressed,
-            icon: Icon(actionIcon, size: 16),
-            label: Text(actionLabel),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor(context),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
           ),
           const SizedBox(width: 8),
           IconButton(

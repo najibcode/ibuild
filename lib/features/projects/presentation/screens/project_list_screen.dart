@@ -75,21 +75,11 @@ class ProjectListScreen extends ConsumerWidget {
               );
             },
           ),
-          const SizedBox(width: 4),
-          ElevatedButton.icon(
+          IconButton(
+            icon: Icon(Icons.add_circle_outline, color: AppColors.primaryColor(context)),
+            tooltip: 'New Project',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ProjectFormScreen()),
-            ),
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('New Project'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor(context),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
             ),
           ),
           const SizedBox(width: 8),
@@ -261,11 +251,14 @@ class _ProjectCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Budget: ₹${_formatAmount(project.budget)}',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.mutedText(context),
+                  Flexible(
+                    child: Text(
+                      'Budget: ₹${_formatAmount(project.budget)}',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.mutedText(context),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Text(

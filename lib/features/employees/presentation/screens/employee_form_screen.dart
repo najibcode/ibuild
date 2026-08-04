@@ -1,6 +1,10 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/image_upload_card.dart';
+import '../../../../models/image_model.dart';
+import '../../../../providers/image_provider.dart';
 import '../../data/models/employee_model.dart';
 import '../controllers/employee_controller.dart';
 
@@ -22,21 +26,23 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
   late TextEditingController _teaSnackController;
   late String _status;
 
+  String? _photoUrl;
+  Uint8List? _pendingPhotoBytes;
+  String? _pendingPhotoExt;
+  bool _isUploadingPhoto = false;
+
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.employee?.name ?? '');
-    _phoneController = TextEditingController(
-      text: widget.employee?.phone ?? '',
-    );
+    _phoneController = TextEditingController(text: widget.employee?.phone ?? '');
     _roleController = TextEditingController(text: widget.employee?.role ?? '');
-    _salaryController = TextEditingController(
-      text: widget.employee?.salary.toString() ?? '',
-    );
+    _salaryController = TextEditingController(text: widget.employee?.salary.toString() ?? '');
     _teaSnackController = TextEditingController(
       text: (widget.employee?.teaSnackAllowance ?? 20.0).toStringAsFixed(0),
     );
     _status = widget.employee?.status ?? 'active';
+    _photoUrl = widget.employee?.photoUrl;
 
     _salaryController.addListener(_onCostChanged);
     _teaSnackController.addListener(_onCostChanged);
@@ -60,6 +66,22 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
   void _onSave() async {
     if (_formKey.currentState!.validate()) {
+      setState(() => _isUploadingPhoto = true);
+
+      // Upload profile picture to ImageKit if pending
+      if (_pendingPhotoBytes != null) {
+        final imageNotifier = ref.read(imageNotifierProvider.notifier);
+        final uploadedUrl = await imageNotifier.uploadImage(
+          bytes: _pendingPhotoBytes!,
+          fileExtension: _pendingPhotoExt ?? 'jpg',
+          folder: ImageFolder.employeesProfile,
+          employeeId: widget.employee?.id.isNotEmpty == true ? widget.employee!.id : null,
+        );
+        if (uploadedUrl != null) {
+          _photoUrl = uploadedUrl;
+        }
+      }
+
       final employee = Employee(
         id: widget.employee?.id ?? '',
         name: _nameController.text.trim(),
@@ -68,16 +90,14 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         salary: double.tryParse(_salaryController.text) ?? 0.0,
         teaSnackAllowance: double.tryParse(_teaSnackController.text) ?? 20.0,
         status: _status,
-        photoUrl: widget.employee?.photoUrl,
+        photoUrl: _photoUrl,
       );
 
       final success = widget.employee == null
-          ? await ref
-                .read(employeeListControllerProvider.notifier)
-                .addEmployee(employee)
-          : await ref
-                .read(employeeListControllerProvider.notifier)
-                .editEmployee(employee);
+          ? await ref.read(employeeListControllerProvider.notifier).addEmployee(employee)
+          : await ref.read(employeeListControllerProvider.notifier).editEmployee(employee);
+
+      setState(() => _isUploadingPhoto = false);
 
       if (success && mounted) {
         Navigator.of(context).pop();
@@ -85,8 +105,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           SnackBar(
             content: Text(
               widget.employee == null
-                  ? 'Employee added successfully'
-                  : 'Employee updated successfully',
+                  ? 'Employee added with ImageKit profile photo ✓'
+                  : 'Employee updated successfully ✓',
             ),
             backgroundColor: AppColors.secondary,
           ),
@@ -119,6 +139,31 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Profile Photo Card (ImageKit Integration)
+              const Text(
+                'PROFILE PICTURE',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  color: AppColors.primary,
+                  letterSpacing: 0.5,
+                ),
+              ),
+              const SizedBox(height: 8),
+              ImageUploadCard(
+                existingUrl: _photoUrl,
+                label: 'Tap to upload staff profile picture to ImageKit',
+                isUploading: _isUploadingPhoto,
+                onImagePicked: (bytes, ext) {
+                  _pendingPhotoBytes = bytes;
+                  _pendingPhotoExt = ext;
+                },
+                onDeleteRequested: () {
+                  setState(() => _photoUrl = null);
+                },
+              ),
+              const SizedBox(height: 20),
+
               // Form Fields Container
               Container(
                 padding: const EdgeInsets.all(AppSpacing.cardPadding),
@@ -131,107 +176,63 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Name
-                    const Text(
-                      'Full Name',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    const Text('Full Name', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _nameController,
                       decoration: const InputDecoration(hintText: 'Enter name'),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Please enter name' : null,
+                      validator: (v) => v == null || v.isEmpty ? 'Please enter name' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Phone
-                    const Text(
-                      'Phone Number',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    const Text('Phone Number', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
-                        hintText: 'Enter phone number',
-                      ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Please enter phone' : null,
+                      decoration: const InputDecoration(hintText: 'Enter phone number'),
+                      validator: (v) => v == null || v.isEmpty ? 'Please enter phone' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Role
-                    const Text(
-                      'Role / Designation',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    const Text('Role / Designation', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _roleController,
-                      decoration: const InputDecoration(
-                        hintText: 'e.g. Mason, Supervisor, Carpenter',
-                      ),
-                      validator: (v) =>
-                          v == null || v.isEmpty ? 'Please enter role' : null,
+                      decoration: const InputDecoration(hintText: 'e.g. Mason, Supervisor, Carpenter'),
+                      validator: (v) => v == null || v.isEmpty ? 'Please enter role' : null,
                     ),
                     const SizedBox(height: 20),
 
                     // Base Salary
-                    const Text(
-                      'Base Daily Salary (₹/day)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    const Text('Base Daily Salary (₹/day)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _salaryController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(hintText: '₹/day'),
                       validator: (v) {
-                        if (v == null || v.isEmpty)
-                          return 'Please enter daily salary';
-                        if (double.tryParse(v) == null)
-                          return 'Please enter a valid amount';
+                        if (v == null || v.isEmpty) return 'Please enter daily salary';
+                        if (double.tryParse(v) == null) return 'Please enter a valid amount';
                         return null;
                       },
                     ),
                     const SizedBox(height: 20),
 
                     // Daily Tea & Snacks Budget
-                    const Text(
-                      'Daily Tea & Snacks Budget (₹/day)',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    const Text('Daily Tea & Snacks Budget (₹/day)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 4),
-                    const Text(
-                      'Spent by owner per working day (Default ₹20/day)',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
+                    const Text('Spent by owner per working day (Default ₹20/day)', style: TextStyle(fontSize: 12, color: Colors.grey)),
                     const SizedBox(height: 8),
                     TextFormField(
                       controller: _teaSnackController,
                       keyboardType: TextInputType.number,
                       decoration: const InputDecoration(hintText: '₹20'),
                       validator: (v) {
-                        if (v == null || v.isEmpty)
-                          return 'Please enter tea & snacks budget';
-                        if (double.tryParse(v) == null || double.parse(v) < 0)
-                          return 'Enter valid amount';
+                        if (v == null || v.isEmpty) return 'Please enter tea & snacks budget';
+                        if (double.tryParse(v) == null || double.parse(v) < 0) return 'Enter valid amount';
                         return null;
                       },
                     ),
@@ -244,66 +245,30 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.primaryContainer.withAlpha(30),
                         borderRadius: BorderRadius.circular(AppRadius.md),
-                        border: Border.all(
-                          color: AppColors.primary.withAlpha(60),
-                        ),
+                        border: Border.all(color: AppColors.primary.withAlpha(60)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
-                            'Total Daily Cost (Base + Snacks):',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w600,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            '₹${totalDailyCost.toStringAsFixed(0)}/day',
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                              color: AppColors.primary,
-                            ),
-                          ),
+                          const Text('Total Daily Cost (Base + Snacks):', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                          Text('₹${totalDailyCost.toStringAsFixed(0)}/day', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.primary)),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
 
                     // Status (Dropdown)
-                    const Text(
-                      'Status',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                    ),
+                    const Text('Status', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                     const SizedBox(height: 8),
                     DropdownButtonFormField<String>(
                       initialValue: _status,
-                      decoration: const InputDecoration(
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 12,
-                          vertical: 10,
-                        ),
-                      ),
+                      decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10)),
                       items: const [
-                        DropdownMenuItem(
-                          value: 'active',
-                          child: Text('Active'),
-                        ),
-                        DropdownMenuItem(
-                          value: 'inactive',
-                          child: Text('Inactive'),
-                        ),
+                        DropdownMenuItem(value: 'active', child: Text('Active')),
+                        DropdownMenuItem(value: 'inactive', child: Text('Inactive')),
                       ],
                       onChanged: (val) {
-                        if (val != null) {
-                          setState(() {
-                            _status = val;
-                          });
-                        }
+                        if (val != null) setState(() => _status = val);
                       },
                     ),
                   ],
@@ -313,19 +278,16 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
 
               // Save Button
               ElevatedButton(
-                onPressed: _onSave,
+                onPressed: _isUploadingPhoto ? null : _onSave,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
                   minimumSize: const Size(double.infinity, 54),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                  ),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.defaultValue)),
                 ),
-                child: const Text(
-                  'Save Employee',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
+                child: _isUploadingPhoto
+                    ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                    : const Text('Save Employee', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ],
           ),

@@ -49,7 +49,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 subtitle: 'Active staff, daily wages, and roles summary',
                 headers: ['Employee ID', 'Name', 'Role', 'Phone', 'Daily Wage (INR)', 'Tea Allowance', 'Status'],
                 data: employees.map((e) => [
-                  e.id.substring(0, 8),
+                  e.shortId,
                   e.name,
                   e.role.toUpperCase(),
                   e.phone,
@@ -70,7 +70,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                 title: 'Workforce & Staff Directory',
                 headers: ['Employee ID', 'Name', 'Role', 'Phone', 'Daily Wage (INR)', 'Tea Allowance (INR)', 'Status'],
                 rows: employees.map((e) => [
-                  e.id,
+                  e.shortId,
                   e.name,
                   e.role.toUpperCase(),
                   e.phone,
@@ -430,6 +430,25 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.mutedText(context).withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            employee.shortId,
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.mutedText(context),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
                             horizontal: 8,
                             vertical: 2,
                           ),
@@ -447,12 +466,15 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                           ),
                         ),
                         const SizedBox(width: 8),
-                        Text(
-                          '₹${employee.salary.toInt()}/day + ₹${employee.teaSnackAllowance.toInt()} tea',
-                          style: TextStyle(
-                            fontSize: 11,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.secondary,
+                        Flexible(
+                          child: Text(
+                            '₹${employee.salary.toInt()}/day + ₹${employee.teaSnackAllowance.toInt()} tea',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.secondary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
                           ),
                         ),
                       ],
