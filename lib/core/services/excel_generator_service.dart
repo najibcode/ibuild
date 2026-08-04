@@ -12,7 +12,6 @@ class ExcelGeneratorService {
     List<dynamic>? summaryRow,
   }) {
     final excel = Excel.createExcel();
-    // Default sheet is 'Sheet1', rename or use target sheetName
     final defaultSheet = excel.getDefaultSheet() ?? 'Sheet1';
     excel.rename(defaultSheet, sheetName);
     final sheet = excel[sheetName];
@@ -22,7 +21,6 @@ class ExcelGeneratorService {
       fontSize: 14,
       fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
       backgroundColorHex: ExcelColor.fromHexString('#1E3A8A'),
-      horizontalAlignment: HorizontalAlignment.Center,
     );
 
     final CellStyle headerStyle = CellStyle(
@@ -30,7 +28,6 @@ class ExcelGeneratorService {
       fontSize: 11,
       fontColorHex: ExcelColor.fromHexString('#FFFFFF'),
       backgroundColorHex: ExcelColor.fromHexString('#1F2937'),
-      horizontalAlignment: HorizontalAlignment.Left,
     );
 
     final CellStyle summaryStyle = CellStyle(
@@ -40,43 +37,44 @@ class ExcelGeneratorService {
       backgroundColorHex: ExcelColor.fromHexString('#F3F4F6'),
     );
 
+    // Helper for CellValue conversion
+    CellValue toCellValue(dynamic val) {
+      if (val == null) return TextCellValue('');
+      if (val is int) return IntCellValue(val);
+      if (val is double) return DoubleCellValue(val);
+      if (val is num) return DoubleCellValue(val.toDouble());
+      if (val is bool) return TextCellValue(val ? 'Yes' : 'No');
+      return TextCellValue(val.toString());
+    }
+
     // Row 1: Title Header Banner
-    sheet.appendRow([CellValue.text('IBUILD ERP - $title')]);
+    sheet.appendRow([TextCellValue('IBUILD ERP - $title')]);
     sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = titleStyle;
 
     // Row 2: Metadata
-    sheet.appendRow([CellValue.text('Generated On: ${DateTime.now().toString().split('.').first}')]);
+    sheet.appendRow([TextCellValue('Generated On: ${DateTime.now().toString().split('.').first}')]);
 
     // Row 3: Empty spacer
     sheet.appendRow([]);
 
     // Row 4: Column Headers
-    final headerCells = headers.map((h) => CellValue.text(h)).toList();
+    final List<CellValue> headerCells = headers.map((h) => TextCellValue(h)).toList();
     sheet.appendRow(headerCells);
-    final int headerRowIndex = 3;
+    const int headerRowIndex = 3;
     for (int col = 0; col < headers.length; col++) {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: headerRowIndex)).cellStyle = headerStyle;
     }
 
     // Rows 5+: Data Rows
     for (final row in rows) {
-      final cellValues = row.map((val) {
-        if (val == null) return CellValue.text('');
-        if (val is num) return CellValue.number(val);
-        if (val is bool) return CellValue.text(val ? 'Yes' : 'No');
-        return CellValue.text(val.toString());
-      }).toList();
+      final List<CellValue> cellValues = row.map((val) => toCellValue(val)).toList();
       sheet.appendRow(cellValues);
     }
 
     // Optional Summary Row
     if (summaryRow != null && summaryRow.isNotEmpty) {
       sheet.appendRow([]); // Spacer
-      final summaryCells = summaryRow.map((val) {
-        if (val == null) return CellValue.text('');
-        if (val is num) return CellValue.number(val);
-        return CellValue.text(val.toString());
-      }).toList();
+      final List<CellValue> summaryCells = summaryRow.map((val) => toCellValue(val)).toList();
       sheet.appendRow(summaryCells);
 
       final summaryRowIdx = sheet.maxRows - 1;

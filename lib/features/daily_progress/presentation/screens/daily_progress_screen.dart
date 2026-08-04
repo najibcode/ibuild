@@ -3,6 +3,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/models/daily_progress_model.dart';
 import '../controllers/daily_progress_controller.dart';
 import 'daily_progress_form_screen.dart';
@@ -323,12 +328,56 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
       appBar: AppBar(
         title: Text('Daily Progress: ${widget.projectName}'),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final entries = ref.read(dailyProgressListProvider(widget.projectId)).value ?? [];
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Site Daily Progress Report',
+                subtitle: 'Site: ${widget.projectName}',
+                headers: ['Date', 'Completion %', 'Logged By', 'Work Summary & Key Milestones', 'Images Count'],
+                data: entries.map((e) => [
+                  e.date,
+                  '${e.progressPercentage}%',
+                  e.supervisorId ?? 'Supervisor',
+                  e.allNotes.join('; '),
+                  '${e.allImageUrls.length} photos',
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Daily_Progress_${widget.projectName.replaceAll(' ', '_')}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final entries = ref.read(dailyProgressListProvider(widget.projectId)).value ?? [];
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Daily_Progress',
+                title: 'Daily Progress & Site Execution Feed',
+                headers: ['Date', 'Project Site', 'Completion %', 'Recorded By', 'Work Notes', 'Photo Attachments Count'],
+                rows: entries.map((e) => [
+                  e.date,
+                  widget.projectName,
+                  e.progressPercentage,
+                  e.supervisorId ?? 'Supervisor',
+                  e.allNotes.join('; '),
+                  e.allImageUrls.length,
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Daily_Progress_${widget.projectName.replaceAll(' ', '_')}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.refresh, color: AppColors.primary),
             tooltip: 'Refresh Daily Progress Feed',
             onPressed: () =>
                 ref.invalidate(dailyProgressListProvider(widget.projectId)),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       body: bodyContent,

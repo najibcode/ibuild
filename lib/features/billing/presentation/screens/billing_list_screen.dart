@@ -338,10 +338,10 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
                 headers: ['Bill Number', 'Vendor / Party', 'Category', 'Bill Date', 'Due Date', 'Amount (INR)', 'Status'],
                 rows: bills.map((b) => [
                   b.billNumber,
-                  b.vendorName ?? 'N/A',
-                  b.category ?? 'Operational',
+                  b.projectName ?? 'General',
+                  'Operational',
                   b.billDate,
-                  b.dueDate ?? 'Net 30',
+                  b.billDate,
                   b.amount,
                   b.status.toUpperCase(),
                 ]).toList(),

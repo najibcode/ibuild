@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/models/subcontractor_model.dart';
 import '../../data/repositories/supabase_subcontractor_repository.dart';
@@ -30,6 +35,52 @@ class _TradePartnerDirectoryScreenState extends ConsumerState<TradePartnerDirect
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: const Text('Trade Partner Directory (Subcontractors)'),
+        actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final partners = partnersAsync.valueOrNull ?? [];
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Trade Partner Directory',
+                subtitle: 'Subcontractors & trade partner contract values',
+                headers: ['Partner Name', 'Specialization', 'Phone', 'Contract Value (INR)', 'Paid (INR)', 'Outstanding (INR)'],
+                data: partners.map((p) => [
+                  p.name,
+                  p.specialization ?? 'General',
+                  p.phone ?? 'N/A',
+                  'INR ${p.contractValue.toStringAsFixed(2)}',
+                  'INR ${p.paidAmount.toStringAsFixed(2)}',
+                  'INR ${p.outstandingAmount.toStringAsFixed(2)}',
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Trade_Partners_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final partners = partnersAsync.valueOrNull ?? [];
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Trade_Partners',
+                title: 'Trade Partner Directory & Contract Ledger',
+                headers: ['Partner Name', 'Specialization', 'Phone', 'Contract Value (INR)', 'Paid Amount (INR)', 'Outstanding Due (INR)'],
+                rows: partners.map((p) => [
+                  p.name,
+                  p.specialization ?? 'General',
+                  p.phone ?? 'N/A',
+                  p.contractValue,
+                  p.paidAmount,
+                  p.outstandingAmount,
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Trade_Partners_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),

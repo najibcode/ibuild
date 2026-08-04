@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../data/models/equipment_model.dart';
 import '../controllers/equipment_controller.dart';
@@ -1146,6 +1151,50 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
           ),
         ),
         actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Equipment, Machinery & Tools Report',
+                subtitle: 'Site deployment & machinery asset inventory',
+                headers: ['Asset Tag', 'Equipment Name', 'Category', 'Assigned Site', 'Rental Rate (INR/day)', 'Status'],
+                data: equipmentList.map((e) => [
+                  e.tagNumber,
+                  e.name,
+                  e.category,
+                  e.siteName,
+                  'INR ${e.rentalCostPerDay.toStringAsFixed(2)}',
+                  e.status.toUpperCase(),
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Equipment_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Equipment_Assets',
+                title: 'Equipment, Machinery & Tools Directory',
+                headers: ['Asset Tag', 'Equipment Name', 'Category', 'Serial Number', 'Assigned Site', 'Rental Cost / Day (INR)', 'Condition', 'Status'],
+                rows: equipmentList.map((e) => [
+                  e.tagNumber,
+                  e.name,
+                  e.category,
+                  e.tagNumber,
+                  e.siteName,
+                  e.rentalCostPerDay,
+                  e.notes ?? 'Good',
+                  e.status.toUpperCase(),
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Equipment_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 4),
           ElevatedButton.icon(
             onPressed: () => _showEquipmentFormDialog(context),
             icon: const Icon(Icons.add, size: 16),

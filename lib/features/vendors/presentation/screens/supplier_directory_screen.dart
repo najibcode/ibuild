@@ -2,6 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/models/vendor_model.dart';
 import '../../data/repositories/supabase_vendor_repository.dart';
@@ -30,6 +35,52 @@ class _SupplierDirectoryScreenState extends ConsumerState<SupplierDirectoryScree
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: const Text('Supplier Directory (Vendors)'),
+        actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final suppliers = suppliersAsync.valueOrNull ?? [];
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Material Supplier Directory',
+                subtitle: 'Registered vendors, GST details & outstanding balances',
+                headers: ['Supplier Name', 'Category', 'GSTIN', 'Phone', 'Paid (INR)', 'Outstanding (INR)'],
+                data: suppliers.map((s) => [
+                  s.name,
+                  s.category ?? 'General',
+                  s.gstNumber ?? 'N/A',
+                  s.phone ?? 'N/A',
+                  'INR ${s.paidAmount.toStringAsFixed(2)}',
+                  'INR ${s.outstandingBalance.toStringAsFixed(2)}',
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Suppliers_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final suppliers = suppliersAsync.valueOrNull ?? [];
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Suppliers',
+                title: 'Material Supplier Directory & Payables',
+                headers: ['Supplier Name', 'Category', 'GSTIN', 'Phone', 'Paid Amount (INR)', 'Outstanding Balance (INR)'],
+                rows: suppliers.map((s) => [
+                  s.name,
+                  s.category ?? 'General',
+                  s.gstNumber ?? 'N/A',
+                  s.phone ?? 'N/A',
+                  s.paidAmount,
+                  s.outstandingBalance,
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Suppliers_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),

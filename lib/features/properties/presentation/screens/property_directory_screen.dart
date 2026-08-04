@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/data_export_actions.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/models/property_model.dart';
 import '../../data/repositories/supabase_property_repository.dart';
@@ -21,6 +26,55 @@ class PropertyDirectoryScreen extends ConsumerWidget {
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: const Text('Property & Real Estate Assets'),
+        actions: [
+          DataExportActions(
+            compact: true,
+            onExportPdf: () async {
+              final properties = propertiesAsync.valueOrNull ?? [];
+              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                title: 'Property & Real Estate Inventory',
+                subtitle: 'Plot directory, commercial pricing & agent contacts',
+                headers: ['Property Name', 'Location', 'Type', 'Valuation (INR)', 'Agent Name', 'Mobile', 'Status'],
+                data: properties.map((p) => [
+                  p.propertyName,
+                  p.location,
+                  p.propertyType,
+                  'INR ${p.amount.toStringAsFixed(2)}',
+                  p.agentName ?? 'Direct',
+                  p.agentMobile ?? 'N/A',
+                  p.status.toUpperCase(),
+                ]).toList(),
+              );
+              await PdfDownloadHelper.downloadPdf(
+                bytes: pdfBytes,
+                filename: 'IBUILD_Properties_${DateTime.now().millisecondsSinceEpoch}.pdf',
+              );
+            },
+            onExportExcel: () async {
+              final properties = propertiesAsync.valueOrNull ?? [];
+              final excelBytes = ExcelGeneratorService.generateTableExcel(
+                sheetName: 'Properties',
+                title: 'Property & Real Estate Assets Directory',
+                headers: ['Property Name', 'Location', 'Type', 'Amount (INR)', 'Agent Name', 'Agent Company', 'Agent Mobile', 'Status'],
+                rows: properties.map((p) => [
+                  p.propertyName,
+                  p.location,
+                  p.propertyType,
+                  p.amount,
+                  p.agentName ?? 'Direct',
+                  p.agentCompany ?? 'N/A',
+                  p.agentMobile ?? 'N/A',
+                  p.status.toUpperCase(),
+                ]).toList(),
+              );
+              await ExcelDownloadHelper.downloadExcel(
+                bytes: excelBytes,
+                filename: 'IBUILD_Properties_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+              );
+            },
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: Padding(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),

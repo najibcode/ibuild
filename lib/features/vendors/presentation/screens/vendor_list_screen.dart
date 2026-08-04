@@ -623,7 +623,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   v.companyName,
                   v.tradeSpecialization,
                   v.contactPerson,
-                  v.phone,
+                  v.phone ?? 'N/A',
                   v.siteName,
                   'INR ${v.contractAmount.toStringAsFixed(2)}',
                   'INR ${v.paidAmount.toStringAsFixed(2)}',

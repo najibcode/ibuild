@@ -123,15 +123,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Worker Attendance & Deployment Log',
                 subtitle: 'Attendance log for Date: ${state.selectedDate}',
-                headers: ['Date', 'Worker Name', 'Site / Project', 'Morning Shift', 'Evening Shift', 'Wage (INR)', 'Overtime'],
+                headers: ['Date', 'Worker Name', 'Site / Project', 'Attendance Status'],
                 data: records.map((a) => [
                   a.date,
                   a.employeeName ?? 'Worker',
                   a.projectName ?? 'General',
-                  a.morningStatus.toUpperCase(),
-                  a.eveningStatus.toUpperCase(),
-                  'INR ${a.dailyWage.toStringAsFixed(2)}',
-                  'INR ${a.overtimePay.toStringAsFixed(2)}',
+                  a.status.toUpperCase(),
                 ]).toList(),
               );
               await PdfDownloadHelper.downloadPdf(
@@ -144,15 +141,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Attendance',
                 title: 'Attendance & Daily Deployment Summary',
-                headers: ['Date', 'Worker Name', 'Site / Project', 'Morning Shift', 'Evening Shift', 'Daily Wage (INR)', 'Overtime (INR)'],
+                headers: ['Date', 'Worker Name', 'Site / Project', 'Attendance Status'],
                 rows: records.map((a) => [
                   a.date,
                   a.employeeName ?? 'Worker',
                   a.projectName ?? 'General',
-                  a.morningStatus.toUpperCase(),
-                  a.eveningStatus.toUpperCase(),
-                  a.dailyWage,
-                  a.overtimePay,
+                  a.status.toUpperCase(),
                 ]).toList(),
               );
               await ExcelDownloadHelper.downloadExcel(
