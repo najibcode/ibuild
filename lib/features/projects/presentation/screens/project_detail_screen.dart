@@ -6,6 +6,7 @@ import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
 import 'project_operations_screen.dart';
+import 'project_dashboard_screen.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 
 final projectDetailProvider = FutureProvider.family<Project?, String>((
@@ -32,7 +33,7 @@ class ProjectDetailScreen extends ConsumerWidget {
             body: const Center(child: Text('Project not found')),
           );
         }
-        return ProjectOperationsScreen(
+        return ProjectDashboardScreen(
           projectId: project.id,
           projectName: project.name,
         );

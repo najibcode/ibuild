@@ -16,8 +16,6 @@ import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
-
-
 import 'features/billing/presentation/screens/billing_list_screen.dart';
 import 'features/sales_bills/presentation/screens/sales_bill_builder_screen.dart';
 import 'features/payments/presentation/screens/payment_ledger_screen.dart';
@@ -53,7 +51,10 @@ void main() async {
   final supabaseUrl = dotenv.env['SUPABASE_URL']!;
   final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
 
-  await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+  await Supabase.initialize(
+    url: supabaseUrl,
+    anonKey: supabaseAnonKey,
+  );
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -94,8 +95,6 @@ enum MobileScreen {
   settings,
   profile,
 }
-
-
 
 class MainRouterScreen extends ConsumerStatefulWidget {
   const MainRouterScreen({super.key});
@@ -199,7 +198,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         body = const QuotationListScreen();
         break;
       case MobileScreen.expenses:
-
         body = const ExpenseListScreen();
         break;
       case MobileScreen.equipment:
@@ -218,7 +216,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         body = const UserProfileScreen();
         break;
     }
-
 
     // Build bottom nav items based on permissions
     final List<_MobileNavEntry> navEntries = [
@@ -496,24 +493,34 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     switch (screen) {
       case MobileScreen.dashboard:
         _refreshDataForLabel('Dashboard');
+        break;
       case MobileScreen.projectsList:
         _refreshDataForLabel('Projects');
+        break;
       case MobileScreen.attendance:
         _refreshDataForLabel('Attendance');
+        break;
       case MobileScreen.employees:
         _refreshDataForLabel('Employees');
+        break;
       case MobileScreen.inventory:
         _refreshDataForLabel('Inventory');
+        break;
       case MobileScreen.billing:
         _refreshDataForLabel('Billing');
+        break;
       case MobileScreen.quotations:
         _refreshDataForLabel('Quotations & Estimates');
+        break;
       case MobileScreen.expenses:
         _refreshDataForLabel('Expenses');
+        break;
       case MobileScreen.equipment:
         _refreshDataForLabel('Equipment, Machinery & Tools');
+        break;
       case MobileScreen.vendors:
         _refreshDataForLabel('Subcontractors');
+        break;
       default:
         break; // Settings, Profile, Reports, Budget — no background data to reload
     }
@@ -524,16 +531,22 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     switch (label) {
       case 'Dashboard':
         ref.invalidate(dashboardStatsProvider);
+        break;
       case 'Projects':
         ref.read(projectControllerProvider.notifier).loadProjects();
+        break;
       case 'Attendance':
         ref.read(attendanceControllerProvider.notifier).loadAttendanceForToday();
+        break;
       case 'Employees':
         ref.read(employeeListControllerProvider.notifier).loadEmployees();
+        break;
       case 'Subcontractors':
         ref.read(subcontractorControllerProvider.notifier).loadSubcontractors();
+        break;
       case 'Expenses':
         ref.read(expenseControllerProvider.notifier).loadExpenses();
+        break;
       default:
         break; // Other tabs reload via their own mechanisms
     }
@@ -611,12 +624,10 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       case 'Quotations & Estimates':
         return const QuotationListScreen();
       case 'Expenses':
-
         return const ExpenseListScreen();
       case 'Equipment, Machinery & Tools':
         return const EquipmentListScreen();
       case 'Subcontractors':
-
         return const VendorListScreen();
       case 'Reports & Export':
         return const FullReportGeneratorScreen();
