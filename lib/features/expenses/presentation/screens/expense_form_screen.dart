@@ -351,8 +351,9 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.trim().isEmpty)
+                        if (v == null || v.trim().isEmpty) {
                           return 'Please describe what was purchased';
+                        }
                         return null;
                       },
                     ),
@@ -388,12 +389,15 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
                         ),
                       ),
                       validator: (v) {
-                        if (v == null || v.isEmpty)
+                        if (v == null || v.isEmpty) {
                           return 'Please enter expense amount';
-                        if (double.tryParse(v) == null)
+                        }
+                        if (double.tryParse(v) == null) {
                           return 'Please enter a valid number';
-                        if (double.parse(v) <= 0)
+                        }
+                        if (double.parse(v) <= 0) {
                           return 'Amount must be greater than 0';
+                        }
                         return null;
                       },
                     ),

@@ -35,8 +35,15 @@ class SupabaseDailyProgressRepository implements DailyProgressRepository {
   @override
   Future<void> upsertProgress(DailyProgress progress) async {
     final Map<String, dynamic> payload = progress.toJson();
+
+    // Check if a progress log already exists for this project and date
     if (progress.id.isEmpty) {
-      payload.remove('id');
+      final existing = await getProgressForDate(progress.projectId, progress.date);
+      if (existing != null && existing.id.isNotEmpty) {
+        payload['id'] = existing.id;
+      } else {
+        payload.remove('id');
+      }
     }
 
     final columnRegex = RegExp(r"Could not find the '([^']+)' column");
@@ -47,7 +54,9 @@ class SupabaseDailyProgressRepository implements DailyProgressRepository {
     while (!success && attempts < 10) {
       attempts++;
       try {
-        await _client.from('daily_progress').upsert(payload);
+        await _client
+            .from('daily_progress')
+            .upsert(payload, onConflict: 'project_id, date');
         success = true;
       } on PostgrestException catch (e) {
         if (e.code == 'PGRST204' || e.message.contains('Could not find the')) {

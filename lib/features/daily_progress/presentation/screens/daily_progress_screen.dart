@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import '../../../../widgets/cached_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
@@ -528,13 +529,14 @@ class _ProgressCard extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Photos & Evidence Section
-          if (hasMorningAndEvening)
+          if (entry.morningImageUrl != null && entry.eveningImageUrl != null && entry.morningImageUrl != entry.eveningImageUrl)
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: _evidencePhotoCard(
                     context,
-                    badgeLabel: 'BEFORE WORK',
+                    badgeLabel: 'BEFORE WORK (Morning)',
                     badgeColor: Colors.orange,
                     imageUrl: entry.morningImageUrl,
                     notes: entry.morningNotes,
@@ -544,12 +546,38 @@ class _ProgressCard extends StatelessWidget {
                 Expanded(
                   child: _evidencePhotoCard(
                     context,
-                    badgeLabel: 'AFTER WORK',
+                    badgeLabel: 'AFTER WORK (Evening)',
                     badgeColor: AppColors.secondary,
                     imageUrl: entry.eveningImageUrl,
                     notes: entry.eveningNotes,
                   ),
                 ),
+              ],
+            )
+          else if (entry.morningImageUrl != null || entry.eveningImageUrl != null)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (entry.morningImageUrl != null)
+                  Expanded(
+                    child: _evidencePhotoCard(
+                      context,
+                      badgeLabel: 'BEFORE WORK (Morning)',
+                      badgeColor: Colors.orange,
+                      imageUrl: entry.morningImageUrl,
+                      notes: entry.morningNotes,
+                    ),
+                  ),
+                if (entry.morningImageUrl == null && entry.eveningImageUrl != null)
+                  Expanded(
+                    child: _evidencePhotoCard(
+                      context,
+                      badgeLabel: 'AFTER WORK (Evening)',
+                      badgeColor: AppColors.secondary,
+                      imageUrl: entry.eveningImageUrl,
+                      notes: entry.eveningNotes,
+                    ),
+                  ),
               ],
             )
           else if (images.isNotEmpty)
@@ -577,7 +605,7 @@ class _ProgressCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 SizedBox(
-                  height: 140,
+                  height: 160,
                   child: ListView.builder(
                     scrollDirection: Axis.horizontal,
                     itemCount: images.length,
@@ -585,59 +613,12 @@ class _ProgressCard extends StatelessWidget {
                       final url = images[idx];
                       return Container(
                         margin: const EdgeInsets.only(right: 12),
-                        width: 180,
-                        child: InkWell(
-                          onTap: () => _showImagePreview(
-                            context,
-                            url,
-                            'Site Progress Photo ${idx + 1}',
-                          ),
+                        width: 200,
+                        child: AppCachedImage(
+                          imageUrl: url,
+                          fit: BoxFit.cover,
                           borderRadius: BorderRadius.circular(12),
-                          child: Container(
-                            decoration: BoxDecoration(
-                              color: AppColors.bg(context),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(
-                                color: AppColors.border(context),
-                              ),
-                            ),
-                            clipBehavior: Clip.antiAlias,
-                            child: Stack(
-                              fit: StackFit.expand,
-                              children: [
-                                CachedNetworkImage(
-                                  imageUrl: url,
-                                  fit: BoxFit.cover,
-                                  placeholder: (_, _) => const Center(
-                                    child: CircularProgressIndicator(),
-                                  ),
-                                  errorWidget: (_, _, _) => const Icon(
-                                    Icons.broken_image,
-                                    size: 36,
-                                    color: AppColors.outline,
-                                  ),
-                                ),
-                                Positioned(
-                                  bottom: 6,
-                                  right: 6,
-                                  child: Container(
-                                    padding: const EdgeInsets.all(4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.black.withValues(
-                                        alpha: 0.6,
-                                      ),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Icon(
-                                      Icons.fullscreen,
-                                      color: Colors.white,
-                                      size: 14,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
+                          enableZoom: true,
                         ),
                       );
                     },
@@ -731,16 +712,10 @@ class _ProgressCard extends StatelessWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  CachedNetworkImage(
+                  AppCachedImage(
                     imageUrl: imageUrl,
                     fit: BoxFit.cover,
-                    placeholder: (_, _) =>
-                        const Center(child: CircularProgressIndicator()),
-                    errorWidget: (_, _, _) => const Icon(
-                      Icons.broken_image,
-                      size: 36,
-                      color: AppColors.outline,
-                    ),
+                    enableZoom: true,
                   ),
                   Positioned(
                     bottom: 6,

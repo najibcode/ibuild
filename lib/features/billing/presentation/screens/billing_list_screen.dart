@@ -5,7 +5,6 @@ import 'package:printing/printing.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
-import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
@@ -17,9 +16,7 @@ import '../../../sales_bills/data/repositories/supabase_sales_bill_repository.da
 import '../../../sales_bills/data/sales_bill_pdf_generator.dart';
 import '../../../sales_bills/presentation/screens/sales_bill_builder_screen.dart';
 import '../../../payments/presentation/screens/payment_ledger_screen.dart';
-import '../../../payments/data/models/payment_model.dart';
 import '../../../payments/data/models/payment_ledger_model.dart';
-import '../../../payments/data/repositories/supabase_payment_repository.dart';
 import '../../../payments/data/repositories/supabase_payment_ledger_repository.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../controllers/billing_controller.dart';
@@ -327,7 +324,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
               );
               await PdfDownloadHelper.downloadPdf(
                 bytes: bytes,
-                filename: 'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.pdf',
+                filename:
+                    'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
             onExportExcel: () async {
@@ -335,20 +333,33 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Billing_Summary',
                 title: 'Vendor Bills & Operational Billing Hub',
-                headers: ['Bill Number', 'Vendor / Party', 'Category', 'Bill Date', 'Due Date', 'Amount (INR)', 'Status'],
-                rows: bills.map((b) => [
-                  b.billNumber,
-                  b.projectName ?? 'General',
-                  'Operational',
-                  b.billDate,
-                  b.billDate,
-                  b.amount,
-                  b.status.toUpperCase(),
-                ]).toList(),
+                headers: [
+                  'Bill Number',
+                  'Vendor / Party',
+                  'Category',
+                  'Bill Date',
+                  'Due Date',
+                  'Amount (INR)',
+                  'Status',
+                ],
+                rows: bills
+                    .map(
+                      (b) => [
+                        b.billNumber,
+                        b.projectName ?? 'General',
+                        'Operational',
+                        b.billDate,
+                        b.billDate,
+                        b.amount,
+                        b.status.toUpperCase(),
+                      ],
+                    )
+                    .toList(),
               );
               await ExcelDownloadHelper.downloadExcel(
                 bytes: excelBytes,
-                filename: 'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+                filename:
+                    'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.xlsx',
               );
             },
           ),

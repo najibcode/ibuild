@@ -57,8 +57,9 @@ class _FullReportGeneratorScreenState
     final double totalSpent = projects.fold(0.0, (sum, p) => sum + p.spent);
 
     final expenses = expenseState.expenses.where((e) {
-      if (_selectedProjectId == null || _selectedProjectId == 'all')
+      if (_selectedProjectId == null || _selectedProjectId == 'all') {
         return true;
+      }
       return e.projectId == _selectedProjectId;
     }).toList();
     final double totalExpensesAmount = expenses.fold(
@@ -297,14 +298,16 @@ class _FullReportGeneratorScreenState
         'Amount / Stock / Wage',
         'Payment Mode / Status',
         'Project Site',
-        'Notes / Details'
+        'Notes / Details',
       ];
 
       final List<List<dynamic>> rows = [];
 
       if (_includeExpenses) {
         for (final e in expenseState.expenses) {
-          if (_selectedProjectId != null && _selectedProjectId != 'all' && e.projectId != _selectedProjectId) {
+          if (_selectedProjectId != null &&
+              _selectedProjectId != 'all' &&
+              e.projectId != _selectedProjectId) {
             continue;
           }
           rows.add([
@@ -314,7 +317,7 @@ class _FullReportGeneratorScreenState
             e.amount,
             e.paymentMode,
             e.projectName ?? 'General',
-            e.notes ?? ''
+            e.notes ?? '',
           ]);
         }
       }
@@ -328,7 +331,7 @@ class _FullReportGeneratorScreenState
             '${item.availableStock} ${item.unit} @ ₹${item.purchasePrice}',
             item.isLowStock ? 'LOW STOCK' : 'Healthy',
             'Warehouse',
-            'Valuation: ₹${item.totalValuation}'
+            'Valuation: ₹${item.totalValuation}',
           ]);
         }
       }
@@ -340,8 +343,12 @@ class _FullReportGeneratorScreenState
         rows: rows,
       );
 
-      final fileName = 'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
-      await ExcelDownloadHelper.downloadExcel(bytes: excelBytes, filename: fileName);
+      final fileName =
+          'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.xlsx';
+      await ExcelDownloadHelper.downloadExcel(
+        bytes: excelBytes,
+        filename: fileName,
+      );
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -382,7 +389,8 @@ class _FullReportGeneratorScreenState
         selectedProjectId: _selectedProjectId,
       );
 
-      final fileName = 'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
+      final fileName =
+          'IBUILD_Audit_Report_${DateTime.now().millisecondsSinceEpoch}.pdf';
       await PdfDownloadHelper.downloadPdf(bytes: pdfBytes, filename: fileName);
 
       if (context.mounted) {

@@ -120,8 +120,9 @@ class WebSidebar extends ConsumerWidget {
 
     final visibleItems = allItems.where((item) {
       if (item.requiredPermission == null) return true;
-      if (roleName == 'owner' || roleName == 'admin' || permissions.isEmpty)
+      if (roleName == 'owner' || roleName == 'admin' || permissions.isEmpty) {
         return true;
+      }
       return permissions.contains(item.requiredPermission);
     }).toList();
 

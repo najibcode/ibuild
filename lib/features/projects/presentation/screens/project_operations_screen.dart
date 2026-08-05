@@ -2072,8 +2072,9 @@ class _ProjectOperationsScreenState
           ElevatedButton(
             onPressed: () async {
               if (titleCtrl.text.trim().isEmpty ||
-                  amountCtrl.text.trim().isEmpty)
+                  amountCtrl.text.trim().isEmpty) {
                 return;
+              }
               final amount = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
               final payment = ProjectPayment(
                 id: '',
@@ -2126,8 +2127,9 @@ class _ProjectOperationsScreenState
       padding: const EdgeInsets.all(16.0),
       child: projectAsync.when(
         data: (p) {
-          if (p == null)
+          if (p == null) {
             return _emptyState('Site Not Found', 'Could not load site details');
+          }
           return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
