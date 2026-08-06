@@ -11,7 +11,7 @@ import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
-import 'project_dashboard_screen.dart';
+import 'project_operations_screen.dart';
 
 class ProjectListScreen extends ConsumerWidget {
   const ProjectListScreen({super.key});
@@ -153,7 +153,7 @@ class ProjectListScreen extends ConsumerWidget {
                 project: project,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => ProjectDashboardScreen(
+                    builder: (_) => ProjectOperationsScreen(
                       projectId: project.id,
                       projectName: project.name,
                     ),

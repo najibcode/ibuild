@@ -33,7 +33,7 @@ class ProjectDetailScreen extends ConsumerWidget {
             body: const Center(child: Text('Project not found')),
           );
         }
-        return ProjectDashboardScreen(
+        return ProjectOperationsScreen(
           projectId: project.id,
           projectName: project.name,
         );

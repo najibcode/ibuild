@@ -326,30 +326,138 @@ class _ProjectOperationsScreenState
               ),
               const SizedBox(height: 16),
 
-              // 1. Site Summary Bar at TOP
+              // 1. Executive Site Dashboard Banner
               projectAsync.when(
                 data: (p) {
                   if (p == null) return const SizedBox.shrink();
+                  final utilization = p.budgetUtilization;
+                  final utilPct = (utilization * 100).toInt();
+                  final isHighUtil = utilization > 0.9;
+                  final statusColor = p.status == 'active'
+                      ? AppColors.secondary
+                      : p.status == 'completed'
+                          ? AppColors.primary
+                          : p.status == 'delayed'
+                              ? AppColors.error
+                              : AppColors.warning;
+
                   return Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 20,
-                      vertical: 16,
-                    ),
+                    padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
                       color: AppColors.cardBg(context),
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.border(context)),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        _metricCol('Budget', '₹${p.budget.toInt()}'),
-                        _metricCol('Spent', '₹${p.spent.toInt()}'),
-                        _metricCol(
-                          'Customer',
-                          p.customerName ?? 'Direct Client',
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.03),
+                          blurRadius: 10,
+                          offset: const Offset(0, 4),
                         ),
-                        _metricCol('Status', p.status.toUpperCase()),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Title & Status Row
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  p.name,
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.text(context),
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  p.clientName ?? p.customerName ?? 'Direct Client',
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    color: AppColors.mutedText(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                p.status.toUpperCase(),
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Metric Cards Grid
+                        LayoutBuilder(
+                          builder: (context, metricConstraints) {
+                            final isMobile = metricConstraints.maxWidth < 600;
+                            return GridView.count(
+                              shrinkWrap: true,
+                              physics: const NeverScrollableScrollPhysics(),
+                              crossAxisCount: isMobile ? 2 : 4,
+                              childAspectRatio: isMobile ? 1.6 : 1.8,
+                              mainAxisSpacing: 12,
+                              crossAxisSpacing: 12,
+                              children: [
+                                _dashKPITile('Total Budget', '₹${_fmtAmount(p.budget)}', Icons.payments_outlined, AppColors.primary),
+                                _dashKPITile('Amount Spent', '₹${_fmtAmount(p.spent)}', Icons.trending_up_outlined, isHighUtil ? AppColors.error : AppColors.secondary, badge: '$utilPct% used'),
+                                _dashKPITile('Remaining Balance', '₹${_fmtAmount(p.remainingBalance)}', Icons.account_balance_outlined, p.remainingBalance >= 0 ? AppColors.secondary : AppColors.error),
+                                _dashKPITile('Estimated Cost', '₹${_fmtAmount(p.estimatedCost)}', Icons.calculate_outlined, const Color(0xFF7C3AED)),
+                              ],
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 16),
+
+                        // Budget Utilization Bar
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              'Budget Utilization',
+                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                            ),
+                            Text(
+                              '$utilPct% allocated',
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold,
+                                color: isHighUtil ? AppColors.error : AppColors.secondary,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: utilization.clamp(0.0, 1.0),
+                            backgroundColor: AppColors.border(context),
+                            valueColor: AlwaysStoppedAnimation(
+                              isHighUtil ? AppColors.error : AppColors.primaryColor(context),
+                            ),
+                            minHeight: 6,
+                          ),
+                        ),
                       ],
                     ),
                   );
@@ -386,6 +494,74 @@ class _ProjectOperationsScreenState
         );
       },
     );
+  }
+
+  Widget _dashKPITile(
+    String label,
+    String value,
+    IconData icon,
+    Color iconColor, {
+    String? badge,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.bg(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(icon, size: 18, color: iconColor),
+              if (badge != null)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: iconColor.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    badge,
+                    style: TextStyle(
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      color: iconColor,
+                    ),
+                  ),
+                ),
+            ],
+          ),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(context),
+            ),
+          ),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.mutedText(context),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _fmtAmount(double amount) {
+    if (amount >= 10000000) return '${(amount / 10000000).toStringAsFixed(1)}Cr';
+    if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
+    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
+    return amount.toStringAsFixed(0);
   }
 
   Widget _buildSymmetricCard(

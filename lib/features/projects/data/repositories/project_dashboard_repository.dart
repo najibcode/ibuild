@@ -17,7 +17,7 @@ class ProjectDashboardRepository {
         _fetchPayments(projectId),         // 4
         _fetchWeeklyProgress(projectId),   // 5
         _fetchRecentActivity(projectId),   // 6
-      ]);
+      ]).timeout(const Duration(seconds: 5));
 
       final project = results[0] as Map<String, dynamic>?;
       final attendance = results[1] as _AttendanceData;
@@ -53,7 +53,6 @@ class ProjectDashboardRepository {
         recentActivities: activities,
       );
     } catch (e) {
-      print('Error loading project dashboard stats: $e');
       return ProjectDashboardStats.empty(projectId);
     }
   }
@@ -66,13 +65,14 @@ class ProjectDashboardRepository {
           .from('projects')
           .select()
           .eq('id', projectId)
-          .maybeSingle();
+          .maybeSingle()
+          .timeout(const Duration(seconds: 3));
     } catch (_) {
       return null;
     }
   }
 
-  // ── Attendance (today, scoped to project) ─────────────────────────────────
+  // ── Attendance (today) ──────────────────────────────────────────────────
 
   Future<_AttendanceData> _fetchAttendance(String projectId) async {
     try {
@@ -80,8 +80,8 @@ class ProjectDashboardRepository {
       final rows = await _client
           .from('attendance')
           .select('morning_status')
-          .eq('project_id', projectId)
-          .eq('date', todayStr);
+          .eq('date', todayStr)
+          .timeout(const Duration(seconds: 3));
 
       int present = 0;
       for (final r in (rows as List)) {
@@ -103,7 +103,8 @@ class ProjectDashboardRepository {
       final rows = await _client
           .from('expenses')
           .select('amount, category')
-          .eq('project_id', projectId);
+          .eq('project_id', projectId)
+          .timeout(const Duration(seconds: 3));
 
       double total = 0.0;
       final Map<String, double> byCategory = {};
@@ -133,7 +134,8 @@ class ProjectDashboardRepository {
       final rows = await _client
           .from('project_checklists')
           .select('is_completed')
-          .eq('project_id', projectId);
+          .eq('project_id', projectId)
+          .timeout(const Duration(seconds: 3));
 
       int total = (rows as List).length;
       int completed = rows.where((r) => r['is_completed'] == true).length;
@@ -151,7 +153,8 @@ class ProjectDashboardRepository {
       final rows = await _client
           .from('project_payments')
           .select('amount, status')
-          .eq('project_id', projectId);
+          .eq('project_id', projectId)
+          .timeout(const Duration(seconds: 3));
 
       double totalReceived = 0.0;
       double pending = 0.0;
@@ -185,7 +188,8 @@ class ProjectDashboardRepository {
           .select('date')
           .eq('project_id', projectId)
           .gte('date', weekAgoStr)
-          .order('date', ascending: true);
+          .order('date', ascending: true)
+          .timeout(const Duration(seconds: 3));
 
       final Map<String, int> countsByDate = {};
       for (final r in (rows as List)) {
@@ -216,7 +220,8 @@ class ProjectDashboardRepository {
           .select()
           .eq('entity_id', projectId)
           .order('created_at', ascending: false)
-          .limit(5);
+          .limit(5)
+          .timeout(const Duration(seconds: 3));
 
       return (rows as List).map((r) {
         final actionType = r['action_type'] as String? ?? 'unknown';
