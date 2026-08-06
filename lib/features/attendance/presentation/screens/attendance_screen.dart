@@ -7,6 +7,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/date_range_filter_helper.dart';
 import '../controllers/attendance_controller.dart';
 import '../../data/models/attendance_model.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
@@ -118,8 +119,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final records = state.attendanceList;
+            onExportPdfWithDates: (start, end) async {
+              final records = DateRangeFilterHelper.filter(
+                state.attendanceList,
+                start: start,
+                end: end,
+                getDate: (a) => a.date,
+              );
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Worker Attendance & Deployment Log',
                 subtitle: 'Attendance log for Date: ${state.selectedDate}',
@@ -136,8 +142,13 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                 filename: 'IBUILD_Attendance_${state.selectedDate}.pdf',
               );
             },
-            onExportExcel: () async {
-              final records = state.attendanceList;
+            onExportExcelWithDates: (start, end) async {
+              final records = DateRangeFilterHelper.filter(
+                state.attendanceList,
+                start: start,
+                end: end,
+                getDate: (a) => a.date,
+              );
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Attendance',
                 title: 'Attendance & Daily Deployment Summary',

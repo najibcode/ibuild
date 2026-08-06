@@ -1,16 +1,29 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import '../theme/app_colors.dart';
 
-/// Reusable UI component providing Export PDF and Export Excel actions for table views & header toolbars.
+/// Date range preset options for exports.
+enum DateRangeOption { last7Days, last30Days, allTime, custom }
+
+/// Reusable UI component providing Export PDF and Export Excel actions
+/// with a date-range selection menu (Last 7 Days, Last 30 Days, All Time, Custom).
 class DataExportActions extends StatelessWidget {
-  final Future<void> Function() onExportPdf;
-  final Future<void> Function() onExportExcel;
+  /// New-style callback: receives (startDate, endDate) for date-filtered exports.
+  final Future<void> Function(DateTime startDate, DateTime endDate)? onExportPdfWithDates;
+  final Future<void> Function(DateTime startDate, DateTime endDate)? onExportExcelWithDates;
+
+  /// Legacy callback (no date params). If the new callback is not provided, falls back to this.
+  final Future<void> Function()? onExportPdf;
+  final Future<void> Function()? onExportExcel;
+
   final bool compact;
 
   const DataExportActions({
     super.key,
-    required this.onExportPdf,
-    required this.onExportExcel,
+    this.onExportPdf,
+    this.onExportExcel,
+    this.onExportPdfWithDates,
+    this.onExportExcelWithDates,
     this.compact = false,
   });
 
@@ -22,12 +35,12 @@ class DataExportActions extends StatelessWidget {
         children: [
           IconButton(
             tooltip: 'Export as PDF',
-            onPressed: () async => _handleAction(context, onExportPdf, 'PDF'),
+            onPressed: () => _showDateRangeMenu(context, 'PDF'),
             icon: const Icon(Icons.picture_as_pdf, color: Colors.deepOrange, size: 20),
           ),
           IconButton(
             tooltip: 'Export as Excel (.xlsx)',
-            onPressed: () async => _handleAction(context, onExportExcel, 'Excel'),
+            onPressed: () => _showDateRangeMenu(context, 'Excel'),
             icon: const Icon(Icons.table_chart, color: Colors.green, size: 20),
           ),
         ],
@@ -39,7 +52,7 @@ class DataExportActions extends StatelessWidget {
       runSpacing: 8,
       children: [
         ElevatedButton.icon(
-          onPressed: () async => _handleAction(context, onExportPdf, 'PDF'),
+          onPressed: () => _showDateRangeMenu(context, 'PDF'),
           icon: const Icon(Icons.picture_as_pdf, size: 16),
           label: const Text('Export PDF', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           style: ElevatedButton.styleFrom(
@@ -50,7 +63,7 @@ class DataExportActions extends StatelessWidget {
           ),
         ),
         OutlinedButton.icon(
-          onPressed: () async => _handleAction(context, onExportExcel, 'Excel'),
+          onPressed: () => _showDateRangeMenu(context, 'Excel'),
           icon: const Icon(Icons.table_chart, size: 16),
           label: const Text('Export Excel (.xlsx)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
           style: OutlinedButton.styleFrom(
@@ -64,13 +77,42 @@ class DataExportActions extends StatelessWidget {
     );
   }
 
-  Future<void> _handleAction(
+  /// Shows a dialog to pick the date range, then triggers the export.
+  void _showDateRangeMenu(BuildContext context, String formatName) {
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return _DateRangePickerDialog(
+          formatName: formatName,
+          onSelected: (DateTime start, DateTime end) {
+            Navigator.of(dialogContext).pop();
+            _executeExport(context, formatName, start, end);
+          },
+        );
+      },
+    );
+  }
+
+  Future<void> _executeExport(
     BuildContext context,
-    Future<void> Function() action,
     String formatName,
+    DateTime start,
+    DateTime end,
   ) async {
     try {
-      await action();
+      if (formatName == 'PDF') {
+        if (onExportPdfWithDates != null) {
+          await onExportPdfWithDates!(start, end);
+        } else if (onExportPdf != null) {
+          await onExportPdf!();
+        }
+      } else {
+        if (onExportExcelWithDates != null) {
+          await onExportExcelWithDates!(start, end);
+        } else if (onExportExcel != null) {
+          await onExportExcel!();
+        }
+      }
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -89,6 +131,292 @@ class DataExportActions extends StatelessWidget {
           ),
         );
       }
+    }
+  }
+}
+
+/// Internal dialog widget for date range selection.
+class _DateRangePickerDialog extends StatefulWidget {
+  final String formatName;
+  final void Function(DateTime start, DateTime end) onSelected;
+
+  const _DateRangePickerDialog({
+    required this.formatName,
+    required this.onSelected,
+  });
+
+  @override
+  State<_DateRangePickerDialog> createState() => _DateRangePickerDialogState();
+}
+
+class _DateRangePickerDialogState extends State<_DateRangePickerDialog> {
+  DateRangeOption _selected = DateRangeOption.last7Days;
+  DateTimeRange? _customRange;
+
+  @override
+  Widget build(BuildContext context) {
+    final now = DateTime.now();
+    final dateFormat = DateFormat('dd MMM yyyy');
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 380),
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header
+              Row(
+                children: [
+                  Icon(
+                    widget.formatName == 'PDF'
+                        ? Icons.picture_as_pdf
+                        : Icons.table_chart,
+                    color: widget.formatName == 'PDF'
+                        ? Colors.deepOrange
+                        : Colors.green.shade700,
+                    size: 28,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Export ${widget.formatName}',
+                          style: const TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Select date range for report',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.of(context).pop(),
+                    splashRadius: 18,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              const Divider(height: 1),
+              const SizedBox(height: 16),
+
+              // Options
+              _buildOptionTile(
+                icon: Icons.calendar_today,
+                label: 'Last 7 Days',
+                subtitle: '${dateFormat.format(now.subtract(const Duration(days: 7)))} – ${dateFormat.format(now)}',
+                option: DateRangeOption.last7Days,
+              ),
+              const SizedBox(height: 8),
+              _buildOptionTile(
+                icon: Icons.date_range,
+                label: 'Last 30 Days',
+                subtitle: '${dateFormat.format(now.subtract(const Duration(days: 30)))} – ${dateFormat.format(now)}',
+                option: DateRangeOption.last30Days,
+              ),
+              const SizedBox(height: 8),
+              _buildOptionTile(
+                icon: Icons.all_inclusive,
+                label: 'All Time',
+                subtitle: 'Export all available data',
+                option: DateRangeOption.allTime,
+              ),
+              const SizedBox(height: 8),
+              _buildOptionTile(
+                icon: Icons.edit_calendar,
+                label: 'Custom Range',
+                subtitle: _customRange != null
+                    ? '${dateFormat.format(_customRange!.start)} – ${dateFormat.format(_customRange!.end)}'
+                    : 'Pick start and end dates',
+                option: DateRangeOption.custom,
+                onTap: () async {
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: now,
+                    initialDateRange: _customRange ??
+                        DateTimeRange(
+                          start: now.subtract(const Duration(days: 30)),
+                          end: now,
+                        ),
+                    builder: (context, child) {
+                      return Theme(
+                        data: Theme.of(context).copyWith(
+                          colorScheme: ColorScheme.light(
+                            primary: AppColors.primary,
+                            onPrimary: Colors.white,
+                            surface: Colors.white,
+                          ),
+                        ),
+                        child: child!,
+                      );
+                    },
+                  );
+                  if (picked != null) {
+                    setState(() {
+                      _customRange = picked;
+                      _selected = DateRangeOption.custom;
+                    });
+                  }
+                },
+              ),
+
+              const SizedBox(height: 24),
+
+              // Action Button
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    final range = _getDateRange();
+                    widget.onSelected(range.start, range.end);
+                  },
+                  icon: Icon(
+                    widget.formatName == 'PDF'
+                        ? Icons.download
+                        : Icons.file_download,
+                    size: 18,
+                  ),
+                  label: Text(
+                    'Download ${widget.formatName}',
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: widget.formatName == 'PDF'
+                        ? Colors.deepOrange
+                        : Colors.green.shade700,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildOptionTile({
+    required IconData icon,
+    required String label,
+    required String subtitle,
+    required DateRangeOption option,
+    VoidCallback? onTap,
+  }) {
+    final isSelected = _selected == option;
+
+    return Material(
+      color: isSelected
+          ? AppColors.primary.withValues(alpha: 0.08)
+          : Colors.transparent,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(10),
+        onTap: () {
+          setState(() => _selected = option);
+          if (onTap != null) onTap();
+        },
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isSelected
+                  ? AppColors.primary
+                  : Colors.grey.shade300,
+              width: isSelected ? 1.8 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected ? AppColors.primary : Colors.grey.shade600,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontWeight:
+                            isSelected ? FontWeight.w700 : FontWeight.w500,
+                        fontSize: 14,
+                        color: isSelected
+                            ? AppColors.primary
+                            : Colors.grey.shade800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey.shade500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSelected)
+                Icon(Icons.check_circle, color: AppColors.primary, size: 20),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  DateTimeRange _getDateRange() {
+    final now = DateTime.now();
+    final endOfDay = DateTime(now.year, now.month, now.day, 23, 59, 59);
+
+    switch (_selected) {
+      case DateRangeOption.last7Days:
+        return DateTimeRange(
+          start: endOfDay.subtract(const Duration(days: 7)),
+          end: endOfDay,
+        );
+      case DateRangeOption.last30Days:
+        return DateTimeRange(
+          start: endOfDay.subtract(const Duration(days: 30)),
+          end: endOfDay,
+        );
+      case DateRangeOption.allTime:
+        return DateTimeRange(
+          start: DateTime(2020, 1, 1),
+          end: endOfDay,
+        );
+      case DateRangeOption.custom:
+        return _customRange ??
+            DateTimeRange(
+              start: endOfDay.subtract(const Duration(days: 30)),
+              end: endOfDay,
+            );
     }
   }
 }
