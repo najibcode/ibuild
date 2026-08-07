@@ -9,6 +9,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../data/models/daily_progress_model.dart';
 import '../controllers/daily_progress_controller.dart';
 import 'daily_progress_form_screen.dart';
@@ -338,8 +339,14 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final entries = ref.read(dailyProgressListProvider(widget.projectId)).value ?? [];
+            onExportPdfWithDates: (start, end) async {
+              final allEntries = ref.read(dailyProgressListProvider(widget.projectId)).value ?? [];
+              final entries = DateRangeFilterHelper.filter(
+                allEntries,
+                start: start,
+                end: end,
+                getDate: (e) => e.date,
+              );
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Site Daily Progress Report',
                 subtitle: 'Site: ${widget.projectName}',
@@ -357,8 +364,14 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
                 filename: 'IBUILD_Daily_Progress_${widget.projectName.replaceAll(' ', '_')}.pdf',
               );
             },
-            onExportExcel: () async {
-              final entries = ref.read(dailyProgressListProvider(widget.projectId)).value ?? [];
+            onExportExcelWithDates: (start, end) async {
+              final allEntries = ref.read(dailyProgressListProvider(widget.projectId)).value ?? [];
+              final entries = DateRangeFilterHelper.filter(
+                allEntries,
+                start: start,
+                end: end,
+                getDate: (e) => e.date,
+              );
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Daily_Progress',
                 title: 'Daily Progress & Site Execution Feed',

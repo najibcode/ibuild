@@ -7,6 +7,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../data/models/quotation_model.dart';
 import '../../data/quotation_pdf_generator.dart';
 import '../controllers/quotation_controller.dart';
@@ -160,8 +161,13 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final quotes = state.quotations;
+            onExportPdfWithDates: (start, end) async {
+              final quotes = DateRangeFilterHelper.filter(
+                state.quotations,
+                start: start,
+                end: end,
+                getDate: (q) => q.createdAt,
+              );
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Project Quotations & Estimates',
                 subtitle: 'Commercial proposals & scope estimates',
@@ -180,8 +186,13 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
                 filename: 'IBUILD_Quotations_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
-              final quotes = state.quotations;
+            onExportExcelWithDates: (start, end) async {
+              final quotes = DateRangeFilterHelper.filter(
+                state.quotations,
+                start: start,
+                end: end,
+                getDate: (q) => q.createdAt,
+              );
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Quotations',
                 title: 'Project Quotations & Commercial Estimates Directory',

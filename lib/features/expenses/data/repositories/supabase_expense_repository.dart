@@ -160,4 +160,19 @@ class SupabaseExpenseRepository implements ExpenseRepository {
       // Fail silently
     }
   }
+
+  @override
+  Future<List<Expense>> getExpensesByDateRange(String startDate, String endDate) async {
+    try {
+      final response = await _client
+          .from('expenses')
+          .select('*, projects(name)')
+          .gte('expense_date', startDate)
+          .lte('expense_date', endDate)
+          .order('expense_date', ascending: false);
+      return (response as List).map((j) => Expense.fromJson(j)).toList();
+    } catch (e) {
+      return [];
+    }
+  }
 }

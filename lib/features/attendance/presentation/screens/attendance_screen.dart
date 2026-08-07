@@ -7,9 +7,10 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
-import '../../../../core/utils/date_range_filter_helper.dart';
 import '../controllers/attendance_controller.dart';
 import '../../data/models/attendance_model.dart';
+import '../../data/services/attendance_report_service.dart';
+import '../../../employees/presentation/controllers/employee_controller.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../projects/data/models/project_model.dart';
 import '../../../projects/presentation/screens/project_operations_screen.dart';
@@ -120,49 +121,47 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
           DataExportActions(
             compact: true,
             onExportPdfWithDates: (start, end) async {
-              final records = DateRangeFilterHelper.filter(
-                state.attendanceList,
-                start: start,
-                end: end,
-                getDate: (a) => a.date,
-              );
-              final pdfBytes = await GenericPdfTableGenerator.generatePdf(
-                title: 'Worker Attendance & Deployment Log',
-                subtitle: 'Attendance log for Date: ${state.selectedDate}',
-                headers: ['Date', 'Worker Name', 'Site / Project', 'Attendance Status'],
-                data: records.map((a) => [
-                  a.date,
-                  a.employeeName ?? 'Worker',
-                  a.projectName ?? 'General',
-                  a.status.toUpperCase(),
-                ]).toList(),
+              final startStr = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+              final endStr = '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+              final records = await ref.read(attendanceRepositoryProvider).getAttendanceForDateRange(startStr, endStr);
+              final employees = await ref.read(employeeRepositoryProvider).getEmployees();
+              final activeEmployees = employees.where((e) => e.status.toLowerCase() == 'active').toList();
+              final projects = ref.read(projectControllerProvider).projects;
+              final siteAssignments = ref.read(attendanceControllerProvider).siteAssignments;
+
+              final pdfBytes = await AttendanceReportService.generatePdf(
+                startStr: startStr,
+                endStr: endStr,
+                records: records,
+                activeEmployees: activeEmployees,
+                projects: projects,
+                siteAssignments: siteAssignments,
               );
               await PdfDownloadHelper.downloadPdf(
                 bytes: pdfBytes,
-                filename: 'IBUILD_Attendance_${state.selectedDate}.pdf',
+                filename: 'IBUILD_Attendance_Report_${startStr}_to_$endStr.pdf',
               );
             },
             onExportExcelWithDates: (start, end) async {
-              final records = DateRangeFilterHelper.filter(
-                state.attendanceList,
-                start: start,
-                end: end,
-                getDate: (a) => a.date,
-              );
-              final excelBytes = ExcelGeneratorService.generateTableExcel(
-                sheetName: 'Attendance',
-                title: 'Attendance & Daily Deployment Summary',
-                headers: ['Date', 'Worker Name', 'Site / Project', 'Attendance Status'],
-                rows: records.map((a) => [
-                  a.date,
-                  a.employeeName ?? 'Worker',
-                  a.projectName ?? 'General',
-                  a.status.toUpperCase(),
-                ]).toList(),
+              final startStr = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+              final endStr = '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+              final records = await ref.read(attendanceRepositoryProvider).getAttendanceForDateRange(startStr, endStr);
+              final employees = await ref.read(employeeRepositoryProvider).getEmployees();
+              final activeEmployees = employees.where((e) => e.status.toLowerCase() == 'active').toList();
+              final projects = ref.read(projectControllerProvider).projects;
+              final siteAssignments = ref.read(attendanceControllerProvider).siteAssignments;
+
+              final excelBytes = AttendanceReportService.generateExcel(
+                startStr: startStr,
+                endStr: endStr,
+                records: records,
+                activeEmployees: activeEmployees,
+                projects: projects,
+                siteAssignments: siteAssignments,
               );
               await ExcelDownloadHelper.downloadExcel(
                 bytes: excelBytes,
-                filename: 'IBUILD_Attendance_${state.selectedDate}.xlsx',
+                filename: 'IBUILD_Attendance_Report_${startStr}_to_$endStr.xlsx',
               );
             },
           ),
@@ -618,8 +617,8 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                     _buildStatusToggle(
                       context: context,
                       activeStatus: logged.status,
-                      onSelected: (status) async {
-                        await ref.read(attendanceControllerProvider.notifier).markAttendance(
+                      onSelected: (status) {
+                        ref.read(attendanceControllerProvider.notifier).markAttendance(
                           employeeId: employee.id,
                           status: status,
                           projectId: logged.projectId,
@@ -630,14 +629,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       context: context,
                       projects: projects,
                       currentProjectId: logged.projectId,
-                      onProjectSelected: (projId) async {
+                      onProjectSelected: (projId) {
                         if (projId == null) return;
-                        final success = await ref.read(attendanceControllerProvider.notifier).markAttendance(
+                        ref.read(attendanceControllerProvider.notifier).markAttendance(
                           employeeId: employee.id,
                           status: logged.status == 'Absent' ? 'Present' : logged.status,
                           projectId: projId,
                         );
-                        if (success && context.mounted) {
+                        if (context.mounted) {
                           final match = projects.where((p) => p.id == projId);
                           final siteName = match.isNotEmpty ? match.first.name : 'Site';
                           ScaffoldMessenger.of(context).clearSnackBars();

@@ -1153,12 +1153,16 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
+            onExportPdfWithDates: (start, end) async {
+              final filtered = equipmentList.where((e) {
+                return !e.createdAt.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !e.createdAt.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Equipment, Machinery & Tools Report',
                 subtitle: 'Site deployment & machinery asset inventory',
                 headers: ['Asset Tag', 'Equipment Name', 'Category', 'Assigned Site', 'Rental Rate (INR/day)', 'Status'],
-                data: equipmentList.map((e) => [
+                data: filtered.map((e) => [
                   e.tagNumber,
                   e.name,
                   e.category,
@@ -1172,12 +1176,16 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                 filename: 'IBUILD_Equipment_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
+            onExportExcelWithDates: (start, end) async {
+              final filtered = equipmentList.where((e) {
+                return !e.createdAt.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !e.createdAt.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Equipment_Assets',
                 title: 'Equipment, Machinery & Tools Directory',
                 headers: ['Asset Tag', 'Equipment Name', 'Category', 'Serial Number', 'Assigned Site', 'Rental Cost / Day (INR)', 'Condition', 'Status'],
-                rows: equipmentList.map((e) => [
+                rows: filtered.map((e) => [
                   e.tagNumber,
                   e.name,
                   e.category,

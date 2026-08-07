@@ -8,6 +8,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
@@ -34,8 +35,13 @@ class ProjectListScreen extends ConsumerWidget {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final projects = state.projects;
+            onExportPdfWithDates: (start, end) async {
+              final projects = DateRangeFilterHelper.filter(
+                state.projects,
+                start: start,
+                end: end,
+                getDate: (p) => p.createdAt,
+              );
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Projects Portfolio Report',
                 subtitle: 'Summary of active enterprise sites & budget allocations',
@@ -54,8 +60,13 @@ class ProjectListScreen extends ConsumerWidget {
                 filename: 'IBUILD_Projects_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
-              final projects = state.projects;
+            onExportExcelWithDates: (start, end) async {
+              final projects = DateRangeFilterHelper.filter(
+                state.projects,
+                start: start,
+                end: end,
+                getDate: (p) => p.createdAt,
+              );
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Projects',
                 title: 'Projects Directory & Budget Outflow',

@@ -41,7 +41,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
+            onExportPdfWithDates: (start, end) async {
               final employees =
                   ref.read(employeeListControllerProvider).value ?? [];
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
@@ -76,7 +76,7 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
                     'IBUILD_Employees_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
+            onExportExcelWithDates: (start, end) async {
               final employees =
                   ref.read(employeeListControllerProvider).value ?? [];
               final excelBytes = ExcelGeneratorService.generateTableExcel(

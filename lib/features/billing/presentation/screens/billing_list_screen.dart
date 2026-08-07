@@ -7,6 +7,7 @@ import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/building_pdf_generator.dart';
@@ -315,12 +316,21 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
+            onExportPdfWithDates: (start, end) async {
+              final filtered = DateRangeFilterHelper.filter(
+                state.bills,
+                start: start,
+                end: end,
+                getDate: (b) => b.billDate,
+              );
+              final totalBilledF = filtered.fold<double>(0, (s, b) => s + b.amount);
+              final totalPaidF = filtered.where((b) => b.status == 'paid').fold<double>(0, (s, b) => s + b.amount);
+              final totalPendingF = totalBilledF - totalPaidF;
               final bytes = await BuildingPdfGenerator.generateReport(
-                bills: state.bills,
-                totalAmount: totalBilled,
-                totalPaid: totalPaid,
-                totalPending: totalPending,
+                bills: filtered,
+                totalAmount: totalBilledF,
+                totalPaid: totalPaidF,
+                totalPending: totalPendingF,
               );
               await PdfDownloadHelper.downloadPdf(
                 bytes: bytes,
@@ -328,8 +338,13 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
                     'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
-              final bills = state.bills;
+            onExportExcelWithDates: (start, end) async {
+              final bills = DateRangeFilterHelper.filter(
+                state.bills,
+                start: start,
+                end: end,
+                getDate: (b) => b.billDate,
+              );
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Billing_Summary',
                 title: 'Vendor Bills & Operational Billing Hub',

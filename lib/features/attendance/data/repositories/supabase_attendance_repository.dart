@@ -13,12 +13,9 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
   @override
   Future<List<Attendance>> getAttendanceForDate(String date) async {
     try {
-      // The attendance table has: id, employee_id, date, morning_status,
-      // evening_status, created_at, updated_at.
-      // Join employees(name) for display. No project FK exists in the table.
       final response = await _client
           .from('attendance')
-          .select('*, employees(name)')
+          .select('*, employees(name), projects(name)')
           .eq('date', date);
 
       return (response as List).map((json) {
@@ -26,19 +23,19 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         return Attendance.fromJson(json, employeeName: employeeName);
       }).toList();
     } catch (e) {
-      debugPrint('[Attendance] getAttendanceForDate failed: $e');
-      // Fallback: plain select without join
+      debugPrint('[Attendance] getAttendanceForDate with project join failed: $e');
       try {
         final response = await _client
             .from('attendance')
-            .select('*')
+            .select('*, employees(name)')
             .eq('date', date);
 
-        return (response as List)
-            .map((json) => Attendance.fromJson(json))
-            .toList();
+        return (response as List).map((json) {
+          final employeeName = (json['employees'] as Map?)?['name'] as String?;
+          return Attendance.fromJson(json, employeeName: employeeName);
+        }).toList();
       } catch (e2) {
-        debugPrint('[Attendance] getAttendanceForDate fallback also failed: $e2');
+        debugPrint('[Attendance] getAttendanceForDate fallback failed: $e2');
         return [];
       }
     }
@@ -46,7 +43,7 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
 
   @override
   Future<void> saveAttendance(Attendance attendance) async {
-    final payload = attendance.toJson(); // {employee_id, date, morning_status, evening_status}
+    final payload = attendance.toJson();
     debugPrint('[Attendance] saveAttendance payload: $payload');
 
     try {
@@ -62,12 +59,21 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
       if (existingList.isNotEmpty) {
         // UPDATE the existing record
         final existingId = existingList.first['id'] as String;
-        final updateData = attendance.toUpdateJson(); // {morning_status, evening_status}
+        final updateData = attendance.toUpdateJson();
 
-        await _client
-            .from('attendance')
-            .update(updateData)
-            .eq('id', existingId);
+        try {
+          await _client
+              .from('attendance')
+              .update(updateData)
+              .eq('id', existingId);
+        } catch (updateError) {
+          debugPrint('[Attendance] update with project_id failed: $updateError. Trying without project_id.');
+          final fallbackData = Map<String, dynamic>.from(updateData)..remove('project_id');
+          await _client
+              .from('attendance')
+              .update(fallbackData)
+              .eq('id', existingId);
+        }
 
         debugPrint('[Attendance] saveAttendance UPDATED record id=$existingId');
 
@@ -82,8 +88,14 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
           }
         }
       } else {
-        // INSERT new record — do NOT include 'id', let DB auto-generate
-        await _client.from('attendance').insert(payload);
+        // INSERT new record
+        try {
+          await _client.from('attendance').insert(payload);
+        } catch (insertError) {
+          debugPrint('[Attendance] insert with project_id failed: $insertError. Trying without project_id.');
+          final fallbackPayload = Map<String, dynamic>.from(payload)..remove('project_id');
+          await _client.from('attendance').insert(fallbackPayload);
+        }
         debugPrint('[Attendance] saveAttendance INSERTED new record');
       }
     } catch (e) {
@@ -143,4 +155,40 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     debugPrint('[Attendance] getAttendanceHistoryForProject called but project_id column does not exist in DB — returning empty list');
     return [];
   }
+
+  @override
+  Future<List<Attendance>> getAttendanceForDateRange(String startDate, String endDate) async {
+    try {
+      final response = await _client
+          .from('attendance')
+          .select('*, employees(name), projects(name)')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .order('date', ascending: false);
+
+      return (response as List).map((json) {
+        final employeeName = (json['employees'] as Map?)?['name'] as String?;
+        return Attendance.fromJson(json, employeeName: employeeName);
+      }).toList();
+    } catch (e) {
+      debugPrint('[Attendance] getAttendanceForDateRange failed: $e');
+      try {
+        final response = await _client
+            .from('attendance')
+            .select('*, employees(name)')
+            .gte('date', startDate)
+            .lte('date', endDate)
+            .order('date', ascending: false);
+
+        return (response as List).map((json) {
+          final employeeName = (json['employees'] as Map?)?['name'] as String?;
+          return Attendance.fromJson(json, employeeName: employeeName);
+        }).toList();
+      } catch (e2) {
+        debugPrint('[Attendance] getAttendanceForDateRange fallback failed: $e2');
+        return [];
+      }
+    }
+  }
 }
+

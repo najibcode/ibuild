@@ -29,8 +29,11 @@ class PropertyDirectoryScreen extends ConsumerWidget {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final properties = propertiesAsync.valueOrNull ?? [];
+            onExportPdfWithDates: (start, end) async {
+              final properties = (propertiesAsync.valueOrNull ?? []).where((p) {
+                return !p.createdAt.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !p.createdAt.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Property & Real Estate Inventory',
                 subtitle: 'Plot directory, commercial pricing & agent contacts',
@@ -50,8 +53,11 @@ class PropertyDirectoryScreen extends ConsumerWidget {
                 filename: 'IBUILD_Properties_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
-              final properties = propertiesAsync.valueOrNull ?? [];
+            onExportExcelWithDates: (start, end) async {
+              final properties = (propertiesAsync.valueOrNull ?? []).where((p) {
+                return !p.createdAt.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !p.createdAt.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Properties',
                 title: 'Property & Real Estate Assets Directory',

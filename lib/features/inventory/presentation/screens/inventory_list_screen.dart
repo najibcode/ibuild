@@ -9,6 +9,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../controllers/inventory_controller.dart';
@@ -248,8 +249,13 @@ class InventoryListScreen extends ConsumerWidget {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final items = state.items;
+            onExportPdfWithDates: (start, end) async {
+              final items = DateRangeFilterHelper.filter(
+                state.items,
+                start: start,
+                end: end,
+                getDate: (item) => item.createdAt,
+              );
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Material Inventory Stock Report',
                 subtitle: 'Valuation & Low Stock Reorder Status',
@@ -269,8 +275,13 @@ class InventoryListScreen extends ConsumerWidget {
                 filename: 'IBUILD_Inventory_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
-              final items = state.items;
+            onExportExcelWithDates: (start, end) async {
+              final items = DateRangeFilterHelper.filter(
+                state.items,
+                start: start,
+                end: end,
+                getDate: (item) => item.createdAt,
+              );
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Inventory',
                 title: 'Material Inventory Stock Directory',

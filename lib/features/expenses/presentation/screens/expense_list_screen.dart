@@ -6,6 +6,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../data/models/expense_model.dart';
 import '../controllers/expense_controller.dart';
 import 'expense_form_screen.dart';
@@ -130,14 +131,24 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final expenses = state.expenses;
+            onExportPdfWithDates: (start, end) async {
+              final startStr = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+              final endStr = '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+              final fetchedExpenses = await ref.read(expenseRepositoryProvider).getExpensesByDateRange(startStr, endStr);
+              final expenses = fetchedExpenses.isEmpty
+                  ? DateRangeFilterHelper.filter(
+                      state.expenses,
+                      start: start,
+                      end: end,
+                      getDate: (e) => e.expenseDate,
+                    )
+                  : fetchedExpenses;
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Site Expenses Outflow History',
-                subtitle: 'Log of operational outflows and petty cash transactions',
+                subtitle: 'Log of operational outflows and petty cash transactions ($startStr to $endStr)',
                 headers: ['ID', 'Date', 'Category', 'Amount (INR)', 'Mode', 'Project Site', 'Notes'],
                 data: expenses.map((e) => [
-                  e.id.substring(0, 8),
+                  e.id.length >= 8 ? e.id.substring(0, 8) : e.id,
                   e.expenseDate,
                   e.category,
                   'INR ${e.amount.toStringAsFixed(2)}',
@@ -148,11 +159,21 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
               );
               await PdfDownloadHelper.downloadPdf(
                 bytes: pdfBytes,
-                filename: 'IBUILD_Expenses_${DateTime.now().millisecondsSinceEpoch}.pdf',
+                filename: 'IBUILD_Expenses_${startStr}_to_$endStr.pdf',
               );
             },
-            onExportExcel: () async {
-              final expenses = state.expenses;
+            onExportExcelWithDates: (start, end) async {
+              final startStr = '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+              final endStr = '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+              final fetchedExpenses = await ref.read(expenseRepositoryProvider).getExpensesByDateRange(startStr, endStr);
+              final expenses = fetchedExpenses.isEmpty
+                  ? DateRangeFilterHelper.filter(
+                      state.expenses,
+                      start: start,
+                      end: end,
+                      getDate: (e) => e.expenseDate,
+                    )
+                  : fetchedExpenses;
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Expenses',
                 title: 'Site Expenses & Financial Outflows',
@@ -169,7 +190,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
               );
               await ExcelDownloadHelper.downloadExcel(
                 bytes: excelBytes,
-                filename: 'IBUILD_Expenses_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+                filename: 'IBUILD_Expenses_${startStr}_to_$endStr.xlsx',
               );
             },
           ),

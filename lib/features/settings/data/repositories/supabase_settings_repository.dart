@@ -1,4 +1,11 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/supabase/supabase_client.provider.dart';
+
+final settingsRepositoryProvider = Provider<SupabaseSettingsRepository>((ref) {
+  final client = ref.watch(supabaseClientProvider);
+  return SupabaseSettingsRepository(client);
+});
 
 class SupabaseSettingsRepository {
   final SupabaseClient _client;

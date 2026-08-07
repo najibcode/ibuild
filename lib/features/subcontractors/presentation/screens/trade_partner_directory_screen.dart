@@ -38,8 +38,11 @@ class _TradePartnerDirectoryScreenState extends ConsumerState<TradePartnerDirect
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final partners = partnersAsync.valueOrNull ?? [];
+            onExportPdfWithDates: (start, end) async {
+              final partners = (partnersAsync.valueOrNull ?? []).where((p) {
+                return !p.createdAt.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !p.createdAt.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Trade Partner Directory',
                 subtitle: 'Subcontractors & trade partner contract values',
@@ -58,8 +61,11 @@ class _TradePartnerDirectoryScreenState extends ConsumerState<TradePartnerDirect
                 filename: 'IBUILD_Trade_Partners_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
-              final partners = partnersAsync.valueOrNull ?? [];
+            onExportExcelWithDates: (start, end) async {
+              final partners = (partnersAsync.valueOrNull ?? []).where((p) {
+                return !p.createdAt.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !p.createdAt.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Trade_Partners',
                 title: 'Trade Partner Directory & Contract Ledger',

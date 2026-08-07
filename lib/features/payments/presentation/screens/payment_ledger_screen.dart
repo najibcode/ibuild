@@ -305,8 +305,12 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
         actions: [
           DataExportActions(
             compact: true,
-            onExportPdf: () async {
-              final entries = ledgerAsync.valueOrNull ?? [];
+            onExportPdfWithDates: (start, end) async {
+              final allEntries = ledgerAsync.valueOrNull ?? [];
+              final entries = allEntries.where((e) {
+                return !e.paymentDate.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !e.paymentDate.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               if (entries.isEmpty) return;
               final pdfBytes = await PaymentLedgerPdfGenerator.generateLedgerReport(entries);
               await PdfDownloadHelper.downloadPdf(
@@ -314,8 +318,12 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                 filename: 'IBUILD_Payment_Ledger_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
-            onExportExcel: () async {
-              final entries = ledgerAsync.valueOrNull ?? [];
+            onExportExcelWithDates: (start, end) async {
+              final allEntries = ledgerAsync.valueOrNull ?? [];
+              final entries = allEntries.where((e) {
+                return !e.paymentDate.isBefore(DateTime(start.year, start.month, start.day)) &&
+                       !e.paymentDate.isAfter(DateTime(end.year, end.month, end.day, 23, 59, 59));
+              }).toList();
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Payment_Ledger',
                 title: 'Payment Ledger & Cash Flow History',

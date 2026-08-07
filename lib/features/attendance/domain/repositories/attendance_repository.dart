@@ -10,4 +10,7 @@ abstract class AttendanceRepository {
 
   /// Fetches the last [days] days of attendance records for a project.
   Future<List<Attendance>> getAttendanceHistoryForProject(String projectId, {int days = 7});
+
+  /// Fetches all attendance records between [startDate] and [endDate] (inclusive, yyyy-MM-dd).
+  Future<List<Attendance>> getAttendanceForDateRange(String startDate, String endDate);
 }

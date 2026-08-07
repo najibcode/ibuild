@@ -47,20 +47,17 @@ class ExcelGeneratorService {
       return TextCellValue(val.toString());
     }
 
-    // Row 1: Title Header Banner
-    sheet.appendRow([TextCellValue('IBUILD ERP - $title')]);
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = titleStyle;
+    // Row 1: Simple Title Header
+    sheet.appendRow([TextCellValue(title)]);
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = headerStyle;
 
-    // Row 2: Metadata
-    sheet.appendRow([TextCellValue('Generated On: ${DateTime.now().toString().split('.').first}')]);
-
-    // Row 3: Empty spacer
+    // Row 2: Empty spacer
     sheet.appendRow([]);
 
-    // Row 4: Column Headers
+    // Row 3: Column Headers
     final List<CellValue> headerCells = headers.map((h) => TextCellValue(h)).toList();
     sheet.appendRow(headerCells);
-    const int headerRowIndex = 3;
+    const int headerRowIndex = 2;
     for (int col = 0; col < headers.length; col++) {
       sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: headerRowIndex)).cellStyle = headerStyle;
     }

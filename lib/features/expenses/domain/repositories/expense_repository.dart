@@ -13,4 +13,5 @@ abstract class ExpenseRepository {
   Future<void> createExpense(Expense expense);
   Future<void> updateExpense(Expense expense);
   Future<void> deleteExpense(String id);
+  Future<List<Expense>> getExpensesByDateRange(String startDate, String endDate);
 }
