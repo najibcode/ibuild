@@ -42,7 +42,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
             AppLogo(
               size: 72,
               subtitle: 'CONSTRUCTION ERP',
-              color: Colors.white,
+              inverted: true,
             ),
             SizedBox(height: 36),
             CircularProgressIndicator(

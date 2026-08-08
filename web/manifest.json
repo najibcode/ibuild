@@ -1,11 +1,11 @@
 {
-    "name": "ibuild",
-    "short_name": "ibuild",
+    "name": "IBUILD ERP",
+    "short_name": "IBUILD",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#0B132B",
+    "theme_color": "#1E40AF",
+    "description": "Construction Management & Operations ERP for site supervisors and business owners.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

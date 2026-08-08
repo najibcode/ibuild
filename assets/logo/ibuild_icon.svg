@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0D2563"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded square -->
+  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
+
+  <!-- Left Column (shortest) -->
+  <rect x="102" y="246" width="92" height="174" rx="13" ry="13" fill="white" opacity="0.82"/>
+
+  <!-- Center Column (tallest) -->
+  <rect x="215" y="113" width="92" height="307" rx="13" ry="13" fill="white"/>
+
+  <!-- Right Column (medium) -->
+  <rect x="328" y="184" width="92" height="236" rx="13" ry="13" fill="white" opacity="0.82"/>
+
+  <!-- Emerald Chevron Crown -->
+  <polygon points="261,82 321,123 201,123" fill="#059669"/>
+
+  <!-- Window Accents (Center Column) -->
+  <rect x="236" y="164" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+  <rect x="236" y="215" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+  <rect x="236" y="266" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+  <rect x="236" y="317" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+
+  <!-- Window Accents (Left Column) -->
+  <rect x="123" y="287" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+  <rect x="123" y="338" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+
+  <!-- Window Accents (Right Column) -->
+  <rect x="349" y="225" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+  <rect x="349" y="276" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+
+  <!-- Foundation Base Line -->
+  <line x1="82" y1="440" x2="430" y2="440" stroke="white" stroke-width="23" stroke-linecap="round"/>
+</svg>

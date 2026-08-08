@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>IBUILD Icon Generator</title>
+  <style>
+    body { font-family: system-ui; padding: 20px; background: #f1f5f9; }
+    h1 { color: #1E40AF; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin: 20px 0; }
+    .card { background: white; border-radius: 12px; padding: 16px; text-align: center; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .card canvas { border: 1px solid #e2e8f0; border-radius: 8px; }
+    .card p { margin: 8px 0 0; font-size: 12px; color: #64748B; }
+    a { display: inline-block; margin-top: 8px; padding: 6px 12px; background: #1E40AF; color: white; border-radius: 6px; font-size: 12px; text-decoration: none; cursor: pointer; }
+    a:hover { background: #1e3a8a; }
+  </style>
+</head>
+<body>
+  <h1>🏗️ IBUILD ERP — Icon Generator</h1>
+  <p>Click each download button to save the icon as PNG. Then replace the files in <code>web/icons/</code>.</p>
+  <div class="grid" id="grid"></div>
+
+  <script>
+    const icons = [
+      { name: 'favicon', size: 32, maskable: false },
+      { name: 'Icon-192', size: 192, maskable: false },
+      { name: 'Icon-512', size: 512, maskable: false },
+      { name: 'Icon-maskable-192', size: 192, maskable: true },
+      { name: 'Icon-maskable-512', size: 512, maskable: true },
+    ];
+
+    function drawIcon(ctx, s, maskable) {
+      const pad = maskable ? s * 0.10 : 0;
+      const area = s - pad * 2;
+
+      ctx.save();
+      ctx.translate(pad, pad);
+
+      // Background rounded rect
+      const r = area * 0.22;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, area, area, r);
+      const grad = ctx.createLinearGradient(0, 0, area, area);
+      grad.addColorStop(0, '#1E40AF');
+      grad.addColorStop(1, '#0D2563');
+      ctx.fillStyle = grad;
+      ctx.fill();
+
+      const w = area, h = area;
+      const colW = w * 0.18;
+      const gap = w * 0.04;
+
+      // Left column
+      const lx = w * 0.20, lTop = h * 0.48, lBot = h * 0.82;
+      ctx.fillStyle = 'rgba(255,255,255,0.82)';
+      ctx.beginPath();
+      ctx.roundRect(lx, lTop, colW, lBot - lTop, w * 0.025);
+      ctx.fill();
+
+      // Center column
+      const cx = lx + colW + gap, cTop = h * 0.22, cBot = h * 0.82;
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      ctx.roundRect(cx, cTop, colW, cBot - cTop, w * 0.025);
+      ctx.fill();
+
+      // Right column
+      const rx = cx + colW + gap, rTop = h * 0.36, rBot = h * 0.82;
+      ctx.fillStyle = 'rgba(255,255,255,0.82)';
+      ctx.beginPath();
+      ctx.roundRect(rx, rTop, colW, rBot - rTop, w * 0.025);
+      ctx.fill();
+
+      // Emerald chevron
+      const chevCX = cx + colW / 2;
+      const chevTop = cTop - h * 0.06;
+      const chevBase = cTop + h * 0.02;
+      const chevHW = colW * 0.65;
+      ctx.fillStyle = '#059669';
+      ctx.beginPath();
+      ctx.moveTo(chevCX, chevTop);
+      ctx.lineTo(chevCX + chevHW, chevBase);
+      ctx.lineTo(chevCX - chevHW, chevBase);
+      ctx.closePath();
+      ctx.fill();
+
+      // Window accents (skip for favicon-size)
+      if (s > 48) {
+        ctx.fillStyle = 'rgba(255,255,255,0.20)';
+        const winW = w * 0.08, winH = h * 0.04, winR = w * 0.01;
+
+        // Center windows
+        const winXc = cx + (colW - winW) / 2;
+        [cTop + h*0.10, cTop + h*0.20, cTop + h*0.30, cTop + h*0.40].forEach(wy => {
+          ctx.beginPath();
+          ctx.roundRect(winXc, wy, winW, winH, winR);
+          ctx.fill();
+        });
+
+        // Left windows
+        const winXl = lx + (colW - winW) / 2;
+        [lTop + h*0.08, lTop + h*0.18].forEach(wy => {
+          ctx.beginPath();
+          ctx.roundRect(winXl, wy, winW, winH, winR);
+          ctx.fill();
+        });
+
+        // Right windows
+        const winXr = rx + (colW - winW) / 2;
+        [rTop + h*0.08, rTop + h*0.18].forEach(wy => {
+          ctx.beginPath();
+          ctx.roundRect(winXr, wy, winW, winH, winR);
+          ctx.fill();
+        });
+      }
+
+      // Foundation base line
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = w * 0.045;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(w * 0.16, h * 0.86);
+      ctx.lineTo(w * 0.84, h * 0.86);
+      ctx.stroke();
+
+      ctx.restore();
+    }
+
+    const grid = document.getElementById('grid');
+
+    icons.forEach(icon => {
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      const canvas = document.createElement('canvas');
+      const displaySize = Math.min(icon.size, 200);
+      canvas.width = icon.size;
+      canvas.height = icon.size;
+      canvas.style.width = displaySize + 'px';
+      canvas.style.height = displaySize + 'px';
+
+      const ctx = canvas.getContext('2d');
+
+      if (icon.maskable) {
+        // Fill background for maskable
+        ctx.fillStyle = '#1E40AF';
+        ctx.fillRect(0, 0, icon.size, icon.size);
+      }
+
+      drawIcon(ctx, icon.size, icon.maskable);
+
+      const link = document.createElement('a');
+      link.textContent = `Download ${icon.name}.png`;
+      link.addEventListener('click', () => {
+        const url = canvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = icon.name + '.png';
+        a.click();
+      });
+
+      const label = document.createElement('p');
+      label.textContent = `${icon.name}.png — ${icon.size}×${icon.size}px${icon.maskable ? ' (maskable)' : ''}`;
+
+      card.appendChild(canvas);
+      card.appendChild(label);
+      card.appendChild(link);
+      grid.appendChild(card);
+    });
+  </script>
+</body>
+</html>
