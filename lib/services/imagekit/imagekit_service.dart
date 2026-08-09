@@ -48,7 +48,10 @@ class ImageKitService {
     void Function(double progress)? onProgress,
   }) async {
     try {
+      appLogger.i('ImageKit: Starting upload — file=$fileName, folder=${folder.path}, size=${bytes.length} bytes');
+
       final auth = await _authService.fetchAuthCredentials();
+      appLogger.i('ImageKit: Auth credentials obtained (publicKey=${auth.publicKey.substring(0, 10)}..., expire=${auth.expire})');
 
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: fileName),
@@ -80,11 +83,14 @@ class ImageKitService {
         appLogger.i('ImageKit Upload Success: ${result.url} (fileId: ${result.fileId})');
         return result;
       } else {
-        appLogger.e('ImageKit upload error status: ${response.statusCode}');
+        appLogger.e('ImageKit upload failed — status: ${response.statusCode}, body: ${response.data}');
         return null;
       }
+    } on DioException catch (e) {
+      appLogger.e('ImageKit DioException: status=${e.response?.statusCode}, message=${e.message}, data=${e.response?.data}');
+      return null;
     } catch (e) {
-      appLogger.e('Failed to upload image to ImageKit: $e');
+      appLogger.e('ImageKit upload error: $e');
       return null;
     }
   }

@@ -27,6 +27,7 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
   late final TextEditingController _eveningNotesCtrl;
   late int _progress;
   bool _isSaving = false;
+  String? _saveError;
 
   String? _selectedPhase;
   String? _selectedCondition;
@@ -56,67 +57,105 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
   }
 
   Future<void> _save() async {
-    setState(() => _isSaving = true);
+    setState(() {
+      _isSaving = true;
+      _saveError = null;
+    });
 
     final imageNotifier = ref.read(imageNotifierProvider.notifier);
     final repo = ref.read(dailyProgressRepositoryProvider);
 
-    // Upload before/morning image to ImageKit if pending
-    if (_morningPendingBytes != null) {
-      final url = await imageNotifier.uploadImage(
-        bytes: _morningPendingBytes!,
-        fileExtension: _morningPendingExt ?? 'jpg',
-        folder: ImageFolder.projectsBefore,
-        projectId: widget.projectId,
-      );
-      if (url != null) _morningImageUrl = url;
-    }
-
-    // Upload after/evening image to ImageKit if pending
-    if (_eveningPendingBytes != null) {
-      final url = await imageNotifier.uploadImage(
-        bytes: _eveningPendingBytes!,
-        fileExtension: _eveningPendingExt ?? 'jpg',
-        folder: ImageFolder.projectsAfter,
-        projectId: widget.projectId,
-      );
-      if (url != null) _eveningImageUrl = url;
-    }
-
-    String eveningText = _eveningNotesCtrl.text.trim();
-    final metaTags = <String>[];
-    if (_selectedPhase != null) metaTags.add('🏗️ Phase: $_selectedPhase');
-    if (_selectedCondition != null) metaTags.add('Conditions: $_selectedCondition');
-
-    if (metaTags.isNotEmpty) {
-      final metaHeader = metaTags.join(' • ');
-      eveningText = eveningText.isEmpty ? metaHeader : '$metaHeader\n$eveningText';
-    }
-
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    final entry = DailyProgress(
-      id: widget.existing?.id ?? '',
-      projectId: widget.projectId,
-      date: widget.existing?.date ?? todayStr,
-      morningImageUrl: _morningImageUrl,
-      morningNotes: _morningNotesCtrl.text.trim().isEmpty ? null : _morningNotesCtrl.text.trim(),
-      eveningImageUrl: _eveningImageUrl,
-      eveningNotes: eveningText.isEmpty ? null : eveningText,
-      progressPercentage: _progress,
-    );
-
     try {
+      // Upload before/morning image to ImageKit if pending
+      if (_morningPendingBytes != null) {
+        final url = await imageNotifier.uploadImage(
+          bytes: _morningPendingBytes!,
+          fileExtension: _morningPendingExt ?? 'jpg',
+          folder: ImageFolder.projectsBefore,
+          projectId: widget.projectId,
+        );
+        if (url != null) {
+          _morningImageUrl = url;
+        } else {
+          // Upload failed — show error but continue saving other data
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Morning image upload failed. Progress saved without image.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+
+      // Upload after/evening image to ImageKit if pending
+      if (_eveningPendingBytes != null) {
+        final url = await imageNotifier.uploadImage(
+          bytes: _eveningPendingBytes!,
+          fileExtension: _eveningPendingExt ?? 'jpg',
+          folder: ImageFolder.projectsAfter,
+          projectId: widget.projectId,
+        );
+        if (url != null) {
+          _eveningImageUrl = url;
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Evening image upload failed. Progress saved without image.'),
+                backgroundColor: Colors.orange,
+              ),
+            );
+          }
+        }
+      }
+
+      String eveningText = _eveningNotesCtrl.text.trim();
+      final metaTags = <String>[];
+      if (_selectedPhase != null) metaTags.add('🏗️ Phase: $_selectedPhase');
+      if (_selectedCondition != null) metaTags.add('Conditions: $_selectedCondition');
+
+      if (metaTags.isNotEmpty) {
+        final metaHeader = metaTags.join(' • ');
+        eveningText = eveningText.isEmpty ? metaHeader : '$metaHeader\n$eveningText';
+      }
+
+      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+      final entry = DailyProgress(
+        id: widget.existing?.id ?? '',
+        projectId: widget.projectId,
+        date: widget.existing?.date ?? todayStr,
+        morningImageUrl: _morningImageUrl,
+        morningNotes: _morningNotesCtrl.text.trim().isEmpty ? null : _morningNotesCtrl.text.trim(),
+        eveningImageUrl: _eveningImageUrl,
+        eveningNotes: eveningText.isEmpty ? null : eveningText,
+        progressPercentage: _progress,
+      );
+
       await repo.upsertProgress(entry);
+
+      // Invalidate the list provider so the display screen reloads fresh data
+      ref.invalidate(dailyProgressListProvider(widget.projectId));
+
       if (mounted) {
         Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Site progress log saved to ImageKit & Supabase ✓'), backgroundColor: AppColors.secondary),
+          const SnackBar(
+            content: Text('Site progress log saved successfully ✓'),
+            backgroundColor: AppColors.secondary,
+          ),
         );
       }
     } catch (e) {
       if (mounted) {
+        setState(() => _saveError = e.toString());
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to save progress log: $e'), backgroundColor: AppColors.error),
+          SnackBar(
+            content: Text('Failed to save progress log: $e'),
+            backgroundColor: AppColors.error,
+            duration: const Duration(seconds: 5),
+          ),
         );
       }
     } finally {
@@ -126,6 +165,8 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
 
   @override
   Widget build(BuildContext context) {
+    final uploadState = ref.watch(imageNotifierProvider);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
@@ -244,12 +285,18 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
             ImageUploadCard(
               existingUrl: _morningImageUrl,
               label: 'Tap to upload BEFORE-work photo (Initial Condition)',
+              isUploading: _isSaving && _morningPendingBytes != null && uploadState.isUploading,
+              uploadProgress: uploadState.progress,
               onImagePicked: (bytes, ext) {
                 _morningPendingBytes = bytes;
                 _morningPendingExt = ext;
               },
               onDeleteRequested: () {
-                setState(() => _morningImageUrl = null);
+                setState(() {
+                  _morningImageUrl = null;
+                  _morningPendingBytes = null;
+                  _morningPendingExt = null;
+                });
               },
             ),
             const SizedBox(height: 12),
@@ -286,12 +333,18 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
             ImageUploadCard(
               existingUrl: _eveningImageUrl,
               label: 'Tap to upload AFTER-work photo (Completed Execution)',
+              isUploading: _isSaving && _eveningPendingBytes != null && uploadState.isUploading,
+              uploadProgress: uploadState.progress,
               onImagePicked: (bytes, ext) {
                 _eveningPendingBytes = bytes;
                 _eveningPendingExt = ext;
               },
               onDeleteRequested: () {
-                setState(() => _eveningImageUrl = null);
+                setState(() {
+                  _eveningImageUrl = null;
+                  _eveningPendingBytes = null;
+                  _eveningPendingExt = null;
+                });
               },
             ),
             const SizedBox(height: 12),
@@ -306,7 +359,32 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
                 border: const OutlineInputBorder(),
               ),
             ),
-            const SizedBox(height: 32),
+            const SizedBox(height: 16),
+
+            // Error display
+            if (_saveError != null)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppColors.error, size: 18),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _saveError!,
+                        style: const TextStyle(color: AppColors.error, fontSize: 12),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
 
             // Save Progress Entry Button
             ElevatedButton(
@@ -318,7 +396,19 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               child: _isSaving
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                  ? Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)),
+                        const SizedBox(width: 12),
+                        Text(
+                          uploadState.isUploading
+                              ? 'Uploading image... ${(uploadState.progress * 100).toInt()}%'
+                              : 'Saving progress...',
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        ),
+                      ],
+                    )
                   : const Text('Save Progress & Evidence Log', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
             ),
           ],

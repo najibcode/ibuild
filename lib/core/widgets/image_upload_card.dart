@@ -28,19 +28,24 @@ class ImageUploadCard extends StatefulWidget {
 
 class _ImageUploadCardState extends State<ImageUploadCard> {
   Uint8List? _localBytes;
+  bool _isPicking = false;
 
   Future<void> _pick() async {
+    if (_isPicking) return;
+
     final result = await showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              leading: const Icon(Icons.camera_alt),
-              title: const Text('Take Photo'),
-              onTap: () => Navigator.pop(context, 'camera'),
-            ),
+            // Only show camera option if supported on this platform
+            if (ImageCompressionService.isCameraAvailable)
+              ListTile(
+                leading: const Icon(Icons.camera_alt),
+                title: const Text('Take Photo'),
+                onTap: () => Navigator.pop(context, 'camera'),
+              ),
             ListTile(
               leading: const Icon(Icons.photo_library),
               title: const Text('Choose from Gallery'),
@@ -67,13 +72,31 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
       return;
     }
 
-    final image = result == 'camera'
-        ? await ImageCompressionService.pickFromCamera()
-        : await ImageCompressionService.pickFromGallery();
+    setState(() => _isPicking = true);
 
-    if (image != null) {
-      setState(() => _localBytes = image.bytes);
-      widget.onImagePicked(image.bytes, image.extension);
+    try {
+      final image = result == 'camera'
+          ? await ImageCompressionService.pickFromCamera()
+          : await ImageCompressionService.pickFromGallery();
+
+      if (image != null) {
+        setState(() => _localBytes = image.bytes);
+        widget.onImagePicked(image.bytes, image.extension);
+      } else if (mounted) {
+        // Only show feedback if not a user cancellation (bytes would be null)
+        // User cancellation is a normal flow, no need for error message
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Failed to pick image: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isPicking = false);
     }
   }
 
@@ -84,7 +107,7 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
         (widget.existingUrl != null && widget.existingUrl!.isNotEmpty);
 
     return GestureDetector(
-      onTap: widget.isUploading ? null : _pick,
+      onTap: (widget.isUploading || _isPicking) ? null : _pick,
       child: Container(
         height: 180,
         decoration: BoxDecoration(
@@ -112,14 +135,24 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
               Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(
-                    Icons.add_a_photo_outlined,
-                    size: 36,
-                    color: AppColors.mutedText(context).withValues(alpha: 0.5),
-                  ),
+                  if (_isPicking)
+                    SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.mutedText(context).withValues(alpha: 0.5),
+                      ),
+                    )
+                  else
+                    Icon(
+                      Icons.add_a_photo_outlined,
+                      size: 36,
+                      color: AppColors.mutedText(context).withValues(alpha: 0.5),
+                    ),
                   const SizedBox(height: 8),
                   Text(
-                    widget.label,
+                    _isPicking ? 'Selecting image...' : widget.label,
                     style: TextStyle(
                       color: AppColors.mutedText(context),
                       fontSize: 12,
