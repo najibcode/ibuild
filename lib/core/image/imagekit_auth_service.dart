@@ -1,5 +1,4 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:functions_client/functions_client.dart' show FunctionException;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../supabase/supabase_client.provider.dart';
 import '../utils/logger.dart';

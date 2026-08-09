@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +9,7 @@ import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/image_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../data/models/daily_progress_model.dart';
@@ -441,6 +443,11 @@ class _ProgressCard extends StatelessWidget {
                     ),
                   ),
                   IconButton(
+                    icon: const Icon(Icons.download_rounded, color: Colors.white),
+                    tooltip: 'Download Image',
+                    onPressed: () => _downloadImage(context, imageUrl, title),
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.close, color: Colors.white),
                     onPressed: () => Navigator.of(ctx).pop(),
                   ),
@@ -757,6 +764,25 @@ class _ProgressCard extends StatelessWidget {
                   ),
                   Positioned(
                     bottom: 6,
+                    left: 6,
+                    child: InkWell(
+                      onTap: () => _downloadImage(context, imageUrl, badgeLabel),
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(
+                          Icons.download_rounded,
+                          color: Colors.white,
+                          size: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  Positioned(
+                    bottom: 6,
                     right: 6,
                     child: Container(
                       padding: const EdgeInsets.all(4),
@@ -786,5 +812,37 @@ class _ProgressCard extends StatelessWidget {
         ],
       ],
     );
+  }
+
+  /// Downloads an image from the evidence photo card.
+  void _downloadImage(BuildContext context, String imageUrl, String label) async {
+    final sanitized = label.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '_').toLowerCase();
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    final filename = 'ibuild_${sanitized}_$timestamp';
+
+    try {
+      await ImageDownloadHelper.downloadImage(
+        imageUrl: imageUrl,
+        filename: filename,
+      );
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Image download started ✓'),
+            backgroundColor: AppColors.secondary,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Download failed: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 }

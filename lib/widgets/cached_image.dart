@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../core/theme/app_colors.dart';
@@ -44,10 +46,40 @@ class AppCachedImage extends StatelessWidget {
       );
     }
 
+    final trimmedUrl = imageUrl!.trim();
+
+    // Check if image URL is a Base64 Data URI (e.g. data:image/jpeg;base64,...)
+    if (trimmedUrl.startsWith('data:image/')) {
+      try {
+        final base64Str = trimmedUrl.split(',').last;
+        final bytes = base64Decode(base64Str);
+
+        final memoryWidget = ClipRRect(
+          borderRadius: br,
+          child: Image.memory(
+            bytes,
+            width: width,
+            height: height,
+            fit: fit,
+            errorBuilder: (context, error, stackTrace) => _fallbackErrorWidget(context),
+          ),
+        );
+
+        if (!enableZoom) return memoryWidget;
+
+        return GestureDetector(
+          onTap: () => _showMemoryFullscreenDialog(context, bytes),
+          child: memoryWidget,
+        );
+      } catch (_) {
+        return _fallbackErrorWidget(context);
+      }
+    }
+
     final imageWidget = ClipRRect(
       borderRadius: br,
       child: CachedNetworkImage(
-        imageUrl: imageUrl!,
+        imageUrl: trimmedUrl,
         width: width,
         height: height,
         fit: fit,
@@ -63,39 +95,81 @@ class AppCachedImage extends StatelessWidget {
             ),
           ),
         ),
-        errorWidget: (context, url, error) => Container(
-          width: width,
-          height: height,
-          color: AppColors.error.withValues(alpha: 0.08),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.broken_image_outlined,
-                color: AppColors.error,
-                size: width != null && width! < 60 ? 20 : 28,
-              ),
-              if (width == null || width! >= 100) ...[
-                const SizedBox(height: 4),
-                Text(
-                  'Failed to load',
-                  style: TextStyle(
-                    fontSize: 10,
-                    color: AppColors.error.withValues(alpha: 0.8),
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+        errorWidget: (context, url, error) => _fallbackErrorWidget(context),
       ),
     );
 
     if (!enableZoom) return imageWidget;
 
     return GestureDetector(
-      onTap: () => _showFullscreenDialog(context, imageUrl!),
+      onTap: () => _showFullscreenDialog(context, trimmedUrl),
       child: imageWidget,
+    );
+  }
+
+  Widget _fallbackErrorWidget(BuildContext context) {
+    return Container(
+      width: width,
+      height: height,
+      color: AppColors.error.withValues(alpha: 0.08),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.broken_image_outlined,
+            color: AppColors.error,
+            size: width != null && width! < 60 ? 20 : 28,
+          ),
+          if (width == null || width! >= 100) ...[
+            const SizedBox(height: 4),
+            Text(
+              'Failed to load',
+              style: TextStyle(
+                fontSize: 10,
+                color: AppColors.error.withValues(alpha: 0.8),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  void _showMemoryFullscreenDialog(BuildContext context, Uint8List bytes) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.black.withValues(alpha: 0.9),
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4.0,
+              child: Image.memory(
+                bytes,
+                fit: BoxFit.contain,
+                errorBuilder: (_, __, ___) => const Center(
+                  child: Icon(
+                    Icons.broken_image,
+                    color: Colors.white,
+                    size: 48,
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 40,
+              right: 20,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -140,3 +214,4 @@ class AppCachedImage extends StatelessWidget {
     );
   }
 }
+

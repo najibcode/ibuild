@@ -75,6 +75,21 @@ void main() {
       expect(progress.allNotes[1], equals('Foundation concrete poured successfully'));
     });
 
+    test('DailyProgress model collects embedded Base64 Data URI images', () {
+      final base64Image = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP...';
+      final progress = DailyProgress(
+        id: 'dp-101',
+        projectId: 'proj-001',
+        date: '2026-08-09',
+        morningImageUrl: base64Image,
+        morningNotes: 'Before photo recorded via Base64 fallback',
+        progressPercentage: 80,
+      );
+
+      expect(progress.allImageUrls.length, equals(1));
+      expect(progress.allImageUrls.first, startsWith('data:image/jpeg;base64,'));
+    });
+
     test('ImageFolder path enum resolution', () {
       expect(ImageFolder.projectsBefore.path, equals('projects/before'));
       expect(ImageFolder.projectsAfter.path, equals('projects/after'));
