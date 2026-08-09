@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/image/imagekit_auth_service.dart';
 import '../../core/utils/logger.dart';
@@ -50,9 +51,15 @@ class ImageKitService {
     try {
       appLogger.i('ImageKit: Starting upload — file=$fileName, folder=${folder.path}, size=${bytes.length} bytes');
 
+      // Step 1: Get auth credentials from edge function
       final auth = await _authService.fetchAuthCredentials();
-      appLogger.i('ImageKit: Auth credentials obtained (publicKey=${auth.publicKey.substring(0, 10)}..., expire=${auth.expire})');
+      appLogger.i('ImageKit: Auth credentials obtained successfully (expire=${auth.expire})');
 
+      // Step 2: Upload to ImageKit
+      // On web, avoid passing onSendProgress to Dio as it registers an
+      // XMLHttpRequest upload listener that forces a CORS preflight request.
+      // While ImageKit supports CORS, removing it avoids unnecessary preflight
+      // complexity and potential browser-specific failures.
       final formData = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: fileName),
         'fileName': fileName,
@@ -67,11 +74,15 @@ class ImageKitService {
       final response = await _dio.post(
         _uploadEndpoint,
         data: formData,
-        onSendProgress: (sent, total) {
-          if (total > 0 && onProgress != null) {
-            onProgress(sent / total);
-          }
-        },
+        // Only attach onSendProgress on non-web platforms to avoid
+        // CORS preflight triggered by XMLHttpRequest upload listeners.
+        onSendProgress: kIsWeb
+            ? null
+            : (sent, total) {
+                if (total > 0 && onProgress != null) {
+                  onProgress(sent / total);
+                }
+              },
       );
 
       if (response.statusCode == 200 && response.data != null) {
@@ -81,16 +92,23 @@ class ImageKitService {
 
         final result = ImageKitUploadResult.fromJson(data);
         appLogger.i('ImageKit Upload Success: ${result.url} (fileId: ${result.fileId})');
+        // Report 100% completion on web since we skipped progress tracking
+        if (kIsWeb && onProgress != null) {
+          onProgress(1.0);
+        }
         return result;
       } else {
         appLogger.e('ImageKit upload failed — status: ${response.statusCode}, body: ${response.data}');
         return null;
       }
     } on DioException catch (e) {
-      appLogger.e('ImageKit DioException: status=${e.response?.statusCode}, message=${e.message}, data=${e.response?.data}');
+      appLogger.e(
+        'ImageKit DioException: type=${e.type}, status=${e.response?.statusCode}, '
+        'message=${e.message}, data=${e.response?.data}',
+      );
       return null;
-    } catch (e) {
-      appLogger.e('ImageKit upload error: $e');
+    } catch (e, stack) {
+      appLogger.e('ImageKit upload error: $e\n$stack');
       return null;
     }
   }

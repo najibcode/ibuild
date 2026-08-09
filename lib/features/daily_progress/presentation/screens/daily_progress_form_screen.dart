@@ -76,13 +76,19 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
         );
         if (url != null) {
           _morningImageUrl = url;
+          _morningPendingBytes = null;
+          _morningPendingExt = null;
         } else {
-          // Upload failed — show error but continue saving other data
+          // Upload failed — show detailed error but continue saving other data
+          final uploadError = ref.read(imageNotifierProvider).error;
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Morning image upload failed. Progress saved without image.'),
+              SnackBar(
+                content: Text(
+                  uploadError ?? 'Morning image upload failed. Please try again.',
+                ),
                 backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 4),
               ),
             );
           }
@@ -99,12 +105,18 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
         );
         if (url != null) {
           _eveningImageUrl = url;
+          _eveningPendingBytes = null;
+          _eveningPendingExt = null;
         } else {
+          final uploadError = ref.read(imageNotifierProvider).error;
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Evening image upload failed. Progress saved without image.'),
+              SnackBar(
+                content: Text(
+                  uploadError ?? 'Evening image upload failed. Please try again.',
+                ),
                 backgroundColor: Colors.orange,
+                duration: const Duration(seconds: 4),
               ),
             );
           }

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:functions_client/functions_client.dart' show FunctionException;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../supabase/supabase_client.provider.dart';
 import '../utils/logger.dart';
@@ -40,6 +41,13 @@ class ImageKitAuthResponse {
       'urlEndpoint': urlEndpoint,
     };
   }
+
+  /// Validates that all required fields are non-empty.
+  bool get isValid =>
+      token.isNotEmpty &&
+      signature.isNotEmpty &&
+      expire > 0 &&
+      publicKey.isNotEmpty;
 }
 
 /// Service dedicated to retrieving secure ImageKit upload authentication credentials.
@@ -54,24 +62,59 @@ class ImageKitAuthService {
     try {
       final response = await _client.functions.invoke('imagekit-auth');
 
-      if (response.status == 401) {
-        throw Exception('Unauthorized: Please sign in to request upload authentication.');
-      }
-
+      // In functions_client v2.6+, non-2xx responses throw FunctionException
+      // before reaching here. The status check below is a defensive fallback.
       if (response.status != 200) {
-        throw Exception('Edge function error status: ${response.status}');
+        throw Exception('Edge function returned status: ${response.status}');
       }
 
       final data = response.data;
+      late final ImageKitAuthResponse authResponse;
+
       if (data is Map<String, dynamic>) {
-        return ImageKitAuthResponse.fromJson(data);
+        authResponse = ImageKitAuthResponse.fromJson(data);
       } else if (data is Map) {
-        return ImageKitAuthResponse.fromJson(Map<String, dynamic>.from(data));
+        authResponse = ImageKitAuthResponse.fromJson(Map<String, dynamic>.from(data));
       } else {
-        throw Exception('Unexpected response payload format from Edge Function.');
+        throw Exception(
+          'Unexpected response format from imagekit-auth Edge Function: ${data.runtimeType}',
+        );
       }
+
+      // Validate the response has all required fields
+      if (!authResponse.isValid) {
+        throw Exception(
+          'Incomplete auth response from edge function: '
+          'token=${authResponse.token.isNotEmpty}, '
+          'signature=${authResponse.signature.isNotEmpty}, '
+          'expire=${authResponse.expire}, '
+          'publicKey=${authResponse.publicKey.isNotEmpty}',
+        );
+      }
+
+      return authResponse;
+    } on FunctionException catch (e) {
+      // The functions_client throws FunctionException for non-2xx HTTP status codes.
+      // This includes 401 (unauthorized), 500 (server error / missing secrets), etc.
+      final statusMsg = 'status=${e.status}';
+      final detailsMsg = e.details != null ? ', details=${e.details}' : '';
+      appLogger.e('ImageKit auth edge function error ($statusMsg$detailsMsg)');
+
+      if (e.status == 401) {
+        throw Exception(
+          'Unauthorized: Please sign in to upload images. '
+          'Your session may have expired.',
+        );
+      }
+      if (e.status == 500) {
+        throw Exception(
+          'ImageKit server configuration error. '
+          'Please ensure ImageKit secrets are configured in Supabase.',
+        );
+      }
+      throw Exception('ImageKit auth failed ($statusMsg$detailsMsg)');
     } catch (e) {
-      appLogger.e('Failed to fetch ImageKit authentication from Edge Function: $e');
+      appLogger.e('Failed to fetch ImageKit authentication: $e');
       rethrow;
     }
   }
