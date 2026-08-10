@@ -6,6 +6,15 @@ import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
 import 'core/widgets/notifications_dropdown.dart';
 
+import 'features/dashboard/presentation/widgets/dashboard_kpi_cards.dart';
+import 'features/dashboard/presentation/widgets/project_portfolio_performance_widget.dart';
+import 'features/dashboard/presentation/widgets/project_health_widget.dart';
+import 'features/dashboard/presentation/widgets/project_performance_matrix_widget.dart';
+import 'features/dashboard/presentation/widgets/portfolio_progress_trend_widget.dart';
+import 'features/dashboard/presentation/widgets/attention_required_widget.dart';
+import 'features/dashboard/presentation/widgets/budget_utilization_widget.dart';
+import 'features/dashboard/presentation/widgets/inventory_alerts_widget.dart';
+
 class MobileDashboard extends ConsumerWidget {
   final VoidCallback onViewProjects;
   final VoidCallback onViewTrack;
@@ -153,201 +162,125 @@ class MobileDashboard extends ConsumerWidget {
           ),
         ],
       ),
-      body: statsAsync.when(
-        data: (stats) => SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.containerMargin,
-            vertical: AppSpacing.stackMd,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // KPI Grid
-              GridView.count(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                crossAxisCount: 2,
-                childAspectRatio: 1.25,
-                mainAxisSpacing: AppSpacing.stackMd,
-                crossAxisSpacing: AppSpacing.stackMd,
-                children: [
-                  _buildKPICard(
-                    context: context,
-                    icon: Icons.architecture,
-                    value: '${stats.activeProjects}',
-                    label: 'Active Projects',
-                    badgeText: '+${stats.activeProjects} Active',
-                    badgeColor: AppColors.secondary,
-                    onTap: onViewProjects,
-                  ),
-                  _buildKPICard(
-                    context: context,
-                    icon: Icons.group,
-                    value: '${stats.employeesPresent}',
-                    label: 'Workers Present',
-                    badgeText: 'Active Today',
-                    badgeColor: AppColors.secondary,
-                    onTap: () {},
-                  ),
-                  _buildKPICard(
-                    context: context,
-                    icon: Icons.pending_actions,
-                    value: '${stats.lowStockItems}',
-                    label: 'Low Stock Materials',
-                    badgeText: stats.lowStockItems > 0
-                        ? 'Action Required'
-                        : 'All Stock OK',
-                    badgeColor: stats.lowStockItems > 0
-                        ? AppColors.error
-                        : AppColors.secondary,
-                    onTap: onViewSupply,
-                  ),
-                  _buildBudgetKPICard(
-                    context: context,
-                    icon: Icons.payments,
-                    value: stats.monthlyExpense >= 100000
-                        ? '₹${(stats.monthlyExpense / 100000).toStringAsFixed(1)}L'
-                        : '₹${stats.monthlyExpense.toStringAsFixed(0)}',
-                    label: 'Total Expenses',
-                    progress: stats.monthlyExpense > 0
-                        ? (stats.monthlyExpense / 2000000.0).clamp(0.0, 1.0)
-                        : 0.0,
-                    onTap: onViewTrack,
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sectionGap),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.containerMargin,
+          vertical: AppSpacing.stackMd,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // 1. Dynamic 6 KPI Cards Grid
+            DashboardKPICards(
+              onTapTotalProjects: onViewProjects,
+              onTapActiveProjects: onViewProjects,
+              onTapCompletedProjects: onViewProjects,
+              onTapAtRiskProjects: onViewProjects,
+              onTapTotalProjectValue: onViewProjects,
+              onTapTotalSpent: onViewTrack,
+            ),
+            const SizedBox(height: AppSpacing.sectionGap),
 
-              // Project Velocity Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            // Dynamic Construction Portfolio BI Visualizations (Mobile Stacked Priority Order)
+            statsAsync.when(
+              data: (stats) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  // 2. Attention Required
+                  AttentionRequiredWidget(
+                    alerts: stats.attentionAlerts,
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // 3. Project Portfolio Performance
+                  ProjectPortfolioPerformanceWidget(
+                    projects: stats.portfolioProjects,
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // 4. Project Health
+                  ProjectHealthWidget(
+                    projects: stats.portfolioProjects,
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // 5. Budget Utilization
+                  BudgetUtilizationWidget(
+                    projects: stats.portfolioProjects,
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // 6. Inventory Alerts
+                  InventoryAlertsWidget(
+                    alerts: stats.inventoryAlerts,
+                    onTapInventory: onViewSupply,
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // 7. Project Performance Matrix
+                  ProjectPerformanceMatrixWidget(
+                    projects: stats.portfolioProjects,
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // 8. Portfolio Progress Over Time
+                  PortfolioProgressTrendWidget(
+                    trends: stats.progressTrends,
+                  ),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // 9. Recent Activity Section
                   Text(
-                    'Operational Metrics',
+                    'Recent Activity',
                     style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  TextButton(
-                    onPressed: onViewTrack,
-                    child: const Text('View details'),
+                  const SizedBox(height: AppSpacing.stackMd),
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: stats.recentActivities.length.clamp(0, 5),
+                    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.stackSm),
+                    itemBuilder: (context, index) {
+                      final act = stats.recentActivities[index];
+                      return _buildActivityItem(
+                        icon: act.type == 'add' ? Icons.add_circle : Icons.check_circle,
+                        iconColor: AppColors.secondary,
+                        bgColor: const Color(0x1F10B981),
+                        title: act.title,
+                        time: '${act.timestamp.hour.toString().padLeft(2, '0')}:${act.timestamp.minute.toString().padLeft(2, '0')}',
+                        subtitle: act.subtitle,
+                        tags: ['Activity'],
+                        onTap: onViewProjects,
+                      );
+                    },
                   ),
+                  const SizedBox(height: AppSpacing.sectionGap),
                 ],
               ),
-              const SizedBox(height: AppSpacing.stackSm),
-              Container(
-                height: 180,
-                padding: const EdgeInsets.all(AppSpacing.cardPadding),
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (e, s) => Container(
+                padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.surfaceWhite,
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
-                  border: Border.all(color: AppColors.borderSubtle),
+                  color: AppColors.error.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
                 ),
-                child: BarChart(
-                  BarChartData(
-                    alignment: BarChartAlignment.spaceAround,
-                    maxY: 10,
-                    barTouchData: BarTouchData(enabled: false),
-                    titlesData: const FlTitlesData(show: false),
-                    borderData: FlBorderData(show: false),
-                    gridData: const FlGridData(show: false),
-                    barGroups: [
-                      _makeBarGroup(
-                        0,
-                        stats.activeProjects.toDouble().clamp(0.0, 10.0),
-                        false,
-                      ),
-                      _makeBarGroup(
-                        1,
-                        stats.completedProjects.toDouble().clamp(0.0, 10.0),
-                        false,
-                      ),
-                      _makeBarGroup(
-                        2,
-                        stats.totalProjects.toDouble().clamp(0.0, 10.0),
-                        false,
-                      ),
-                      _makeBarGroup(
-                        3,
-                        (stats.employeesPresent / 10.0).clamp(0.0, 10.0),
-                        false,
-                      ),
-                      _makeBarGroup(
-                        4,
-                        stats.lowStockItems.toDouble().clamp(0.0, 10.0),
-                        false,
-                      ),
-                      _makeBarGroup(
-                        5,
-                        (stats.pendingBills / 100000.0).clamp(0.0, 10.0),
-                        false,
-                      ),
-                      _makeBarGroup(
-                        6,
-                        (stats.monthlyExpense / 200000.0).clamp(0.0, 10.0),
-                        true,
-                      ),
-                    ],
-                  ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppColors.error),
+                    const SizedBox(width: 8),
+                    Expanded(child: Text('Error loading dashboard stats: $e')),
+                    TextButton(
+                      onPressed: () => ref.invalidate(dashboardStatsProvider),
+                      child: const Text('Retry'),
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.sectionGap),
-
-              // Recent Activity Section
-              Text(
-                'Recent Activity',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: AppSpacing.stackMd),
-              ListView(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                children: [
-                  _buildActivityItem(
-                    icon: Icons.check_circle,
-                    iconColor: AppColors.secondary,
-                    bgColor: const Color(0x1F10B981),
-                    title: 'Materials Delivered',
-                    time: '2m ago',
-                    subtitle: 'Concrete slab order #492 arrived at Sector 7-G.',
-                    tags: ['Completed', 'Logistics'],
-                    onTap: onViewSupply,
-                  ),
-                  const SizedBox(height: AppSpacing.stackSm),
-                  _buildActivityItem(
-                    icon: Icons.warning,
-                    iconColor: AppColors.warning,
-                    bgColor: const Color(0x1FFFDD5F),
-                    title: 'Labor Shortage Alert',
-                    time: '1h ago',
-                    subtitle:
-                        'Site B reporting 15% lower attendance than scheduled.',
-                    tags: ['Critical', 'HR'],
-                    onTap: () {},
-                  ),
-                  const SizedBox(height: AppSpacing.stackSm),
-                  _buildActivityItem(
-                    icon: Icons.description,
-                    iconColor: AppColors.primary,
-                    bgColor: const Color(0x1FDDE1FF),
-                    title: 'New Plan Uploaded',
-                    time: '3h ago',
-                    subtitle:
-                        'Architect updated the electrical schematics for Phase 2.',
-                    tags: ['Update', 'Design'],
-                    onTap: () {},
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.sectionGap),
-            ],
-          ),
+            ),
+          ],
         ),
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, s) =>
-            Center(child: Text('Error loading dashboard stats: $e')),
       ),
     );
   }

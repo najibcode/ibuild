@@ -1,7 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../models/dashboard_stats_model.dart';
-import '../../../inventory/data/models/inventory_item_model.dart';
 
 class SupabaseDashboardRepository implements DashboardRepository {
   final SupabaseClient _client;
@@ -11,17 +10,19 @@ class SupabaseDashboardRepository implements DashboardRepository {
   @override
   Future<DashboardStats> getDashboardStats() async {
     try {
-      // Run all queries concurrently for speed.
+      // Run all queries concurrently for maximum speed.
       final results = await Future.wait([
-        _fetchProjects(),       // 0
-        _fetchAttendance(),     // 1
-        _fetchEmployees(),      // 2
-        _fetchExpenses(),       // 3
-        _fetchBills(),          // 4
-        _fetchInventory(),      // 5
-        _fetchWeeklyProgress(), // 6
-        _fetchRecentActivity(), // 7
-        _fetchLatestProject(),  // 8
+        _fetchProjects(),           // 0
+        _fetchAttendance(),         // 1
+        _fetchEmployees(),          // 2
+        _fetchExpenses(),           // 3
+        _fetchBills(),              // 4
+        _fetchInventoryData(),      // 5
+        _fetchWeeklyProgress(),     // 6
+        _fetchRecentActivity(),     // 7
+        _fetchLatestProject(),      // 8
+        _fetchTotalSpentAllTime(),  // 9
+        _fetchMonthlyTrends(),      // 10
       ]);
 
       final projectData = results[0] as _ProjectData;
@@ -29,10 +30,88 @@ class SupabaseDashboardRepository implements DashboardRepository {
       final employeeCount = results[2] as int;
       final expenseTotal = results[3] as double;
       final pendingBillsTotal = results[4] as double;
-      final lowStockCount = results[5] as int;
+      final inventoryData = results[5] as _InventoryData;
       final weeklyCounts = results[6] as List<int>;
       final recentActivities = results[7] as List<RecentActivity>;
       final latestProject = results[8] as QuickAccessProject?;
+      final totalSpentAllTime = results[9] as double;
+      final monthlyTrends = results[10] as List<MonthlyProgressTrendPoint>;
+
+      final effectiveTotalSpent = totalSpentAllTime > 0
+          ? totalSpentAllTime
+          : projectData.totalSpent;
+
+      // Build Attention Alerts
+      final List<AttentionAlert> attentionAlerts = [];
+      final now = DateTime.now();
+
+      for (final p in projectData.portfolioProjects) {
+        if (p.variancePct > 15.0) {
+          attentionAlerts.add(
+            AttentionAlert(
+              projectId: p.id,
+              projectName: p.name,
+              title: 'High Financial Variance',
+              message:
+                  'Budget consumption is ${p.variancePct.toStringAsFixed(0)}% ahead of physical progress.',
+              severity: 'critical',
+              alertType: 'budget_variance',
+            ),
+          );
+        } else if (p.status == 'delayed') {
+          attentionAlerts.add(
+            AttentionAlert(
+              projectId: p.id,
+              projectName: p.name,
+              title: 'Schedule Delayed',
+              message: 'Project timeline is currently behind schedule.',
+              severity: 'warning',
+              alertType: 'delayed',
+            ),
+          );
+        } else if (p.status == 'at_risk') {
+          attentionAlerts.add(
+            AttentionAlert(
+              projectId: p.id,
+              projectName: p.name,
+              title: 'Project At Risk',
+              message: 'Project is flagged requiring owner/admin attention.',
+              severity: 'critical',
+              alertType: 'at_risk',
+            ),
+          );
+        }
+
+        if (p.status == 'active' && p.lastProgressDate != null) {
+          final diffDays = now.difference(p.lastProgressDate!).inDays;
+          if (diffDays >= 3) {
+            attentionAlerts.add(
+              AttentionAlert(
+                projectId: p.id,
+                projectName: p.name,
+                title: 'Stale Progress Log',
+                message: 'No daily progress update recorded for $diffDays days.',
+                severity: 'warning',
+                alertType: 'no_update',
+              ),
+            );
+          }
+        }
+      }
+
+      if (inventoryData.lowStockCount > 0) {
+        attentionAlerts.add(
+          AttentionAlert(
+            projectId: '',
+            projectName: 'Supply Chain',
+            title: 'Inventory Threshold Warning',
+            message:
+                '${inventoryData.lowStockCount} critical material(s) below minimum stock level.',
+            severity: 'warning',
+            alertType: 'inventory',
+          ),
+        );
+      }
 
       return DashboardStats(
         totalProjects: projectData.total,
@@ -40,19 +119,23 @@ class SupabaseDashboardRepository implements DashboardRepository {
         completedProjects: projectData.completed,
         delayedProjects: projectData.delayed,
         planningProjects: projectData.planning,
+        atRiskCount: projectData.atRiskCount,
         totalBudget: projectData.totalBudget,
-        totalSpent: projectData.totalSpent,
+        totalSpent: effectiveTotalSpent,
         employeesPresent: attendanceData.present,
         totalEmployees: employeeCount,
         monthlyExpense: expenseTotal,
         pendingBills: pendingBillsTotal,
-        lowStockItems: lowStockCount,
+        lowStockItems: inventoryData.lowStockCount,
         weeklyProgressCounts: weeklyCounts,
         recentActivities: recentActivities,
         latestProject: latestProject,
+        inventoryAlerts: inventoryData.alerts,
+        portfolioProjects: projectData.portfolioProjects,
+        progressTrends: monthlyTrends,
+        attentionAlerts: attentionAlerts,
       );
     } catch (e) {
-      // Return empty stats so the UI still renders gracefully.
       return DashboardStats.empty();
     }
   }
@@ -62,21 +145,84 @@ class SupabaseDashboardRepository implements DashboardRepository {
   Future<_ProjectData> _fetchProjects() async {
     final rows = await _client
         .from('projects')
-        .select('status, budget, spent');
+        .select('id, name, status, budget, spent, is_archived');
 
-    int total = rows.length;
-    int active = 0, completed = 0, delayed = 0, planning = 0;
+    // Fetch latest daily progress entries to compute physical progress %
+    final Map<String, ({double pct, DateTime date})> latestProgressByProject = {};
+    try {
+      final progressRows = await _client
+          .from('daily_progress')
+          .select('project_id, progress_percentage, date')
+          .order('date', ascending: false);
+
+      for (final pr in progressRows) {
+        final pid = pr['project_id'] as String?;
+        if (pid != null && !latestProgressByProject.containsKey(pid)) {
+          final pct = (pr['progress_percentage'] as num? ?? 0).toDouble();
+          final dt = DateTime.tryParse(pr['date'] as String? ?? '') ?? DateTime.now();
+          latestProgressByProject[pid] = (pct: pct, date: dt);
+        }
+      }
+    } catch (_) {}
+
+    int total = 0;
+    int active = 0, completed = 0, delayed = 0, planning = 0, atRiskCount = 0;
     double totalBudget = 0.0, totalSpent = 0.0;
+    final List<PortfolioProjectItem> portfolioProjects = [];
 
     for (final p in rows) {
-      final status = p['status'] as String? ?? '';
+      final isArchived = p['is_archived'] as bool? ?? false;
+      if (isArchived) continue;
+
+      total++;
+      final id = p['id'] as String;
+      final name = p['name'] as String? ?? 'Untitled Project';
+      final status = (p['status'] as String? ?? 'planning').toLowerCase().trim();
+      final budget = (p['budget'] as num? ?? 0).toDouble();
+      final spent = (p['spent'] as num? ?? 0).toDouble();
+
       if (status == 'active') active++;
       if (status == 'completed') completed++;
       if (status == 'delayed') delayed++;
       if (status == 'planning') planning++;
-      totalBudget += (p['budget'] as num? ?? 0).toDouble();
-      totalSpent += (p['spent'] as num? ?? 0).toDouble();
+
+      totalBudget += budget;
+      totalSpent += spent;
+
+      // Determine physical progress
+      final latestPr = latestProgressByProject[id];
+      double physicalProgress = latestPr?.pct ?? 0.0;
+      if (status == 'completed') {
+        physicalProgress = 100.0;
+      } else if (latestPr == null && status == 'active') {
+        // Fall back to budget utilization if no progress log exists
+        physicalProgress = budget > 0 ? (spent / budget * 100).clamp(0.0, 100.0) : 0.0;
+      }
+
+      final item = PortfolioProjectItem(
+        id: id,
+        name: name,
+        status: status,
+        budget: budget,
+        spent: spent,
+        physicalProgress: physicalProgress,
+        lastProgressDate: latestPr?.date,
+      );
+
+      portfolioProjects.add(item);
+
+      if (item.isAtRisk) {
+        atRiskCount++;
+      }
     }
+
+    // Sort projects: At Risk/Delayed first → lowest physical progress → remaining
+    portfolioProjects.sort((a, b) {
+      if (a.isAtRisk != b.isAtRisk) {
+        return a.isAtRisk ? -1 : 1;
+      }
+      return a.physicalProgress.compareTo(b.physicalProgress);
+    });
 
     return _ProjectData(
       total: total,
@@ -84,8 +230,10 @@ class SupabaseDashboardRepository implements DashboardRepository {
       completed: completed,
       delayed: delayed,
       planning: planning,
+      atRiskCount: atRiskCount,
       totalBudget: totalBudget,
       totalSpent: totalSpent,
+      portfolioProjects: portfolioProjects,
     );
   }
 
@@ -116,7 +264,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
     return rows.length;
   }
 
-  // ── Expenses (current month total) ────────────────────────────────────────
+  // ── Expenses ──────────────────────────────────────────────────────────────
 
   Future<double> _fetchExpenses() async {
     final now = DateTime.now();
@@ -131,6 +279,19 @@ class SupabaseDashboardRepository implements DashboardRepository {
       total += (e['amount'] as num? ?? 0).toDouble();
     }
     return total;
+  }
+
+  Future<double> _fetchTotalSpentAllTime() async {
+    try {
+      final rows = await _client.from('expenses').select('amount');
+      double total = 0.0;
+      for (final e in rows) {
+        total += (e['amount'] as num? ?? 0).toDouble();
+      }
+      return total;
+    } catch (_) {
+      return 0.0;
+    }
   }
 
   // ── Pending bills ─────────────────────────────────────────────────────────
@@ -148,14 +309,36 @@ class SupabaseDashboardRepository implements DashboardRepository {
     return total;
   }
 
-  // ── Inventory — low stock count ───────────────────────────────────────────
+  // ── Inventory Data ────────────────────────────────────────────────────────
 
-  Future<int> _fetchInventory() async {
-    final rows = await _client.from('inventory').select();
-    return (rows as List)
-        .map((j) => InventoryItem.fromJson(j))
-        .where((i) => i.isLowStock)
-        .length;
+  Future<_InventoryData> _fetchInventoryData() async {
+    try {
+      final rows = await _client.from('inventory').select();
+      final List<DashboardInventoryAlert> alerts = [];
+
+      for (final r in rows) {
+        final current = (r['current_quantity'] as num? ?? 0).toDouble();
+        final minQty = (r['minimum_threshold'] as num? ?? 0).toDouble();
+        if (current <= minQty && minQty > 0) {
+          alerts.add(
+            DashboardInventoryAlert(
+              id: r['id'] as String,
+              itemName: r['item_name'] as String? ?? 'Item',
+              currentQuantity: current,
+              minQuantity: minQty,
+              unit: r['unit'] as String? ?? 'units',
+            ),
+          );
+        }
+      }
+
+      return _InventoryData(
+        lowStockCount: alerts.length,
+        alerts: alerts,
+      );
+    } catch (_) {
+      return _InventoryData(lowStockCount: 0, alerts: []);
+    }
   }
 
   // ── Weekly progress (last 7 days) ─────────────────────────────────────────
@@ -171,14 +354,12 @@ class SupabaseDashboardRepository implements DashboardRepository {
         .gte('date', weekAgoStr)
         .order('date', ascending: true);
 
-    // Build a map: date string → count
     final Map<String, int> countsByDate = {};
     for (final r in rows) {
       final d = r['date'] as String;
       countsByDate[d] = (countsByDate[d] ?? 0) + 1;
     }
 
-    // Generate ordered list for last 7 days
     final List<int> result = [];
     for (int i = 0; i < 7; i++) {
       final day = weekAgo.add(Duration(days: i));
@@ -188,7 +369,63 @@ class SupabaseDashboardRepository implements DashboardRepository {
     return result;
   }
 
-  // ── Recent activity (from new activities table) ───────────────────────────
+  // ── Monthly Progress Trends (Last 6 Months) ───────────────────────────────
+
+  Future<List<MonthlyProgressTrendPoint>> _fetchMonthlyTrends() async {
+    final List<MonthlyProgressTrendPoint> points = [];
+    final now = DateTime.now();
+    final monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    try {
+      final sixMonthsAgo = DateTime(now.year, now.month - 5, 1);
+      final sixMonthsAgoStr = sixMonthsAgo.toIso8601String().substring(0, 10);
+
+      final rows = await _client
+          .from('daily_progress')
+          .select('progress_percentage, date')
+          .gte('date', sixMonthsAgoStr);
+
+      final Map<String, List<double>> monthProgressValues = {};
+
+      for (final r in rows) {
+        final dt = DateTime.tryParse(r['date'] as String? ?? '');
+        if (dt != null) {
+          final monthKey = '${dt.year}-${dt.month.toString().padLeft(2, '0')}';
+          final pct = (r['progress_percentage'] as num? ?? 0).toDouble();
+          monthProgressValues.putIfAbsent(monthKey, () => []).add(pct);
+        }
+      }
+
+      for (int i = 5; i >= 0; i--) {
+        final d = DateTime(now.year, now.month - i, 1);
+        final monthKey = '${d.year}-${d.month.toString().padLeft(2, '0')}';
+        final label = monthNames[d.month - 1];
+        final vals = monthProgressValues[monthKey];
+
+        double avg = 0.0;
+        if (vals != null && vals.isNotEmpty) {
+          avg = vals.reduce((a, b) => a + b) / vals.length;
+        }
+
+        points.add(MonthlyProgressTrendPoint(
+          label: label,
+          averageProgress: avg,
+        ));
+      }
+    } catch (_) {
+      for (int i = 5; i >= 0; i--) {
+        final d = DateTime(now.year, now.month - i, 1);
+        points.add(MonthlyProgressTrendPoint(
+          label: monthNames[d.month - 1],
+          averageProgress: 0.0,
+        ));
+      }
+    }
+
+    return points;
+  }
+
+  // ── Recent activity ───────────────────────────────────────────────────────
 
   Future<List<RecentActivity>> _fetchRecentActivity() async {
     final List<RecentActivity> activities = [];
@@ -205,8 +442,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
         final actionType = r['action_type'] as String? ?? 'unknown';
         final entityType = r['entity_type'] as String? ?? 'Unknown';
         final details = r['details'] as Map<String, dynamic>? ?? {};
-        
-        // Build readable title and subtitle
+
         String title = 'Activity';
         String subtitle = 'By $userName';
         String type = 'info';
@@ -220,36 +456,16 @@ class SupabaseDashboardRepository implements DashboardRepository {
             subtitle = 'By $userName — ${details['item_name']}';
           } else if (details.containsKey('bill_number')) {
             subtitle = 'By $userName — #${details['bill_number']} (₹${details['amount'] ?? ''})';
-          } else if (details.containsKey('category') && details.containsKey('amount')) {
-            subtitle = 'By $userName — ${details['category']} (₹${details['amount']})';
           }
         } else if (actionType.contains('updated')) {
           title = 'Updated $entityType';
           type = 'edit';
           if (details.containsKey('name')) {
             subtitle = 'By $userName — ${details['name']}';
-          } else if (details.containsKey('item_name')) {
-            subtitle = 'By $userName — ${details['item_name']}';
-          } else if (details.containsKey('bill_number')) {
-            subtitle = 'By $userName — #${details['bill_number']} → ${details['status'] ?? ''}';
-          } else if (details.containsKey('morning_status')) {
-            final empName = details['employee_name'] ?? '';
-            subtitle = 'By $userName — $empName: ${details['morning_status']}/${details['evening_status']}';
-          } else if (details.containsKey('progress_percentage')) {
-            subtitle = 'By $userName — ${details['progress_percentage']}% complete';
           }
-        } else if (actionType.contains('deleted') || actionType.contains('archived')) {
+        } else if (actionType.contains('deleted')) {
           title = 'Removed $entityType';
           type = 'delete';
-          if (details.containsKey('name')) {
-            subtitle = 'By $userName — ${details['name']}';
-          }
-        } else if (actionType.startsWith('inventory_')) {
-          title = 'Inventory ${actionType.split('_').last}';
-          type = 'inventory';
-          if (details.containsKey('quantity_change')) {
-            subtitle = 'By $userName — Qty Change: ${details['quantity_change']}';
-          }
         }
 
         activities.add(RecentActivity(
@@ -257,16 +473,15 @@ class SupabaseDashboardRepository implements DashboardRepository {
           title: title,
           subtitle: subtitle,
           timestamp: DateTime.tryParse(r['created_at'] as String? ?? '') ?? DateTime.now(),
+          entityId: r['entity_id'] as String?,
         ));
       }
-    } catch (e) {
-      print('Dashboard RecentActivity fetch error: $e');
-    }
+    } catch (_) {}
 
     return activities;
   }
 
-  // ── Latest active project for quick access ────────────────────────────────
+  // ── Latest active project ──────────────────────────────────────────────────
 
   Future<QuickAccessProject?> _fetchLatestProject() async {
     try {
@@ -291,14 +506,14 @@ class SupabaseDashboardRepository implements DashboardRepository {
       return null;
     }
   }
-
 }
 
 // ── Private data containers ─────────────────────────────────────────────────
 
 class _ProjectData {
-  final int total, active, completed, delayed, planning;
+  final int total, active, completed, delayed, planning, atRiskCount;
   final double totalBudget, totalSpent;
+  final List<PortfolioProjectItem> portfolioProjects;
 
   _ProjectData({
     required this.total,
@@ -306,12 +521,20 @@ class _ProjectData {
     required this.completed,
     required this.delayed,
     required this.planning,
+    required this.atRiskCount,
     required this.totalBudget,
     required this.totalSpent,
+    required this.portfolioProjects,
   });
 }
 
 class _AttendanceData {
   final int present;
   _AttendanceData({required this.present});
+}
+
+class _InventoryData {
+  final int lowStockCount;
+  final List<DashboardInventoryAlert> alerts;
+  _InventoryData({required this.lowStockCount, required this.alerts});
 }

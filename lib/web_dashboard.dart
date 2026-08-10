@@ -6,6 +6,15 @@ import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/dashboard/data/models/dashboard_stats_model.dart';
 import 'features/profile/presentation/screens/user_profile_screen.dart';
 
+import 'features/dashboard/presentation/widgets/dashboard_kpi_cards.dart';
+import 'features/dashboard/presentation/widgets/project_portfolio_performance_widget.dart';
+import 'features/dashboard/presentation/widgets/project_health_widget.dart';
+import 'features/dashboard/presentation/widgets/project_performance_matrix_widget.dart';
+import 'features/dashboard/presentation/widgets/portfolio_progress_trend_widget.dart';
+import 'features/dashboard/presentation/widgets/attention_required_widget.dart';
+import 'features/dashboard/presentation/widgets/budget_utilization_widget.dart';
+import 'features/dashboard/presentation/widgets/inventory_alerts_widget.dart';
+
 class WebDashboard extends ConsumerWidget {
   const WebDashboard({super.key});
 
@@ -13,241 +22,177 @@ class WebDashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(dashboardStatsProvider);
 
-    return statsAsync.when(
-      data: (stats) => SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.containerMargin),
-        child: Container(
-          constraints: const BoxConstraints(maxWidth: 1200),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // ── Portfolio Overview Header ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Portfolio Overview',
-                        style: Theme.of(context).textTheme.headlineLarge
-                            ?.copyWith(fontWeight: FontWeight.bold),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(AppSpacing.containerMargin),
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 1200),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── 1. Portfolio Overview Header ──
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Portfolio Overview',
+                      style: Theme.of(context).textTheme.headlineLarge
+                          ?.copyWith(fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Overall Dashboard — All Projects Portfolio',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 14,
                       ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '${stats.activeProjects} active projects across all sites.',
-                        style: const TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      _buildOutlineButton(
-                        context,
-                        Icons.refresh,
-                        'Refresh',
-                        onPressed: () {
-                          ref.invalidate(dashboardStatsProvider);
-                        },
-                      ),
-                      const SizedBox(width: 8),
-                      _buildOutlineButton(
-                        context,
-                        Icons.person_outline,
-                        'My Profile',
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const UserProfileScreen(),
-                            ),
-                          );
-                        },
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    _buildOutlineButton(
+                      context,
+                      Icons.refresh,
+                      'Refresh',
+                      onPressed: () {
+                        ref.invalidate(dashboardStatsProvider);
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _buildOutlineButton(
+                      context,
+                      Icons.person_outline,
+                      'My Profile',
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const UserProfileScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 20),
 
-              // ── KPI Cards Grid ──
-              Row(
-                children: [
-                  // Card 1: Total Budget
-                  Expanded(
-                    child: _buildKPICard(
-                      context: context,
-                      icon: Icons.payments,
-                      value: '₹${_formatCurrency(stats.totalBudget)}',
-                      label: 'Total Budget',
-                      trend:
-                          '${stats.budgetUtilizationPct.toStringAsFixed(1)}% utilized',
-                      trendColor: stats.budgetUtilizationPct > 90
-                          ? AppColors.error
-                          : AppColors.secondary,
-                      subtitle: 'Spent ₹${_formatCurrency(stats.totalSpent)}',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Card 2: Workers Present
-                  Expanded(
-                    child: _buildKPICard(
-                      context: context,
-                      icon: Icons.group,
-                      value: '${stats.employeesPresent}',
-                      label: 'Workers Present',
-                      trend:
-                          '${stats.attendancePct.toStringAsFixed(0)}% attendance',
-                      trendColor: stats.attendancePct >= 80
-                          ? AppColors.secondary
-                          : AppColors.warning,
-                      subtitle: 'of ${stats.totalEmployees} total employees',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Card 3: Delayed Projects
-                  Expanded(
-                    child: _buildKPICard(
-                      context: context,
-                      icon: Icons.pending_actions,
-                      value: '${stats.delayedProjects}',
-                      label: 'Delayed Projects',
-                      trend: stats.delayedProjects > 0
-                          ? 'Needs Attention'
-                          : 'All On Track',
-                      trendColor: stats.delayedProjects > 0
-                          ? AppColors.error
-                          : AppColors.secondary,
-                      subtitle: '${stats.activeProjects} active projects',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Card 4: Active Projects
-                  Expanded(
-                    child: _buildKPICard(
-                      context: context,
-                      icon: Icons.architecture,
-                      value: '${stats.activeProjects}',
-                      label: 'Active Projects',
-                      trend: '${stats.completedProjects} completed',
-                      trendColor: AppColors.secondary,
-                      subtitle: '${stats.planningProjects} in planning',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 32),
+            // ── 2. KPI Cards Section ──
+            const DashboardKPICards(),
+            const SizedBox(height: 24),
 
-              // ── Financial Summary Row ──
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildKPICard(
-                      context: context,
-                      icon: Icons.account_balance_wallet,
-                      value: '₹${_formatCurrency(stats.monthlyExpense)}',
-                      label: 'This Month Expenses',
-                      trend: stats.pendingBills > 0
-                          ? '₹${_formatCurrency(stats.pendingBills)} pending'
-                          : 'All cleared',
-                      trendColor: stats.pendingBills > 0
-                          ? AppColors.warning
-                          : AppColors.secondary,
-                      subtitle: 'Pending bills amount',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildKPICard(
-                      context: context,
-                      icon: Icons.inventory_2,
-                      value: '${stats.lowStockItems}',
-                      label: 'Low Stock Items',
-                      trend: stats.lowStockItems > 0
-                          ? 'Restock Needed'
-                          : 'Stock OK',
-                      trendColor: stats.lowStockItems > 0
-                          ? AppColors.error
-                          : AppColors.secondary,
-                      subtitle: 'Items below minimum threshold',
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  // Empty spacers to maintain 4-column grid
-                  const Expanded(child: SizedBox()),
-                  const SizedBox(width: 16),
-                  const Expanded(child: SizedBox()),
-                ],
-              ),
-              const SizedBox(height: 32),
-
-              // ── Double Column Section ──
-              Row(
+            // ── Dynamic Construction Portfolio BI Visualizations ──
+            statsAsync.when(
+              data: (stats) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Left Column: Velocity Chart + Quick Access
-                  Expanded(
-                    flex: 3,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Site Activity (Last 7 Days)',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(context),
-                          ),
+                  // 3 & 4: Project Portfolio Performance + Project Health
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: ProjectPortfolioPerformanceWidget(
+                          projects: stats.portfolioProjects,
                         ),
-                        const SizedBox(height: 12),
-                        _buildVelocityChart(
-                          context,
-                          stats.weeklyProgressCounts,
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        flex: 2,
+                        child: ProjectHealthWidget(
+                          projects: stats.portfolioProjects,
                         ),
-                      ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 5. Project Performance Matrix (Scatter BI Chart)
+                  ProjectPerformanceMatrixWidget(
+                    projects: stats.portfolioProjects,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 6. Portfolio Progress Over Time (Trend Line Chart)
+                  PortfolioProgressTrendWidget(
+                    trends: stats.progressTrends,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 7. Attention Required (Actionable Alerts)
+                  AttentionRequiredWidget(
+                    alerts: stats.attentionAlerts,
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 8 & 9. Budget Utilization + Inventory Alerts
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        flex: 3,
+                        child: BudgetUtilizationWidget(
+                          projects: stats.portfolioProjects,
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      Expanded(
+                        flex: 2,
+                        child: InventoryAlertsWidget(
+                          alerts: stats.inventoryAlerts,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+
+                  // 10. Recent Activity Feed
+                  Text(
+                    'Recent Activity',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
                     ),
                   ),
-                  const SizedBox(width: 32),
-                  // Right Column: Recent Activity
-                  Expanded(
-                    flex: 2,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Recent Activity',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(context),
-                          ),
-                        ),
-                        const SizedBox(height: 12),
-                        _buildRecentActivityList(
-                          context,
-                          stats.recentActivities,
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 12),
+                  _buildRecentActivityList(
+                    context,
+                    stats.recentActivities,
                   ),
                 ],
               ),
-            ],
-          ),
-        ),
-      ),
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, s) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.error_outline, size: 48, color: AppColors.error),
-            const SizedBox(height: 12),
-            Text(
-              'Failed to load dashboard: $e',
-              style: const TextStyle(color: AppColors.textMuted),
+              loading: () => const Padding(
+                padding: EdgeInsets.symmetric(vertical: 48),
+                child: Center(child: CircularProgressIndicator()),
+              ),
+              error: (e, s) => Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: AppColors.error.withValues(alpha: 0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.error_outline, color: AppColors.error),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Unable to load dashboard data: $e',
+                        style: const TextStyle(color: AppColors.textMuted),
+                      ),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => ref.invalidate(dashboardStatsProvider),
+                      child: const Text('Retry'),
+                    ),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
