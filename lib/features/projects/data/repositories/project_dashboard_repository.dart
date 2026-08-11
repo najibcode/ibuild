@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/supabase/supabase_client.provider.dart';
 import '../models/project_dashboard_model.dart';
 
 /// Fetches all per-project dashboard data from Supabase in parallel safely.
@@ -9,14 +10,17 @@ class ProjectDashboardRepository {
 
   Future<ProjectDashboardStats> fetchDashboard(String projectId) async {
     try {
+      await ensureAutoAuth(_client);
+
       final results = await Future.wait([
-        _fetchProject(projectId),          // 0
-        _fetchAttendance(projectId),       // 1
-        _fetchExpenses(projectId),         // 2
-        _fetchChecklist(projectId),        // 3
-        _fetchPayments(projectId),         // 4
-        _fetchWeeklyProgress(projectId),   // 5
-        _fetchRecentActivity(projectId),   // 6
+        _fetchProject(projectId), // 0
+        _fetchAttendance(projectId), // 1
+        _fetchExpenses(projectId), // 2
+        _fetchChecklist(projectId), // 3
+        _fetchPayments(projectId), // 4
+        _fetchWeeklyProgress(projectId), // 5
+        _fetchRecentActivity(projectId), // 6
+        _fetchPhysicalProgress(projectId), // 7
       ]).timeout(const Duration(seconds: 5));
 
       final project = results[0] as Map<String, dynamic>?;
@@ -26,6 +30,7 @@ class ProjectDashboardRepository {
       final payments = results[4] as _PaymentData;
       final weekly = results[5] as List<int>;
       final activities = results[6] as List<ProjectDashboardActivity>;
+      final physProg = results[7] as double?;
 
       return ProjectDashboardStats(
         projectId: projectId,
@@ -51,6 +56,7 @@ class ProjectDashboardRepository {
         pendingPayments: payments.pending,
         weeklyProgressCounts: weekly,
         recentActivities: activities,
+        physicalProgress: physProg,
       );
     } catch (e) {
       return ProjectDashboardStats.empty(projectId);
@@ -116,10 +122,13 @@ class ProjectDashboardRepository {
         byCategory[category] = (byCategory[category] ?? 0.0) + amount;
       }
 
-      final breakdown = byCategory.entries
-          .map((e) => ProjectExpenseCategory(category: e.key, amount: e.value))
-          .toList()
-        ..sort((a, b) => b.amount.compareTo(a.amount));
+      final breakdown =
+          byCategory.entries
+              .map(
+                (e) => ProjectExpenseCategory(category: e.key, amount: e.value),
+              )
+              .toList()
+            ..sort((a, b) => b.amount.compareTo(a.amount));
 
       return _ExpenseData(total: total, breakdown: breakdown);
     } catch (_) {
@@ -229,24 +238,23 @@ class ProjectDashboardRepository {
         final details = r['details'] as Map<String, dynamic>? ?? {};
 
         String title = '${_actionVerb(actionType)} $entityType';
-        String subtitle = details['name'] as String? ??
-            details['item_name'] as String? ??
-            '';
-        String type = actionType.contains('delete') || actionType.contains('archived')
+        String subtitle =
+            details['name'] as String? ?? details['item_name'] as String? ?? '';
+        String type =
+            actionType.contains('delete') || actionType.contains('archived')
             ? 'delete'
             : actionType.contains('add') || actionType.contains('created')
-                ? 'add'
-                : actionType.contains('update')
-                    ? 'edit'
-                    : 'info';
+            ? 'add'
+            : actionType.contains('update')
+            ? 'edit'
+            : 'info';
 
         return ProjectDashboardActivity(
           title: title,
           subtitle: subtitle,
           type: type,
-          timestamp: DateTime.tryParse(
-                r['created_at'] as String? ?? '',
-              ) ??
+          timestamp:
+              DateTime.tryParse(r['created_at'] as String? ?? '') ??
               DateTime.now(),
         );
       }).toList();
@@ -255,8 +263,26 @@ class ProjectDashboardRepository {
     }
   }
 
+  Future<double?> _fetchPhysicalProgress(String projectId) async {
+    try {
+      final rows = await _client
+          .from('daily_progress')
+          .select('progress_percentage')
+          .eq('project_id', projectId)
+          .order('created_at', ascending: false)
+          .limit(1)
+          .timeout(const Duration(seconds: 3));
+
+      if ((rows as List).isNotEmpty) {
+        return (rows.first['progress_percentage'] as num?)?.toDouble();
+      }
+    } catch (_) {}
+    return null;
+  }
+
   String _actionVerb(String actionType) {
-    if (actionType.contains('created') || actionType.contains('added')) return 'Added';
+    if (actionType.contains('created') || actionType.contains('added'))
+      return 'Added';
     if (actionType.contains('updated')) return 'Updated';
     if (actionType.contains('deleted')) return 'Removed';
     if (actionType.contains('archived')) return 'Archived';

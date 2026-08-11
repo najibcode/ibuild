@@ -1,17 +1,16 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/project_dashboard_model.dart';
-import '../../data/models/project_model.dart';
-import '../controllers/project_controller.dart';
 import '../controllers/project_dashboard_controller.dart';
 import 'project_operations_screen.dart';
 import 'project_form_screen.dart';
 import 'project_detail_screen.dart';
 import '../../../daily_progress/presentation/screens/daily_progress_screen.dart';
 
-class ProjectDashboardScreen extends ConsumerWidget {
+class ProjectDashboardScreen extends ConsumerStatefulWidget {
   final String projectId;
   final String projectName;
 
@@ -22,15 +21,43 @@ class ProjectDashboardScreen extends ConsumerWidget {
   });
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final dashAsync = ref.watch(projectDashboardProvider(projectId));
-    final projectDetailAsync = ref.watch(projectDetailProvider(projectId));
+  ConsumerState<ProjectDashboardScreen> createState() =>
+      _ProjectDashboardScreenState();
+}
+
+class _ProjectDashboardScreenState
+    extends ConsumerState<ProjectDashboardScreen> {
+  Timer? _realtimeTicker;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-refresh project dashboard data every 2 seconds for 100% real-time data sync across devices
+    _realtimeTicker = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        ref.refresh(projectDashboardProvider(widget.projectId));
+        ref.refresh(projectDetailProvider(widget.projectId));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _realtimeTicker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final dashAsync = ref.watch(projectDashboardProvider(widget.projectId));
+    final projectDetailAsync =
+        ref.watch(projectDetailProvider(widget.projectId));
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(
-          projectName,
+          widget.projectName,
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.text(context),
@@ -41,12 +68,15 @@ class ProjectDashboardScreen extends ConsumerWidget {
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             tooltip: 'Refresh Dashboard',
             onPressed: () {
-              ref.invalidate(projectDashboardProvider(projectId));
-              ref.invalidate(projectDetailProvider(projectId));
+              ref.refresh(projectDashboardProvider(widget.projectId));
+              ref.refresh(projectDetailProvider(widget.projectId));
             },
           ),
           IconButton(
-            icon: Icon(Icons.edit_outlined, color: AppColors.primaryColor(context)),
+            icon: Icon(
+              Icons.edit_outlined,
+              color: AppColors.primaryColor(context),
+            ),
             tooltip: 'Edit Project',
             onPressed: () async {
               final currentProject = projectDetailAsync.valueOrNull;
@@ -56,8 +86,8 @@ class ProjectDashboardScreen extends ConsumerWidget {
                     builder: (_) => ProjectFormScreen(project: currentProject),
                   ),
                 );
-                ref.invalidate(projectDashboardProvider(projectId));
-                ref.invalidate(projectDetailProvider(projectId));
+                ref.refresh(projectDashboardProvider(widget.projectId));
+                ref.refresh(projectDetailProvider(widget.projectId));
               }
             },
           ),
@@ -109,91 +139,144 @@ class _DashboardBody extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final isWide = constraints.maxWidth > 800;
+        final isUltraWide = constraints.maxWidth > 1200;
+        final isWide = constraints.maxWidth > 850;
         final isMedium = constraints.maxWidth > 600;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.containerMargin),
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 1200),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Project Header ──
-                _buildProjectHeader(context, isDark),
-                const SizedBox(height: 24),
+          child: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 1800),
+              width: double.infinity,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Project Header ──
+                  _buildProjectHeader(context, isDark),
+                  const SizedBox(height: 24),
 
-                // ── KPI Cards ──
-                _buildKPIRow(context, isWide, isMedium),
-                const SizedBox(height: 24),
+                  // ── Financial KPI Section ──
+                  _buildKPIRow(context, isWide, isMedium),
+                  const SizedBox(height: 24),
 
-                // ── Charts Row ──
-                if (isWide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        flex: 3,
-                        child: _buildBudgetDonut(context, isDark),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        flex: 4,
-                        child: _buildExpenseBreakdown(context, isDark),
-                      ),
-                    ],
-                  )
-                else ...[
-                  _buildBudgetDonut(context, isDark),
-                  const SizedBox(height: 16),
-                  _buildExpenseBreakdown(context, isDark),
-                ],
-                const SizedBox(height: 24),
+                  // ── Project Performance (Budget vs Actual + Project Health) ──
+                  if (isWide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: _buildBudgetVsActualBar(context, isDark),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 2,
+                          child: _buildProjectHealthSection(context, isDark),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    _buildBudgetVsActualBar(context, isDark),
+                    const SizedBox(height: 16),
+                    _buildProjectHealthSection(context, isDark),
+                  ],
+                  const SizedBox(height: 24),
 
-                // ── Progress Sparkline ──
-                _buildProgressSparkline(context, isDark),
-                const SizedBox(height: 24),
+                  // ── Progress Trend (Actual Progress Over Time) ──
+                  _buildProgressSparkline(context, isDark),
+                  const SizedBox(height: 24),
 
-                // ── Summary Cards Row ──
-                if (isWide)
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(child: _buildAttendanceCard(context, isDark)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildChecklistCard(context, isDark)),
-                      const SizedBox(width: 16),
-                      Expanded(child: _buildPaymentCard(context, isDark)),
-                    ],
-                  )
-                else ...[
-                  if (isMedium)
+                  // ── Financial Analysis (Expense Breakdown Donut + Budget Utilization) ──
+                  if (isWide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          flex: 3,
+                          child: _buildBudgetDonut(context, isDark),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          flex: 4,
+                          child: _buildExpenseBreakdown(context, isDark),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    _buildBudgetDonut(context, isDark),
+                    const SizedBox(height: 16),
+                    _buildExpenseBreakdown(context, isDark),
+                  ],
+                  const SizedBox(height: 24),
+
+                  // ── Budget vs Physical Progress Variance Analysis & Attention Required ──
+                  if (isUltraWide)
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _buildVarianceAnalysisCard(context, isDark),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: _buildAttentionRequiredSection(
+                            context,
+                            isDark,
+                          ),
+                        ),
+                      ],
+                    )
+                  else ...[
+                    _buildVarianceAnalysisCard(context, isDark),
+                    const SizedBox(height: 24),
+                    _buildAttentionRequiredSection(context, isDark),
+                  ],
+                  const SizedBox(height: 24),
+
+                  // ── Summary Cards Row ──
+                  if (isWide)
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Expanded(child: _buildAttendanceCard(context, isDark)),
                         const SizedBox(width: 16),
                         Expanded(child: _buildChecklistCard(context, isDark)),
+                        const SizedBox(width: 16),
+                        Expanded(child: _buildPaymentCard(context, isDark)),
                       ],
                     )
                   else ...[
-                    _buildAttendanceCard(context, isDark),
+                    if (isMedium)
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: _buildAttendanceCard(context, isDark),
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(child: _buildChecklistCard(context, isDark)),
+                        ],
+                      )
+                    else ...[
+                      _buildAttendanceCard(context, isDark),
+                      const SizedBox(height: 16),
+                      _buildChecklistCard(context, isDark),
+                    ],
                     const SizedBox(height: 16),
-                    _buildChecklistCard(context, isDark),
+                    _buildPaymentCard(context, isDark),
                   ],
-                  const SizedBox(height: 16),
-                  _buildPaymentCard(context, isDark),
+                  const SizedBox(height: 24),
+
+                  // ── Recent Activity ──
+                  _buildRecentActivity(context, isDark),
+                  const SizedBox(height: 24),
+
+                  // ── Operational Module Shortcuts Grid (All 10 Modules) ──
+                  _buildOperationalModuleGrid(context),
+                  const SizedBox(height: 32),
                 ],
-                const SizedBox(height: 24),
-
-                // ── Recent Activity ──
-                _buildRecentActivity(context, isDark),
-                const SizedBox(height: 24),
-
-                // ── Quick Actions ──
-                _buildQuickActions(context),
-                const SizedBox(height: 32),
-              ],
+              ),
             ),
           ),
         );
@@ -219,10 +302,7 @@ class _DashboardBody extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: isDark
-              ? [
-                  const Color(0xFF1A2744),
-                  const Color(0xFF0F1C33),
-                ]
+              ? [const Color(0xFF1A2744), const Color(0xFF0F1C33)]
               : [
                   AppColors.primary.withValues(alpha: 0.06),
                   AppColors.secondary.withValues(alpha: 0.04),
@@ -354,10 +434,7 @@ class _DashboardBody extends StatelessWidget {
       children: [
         Text(
           '$label: ',
-          style: TextStyle(
-            fontSize: 11,
-            color: AppColors.mutedText(context),
-          ),
+          style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
         ),
         Text(
           date,
@@ -376,7 +453,9 @@ class _DashboardBody extends StatelessWidget {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildKPIRow(BuildContext context, bool isWide, bool isMedium) {
-    final utilPct = stats.budgetUtilizationPct.isNaN || stats.budgetUtilizationPct.isInfinite
+    final utilPct =
+        stats.budgetUtilizationPct.isNaN ||
+            stats.budgetUtilizationPct.isInfinite
         ? 0.0
         : stats.budgetUtilizationPct;
 
@@ -386,18 +465,32 @@ class _DashboardBody extends StatelessWidget {
         value: '₹${_fmt(stats.budget)}',
         label: 'Total Budget',
         badge: '${utilPct.toInt()}%',
-        badgeColor: utilPct > 90
-            ? AppColors.error
-            : AppColors.secondary,
+        badgeColor: utilPct > 90 ? AppColors.error : AppColors.secondary,
         iconColor: AppColors.primary,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
       ),
       _KPIData(
         icon: Icons.trending_up_outlined,
         value: '₹${_fmt(stats.spent)}',
         label: 'Amount Spent',
-        iconColor: utilPct > 90
-            ? AppColors.error
-            : const Color(0xFF059669),
+        iconColor: utilPct > 90 ? AppColors.error : const Color(0xFF059669),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
       ),
       _KPIData(
         icon: Icons.account_balance_outlined,
@@ -406,6 +499,15 @@ class _DashboardBody extends StatelessWidget {
         iconColor: stats.remainingBalance >= 0
             ? const Color(0xFF059669)
             : AppColors.error,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 7,
+            ),
+          ),
+        ),
       ),
       _KPIData(
         icon: Icons.calculate_outlined,
@@ -413,16 +515,27 @@ class _DashboardBody extends StatelessWidget {
         label: 'Estimated Cost',
         subValue: 'Current: ₹${_fmt(stats.currentCost)}',
         iconColor: const Color(0xFF7C3AED),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 2,
+            ),
+          ),
+        ),
       ),
     ];
 
     if (isWide) {
       return Row(
         children: cards
-            .expand((c) => [
-                  Expanded(child: _buildKPICard(context, c)),
-                  if (c != cards.last) const SizedBox(width: 16),
-                ])
+            .expand(
+              (c) => [
+                Expanded(child: _buildKPICard(context, c)),
+                if (c != cards.last) const SizedBox(width: 16),
+              ],
+            )
             .toList(),
       );
     }
@@ -439,86 +552,934 @@ class _DashboardBody extends StatelessWidget {
   }
 
   Widget _buildKPICard(BuildContext context, _KPIData data) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg(context),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: data.onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border(context)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: data.iconColor.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(data.icon, color: data.iconColor, size: 20),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.border(context)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
               ),
-              if (data.badge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 3,
-                  ),
-                  decoration: BoxDecoration(
-                    color: (data.badgeColor ?? AppColors.secondary)
-                        .withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                  ),
-                  child: Text(
-                    data.badge!,
-                    style: TextStyle(
-                      color: data.badgeColor ?? AppColors.secondary,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
             ],
           ),
-          const Spacer(),
-          Text(
-            data.value,
-            style: TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text(context),
-            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: data.iconColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(data.icon, color: data.iconColor, size: 20),
+                  ),
+                  if (data.badge != null)
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: (data.badgeColor ?? AppColors.secondary)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(AppRadius.full),
+                      ),
+                      child: Text(
+                        data.badge!,
+                        style: TextStyle(
+                          color: data.badgeColor ?? AppColors.secondary,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const Spacer(),
+              Text(
+                data.value,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text(context),
+                ),
+              ),
+              const SizedBox(height: 2),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    data.label,
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: AppColors.mutedText(context),
+                    ),
+                  ),
+                  Icon(
+                    Icons.arrow_forward_ios,
+                    size: 10,
+                    color: AppColors.mutedText(context),
+                  ),
+                ],
+              ),
+              if (data.subValue != null) ...[
+                const SizedBox(height: 2),
+                Text(
+                  data.subValue!,
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: AppColors.mutedText(context),
+                  ),
+                ),
+              ],
+            ],
           ),
-          const SizedBox(height: 2),
-          Text(
-            data.label,
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.mutedText(context),
-            ),
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // BUDGET VS ACTUAL VISUALIZATION & HEALTH
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildBudgetVsActualBar(BuildContext context, bool isDark) {
+    final budget = stats.budget;
+    final spent = stats.spent;
+    final remaining = stats.remainingBalance;
+    final maxVal = budget > 0 ? budget : (spent > 0 ? spent : 1.0);
+
+    final spentPct = budget > 0 ? (spent / budget).clamp(0.0, 1.0) : 0.0;
+
+    final hasHighVar = stats.hasHighVariance;
+
+    return _DashboardCard(
+      title: 'Budget vs Actual Financial Performance',
+      subtitle: 'Spent: ₹${_fmt(spent)} of ₹${_fmt(budget)}',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _barRow(context, 'Total Budget', budget, maxVal, AppColors.primary),
+          const SizedBox(height: 12),
+          _barRow(
+            context,
+            'Actual Spent',
+            spent,
+            maxVal,
+            spentPct > 0.9 ? AppColors.error : AppColors.secondary,
           ),
-          if (data.subValue != null) ...[
-            const SizedBox(height: 2),
-            Text(
-              data.subValue!,
-              style: TextStyle(
-                fontSize: 10,
-                color: AppColors.mutedText(context),
+          const SizedBox(height: 12),
+          _barRow(
+            context,
+            'Remaining Balance',
+            remaining > 0 ? remaining : 0,
+            maxVal,
+            const Color(0xFF059669),
+          ),
+          if (hasHighVar) ...[
+            const SizedBox(height: 16),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppColors.warning.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(
+                  color: AppColors.warning.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.warning_amber_rounded,
+                    color: AppColors.warning,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Financial Variance Warning: Budget used (${stats.budgetUtilizationPct.toInt()}%) is significantly ahead of physical progress (${stats.computedProgress.toInt()}%).',
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.warning,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _barRow(
+    BuildContext context,
+    String label,
+    double value,
+    double maxVal,
+    Color color,
+  ) {
+    final pct = maxVal > 0 ? (value / maxVal).clamp(0.0, 1.0) : 0.0;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text(context),
+              ),
+            ),
+            Text(
+              '₹${_fmt(value)}',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: color,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pct,
+            backgroundColor: AppColors.border(context),
+            valueColor: AlwaysStoppedAnimation(color),
+            minHeight: 8,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProjectHealthSection(BuildContext context, bool isDark) {
+    final budgetHealth = stats.spent > stats.budget && stats.budget > 0
+        ? ('Exceeded', AppColors.error)
+        : stats.hasHighVariance
+        ? ('Attention', AppColors.warning)
+        : ('On Track', const Color(0xFF10B981));
+
+    final progressHealth = stats.computedProgress >= 50
+        ? ('On Track', const Color(0xFF10B981))
+        : stats.computedProgress > 0
+        ? ('In Progress', AppColors.secondary)
+        : ('Not Recorded', AppColors.mutedText(context));
+
+    final scheduleHealth = stats.status == 'delayed'
+        ? ('Delayed', AppColors.error)
+        : ('On Track', const Color(0xFF10B981));
+
+    final paymentsHealth = stats.pendingPayments > 0
+        ? ('₹${_fmt(stats.pendingPayments)} Pending', AppColors.warning)
+        : ('On Track', const Color(0xFF10B981));
+
+    return _DashboardCard(
+      title: 'Project Health & Governance',
+      child: Column(
+        children: [
+          _healthRow(
+            context,
+            'Budget Outflow',
+            budgetHealth.$1,
+            budgetHealth.$2,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ProjectOperationsScreen(
+                  projectId: projectId,
+                  projectName: stats.projectName,
+                  initialSection: 4,
+                ),
+              ),
+            ),
+          ),
+          Divider(height: 16, color: AppColors.border(context)),
+          _healthRow(
+            context,
+            'Physical Progress',
+            progressHealth.$1,
+            progressHealth.$2,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => DailyProgressScreen(
+                  projectId: projectId,
+                  projectName: stats.projectName,
+                ),
+              ),
+            ),
+          ),
+          Divider(height: 16, color: AppColors.border(context)),
+          _healthRow(
+            context,
+            'Schedule Health',
+            scheduleHealth.$1,
+            scheduleHealth.$2,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ProjectOperationsScreen(
+                  projectId: projectId,
+                  projectName: stats.projectName,
+                  initialSection: 9,
+                ),
+              ),
+            ),
+          ),
+          Divider(height: 16, color: AppColors.border(context)),
+          _healthRow(
+            context,
+            'Payments Status',
+            paymentsHealth.$1,
+            paymentsHealth.$2,
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ProjectOperationsScreen(
+                  projectId: projectId,
+                  projectName: stats.projectName,
+                  initialSection: 4,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _healthRow(
+    BuildContext context,
+    String title,
+    String status,
+    Color color, {
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.text(context),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Icon(
+                  Icons.chevron_right,
+                  size: 14,
+                  color: AppColors.mutedText(context),
+                ),
+              ],
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(AppRadius.full),
+                border: Border.all(color: color.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: color,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    status,
+                    style: TextStyle(
+                      color: color,
+                      fontSize: 11,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // VARIANCE ANALYSIS CARD
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildVarianceAnalysisCard(BuildContext context, bool isDark) {
+    final utilPct = stats.budgetUtilizationPct;
+    final physPct = stats.computedProgress;
+    final variance = utilPct - physPct;
+    final isAheadOfProgress = variance > 15.0;
+    final isAheadOfBudget = variance < -15.0;
+
+    final String interpretation = isAheadOfProgress
+        ? 'Spending is significantly ahead of physical progress. Caution advised on budget outflow.'
+        : isAheadOfBudget
+        ? 'Physical progress is ahead of current budget utilization. Work is progressing efficiently.'
+        : 'Financial outflow is broadly aligned with physical site completion.';
+
+    final Color interpretationColor = isAheadOfProgress
+        ? AppColors.warning
+        : isAheadOfBudget
+        ? const Color(0xFF10B981)
+        : AppColors.primaryColor(context);
+
+    return _DashboardCard(
+      title: 'Budget vs Physical Progress Variance',
+      subtitle: 'Comparison of financial outflow to site completion',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _varianceMetric(
+                context,
+                'Budget Used',
+                '${utilPct.toInt()}%',
+                AppColors.primary,
+              ),
+              _varianceMetric(
+                context,
+                'Physical Completed',
+                '${physPct.toInt()}%',
+                const Color(0xFF10B981),
+              ),
+              _varianceMetric(
+                context,
+                'Variance',
+                '${variance >= 0 ? '+' : ''}${variance.toStringAsFixed(1)}%',
+                variance > 15.0 ? AppColors.error : AppColors.secondary,
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: interpretationColor.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(
+                color: interpretationColor.withValues(alpha: 0.25),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  isAheadOfProgress
+                      ? Icons.warning_amber_rounded
+                      : isAheadOfBudget
+                      ? Icons.trending_up
+                      : Icons.check_circle_outline,
+                  color: interpretationColor,
+                  size: 20,
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    interpretation,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: interpretationColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _varianceMetric(
+    BuildContext context,
+    String label,
+    String value,
+    Color color,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            color: color,
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ATTENTION REQUIRED SECTION
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildAttentionRequiredSection(BuildContext context, bool isDark) {
+    final List<
+      ({
+        String title,
+        String message,
+        IconData icon,
+        Color color,
+        VoidCallback onTap,
+      })
+    >
+    alerts = [];
+
+    if (stats.hasHighVariance) {
+      alerts.add((
+        title: 'High Financial Variance',
+        message:
+            'Budget utilization (${stats.budgetUtilizationPct.toInt()}%) is significantly ahead of physical progress (${stats.computedProgress.toInt()}%).',
+        icon: Icons.warning_amber_rounded,
+        color: AppColors.warning,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    if (stats.spent > stats.budget && stats.budget > 0) {
+      alerts.add((
+        title: 'Budget Exceeded',
+        message:
+            'Total spent (₹${_fmt(stats.spent)}) exceeds approved project budget (₹${_fmt(stats.budget)}).',
+        icon: Icons.error_outline,
+        color: AppColors.error,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    if (stats.pendingPayments > 0) {
+      alerts.add((
+        title: 'Pending Payments',
+        message:
+            '₹${_fmt(stats.pendingPayments)} in vendor or customer payments requires settlement.',
+        icon: Icons.account_balance_wallet_outlined,
+        color: const Color(0xFF6366F1),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    if (stats.status == 'delayed') {
+      alerts.add((
+        title: 'Project Schedule Delayed',
+        message:
+            'Site progress is behind the target expected completion timeline.',
+        icon: Icons.schedule,
+        color: AppColors.error,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DailyProgressScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+            ),
+          ),
+        ),
+      ));
+    }
+
+    return _DashboardCard(
+      title: 'Attention Required',
+      subtitle: '${alerts.length} active notifications',
+      child: alerts.isEmpty
+          ? Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                border: Border.all(
+                  color: const Color(0xFF10B981).withValues(alpha: 0.2),
+                ),
+              ),
+              child: Row(
+                children: [
+                  const Icon(
+                    Icons.check_circle_outline,
+                    color: Color(0xFF10B981),
+                    size: 20,
+                  ),
+                  const SizedBox(width: 10),
+                  Text(
+                    'All tracked performance indicators are on track.',
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.text(context),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          : Column(
+              children: alerts.map((a) {
+                return Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: a.onTap,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 10),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: a.color.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        border: Border.all(
+                          color: a.color.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(a.icon, color: a.color, size: 20),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  a.title,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
+                                    color: a.color,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  a.message,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.text(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            Icons.arrow_forward_ios,
+                            size: 12,
+                            color: a.color,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+    );
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // OPERATIONAL MODULE SHORTCUTS GRID (ALL 10 TILES AT BOTTOM)
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  Widget _buildOperationalModuleGrid(BuildContext context) {
+    final modules = [
+      (
+        title: 'Attendance',
+        subtitle: '${stats.workersPresent}/${stats.totalAssigned} present',
+        icon: Icons.people_alt_outlined,
+        color: const Color(0xFF059669),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 1,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Daily Progress',
+        subtitle: 'Latest: ${stats.computedProgress.toInt()}%',
+        icon: Icons.camera_alt_outlined,
+        color: AppColors.primaryContainer,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => DailyProgressScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Materials',
+        subtitle: 'Inventory & Requests',
+        icon: Icons.inventory_2_outlined,
+        color: const Color(0xFFF59E0B),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 2,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Subcontractors',
+        subtitle: 'Active Contracts',
+        icon: Icons.engineering_outlined,
+        color: const Color(0xFF6366F1),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 3,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Payment Status',
+        subtitle: '₹${_fmt(stats.totalPayments)} Received',
+        icon: Icons.account_balance_wallet_outlined,
+        color: const Color(0xFF10B981),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Checklist',
+        subtitle: '${stats.checklistCompleted}/${stats.checklistTotal} done',
+        icon: Icons.task_alt_outlined,
+        color: const Color(0xFF8B5CF6),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 5,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Drawings',
+        subtitle: 'Site Plans & Specs',
+        icon: Icons.draw_outlined,
+        color: const Color(0xFF3B82F6),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 6,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Sales Bills',
+        subtitle: 'Invoices & Client Bills',
+        icon: Icons.receipt_long_outlined,
+        color: const Color(0xFFEC4899),
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 7,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'About Site',
+        subtitle: 'Site Info & Scope',
+        icon: Icons.info_outline,
+        color: AppColors.primary,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 9,
+            ),
+          ),
+        ),
+      ),
+      (
+        title: 'Site Report',
+        subtitle: 'Download Full Report',
+        icon: Icons.description_outlined,
+        color: Colors.deepOrange,
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 10,
+            ),
+          ),
+        ),
+      ),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Operational Modules',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text(context),
+          ),
+        ),
+        const SizedBox(height: 12),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            final crossCount = constraints.maxWidth > 900
+                ? 5
+                : constraints.maxWidth > 600
+                ? 3
+                : 2;
+            return GridView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: crossCount,
+                mainAxisSpacing: 12,
+                crossAxisSpacing: 12,
+                childAspectRatio: 1.4,
+              ),
+              itemCount: modules.length,
+              itemBuilder: (context, index) {
+                final m = modules[index];
+                return Container(
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg(context),
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    border: Border.all(color: AppColors.border(context)),
+                  ),
+                  child: InkWell(
+                    onTap: m.onTap,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    child: Padding(
+                      padding: const EdgeInsets.all(12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: m.color.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Icon(m.icon, color: m.color, size: 20),
+                          ),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                m.title,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.text(context),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                m.subtitle,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: AppColors.mutedText(context),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
+      ],
     );
   }
 
@@ -528,13 +1489,14 @@ class _DashboardBody extends StatelessWidget {
 
   Widget _buildBudgetDonut(BuildContext context, bool isDark) {
     final rawUtil = stats.budgetUtilization;
-    final utilization = (rawUtil.isNaN || rawUtil.isInfinite ? 0.0 : rawUtil).clamp(0.0, 1.0);
+    final utilization = (rawUtil.isNaN || rawUtil.isInfinite ? 0.0 : rawUtil)
+        .clamp(0.0, 1.0);
     final remaining = (1.0 - utilization).clamp(0.0, 1.0);
     final spentColor = utilization > 0.9
         ? AppColors.error
         : utilization > 0.7
-            ? AppColors.warning
-            : AppColors.secondary;
+        ? AppColors.warning
+        : AppColors.secondary;
 
     final utilPctInt = (utilization * 100).toInt();
 
@@ -598,8 +1560,7 @@ class _DashboardBody extends StatelessWidget {
 
   Widget _buildExpenseBreakdown(BuildContext context, bool isDark) {
     final categories = stats.expenseBreakdown.take(6).toList();
-    final maxAmount =
-        categories.isNotEmpty ? categories.first.amount : 1.0;
+    final maxAmount = categories.isNotEmpty ? categories.first.amount : 1.0;
 
     return _DashboardCard(
       title: 'Expense Breakdown',
@@ -614,7 +1575,9 @@ class _DashboardBody extends StatelessWidget {
                     Icon(
                       Icons.receipt_long_outlined,
                       size: 40,
-                      color: AppColors.mutedText(context).withValues(alpha: 0.3),
+                      color: AppColors.mutedText(
+                        context,
+                      ).withValues(alpha: 0.3),
                     ),
                     const SizedBox(height: 8),
                     Text(
@@ -694,7 +1657,9 @@ class _DashboardBody extends StatelessWidget {
     final rawCounts = stats.weeklyProgressCounts;
     final counts = rawCounts.length == 7 ? rawCounts : List.filled(7, 0);
 
-    final maxVal = counts.fold<int>(0, (max, v) => v > max ? v : max).toDouble();
+    final maxVal = counts
+        .fold<int>(0, (max, v) => v > max ? v : max)
+        .toDouble();
     final chartMax = maxVal > 0 ? maxVal + 1.0 : 5.0;
     final totalUpdates = counts.fold<int>(0, (sum, v) => sum + v);
 
@@ -789,15 +1754,17 @@ class _DashboardBody extends StatelessWidget {
                   show: true,
                   getDotPainter: (spot, percent, barData, index) =>
                       FlDotCirclePainter(
-                    radius: 4,
-                    color: AppColors.primaryColor(context),
-                    strokeWidth: 2,
-                    strokeColor: AppColors.cardBg(context),
-                  ),
+                        radius: 4,
+                        color: AppColors.primaryColor(context),
+                        strokeWidth: 2,
+                        strokeColor: AppColors.cardBg(context),
+                      ),
                 ),
                 belowBarData: BarAreaData(
                   show: true,
-                  color: AppColors.primaryColor(context).withValues(alpha: 0.08),
+                  color: AppColors.primaryColor(
+                    context,
+                  ).withValues(alpha: 0.08),
                 ),
               ),
             ],
@@ -828,7 +1795,10 @@ class _DashboardBody extends StatelessWidget {
 
   Widget _buildAttendanceCard(BuildContext context, bool isDark) {
     final rawPct = stats.attendancePct;
-    final pct = (rawPct.isNaN || rawPct.isInfinite ? 0.0 : rawPct).clamp(0.0, 100.0);
+    final pct = (rawPct.isNaN || rawPct.isInfinite ? 0.0 : rawPct).clamp(
+      0.0,
+      100.0,
+    );
 
     return _DashboardCard(
       title: 'Today\'s Attendance',
@@ -849,8 +1819,8 @@ class _DashboardBody extends StatelessWidget {
                     pct > 75
                         ? AppColors.secondary
                         : pct > 50
-                            ? AppColors.warning
-                            : AppColors.error,
+                        ? AppColors.warning
+                        : AppColors.error,
                   ),
                 ),
                 Text(
@@ -889,10 +1859,7 @@ class _DashboardBody extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'workers present today',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.mutedText(context),
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
           ),
         ],
       ),
@@ -905,7 +1872,10 @@ class _DashboardBody extends StatelessWidget {
 
   Widget _buildChecklistCard(BuildContext context, bool isDark) {
     final rawPct = stats.checklistCompletionPct;
-    final pct = (rawPct.isNaN || rawPct.isInfinite ? 0.0 : rawPct).clamp(0.0, 100.0);
+    final pct = (rawPct.isNaN || rawPct.isInfinite ? 0.0 : rawPct).clamp(
+      0.0,
+      100.0,
+    );
 
     return _DashboardCard(
       title: 'Checklist Progress',
@@ -926,8 +1896,8 @@ class _DashboardBody extends StatelessWidget {
                     pct >= 100
                         ? AppColors.secondary
                         : pct > 60
-                            ? AppColors.primaryColor(context)
-                            : AppColors.warning,
+                        ? AppColors.primaryColor(context)
+                        : AppColors.warning,
                   ),
                 ),
                 Text(
@@ -966,10 +1936,7 @@ class _DashboardBody extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             'items completed',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.mutedText(context),
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
           ),
         ],
       ),
@@ -1011,10 +1978,7 @@ class _DashboardBody extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             'received',
-            style: TextStyle(
-              fontSize: 12,
-              color: AppColors.mutedText(context),
-            ),
+            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
           ),
           if (stats.pendingPayments > 0) ...[
             const SizedBox(height: 8),
@@ -1111,130 +2075,6 @@ class _DashboardBody extends StatelessWidget {
                 );
               }).toList(),
             ),
-    );
-  }
-
-  // ═══════════════════════════════════════════════════════════════════════════
-  // QUICK ACTIONS
-  // ═══════════════════════════════════════════════════════════════════════════
-
-  Widget _buildQuickActions(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'Quick Actions',
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text(context),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: [
-            _actionButton(
-              context,
-              Icons.hub_outlined,
-              'Operations Hub',
-              AppColors.secondary,
-              () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ProjectOperationsScreen(
-                    projectId: projectId,
-                    projectName: stats.projectName,
-                  ),
-                ),
-              ),
-            ),
-            _actionButton(
-              context,
-              Icons.camera_alt_outlined,
-              'Daily Progress',
-              AppColors.primaryContainer,
-              () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => DailyProgressScreen(
-                    projectId: projectId,
-                    projectName: stats.projectName,
-                  ),
-                ),
-              ),
-            ),
-            _actionButton(
-              context,
-              Icons.receipt_long_outlined,
-              'Sales & Invoices',
-              const Color(0xFF7C3AED),
-              () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ProjectOperationsScreen(
-                    projectId: projectId,
-                    projectName: stats.projectName,
-                    initialSection: 7,
-                  ),
-                ),
-              ),
-            ),
-            _actionButton(
-              context,
-              Icons.description_outlined,
-              'Full Report',
-              Colors.deepOrange,
-              () => Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => ProjectOperationsScreen(
-                    projectId: projectId,
-                    projectName: stats.projectName,
-                    initialSection: 10,
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ],
-    );
-  }
-
-  Widget _actionButton(
-    BuildContext context,
-    IconData icon,
-    String label,
-    Color color,
-    VoidCallback onTap,
-  ) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.08),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: color.withValues(alpha: 0.2)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 18, color: color),
-              const SizedBox(width: 8),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 
@@ -1399,6 +2239,7 @@ class _KPIData {
   final Color? badgeColor;
   final String? subValue;
   final Color iconColor;
+  final VoidCallback? onTap;
 
   _KPIData({
     required this.icon,
@@ -1408,5 +2249,6 @@ class _KPIData {
     this.badgeColor,
     this.subValue,
     required this.iconColor,
+    this.onTap,
   });
 }

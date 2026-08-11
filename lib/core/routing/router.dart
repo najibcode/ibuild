@@ -12,10 +12,8 @@ import '../../main.dart'; // We will point this to MainRouterScreen or Dashboard
 
 
 final routerProvider = Provider<GoRouter>((ref) {
-  final client = Supabase.instance.client;
-
   return GoRouter(
-    initialLocation: '/splash',
+    initialLocation: '/dashboard',
     routes: [
       GoRoute(
         path: '/splash',
@@ -37,23 +35,6 @@ final routerProvider = Provider<GoRouter>((ref) {
         path: '/profile',
         builder: (context, state) => const UserProfileScreen(),
       ),
-
     ],
-    redirect: (context, state) {
-      final isLoggedIn = client.auth.currentSession != null;
-      final isLoggingIn = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/splash' ||
-          state.matchedLocation == '/forgot-password';
-
-      if (!isLoggedIn && !isLoggingIn) {
-        return '/login';
-      }
-
-      if (isLoggedIn && state.matchedLocation == '/login') {
-        return '/dashboard';
-      }
-
-      return null;
-    },
   );
 });

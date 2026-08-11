@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -15,11 +16,35 @@ import 'features/dashboard/presentation/widgets/attention_required_widget.dart';
 import 'features/dashboard/presentation/widgets/budget_utilization_widget.dart';
 import 'features/dashboard/presentation/widgets/inventory_alerts_widget.dart';
 
-class WebDashboard extends ConsumerWidget {
+class WebDashboard extends ConsumerStatefulWidget {
   const WebDashboard({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WebDashboard> createState() => _WebDashboardState();
+}
+
+class _WebDashboardState extends ConsumerState<WebDashboard> {
+  Timer? _realtimeTicker;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-refresh portfolio stats every 2 seconds for real-time updates without clicking reload buttons
+    _realtimeTicker = Timer.periodic(const Duration(seconds: 2), (_) {
+      if (mounted) {
+        ref.refresh(dashboardStatsProvider);
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _realtimeTicker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final statsAsync = ref.watch(dashboardStatsProvider);
 
     return SingleChildScrollView(
@@ -58,7 +83,7 @@ class WebDashboard extends ConsumerWidget {
                       Icons.refresh,
                       'Refresh',
                       onPressed: () {
-                        ref.invalidate(dashboardStatsProvider);
+                        ref.refresh(dashboardStatsProvider);
                       },
                     ),
                     const SizedBox(width: 8),

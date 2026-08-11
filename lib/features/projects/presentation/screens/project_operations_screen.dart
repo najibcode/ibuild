@@ -336,10 +336,10 @@ class _ProjectOperationsScreenState
                   final statusColor = p.status == 'active'
                       ? AppColors.secondary
                       : p.status == 'completed'
-                          ? AppColors.primary
-                          : p.status == 'delayed'
-                              ? AppColors.error
-                              : AppColors.warning;
+                      ? AppColors.primary
+                      : p.status == 'delayed'
+                      ? AppColors.error
+                      : AppColors.warning;
 
                   return Container(
                     padding: const EdgeInsets.all(20),
@@ -375,7 +375,9 @@ class _ProjectOperationsScreenState
                                 ),
                                 const SizedBox(height: 2),
                                 Text(
-                                  p.clientName ?? p.customerName ?? 'Direct Client',
+                                  p.clientName ??
+                                      p.customerName ??
+                                      'Direct Client',
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: AppColors.mutedText(context),
@@ -418,10 +420,35 @@ class _ProjectOperationsScreenState
                               mainAxisSpacing: 12,
                               crossAxisSpacing: 12,
                               children: [
-                                _dashKPITile('Total Budget', '₹${_fmtAmount(p.budget)}', Icons.payments_outlined, AppColors.primary),
-                                _dashKPITile('Amount Spent', '₹${_fmtAmount(p.spent)}', Icons.trending_up_outlined, isHighUtil ? AppColors.error : AppColors.secondary, badge: '$utilPct% used'),
-                                _dashKPITile('Remaining Balance', '₹${_fmtAmount(p.remainingBalance)}', Icons.account_balance_outlined, p.remainingBalance >= 0 ? AppColors.secondary : AppColors.error),
-                                _dashKPITile('Estimated Cost', '₹${_fmtAmount(p.estimatedCost)}', Icons.calculate_outlined, const Color(0xFF7C3AED)),
+                                _dashKPITile(
+                                  'Total Budget',
+                                  '₹${_fmtAmount(p.budget)}',
+                                  Icons.payments_outlined,
+                                  AppColors.primary,
+                                ),
+                                _dashKPITile(
+                                  'Amount Spent',
+                                  '₹${_fmtAmount(p.spent)}',
+                                  Icons.trending_up_outlined,
+                                  isHighUtil
+                                      ? AppColors.error
+                                      : AppColors.secondary,
+                                  badge: '$utilPct% used',
+                                ),
+                                _dashKPITile(
+                                  'Remaining Balance',
+                                  '₹${_fmtAmount(p.remainingBalance)}',
+                                  Icons.account_balance_outlined,
+                                  p.remainingBalance >= 0
+                                      ? AppColors.secondary
+                                      : AppColors.error,
+                                ),
+                                _dashKPITile(
+                                  'Estimated Cost',
+                                  '₹${_fmtAmount(p.estimatedCost)}',
+                                  Icons.calculate_outlined,
+                                  const Color(0xFF7C3AED),
+                                ),
                               ],
                             );
                           },
@@ -434,14 +461,19 @@ class _ProjectOperationsScreenState
                           children: [
                             Text(
                               'Budget Utilization',
-                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText(context),
+                              ),
                             ),
                             Text(
                               '$utilPct% allocated',
                               style: TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.bold,
-                                color: isHighUtil ? AppColors.error : AppColors.secondary,
+                                color: isHighUtil
+                                    ? AppColors.error
+                                    : AppColors.secondary,
                               ),
                             ),
                           ],
@@ -453,7 +485,9 @@ class _ProjectOperationsScreenState
                             value: utilization.clamp(0.0, 1.0),
                             backgroundColor: AppColors.border(context),
                             valueColor: AlwaysStoppedAnimation(
-                              isHighUtil ? AppColors.error : AppColors.primaryColor(context),
+                              isHighUtil
+                                  ? AppColors.error
+                                  : AppColors.primaryColor(context),
                             ),
                             minHeight: 6,
                           ),
@@ -520,7 +554,10 @@ class _ProjectOperationsScreenState
               Icon(icon, size: 18, color: iconColor),
               if (badge != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
                   decoration: BoxDecoration(
                     color: iconColor.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
@@ -546,10 +583,7 @@ class _ProjectOperationsScreenState
           ),
           Text(
             label,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.mutedText(context),
-            ),
+            style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
             overflow: TextOverflow.ellipsis,
           ),
         ],
@@ -558,7 +592,9 @@ class _ProjectOperationsScreenState
   }
 
   String _fmtAmount(double amount) {
-    if (amount >= 10000000) return '${(amount / 10000000).toStringAsFixed(1)}Cr';
+    if (amount >= 10000000) {
+      return '${(amount / 10000000).toStringAsFixed(1)}Cr';
+    }
     if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
     if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
     return amount.toStringAsFixed(0);
@@ -611,27 +647,6 @@ class _ProjectOperationsScreenState
           ],
         ),
       ),
-    );
-  }
-
-  Widget _metricCol(String label, String value) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
-        ),
-        const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text(context),
-          ),
-        ),
-      ],
     );
   }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -8,6 +9,8 @@ import 'core/routing/router.dart';
 import 'core/widgets/responsive_layout.dart';
 import 'core/widgets/web_sidebar.dart';
 import 'core/widgets/web_header.dart';
+import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
+import 'features/projects/presentation/controllers/project_controller.dart';
 
 import 'mobile_dashboard.dart';
 import 'budget_utilization_mobile.dart';
@@ -109,6 +112,80 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   // Active Web Screen selection — now maps to filtered visible items
   int _activeWebTab = 0;
+
+  RealtimeChannel? _realtimeChannel;
+  Timer? _autoSyncTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _subscribeToRealtimeSync();
+  }
+
+  void _subscribeToRealtimeSync() {
+    try {
+      final client = Supabase.instance.client;
+      _realtimeChannel = client
+          .channel('public:ibuild_sync')
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'projects',
+            callback: (payload) => _triggerRealtimeRefresh(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'expenses',
+            callback: (payload) => _triggerRealtimeRefresh(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'attendance',
+            callback: (payload) => _triggerRealtimeRefresh(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'daily_progress',
+            callback: (payload) => _triggerRealtimeRefresh(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'checklist_items',
+            callback: (payload) => _triggerRealtimeRefresh(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'payments',
+            callback: (payload) => _triggerRealtimeRefresh(),
+          )
+          .subscribe();
+    } catch (_) {}
+
+    // Periodic 2-second background auto-sync ticker to guarantee 100% real-time data sync across devices
+    _autoSyncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
+      _triggerRealtimeRefresh();
+    });
+  }
+
+  void _triggerRealtimeRefresh() {
+    if (!mounted) return;
+    try {
+      ref.refresh(dashboardStatsProvider);
+      ref.read(projectControllerProvider.notifier).loadProjects();
+    } catch (_) {}
+  }
+
+  @override
+  void dispose() {
+    _autoSyncTimer?.cancel();
+    _realtimeChannel?.unsubscribe();
+    super.dispose();
+  }
 
   // Push a new mobile screen
   void _pushMobile(MobileScreen screen) {

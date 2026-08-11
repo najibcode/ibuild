@@ -64,6 +64,11 @@ class ProjectDashboardStats {
   // ── Recent activity ──
   final List<ProjectDashboardActivity> recentActivities;
 
+  // ── Physical Progress & Operational Metrics ──
+  final double? physicalProgress;
+  final int materialsCount;
+  final int openIssuesCount;
+
   ProjectDashboardStats({
     required this.projectId,
     required this.projectName,
@@ -88,13 +93,25 @@ class ProjectDashboardStats {
     required this.pendingPayments,
     required this.weeklyProgressCounts,
     required this.recentActivities,
+    this.physicalProgress,
+    this.materialsCount = 0,
+    this.openIssuesCount = 0,
   });
 
   // ── Computed getters ──
 
   double get remainingBalance => budget - spent;
-  double get budgetUtilization => budget > 0 ? (spent / budget).clamp(0.0, 2.0) : 0.0;
+  double get budgetUtilization =>
+      budget > 0 ? (spent / budget).clamp(0.0, 2.0) : 0.0;
   double get budgetUtilizationPct => budgetUtilization * 100;
+  double get computedProgress =>
+      physicalProgress ??
+      (status == 'completed'
+          ? 100.0
+          : (budget > 0 ? (spent / budget * 100).clamp(0.0, 100.0) : 0.0));
+  double get financialVariance => budgetUtilizationPct - computedProgress;
+  bool get hasHighVariance => financialVariance > 15.0;
+
   double get checklistCompletionPct =>
       checklistTotal > 0 ? (checklistCompleted / checklistTotal * 100) : 0.0;
   double get attendancePct =>

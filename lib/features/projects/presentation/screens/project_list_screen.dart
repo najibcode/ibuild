@@ -9,10 +9,11 @@ import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/utils/date_range_filter_helper.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_form_screen.dart';
-import 'project_operations_screen.dart';
+import 'project_dashboard_screen.dart';
 
 class ProjectListScreen extends ConsumerWidget {
   const ProjectListScreen({super.key});
@@ -26,7 +27,7 @@ class ProjectListScreen extends ConsumerWidget {
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
         title: Text(
-          'Projects',
+          'Projects Directory',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor(context),
@@ -44,20 +45,35 @@ class ProjectListScreen extends ConsumerWidget {
               );
               final pdfBytes = await GenericPdfTableGenerator.generatePdf(
                 title: 'Projects Portfolio Report',
-                subtitle: 'Summary of active enterprise sites & budget allocations',
-                headers: ['Project Name', 'Client', 'Status', 'Allocated Budget (INR)', 'Spent (INR)', 'Utilization'],
-                data: projects.map((p) => [
-                  p.name,
-                  p.clientName ?? 'N/A',
-                  p.status.toUpperCase(),
-                  'INR ${p.budget.toStringAsFixed(2)}',
-                  'INR ${p.spent.toStringAsFixed(2)}',
-                  '${(p.budgetUtilization * 100).toStringAsFixed(1)}%'
-                ]).toList(),
+                subtitle:
+                    'Summary of active enterprise sites & budget allocations',
+                headers: [
+                  'Project Name',
+                  'Client',
+                  'Status',
+                  'Budget',
+                  'Spent',
+                  'Progress',
+                  'Due Date',
+                ],
+                data: projects
+                    .map(
+                      (p) => [
+                        p.name,
+                        p.clientName ?? 'N/A',
+                        p.status.toUpperCase(),
+                        CurrencyFormatter.formatINR(p.budget),
+                        CurrencyFormatter.formatINR(p.spent),
+                        '${p.computedProgress.toInt()}%',
+                        p.formattedDueDate,
+                      ],
+                    )
+                    .toList(),
               );
               await PdfDownloadHelper.downloadPdf(
                 bytes: pdfBytes,
-                filename: 'IBUILD_Projects_${DateTime.now().millisecondsSinceEpoch}.pdf',
+                filename:
+                    'IBUILD_Projects_${DateTime.now().millisecondsSinceEpoch}.pdf',
               );
             },
             onExportExcelWithDates: (start, end) async {
@@ -70,24 +86,41 @@ class ProjectListScreen extends ConsumerWidget {
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Projects',
                 title: 'Projects Directory & Budget Outflow',
-                headers: ['Project Name', 'Client Name', 'Status', 'Budget (INR)', 'Spent (INR)', 'Utilization %'],
-                rows: projects.map((p) => [
-                  p.name,
-                  p.clientName ?? 'N/A',
-                  p.status.toUpperCase(),
-                  p.budget,
-                  p.spent,
-                  (p.budgetUtilization * 100).toStringAsFixed(1)
-                ]).toList(),
+                headers: [
+                  'Project Name',
+                  'Client Name',
+                  'Status',
+                  'Budget (INR)',
+                  'Spent (INR)',
+                  'Progress %',
+                  'Due Date',
+                ],
+                rows: projects
+                    .map(
+                      (p) => [
+                        p.name,
+                        p.clientName ?? 'N/A',
+                        p.status.toUpperCase(),
+                        p.budget,
+                        p.spent,
+                        p.computedProgress.toInt(),
+                        p.formattedDueDate,
+                      ],
+                    )
+                    .toList(),
               );
               await ExcelDownloadHelper.downloadExcel(
                 bytes: excelBytes,
-                filename: 'IBUILD_Projects_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+                filename:
+                    'IBUILD_Projects_${DateTime.now().millisecondsSinceEpoch}.xlsx',
               );
             },
           ),
           IconButton(
-            icon: Icon(Icons.add_circle_outline, color: AppColors.primaryColor(context)),
+            icon: Icon(
+              Icons.add_circle_outline,
+              color: AppColors.primaryColor(context),
+            ),
             tooltip: 'New Project',
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(builder: (_) => const ProjectFormScreen()),
@@ -96,6 +129,7 @@ class ProjectListScreen extends ConsumerWidget {
           const SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
+            tooltip: 'Refresh Projects',
             onPressed: () =>
                 ref.read(projectControllerProvider.notifier).loadProjects(),
           ),
@@ -121,30 +155,40 @@ class ProjectListScreen extends ConsumerWidget {
               0,
             ),
             child: SearchFilterBar(
-              hintText: 'Search projects...',
+              hintText: 'Search projects by name or client...',
               onSearchChanged: (q) =>
                   ref.read(projectControllerProvider.notifier).setSearch(q),
               filterOptions: const [
                 'active',
-                'inactive',
                 'planning',
                 'completed',
                 'delayed',
+                'at_risk',
               ],
               activeFilter: state.statusFilter,
               onFilterChanged: (f) => ref
                   .read(projectControllerProvider.notifier)
                   .setStatusFilter(f),
-              sortOptions: const ['Name', 'Budget', 'Date'],
+              sortOptions: const [
+                'Recently Updated',
+                'Project Name',
+                'Budget',
+                'Progress',
+                'Due Date',
+                'Status',
+              ],
               onSortChanged: (s) {
                 final map = {
-                  'Name': 'name',
+                  'Recently Updated': 'recently_updated',
+                  'Project Name': 'name',
                   'Budget': 'budget',
-                  'Date': 'created_at',
+                  'Progress': 'progress',
+                  'Due Date': 'due_date',
+                  'Status': 'status',
                 };
                 ref
                     .read(projectControllerProvider.notifier)
-                    .setSort(map[s] ?? 'created_at');
+                    .setSort(map[s] ?? 'recently_updated');
               },
             ),
           ),
@@ -156,7 +200,8 @@ class ProjectListScreen extends ConsumerWidget {
               hasMore: state.hasMore,
               onLoadMore: () =>
                   ref.read(projectControllerProvider.notifier).loadMore(),
-              emptyMessage: 'No projects found. Create one!',
+              emptyMessage:
+                  'No projects found. Tap "+ New Project" to get started.',
               errorMessage: state.errorMessage,
               onRetry: () =>
                   ref.read(projectControllerProvider.notifier).loadProjects(),
@@ -164,7 +209,7 @@ class ProjectListScreen extends ConsumerWidget {
                 project: project,
                 onTap: () => Navigator.of(context).push(
                   MaterialPageRoute(
-                    builder: (_) => ProjectOperationsScreen(
+                    builder: (_) => ProjectDashboardScreen(
                       projectId: project.id,
                       projectName: project.name,
                     ),
@@ -185,26 +230,50 @@ class _ProjectCard extends StatelessWidget {
 
   const _ProjectCard({required this.project, required this.onTap});
 
-  Color _statusColor(String status) {
-    switch (status) {
+  Color _statusColor(String status, bool isAtRisk) {
+    if (isAtRisk && status != 'completed') {
+      return AppColors.warning;
+    }
+    switch (status.toLowerCase()) {
       case 'active':
         return AppColors.secondary;
       case 'completed':
-        return AppColors.primary;
+        return const Color(0xFF10B981);
       case 'delayed':
         return AppColors.error;
-      default:
+      case 'at_risk':
         return AppColors.warning;
+      case 'planning':
+      default:
+        return const Color(0xFF6366F1);
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final statusColor = _statusColor(project.status);
-    final utilization = project.budgetUtilization;
+    final bool isAtRisk = project.isAtRisk;
+    final statusCol = _statusColor(project.status, isAtRisk);
+    final utilizationPct = project.budget > 0
+        ? (project.spent / project.budget * 100).clamp(0.0, 200.0)
+        : 0.0;
+    final progressPct = project.computedProgress;
+    final bool hasRecordedProgress =
+        project.physicalProgress != null || project.status == 'completed';
+
+    final String displayStatusText =
+        (isAtRisk &&
+            project.status != 'completed' &&
+            project.status != 'delayed')
+        ? 'AT RISK'
+        : project.status.toUpperCase().replaceAll('_', ' ');
 
     return Card(
       margin: const EdgeInsets.only(bottom: AppSpacing.stackSm),
+      elevation: 0.5,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        side: BorderSide(color: AppColors.border(context)),
+      ),
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -213,73 +282,162 @@ class _ProjectCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // ── Header: Title & Status Badge ──
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
-                    child: Text(
-                      project.name,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: AppColors.text(context),
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          project.name,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.text(context),
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (project.clientName != null &&
+                            project.clientName!.isNotEmpty) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            project.clientName!,
+                            style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.mutedText(context),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
+                  const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: statusColor.withValues(alpha: 0.1),
+                      color: statusCol.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
-                    child: Text(
-                      project.status.toUpperCase(),
-                      style: TextStyle(
-                        color: statusColor,
-                        fontSize: 10,
-                        fontWeight: FontWeight.bold,
+                      border: Border.all(
+                        color: statusCol.withValues(alpha: 0.3),
                       ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          width: 6,
+                          height: 6,
+                          decoration: BoxDecoration(
+                            color: statusCol,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          displayStatusText,
+                          style: TextStyle(
+                            color: statusCol,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
               ),
-              if (project.clientName != null) ...[
-                const SizedBox(height: 4),
-                Text(
-                  project.clientName!,
-                  style: TextStyle(
-                    color: AppColors.mutedText(context),
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-              const SizedBox(height: 12),
-              // Budget progress
+              const SizedBox(height: 14),
+
+              // ── Key Metrics Grid: Budget | Spent | Progress | Due Date ──
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isNarrow = constraints.maxWidth < 450;
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 12,
+                    children: [
+                      _buildMetricItem(
+                        context,
+                        label: 'Budget',
+                        value: CurrencyFormatter.formatINR(project.budget),
+                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 100,
+                      ),
+                      _buildMetricItem(
+                        context,
+                        label: 'Spent',
+                        value: CurrencyFormatter.formatINR(project.spent),
+                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 100,
+                      ),
+                      _buildMetricItem(
+                        context,
+                        label: 'Progress',
+                        value: hasRecordedProgress
+                            ? '${progressPct.toStringAsFixed(1)}%'
+                            : '—',
+                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 80,
+                        valueColor: AppColors.primaryColor(context),
+                      ),
+                      _buildMetricItem(
+                        context,
+                        label: 'Due Date',
+                        value: project.formattedDueDate,
+                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 110,
+                        badge: project.isOverdue
+                            ? Container(
+                                margin: const EdgeInsets.only(top: 2),
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 6,
+                                  vertical: 2,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: AppColors.error.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(4),
+                                ),
+                                child: Text(
+                                  '⚠ ${project.daysOverdue}d overdue',
+                                  style: const TextStyle(
+                                    color: AppColors.error,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              )
+                            : null,
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 14),
+
+              // ── Construction Physical Progress Bar ──
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Flexible(
-                    child: Text(
-                      'Budget: ₹${_formatAmount(project.budget)}',
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.mutedText(context),
-                      ),
-                      overflow: TextOverflow.ellipsis,
+                  Text(
+                    'Physical Progress',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.mutedText(context),
                     ),
                   ),
                   Text(
-                    '${(utilization * 100).toInt()}% used',
+                    hasRecordedProgress
+                        ? '${progressPct.toStringAsFixed(1)}%'
+                        : '—',
                     style: TextStyle(
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
-                      color: utilization > 0.9
-                          ? AppColors.error
-                          : AppColors.secondary,
+                      color: AppColors.primaryColor(context),
                     ),
                   ),
                 ],
@@ -288,15 +446,86 @@ class _ProjectCard extends StatelessWidget {
               ClipRRect(
                 borderRadius: BorderRadius.circular(4),
                 child: LinearProgressIndicator(
-                  value: utilization.clamp(0.0, 1.0),
+                  value: hasRecordedProgress
+                      ? (progressPct / 100).clamp(0.0, 1.0)
+                      : 0.0,
                   backgroundColor: AppColors.border(context),
                   valueColor: AlwaysStoppedAnimation(
-                    utilization > 0.9
-                        ? AppColors.error
+                    progressPct >= 100
+                        ? const Color(0xFF10B981)
                         : AppColors.primaryColor(context),
                   ),
-                  minHeight: 4,
+                  minHeight: 6,
                 ),
+              ),
+              const SizedBox(height: 14),
+              Divider(height: 1, color: AppColors.border(context)),
+              const SizedBox(height: 10),
+
+              // ── Footer: Budget Used % | Updated By | View Project ──
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        Text(
+                          project.budget > 0
+                              ? 'Budget Used: ${utilizationPct.toStringAsFixed(1)}%'
+                              : 'Budget Used: —',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: utilizationPct > 90
+                                ? AppColors.error
+                                : AppColors.text(context),
+                          ),
+                        ),
+                        if (project.lastUpdatedBy != null) ...[
+                          Text(
+                            '•  Updated by: ${project.lastUpdatedBy}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText(context),
+                            ),
+                          ),
+                        ] else ...[
+                          Text(
+                            '•  Updated: ${project.formattedLastUpdated}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText(context),
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: onTap,
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 4,
+                      ),
+                      visualDensity: VisualDensity.compact,
+                    ),
+                    icon: Text(
+                      'View Project',
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.primaryColor(context),
+                      ),
+                    ),
+                    label: Icon(
+                      Icons.arrow_forward_rounded,
+                      size: 14,
+                      color: AppColors.primaryColor(context),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -305,16 +534,40 @@ class _ProjectCard extends StatelessWidget {
     );
   }
 
-  String _formatAmount(double amount) {
-    if (amount >= 10000000) {
-      return '${(amount / 10000000).toStringAsFixed(1)}Cr';
-    }
-    if (amount >= 100000) {
-      return '${(amount / 100000).toStringAsFixed(1)}L';
-    }
-    if (amount >= 1000) {
-      return '${(amount / 1000).toStringAsFixed(1)}K';
-    }
-    return amount.toStringAsFixed(0);
+  Widget _buildMetricItem(
+    BuildContext context, {
+    required String label,
+    required String value,
+    required double width,
+    Color? valueColor,
+    Widget? badge,
+  }) {
+    return SizedBox(
+      width: width,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.mutedText(context),
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+              color: valueColor ?? AppColors.text(context),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          ?badge,
+        ],
+      ),
+    );
   }
 }

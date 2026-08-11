@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../theme/app_colors.dart';
 import '../../features/rbac/presentation/providers/permission_provider.dart';
 import 'package:ibuild/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
@@ -24,8 +23,10 @@ class WebSidebarItem {
   });
 }
 
-/// Shared sidebar widget used by all web (desktop) screens.
-class WebSidebar extends ConsumerWidget {
+/// Shared collapsible sidebar widget for desktop/tablet ERP navigation.
+/// Supports smooth 260px <-> 72px collapse animation, Dark Navy theme,
+/// item tooltips in collapsed mode, and RBAC permissions without layout overflow.
+class WebSidebar extends ConsumerStatefulWidget {
   final int activeIndex;
   final ValueChanged<int> onTabSelected;
 
@@ -78,7 +79,6 @@ class WebSidebar extends ConsumerWidget {
       label: 'Quotations & Estimates',
       requiredPermission: null,
     ),
-
     WebSidebarItem(
       icon: Icons.account_balance_wallet_outlined,
       activeIcon: Icons.account_balance_wallet,
@@ -91,7 +91,6 @@ class WebSidebar extends ConsumerWidget {
       label: 'Equipment, Machinery & Tools',
       requiredPermission: null,
     ),
-
     WebSidebarItem(
       icon: Icons.assignment_ind_outlined,
       activeIcon: Icons.assignment_ind,
@@ -108,17 +107,30 @@ class WebSidebar extends ConsumerWidget {
       icon: Icons.settings_outlined,
       activeIcon: Icons.settings,
       label: 'Settings',
-      requiredPermission: null, // Settings is always visible
+      requiredPermission: null,
     ),
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<WebSidebar> createState() => _WebSidebarState();
+}
+
+class _WebSidebarState extends ConsumerState<WebSidebar> {
+  bool _isCollapsed = false;
+
+  void _toggleCollapse() {
+    setState(() {
+      _isCollapsed = !_isCollapsed;
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final permissionsAsync = ref.watch(userPermissionsProvider);
     final permissions = permissionsAsync.valueOrNull ?? {};
     final roleName = ref.watch(currentRoleProvider);
 
-    final visibleItems = allItems.where((item) {
+    final visibleItems = WebSidebar.allItems.where((item) {
       if (item.requiredPermission == null) return true;
       if (roleName == 'owner' || roleName == 'admin' || permissions.isEmpty) {
         return true;
@@ -141,124 +153,204 @@ class WebSidebar extends ConsumerWidget {
         roleDisplay = 'User';
     }
 
-    final primaryCol = AppColors.primaryColor(context);
+    final double width = _isCollapsed ? 72.0 : 260.0;
 
-    return Container(
-      width: 260,
-      decoration: BoxDecoration(
-        color: AppColors.cardBg(context),
-        border: Border(right: BorderSide(color: AppColors.border(context))),
-      ),
-      child: Column(
-        children: [
-          // ── Branding ──
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.containerMargin,
-              vertical: 24,
-            ),
-            child: const AppLogo(size: 38, subtitle: 'ERP ENTERPRISE'),
+    return ClipRect(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 270),
+        curve: Curves.easeInOutCubic,
+        width: width,
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F172A), // Dark Navy Slate 900
+          border: Border(
+            right: BorderSide(color: Color(0xFF1E293B)), // Slate 800
           ),
-
-          // ── Navigation Items ──
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              itemCount: visibleItems.length,
-              itemBuilder: (context, index) {
-                if (index == visibleItems.length - 1 &&
-                    visibleItems[index].label == 'Settings') {
-                  return Column(
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 8),
-                        child: Divider(
-                          color: AppColors.border(context),
-                          height: 1,
-                        ),
-                      ),
-                      _buildNavItem(context, visibleItems, index),
-                    ],
-                  );
-                }
-                return _buildNavItem(context, visibleItems, index);
-              },
-            ),
-          ),
-
-          // ── Profile Card ──
-          Padding(
-            padding: const EdgeInsets.all(12),
-            child: Consumer(
-              builder: (context, ref, _) {
-                final authState = ref.watch(authControllerProvider);
-                final profile = authState.profile;
-                final userName =
-                    profile?['full_name'] as String? ?? 'IBUILD User';
-                final avatarUrl =
-                    profile?['avatar_url'] as String? ??
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc';
-
-                return InkWell(
-                  onTap: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                        builder: (_) => const UserProfileScreen(),
-                      ),
-                    );
-                  },
-                  borderRadius: BorderRadius.circular(12),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: AppColors.bg(context),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.border(context)),
+        ),
+        child: Column(
+          children: [
+            // ── Branding & Collapse Toggle Header ──
+            Container(
+              height: 70,
+              padding: EdgeInsets.symmetric(horizontal: _isCollapsed ? 4 : 14),
+              child: Row(
+                mainAxisAlignment: _isCollapsed
+                    ? MainAxisAlignment.center
+                    : MainAxisAlignment.spaceBetween,
+                children: [
+                  if (!_isCollapsed) ...[
+                    const AppLogo(
+                      size: 32,
+                      subtitle: 'ERP ENTERPRISE',
+                      inverted: true,
                     ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          backgroundImage: NetworkImage(avatarUrl),
-                          radius: 18,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+                    IconButton(
+                      icon: const Icon(
+                        Icons.chevron_left,
+                        color: Color(0xFF94A3B8),
+                        size: 22,
+                      ),
+                      tooltip: 'Collapse Sidebar',
+                      onPressed: _toggleCollapse,
+                    ),
+                  ] else ...[
+                    Tooltip(
+                      message: 'Expand Sidebar',
+                      child: InkWell(
+                        onTap: _toggleCollapse,
+                        borderRadius: BorderRadius.circular(8),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 4, vertical: 6),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              Text(
-                                userName,
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 13,
-                                  color: AppColors.text(context),
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              AppLogo(
+                                size: 24,
+                                showText: false,
+                                inverted: true,
                               ),
-                              Text(
-                                roleDisplay,
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.mutedText(context),
-                                ),
-                                overflow: TextOverflow.ellipsis,
+                              SizedBox(width: 2),
+                              Icon(
+                                Icons.chevron_right,
+                                color: Color(0xFF94A3B8),
+                                size: 18,
                               ),
                             ],
                           ),
                         ),
-                        Icon(
-                          Icons.edit_outlined,
-                          size: 16,
-                          color: AppColors.mutedText(context),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                );
-              },
+                  ],
+                ],
+              ),
             ),
-          ),
-        ],
+            const Divider(height: 1, color: Color(0xFF1E293B)),
+            const SizedBox(height: 8),
+
+            // ── Navigation Items List ──
+            Expanded(
+              child: ListView.builder(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                itemCount: visibleItems.length,
+                itemBuilder: (context, index) {
+                  final isSettings = index == visibleItems.length - 1 &&
+                      visibleItems[index].label == 'Settings';
+
+                  if (isSettings) {
+                    return Column(
+                      children: [
+                        const Padding(
+                          padding: EdgeInsets.symmetric(vertical: 6),
+                          child: Divider(color: Color(0xFF1E293B), height: 1),
+                        ),
+                        _buildNavItem(context, visibleItems, index),
+                      ],
+                    );
+                  }
+                  return _buildNavItem(context, visibleItems, index);
+                },
+              ),
+            ),
+
+            const Divider(height: 1, color: Color(0xFF1E293B)),
+
+            // ── User Profile Footer Card ──
+            Padding(
+              padding: const EdgeInsets.all(10),
+              child: Consumer(
+                builder: (context, ref, _) {
+                  final authState = ref.watch(authControllerProvider);
+                  final profile = authState.profile;
+                  final userName =
+                      profile?['full_name'] as String? ?? 'IBUILD User';
+                  final avatarUrl = profile?['avatar_url'] as String? ??
+                      'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc';
+
+                  if (_isCollapsed) {
+                    return Tooltip(
+                      message: '$userName ($roleDisplay)',
+                      preferBelow: false,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const UserProfileScreen(),
+                            ),
+                          );
+                        },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 6),
+                          child: CircleAvatar(
+                            backgroundImage: NetworkImage(avatarUrl),
+                            radius: 18,
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+
+                  return InkWell(
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const UserProfileScreen(),
+                        ),
+                      );
+                    },
+                    borderRadius: BorderRadius.circular(10),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1E293B),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: const Color(0xFF334155)),
+                      ),
+                      child: Row(
+                        children: [
+                          CircleAvatar(
+                            backgroundImage: NetworkImage(avatarUrl),
+                            radius: 16,
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  userName,
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                    color: Colors.white,
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                Text(
+                                  roleDisplay,
+                                  style: const TextStyle(
+                                    fontSize: 11,
+                                    color: Color(0xFF94A3B8),
+                                  ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.edit_outlined,
+                            size: 14,
+                            color: Color(0xFF94A3B8),
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -269,39 +361,64 @@ class WebSidebar extends ConsumerWidget {
     int index,
   ) {
     final item = visibleItems[index];
-    final bool isActive = activeIndex == index;
-    final primaryCol = AppColors.primaryColor(context);
+    final bool isActive = widget.activeIndex == index;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 2),
-      decoration: BoxDecoration(
-        color: isActive
-            ? primaryCol.withValues(alpha: 0.12)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
-        border: isActive
-            ? Border(left: BorderSide(color: primaryCol, width: 3))
-            : null,
-      ),
-      child: ListTile(
-        dense: true,
-        visualDensity: const VisualDensity(vertical: -1),
-        onTap: () => onTabSelected(index),
-        leading: Icon(
-          isActive ? item.activeIcon : item.icon,
-          color: isActive ? primaryCol : AppColors.mutedText(context),
-          size: 20,
+    Widget navContent = InkWell(
+      onTap: () => widget.onTabSelected(index),
+      borderRadius: BorderRadius.circular(8),
+      hoverColor: const Color(0xFF1E293B),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        height: 42,
+        padding: EdgeInsets.symmetric(horizontal: _isCollapsed ? 0 : 12),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF2563EB) : Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
         ),
-        title: Text(
-          item.label,
-          style: TextStyle(
-            color: isActive ? primaryCol : AppColors.text(context),
-            fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
-            fontSize: 14,
-          ),
+        child: Row(
+          mainAxisAlignment: _isCollapsed
+              ? MainAxisAlignment.center
+              : MainAxisAlignment.start,
+          children: [
+            Icon(
+              isActive ? item.activeIcon : item.icon,
+              color: isActive ? Colors.white : const Color(0xFF94A3B8),
+              size: 20,
+            ),
+            if (!_isCollapsed) ...[
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  item.label,
+                  style: TextStyle(
+                    color: isActive ? Colors.white : const Color(0xFFE2E8F0),
+                    fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ],
         ),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
+    );
+
+    if (_isCollapsed) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Tooltip(
+          message: item.label,
+          preferBelow: false,
+          child: navContent,
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 3),
+      child: navContent,
     );
   }
 }

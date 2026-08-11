@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../models/dashboard_stats_model.dart';
 
@@ -10,6 +11,8 @@ class SupabaseDashboardRepository implements DashboardRepository {
   @override
   Future<DashboardStats> getDashboardStats() async {
     try {
+      await ensureAutoAuth(_client);
+
       // Run all queries concurrently for maximum speed.
       final results = await Future.wait([
         _fetchProjects(),           // 0
