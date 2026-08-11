@@ -14,7 +14,8 @@ import '../controllers/quotation_controller.dart';
 import 'quotation_form_screen.dart';
 
 class QuotationListScreen extends ConsumerStatefulWidget {
-  const QuotationListScreen({super.key});
+  final bool isEmbedded;
+  const QuotationListScreen({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<QuotationListScreen> createState() =>
@@ -63,12 +64,9 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
             child: const Text('Cancel'),
           ),
           ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error),
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.error,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Delete Estimate'),
+            child: const Text('Delete'),
           ),
         ],
       ),
@@ -78,7 +76,7 @@ class _QuotationListScreenState extends ConsumerState<QuotationListScreen> {
       final success = await ref
           .read(quotationControllerProvider.notifier)
           .removeQuotation(quotation.id);
-      if (context.mounted) {
+      if (mounted) {
         if (success) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Quotation deleted successfully')),
@@ -149,15 +147,17 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: Text(
-          'Quotations & Project Estimator',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryColor(context),
-          ),
-        ),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              titleSpacing: 16,
+              title: Text(
+                'Quotations & Project Estimator',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryColor(context),
+                ),
+              ),
         actions: [
           DataExportActions(
             compact: true,

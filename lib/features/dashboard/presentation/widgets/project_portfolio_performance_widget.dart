@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../projects/presentation/screens/project_dashboard_screen.dart';
 import '../../../projects/presentation/screens/project_detail_screen.dart';
 import '../../data/models/dashboard_stats_model.dart';
 
@@ -102,8 +103,9 @@ class ProjectPortfolioPerformanceWidget extends StatelessWidget {
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
-            builder: (_) => ProjectDetailScreen(
+            builder: (_) => ProjectDashboardScreen(
               projectId: item.id,
+              projectName: item.name,
             ),
           ),
         );

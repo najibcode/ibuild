@@ -68,22 +68,10 @@ class WebSidebar extends ConsumerStatefulWidget {
       requiredPermission: 'inventory.view',
     ),
     WebSidebarItem(
-      icon: Icons.receipt_long_outlined,
-      activeIcon: Icons.receipt_long,
-      label: 'Billing',
-      requiredPermission: 'billing.view',
-    ),
-    WebSidebarItem(
-      icon: Icons.request_quote_outlined,
-      activeIcon: Icons.request_quote,
-      label: 'Quotations & Estimates',
-      requiredPermission: null,
-    ),
-    WebSidebarItem(
       icon: Icons.account_balance_wallet_outlined,
       activeIcon: Icons.account_balance_wallet,
-      label: 'Expenses',
-      requiredPermission: 'expense.view',
+      label: 'Financials',
+      requiredPermission: 'billing.view',
     ),
     WebSidebarItem(
       icon: Icons.construction_outlined,

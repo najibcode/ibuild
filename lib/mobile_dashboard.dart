@@ -12,6 +12,7 @@ import 'features/dashboard/presentation/widgets/project_health_widget.dart';
 import 'features/dashboard/presentation/widgets/project_performance_matrix_widget.dart';
 import 'features/dashboard/presentation/widgets/portfolio_progress_trend_widget.dart';
 import 'features/dashboard/presentation/widgets/attention_required_widget.dart';
+import 'features/dashboard/presentation/widgets/portfolio_pulse_widget.dart';
 import 'features/dashboard/presentation/widgets/budget_utilization_widget.dart';
 import 'features/dashboard/presentation/widgets/inventory_alerts_widget.dart';
 
@@ -170,7 +171,7 @@ class MobileDashboard extends ConsumerWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 1. Dynamic 6 KPI Cards Grid
+            // 1. Dynamic Executive KPI Cards Grid
             DashboardKPICards(
               onTapTotalProjects: onViewProjects,
               onTapActiveProjects: onViewProjects,
@@ -181,82 +182,31 @@ class MobileDashboard extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sectionGap),
 
-            // Dynamic Construction Portfolio BI Visualizations (Mobile Stacked Priority Order)
+            // 2. Dynamic Construction Portfolio Visualizations & Pulse
             statsAsync.when(
               data: (stats) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // 2. Attention Required
+                  // Portfolio Pulse Section
+                  PortfolioPulseWidget(stats: stats),
+                  const SizedBox(height: AppSpacing.sectionGap),
+
+                  // Attention Required Alerts
                   AttentionRequiredWidget(
                     alerts: stats.attentionAlerts,
                   ),
                   const SizedBox(height: AppSpacing.sectionGap),
 
-                  // 3. Project Portfolio Performance
+                  // Project Portfolio Performance List
                   ProjectPortfolioPerformanceWidget(
                     projects: stats.portfolioProjects,
                   ),
                   const SizedBox(height: AppSpacing.sectionGap),
 
-                  // 4. Project Health
+                  // Project Health Donut Chart
                   ProjectHealthWidget(
                     projects: stats.portfolioProjects,
                   ),
-                  const SizedBox(height: AppSpacing.sectionGap),
-
-                  // 5. Budget Utilization
-                  BudgetUtilizationWidget(
-                    projects: stats.portfolioProjects,
-                  ),
-                  const SizedBox(height: AppSpacing.sectionGap),
-
-                  // 6. Inventory Alerts
-                  InventoryAlertsWidget(
-                    alerts: stats.inventoryAlerts,
-                    onTapInventory: onViewSupply,
-                  ),
-                  const SizedBox(height: AppSpacing.sectionGap),
-
-                  // 7. Project Performance Matrix
-                  ProjectPerformanceMatrixWidget(
-                    projects: stats.portfolioProjects,
-                  ),
-                  const SizedBox(height: AppSpacing.sectionGap),
-
-                  // 8. Portfolio Progress Over Time
-                  PortfolioProgressTrendWidget(
-                    trends: stats.progressTrends,
-                  ),
-                  const SizedBox(height: AppSpacing.sectionGap),
-
-                  // 9. Recent Activity Section
-                  Text(
-                    'Recent Activity',
-                    style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.stackMd),
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: stats.recentActivities.length.clamp(0, 5),
-                    separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.stackSm),
-                    itemBuilder: (context, index) {
-                      final act = stats.recentActivities[index];
-                      return _buildActivityItem(
-                        icon: act.type == 'add' ? Icons.add_circle : Icons.check_circle,
-                        iconColor: AppColors.secondary,
-                        bgColor: const Color(0x1F10B981),
-                        title: act.title,
-                        time: '${act.timestamp.hour.toString().padLeft(2, '0')}:${act.timestamp.minute.toString().padLeft(2, '0')}',
-                        subtitle: act.subtitle,
-                        tags: ['Activity'],
-                        onTap: onViewProjects,
-                      );
-                    },
-                  ),
-                  const SizedBox(height: AppSpacing.sectionGap),
                 ],
               ),
               loading: () => const Center(child: CircularProgressIndicator()),
@@ -266,16 +216,9 @@ class MobileDashboard extends ConsumerWidget {
                   color: AppColors.error.withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.error_outline, color: AppColors.error),
-                    const SizedBox(width: 8),
-                    Expanded(child: Text('Error loading dashboard stats: $e')),
-                    TextButton(
-                      onPressed: () => ref.invalidate(dashboardStatsProvider),
-                      child: const Text('Retry'),
-                    ),
-                  ],
+                child: Text(
+                  'Unable to load dashboard data: $e',
+                  style: const TextStyle(color: AppColors.textMuted),
                 ),
               ),
             ),

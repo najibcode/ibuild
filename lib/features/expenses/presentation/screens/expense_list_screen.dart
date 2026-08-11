@@ -12,7 +12,8 @@ import '../controllers/expense_controller.dart';
 import 'expense_form_screen.dart';
 
 class ExpenseListScreen extends ConsumerStatefulWidget {
-  const ExpenseListScreen({super.key});
+  final bool isEmbedded;
+  const ExpenseListScreen({super.key, this.isEmbedded = false});
 
   @override
   ConsumerState<ExpenseListScreen> createState() => _ExpenseListScreenState();
@@ -119,15 +120,17 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      appBar: AppBar(
-        titleSpacing: 16,
-        title: Text(
-          'Expenses',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primaryColor(context),
-          ),
-        ),
+      appBar: widget.isEmbedded
+          ? null
+          : AppBar(
+              titleSpacing: 16,
+              title: Text(
+                'Expenses',
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryColor(context),
+                ),
+              ),
         actions: [
           DataExportActions(
             compact: true,

@@ -20,6 +20,7 @@ import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
+import 'features/billing/presentation/screens/financials_hub_screen.dart';
 import 'features/billing/presentation/screens/billing_list_screen.dart';
 import 'features/sales_bills/presentation/screens/sales_bill_builder_screen.dart';
 import 'features/payments/presentation/screens/payment_ledger_screen.dart';
@@ -90,6 +91,7 @@ enum MobileScreen {
   inventory,
   attendance,
   employees,
+  financials,
   billing,
   quotations,
   expenses,
@@ -149,6 +151,12 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
+            table: 'system_settings',
+            callback: (payload) => _triggerRealtimeRefresh(),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
             table: 'daily_progress',
             callback: (payload) => _triggerRealtimeRefresh(),
           )
@@ -166,11 +174,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           )
           .subscribe();
     } catch (_) {}
-
-    // Periodic 2-second background auto-sync ticker to guarantee 100% real-time data sync across devices
-    _autoSyncTimer = Timer.periodic(const Duration(seconds: 2), (_) {
-      _triggerRealtimeRefresh();
-    });
   }
 
   void _triggerRealtimeRefresh() {
@@ -187,7 +190,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   @override
   void dispose() {
-    _autoSyncTimer?.cancel();
     _realtimeChannel?.unsubscribe();
     super.dispose();
   }
@@ -273,14 +275,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       case MobileScreen.employees:
         body = const EmployeeListScreen();
         break;
+      case MobileScreen.financials:
       case MobileScreen.billing:
-        body = const BillingListScreen();
-        break;
       case MobileScreen.quotations:
-        body = const QuotationListScreen();
-        break;
       case MobileScreen.expenses:
-        body = const ExpenseListScreen();
+        body = const FinancialsHubScreen();
         break;
       case MobileScreen.equipment:
         body = const EquipmentListScreen();
@@ -426,50 +425,20 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (_hasPerm('billing.view'))
-                    ListTile(
-                      leading: const Icon(
-                        Icons.receipt_long_outlined,
-                        color: AppColors.primary,
-                      ),
-                      title: const Text(
-                        'Billing',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _setMobileTab(MobileScreen.billing);
-                      },
-                    ),
                   ListTile(
                     leading: const Icon(
-                      Icons.request_quote_outlined,
+                      Icons.account_balance_wallet_outlined,
                       color: AppColors.primary,
                     ),
                     title: const Text(
-                      'Quotations & Estimates',
+                      'Financials & Money Hub',
                       style: TextStyle(fontWeight: FontWeight.w600),
                     ),
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.quotations);
+                      _setMobileTab(MobileScreen.financials);
                     },
                   ),
-                  if (_hasPerm('expense.view'))
-                    ListTile(
-                      leading: const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: AppColors.primary,
-                      ),
-                      title: const Text(
-                        'Expenses',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _setMobileTab(MobileScreen.expenses);
-                      },
-                    ),
                   ListTile(
                     leading: const Icon(
                       Icons.construction_outlined,
@@ -697,16 +666,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         return const EmployeeListScreen();
       case 'Inventory':
         return const InventoryListScreen();
+      case 'Financials':
       case 'Billing':
-        return const BillingListScreen();
-      case 'Sales Bills & Invoices':
-        return const SalesBillBuilderScreen();
-      case 'Payment Ledger':
-        return const PaymentLedgerScreen();
       case 'Quotations & Estimates':
-        return const QuotationListScreen();
       case 'Expenses':
-        return const ExpenseListScreen();
+        return const FinancialsHubScreen();
       case 'Equipment, Machinery & Tools':
         return const EquipmentListScreen();
       case 'Subcontractors':

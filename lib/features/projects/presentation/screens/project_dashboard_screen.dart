@@ -27,26 +27,6 @@ class ProjectDashboardScreen extends ConsumerStatefulWidget {
 
 class _ProjectDashboardScreenState
     extends ConsumerState<ProjectDashboardScreen> {
-  Timer? _realtimeTicker;
-
-  @override
-  void initState() {
-    super.initState();
-    // Auto-refresh project dashboard data every 2 seconds for 100% real-time data sync across devices
-    _realtimeTicker = Timer.periodic(const Duration(seconds: 2), (_) {
-      if (mounted) {
-        ref.refresh(projectDashboardProvider(widget.projectId));
-        ref.refresh(projectDetailProvider(widget.projectId));
-      }
-    });
-  }
-
-  @override
-  void dispose() {
-    _realtimeTicker?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final dashAsync = ref.watch(projectDashboardProvider(widget.projectId));
