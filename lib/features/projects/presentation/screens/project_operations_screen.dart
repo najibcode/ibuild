@@ -28,6 +28,7 @@ import '../../../sales_bills/presentation/screens/sales_bill_builder_screen.dart
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
+import 'project_dashboard_screen.dart';
 
 // Providers
 final projectChecklistProvider =
@@ -103,7 +104,7 @@ class ProjectOperationsScreen extends ConsumerStatefulWidget {
 
 class _ProjectOperationsScreenState
     extends ConsumerState<ProjectOperationsScreen> {
-  late int _activeSection; // 0 = Grid, 1..10 = Submodules
+  late int _activeSection; // 1..10 = Submodules
 
   @override
   void initState() {
@@ -112,7 +113,7 @@ class _ProjectOperationsScreenState
   }
 
   final Map<int, String> _sectionTitles = {
-    0: 'Site Operations Dashboard',
+    0: 'Project Dashboard',
     1: 'Today Attendance',
     2: 'Materials Inventory',
     3: 'Subcontractor / Trade Partners',
@@ -131,35 +132,19 @@ class _ProjectOperationsScreenState
     });
   }
 
-  void _returnToGrid() {
-    setState(() {
-      _activeSection = 0;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     final mutedText = AppColors.mutedText(context);
 
     return PopScope(
-      canPop: _activeSection == 0,
-      onPopInvokedWithResult: (didPop, result) {
-        if (didPop) return;
-        if (_activeSection != 0) {
-          _returnToGrid();
-        }
-      },
+      canPop: true,
       child: Scaffold(
         backgroundColor: AppColors.bg(context),
         appBar: AppBar(
           leading: IconButton(
             icon: const Icon(Icons.arrow_back),
             onPressed: () {
-              if (_activeSection != 0) {
-                _returnToGrid();
-              } else {
-                Navigator.of(context).pop();
-              }
+              Navigator.of(context).pop();
             },
           ),
           title: Column(
@@ -174,7 +159,7 @@ class _ProjectOperationsScreenState
                 ),
               ),
               Text(
-                _sectionTitles[_activeSection] ?? 'Site Operations',
+                _sectionTitles[_activeSection] ?? 'Project Operations',
                 style: TextStyle(fontSize: 12, color: mutedText),
               ),
             ],
@@ -202,7 +187,10 @@ class _ProjectOperationsScreenState
   Widget _buildActiveContent() {
     switch (_activeSection) {
       case 0:
-        return _buildOverviewGridTab();
+        return ProjectDashboardScreen(
+          projectId: widget.projectId,
+          projectName: widget.projectName,
+        );
       case 1:
         return _buildAttendanceTab();
       case 2:
@@ -228,427 +216,14 @@ class _ProjectOperationsScreenState
       case 10:
         return const FullReportGeneratorScreen(showAppBar: false);
       default:
-        return _buildOverviewGridTab();
-    }
-  }
-
-  // Perfectly Symmetrical 10-Card Responsive Grid (5 columns on Web/Desktop, 2 columns on Mobile)
-  Widget _buildOverviewGridTab() {
-    final projectAsync = ref.watch(projectDetailByIdProvider(widget.projectId));
-
-    final cards = [
-      _CardData(
-        'Today\nAttendance',
-        Icons.calendar_today_outlined,
-        AppColors.primary,
-        1,
-      ),
-      _CardData('Daily Progress', Icons.analytics_outlined, Colors.pink, 8),
-      _CardData('Materials', Icons.inventory_2_outlined, Colors.orange, 2),
-      _CardData(
-        'SubContractor',
-        Icons.groups_outlined,
-        Colors.amber.shade700,
-        3,
-      ),
-      _CardData(
-        'Payment\nStatus',
-        Icons.account_balance_wallet_outlined,
-        Colors.green,
-        4,
-      ),
-      _CardData(
-        'Check List',
-        Icons.assignment_turned_in_outlined,
-        Colors.blue,
-        5,
-      ),
-      _CardData('Drawing', Icons.architecture_outlined, Colors.indigo, 6),
-      _CardData('Sales Bill', Icons.receipt_long_outlined, Colors.teal, 7),
-      _CardData('About Site', Icons.info_outline, Colors.purple, 9),
-      _CardData('Site Report', Icons.summarize_outlined, Colors.deepOrange, 10),
-    ];
-
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        int crossAxisCount = constraints.maxWidth > 900
-            ? 5
-            : (constraints.maxWidth > 600 ? 4 : 2);
-
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Breadcrumb Header
-              Row(
-                children: [
-                  Icon(
-                    Icons.home_outlined,
-                    size: 18,
-                    color: AppColors.mutedText(context),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '>',
-                    style: TextStyle(
-                      color: AppColors.mutedText(context),
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Site',
-                    style: TextStyle(
-                      color: AppColors.mutedText(context),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    '>',
-                    style: TextStyle(
-                      color: AppColors.mutedText(context),
-                      fontSize: 13,
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.projectName,
-                    style: TextStyle(
-                      color: AppColors.primaryColor(context),
-                      fontWeight: FontWeight.bold,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // 1. Executive Site Dashboard Banner
-              projectAsync.when(
-                data: (p) {
-                  if (p == null) return const SizedBox.shrink();
-                  final utilization = p.budgetUtilization;
-                  final utilPct = (utilization * 100).toInt();
-                  final isHighUtil = utilization > 0.9;
-                  final statusColor = p.status == 'active'
-                      ? AppColors.secondary
-                      : p.status == 'completed'
-                      ? AppColors.primary
-                      : p.status == 'delayed'
-                      ? AppColors.error
-                      : AppColors.warning;
-
-                  return Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardBg(context),
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: AppColors.border(context)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.03),
-                          blurRadius: 10,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        // Title & Status Row
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  p.name,
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.text(context),
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  p.clientName ??
-                                      p.customerName ??
-                                      'Direct Client',
-                                  style: TextStyle(
-                                    fontSize: 13,
-                                    color: AppColors.mutedText(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                p.status.toUpperCase(),
-                                style: TextStyle(
-                                  color: statusColor,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Metric Cards Grid
-                        LayoutBuilder(
-                          builder: (context, metricConstraints) {
-                            final isMobile = metricConstraints.maxWidth < 600;
-                            return GridView.count(
-                              shrinkWrap: true,
-                              physics: const NeverScrollableScrollPhysics(),
-                              crossAxisCount: isMobile ? 2 : 4,
-                              childAspectRatio: isMobile ? 1.6 : 1.8,
-                              mainAxisSpacing: 12,
-                              crossAxisSpacing: 12,
-                              children: [
-                                _dashKPITile(
-                                  'Total Budget',
-                                  '₹${_fmtAmount(p.budget)}',
-                                  Icons.payments_outlined,
-                                  AppColors.primary,
-                                ),
-                                _dashKPITile(
-                                  'Amount Spent',
-                                  '₹${_fmtAmount(p.spent)}',
-                                  Icons.trending_up_outlined,
-                                  isHighUtil
-                                      ? AppColors.error
-                                      : AppColors.secondary,
-                                  badge: '$utilPct% used',
-                                ),
-                                _dashKPITile(
-                                  'Remaining Balance',
-                                  '₹${_fmtAmount(p.remainingBalance)}',
-                                  Icons.account_balance_outlined,
-                                  p.remainingBalance >= 0
-                                      ? AppColors.secondary
-                                      : AppColors.error,
-                                ),
-                                _dashKPITile(
-                                  'Estimated Cost',
-                                  '₹${_fmtAmount(p.estimatedCost)}',
-                                  Icons.calculate_outlined,
-                                  const Color(0xFF7C3AED),
-                                ),
-                              ],
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Budget Utilization Bar
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Budget Utilization',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.mutedText(context),
-                              ),
-                            ),
-                            Text(
-                              '$utilPct% allocated',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: isHighUtil
-                                    ? AppColors.error
-                                    : AppColors.secondary,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 6),
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(4),
-                          child: LinearProgressIndicator(
-                            value: utilization.clamp(0.0, 1.0),
-                            backgroundColor: AppColors.border(context),
-                            valueColor: AlwaysStoppedAnimation(
-                              isHighUtil
-                                  ? AppColors.error
-                                  : AppColors.primaryColor(context),
-                            ),
-                            minHeight: 6,
-                          ),
-                        ),
-                      ],
-                    ),
-                  );
-                },
-                loading: () => const SizedBox.shrink(),
-                error: (e, s) => const SizedBox.shrink(),
-              ),
-
-              const SizedBox(height: 24),
-
-              // 2. Perfectly Balanced & Symmetrical 10-Card Grid BELOW
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: crossAxisCount,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1.1,
-                ),
-                itemCount: cards.length,
-                itemBuilder: (context, index) {
-                  final card = cards[index];
-                  return _buildSymmetricCard(
-                    card.title,
-                    card.icon,
-                    card.iconColor,
-                    () => _openSection(card.sectionIndex),
-                  );
-                },
-              ),
-            ],
-          ),
+        return ProjectDashboardScreen(
+          projectId: widget.projectId,
+          projectName: widget.projectName,
         );
-      },
-    );
-  }
-
-  Widget _dashKPITile(
-    String label,
-    String value,
-    IconData icon,
-    Color iconColor, {
-    String? badge,
-  }) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.bg(context),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Icon(icon, size: 18, color: iconColor),
-              if (badge != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Text(
-                    badge,
-                    style: TextStyle(
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
-                      color: iconColor,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text(context),
-            ),
-          ),
-          Text(
-            label,
-            style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _fmtAmount(double amount) {
-    if (amount >= 10000000) {
-      return '${(amount / 10000000).toStringAsFixed(1)}Cr';
     }
-    if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
-    return amount.toStringAsFixed(0);
   }
 
-  Widget _buildSymmetricCard(
-    String title,
-    IconData icon,
-    Color iconColor,
-    VoidCallback onTap,
-  ) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(16),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.cardBg(context),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border(context)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.02),
-              blurRadius: 6,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 28, color: iconColor),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                color: AppColors.text(context),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+
 
   void _showDeployWorkerSheet(BuildContext context) {
     final globalState = ref.read(attendanceControllerProvider);
@@ -2459,11 +2034,4 @@ class _ProjectOperationsScreenState
   }
 }
 
-class _CardData {
-  final String title;
-  final IconData icon;
-  final Color iconColor;
-  final int sectionIndex;
 
-  _CardData(this.title, this.icon, this.iconColor, this.sectionIndex);
-}

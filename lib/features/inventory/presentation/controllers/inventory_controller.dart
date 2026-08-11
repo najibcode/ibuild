@@ -137,6 +137,50 @@ class InventoryController extends StateNotifier<InventoryListState> {
     }
   }
 
+  Future<bool> receiveStock({
+    required InventoryItem item,
+    required double quantity,
+    required String supplier,
+    double? unitPrice,
+    String? notes,
+  }) async {
+    try {
+      await _repository.receiveStock(
+        item: item,
+        quantity: quantity,
+        supplier: supplier,
+        unitPrice: unitPrice,
+        notes: notes,
+      );
+      await loadItems();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Future<bool> issueMaterialToProject({
+    required InventoryItem item,
+    required double quantity,
+    required String projectId,
+    required String projectName,
+    String? notes,
+  }) async {
+    try {
+      await _repository.issueMaterialToProject(
+        item: item,
+        quantity: quantity,
+        projectId: projectId,
+        projectName: projectName,
+        notes: notes,
+      );
+      await loadItems();
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> removeItem(String id) async {
     try { await _repository.deleteItem(id); await loadItems(); return true; } catch (_) { return false; }
   }

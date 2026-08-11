@@ -13,7 +13,7 @@ import '../../data/services/attendance_report_service.dart';
 import '../../../employees/presentation/controllers/employee_controller.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../projects/data/models/project_model.dart';
-import '../../../projects/presentation/screens/project_operations_screen.dart';
+import '../../../projects/presentation/screens/project_dashboard_screen.dart';
 import '../../../rbac/presentation/providers/permission_provider.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
@@ -545,10 +545,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (_) => ProjectOperationsScreen(
+                              builder: (_) => ProjectDashboardScreen(
                                 projectId: logged.projectId!,
                                 projectName: logged.projectName!,
-                                initialSection: 1,
                               ),
                             ),
                           );

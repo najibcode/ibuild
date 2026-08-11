@@ -13,6 +13,7 @@ import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../controllers/inventory_controller.dart';
+import '../../../projects/presentation/controllers/project_controller.dart';
 import 'inventory_form_screen.dart';
 import 'inventory_history_screen.dart';
 
@@ -550,7 +551,7 @@ class InventoryListScreen extends ConsumerWidget {
   }
 }
 
-class _InventoryCard extends StatelessWidget {
+class _InventoryCard extends ConsumerWidget {
   final InventoryItem item;
   final VoidCallback onTap;
   final VoidCallback onEdit;
@@ -590,8 +591,13 @@ class _InventoryCard extends StatelessWidget {
     }
   }
 
-  void _showQuickStockDialog(BuildContext context, bool isAdding) {
-    final controller = TextEditingController();
+  void _showReceiveStockModal(BuildContext context, WidgetRef ref) {
+    final qtyController = TextEditingController();
+    final supplierController = TextEditingController(text: item.supplier ?? '');
+    final priceController =
+        TextEditingController(text: item.purchasePrice.toStringAsFixed(2));
+    final notesController = TextEditingController();
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -599,76 +605,513 @@ class _InventoryCard extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Row(
           children: [
-            Icon(
-              isAdding ? Icons.add_circle_outline : Icons.remove_circle_outline,
-              color: isAdding ? AppColors.secondary : AppColors.error,
-            ),
+            const Icon(Icons.add_circle_outline, color: AppColors.secondary),
             const SizedBox(width: 8),
             Text(
-              isAdding ? 'Receive Stock Delivery' : 'Issue Site Consumption',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
-            ),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Material: ${item.materialName} (${item.unit})', style: TextStyle(fontWeight: FontWeight.w600, color: AppColors.text(context))),
-            Text('Current Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
-            const SizedBox(height: 16),
-            TextField(
-              controller: controller,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
-              autofocus: true,
-              style: TextStyle(color: AppColors.text(context)),
-              decoration: InputDecoration(
-                labelText: isAdding ? 'Quantity Received' : 'Quantity Consumed',
-                suffixText: item.unit,
-                border: const OutlineInputBorder(),
+              'Receive Stock Delivery',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(context),
               ),
             ),
           ],
+        ),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.inventory_2_outlined,
+                        color: AppColors.secondary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.materialName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                            Text(
+                              'Current Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Mandatory Ask: Received From / Supplier
+                TextField(
+                  controller: supplierController,
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: const InputDecoration(
+                    labelText: 'Received From / Supplier *',
+                    hintText: 'e.g. Ultratech Cement Depot, Hardware Store',
+                    prefixIcon: Icon(Icons.storefront_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Quantity Received
+                TextField(
+                  controller: qtyController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  autofocus: true,
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: InputDecoration(
+                    labelText: 'Quantity Received *',
+                    suffixText: item.unit,
+                    prefixIcon: const Icon(Icons.add_box_outlined),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Purchase Price per Unit
+                TextField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: const InputDecoration(
+                    labelText: 'Purchase Rate per Unit (\u20B9)',
+                    prefixText: '\u20B9 ',
+                    prefixIcon: Icon(Icons.payments_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Notes / Ref
+                TextField(
+                  controller: notesController,
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: const InputDecoration(
+                    labelText: 'Delivery Notes / Invoice Ref (Optional)',
+                    prefixIcon: Icon(Icons.note_alt_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Cancel'),
           ),
-          ElevatedButton(
-            onPressed: () {
-              final qty = double.tryParse(controller.text);
-              if (qty != null && qty > 0) {
-                onAdjustStock(isAdding ? qty : -qty);
-                Navigator.of(ctx).pop();
+          ElevatedButton.icon(
+            onPressed: () async {
+              final supplier = supplierController.text.trim();
+              final qty = double.tryParse(qtyController.text);
+              final unitPrice = double.tryParse(priceController.text);
+
+              if (supplier.isEmpty) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(isAdding
-                        ? 'Received +$qty ${item.unit} for ${item.materialName}'
-                        : 'Issued -$qty ${item.unit} for ${item.materialName}'),
-                    backgroundColor: isAdding ? AppColors.secondary : AppColors.error,
+                  const SnackBar(
+                    content: Text(
+                      'Please specify where stock was received from (Supplier/Vendor)',
+                    ),
+                    backgroundColor: AppColors.error,
                   ),
                 );
-              } else {
+                return;
+              }
+
+              if (qty == null || qty <= 0) {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please enter a valid quantity'), backgroundColor: AppColors.error),
+                  const SnackBar(
+                    content: Text('Please enter a valid quantity received'),
+                    backgroundColor: AppColors.error,
+                  ),
                 );
+                return;
+              }
+
+              final success = await ref
+                  .read(inventoryControllerProvider.notifier)
+                  .receiveStock(
+                    item: item,
+                    quantity: qty,
+                    supplier: supplier,
+                    unitPrice: unitPrice,
+                    notes: notesController.text.trim(),
+                  );
+
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              if (context.mounted) {
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Received +${qty.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from $supplier',
+                      ),
+                      backgroundColor: AppColors.secondary,
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to record stock delivery'),
+                      backgroundColor: AppColors.error,
+                    ),
+                  );
+                }
               }
             },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Confirm Receive'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: isAdding ? AppColors.secondary : AppColors.error,
+              backgroundColor: AppColors.secondary,
               foregroundColor: Colors.white,
             ),
-            child: Text(isAdding ? 'Confirm Receive' : 'Confirm Issue'),
           ),
-
         ],
       ),
     );
   }
 
+  void _showIssueMaterialModal(BuildContext context, WidgetRef ref) {
+    final qtyController = TextEditingController();
+    final notesController = TextEditingController();
+    String? selectedProjectId;
+    String? selectedProjectName;
+    double liveExpenseAmount = 0.0;
+
+    final projectState = ref.watch(projectControllerProvider);
+    final projects = projectState.projects;
+
+    if (projects.isNotEmpty && selectedProjectId == null) {
+      selectedProjectId = projects.first.id;
+      selectedProjectName = projects.first.name;
+    }
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setState) {
+          void updateExpenseAmount(String val) {
+            final qty = double.tryParse(val) ?? 0.0;
+            setState(() {
+              liveExpenseAmount = qty * item.purchasePrice;
+            });
+          }
+
+          return AlertDialog(
+            backgroundColor: AppColors.cardBg(context),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            title: Row(
+              children: [
+                const Icon(
+                  Icons.local_shipping_outlined,
+                  color: AppColors.error,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Issue Material to Site Project',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: SizedBox(
+                width: 440,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.error.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.error.withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.inventory_2_outlined,
+                            color: AppColors.error,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  item.materialName,
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                    color: AppColors.text(context),
+                                  ),
+                                ),
+                                Text(
+                                  'Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit} • Rate: \u20B9${item.purchasePrice.toStringAsFixed(2)}/${item.unit}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.mutedText(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Select Project Dropdown
+                    DropdownButtonFormField<String>(
+                      value: selectedProjectId,
+                      dropdownColor: AppColors.cardBg(context),
+                      style: TextStyle(color: AppColors.text(context)),
+                      decoration: const InputDecoration(
+                        labelText: 'Select Target Site Project *',
+                        prefixIcon: Icon(Icons.business_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: projects.map((p) {
+                        return DropdownMenuItem<String>(
+                          value: p.id,
+                          child: Text(
+                            p.name,
+                            style: TextStyle(color: AppColors.text(context)),
+                          ),
+                        );
+                      }).toList(),
+                      onChanged: (val) {
+                        if (val != null) {
+                          final p = projects.firstWhere(
+                            (proj) => proj.id == val,
+                          );
+                          setState(() {
+                            selectedProjectId = p.id;
+                            selectedProjectName = p.name;
+                          });
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Quantity to Issue
+                    TextField(
+                      controller: qtyController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      autofocus: true,
+                      style: TextStyle(color: AppColors.text(context)),
+                      onChanged: updateExpenseAmount,
+                      decoration: InputDecoration(
+                        labelText: 'Quantity to Issue *',
+                        suffixText: item.unit,
+                        prefixIcon: const Icon(Icons.remove_circle_outline),
+                        border: const OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Live Auto-Calculated Expense Box
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.08),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.2),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.receipt_long_outlined,
+                            color: AppColors.primary,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                const Text(
+                                  'Automated Project Expense Charging:',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                    letterSpacing: 0.5,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  '\u20B9${liveExpenseAmount.toStringAsFixed(2)}',
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                Text(
+                                  'Will be recorded as Material Expense for ${selectedProjectName ?? "selected project"}',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: AppColors.mutedText(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Purpose Notes
+                    TextField(
+                      controller: notesController,
+                      style: TextStyle(color: AppColors.text(context)),
+                      decoration: const InputDecoration(
+                        labelText: 'Issue Purpose / Notes (Optional)',
+                        hintText: 'e.g. Ground Floor Slab Casting',
+                        prefixIcon: Icon(Icons.notes_outlined),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (selectedProjectId == null ||
+                      selectedProjectName == null) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please select a valid project'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final qty = double.tryParse(qtyController.text);
+                  if (qty == null || qty <= 0) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Please enter a valid quantity to issue'),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  if (qty > item.availableStock) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(
+                          'Cannot issue $qty ${item.unit}. Only ${item.availableStock} ${item.unit} available in stock!',
+                        ),
+                        backgroundColor: AppColors.error,
+                      ),
+                    );
+                    return;
+                  }
+
+                  final success = await ref
+                      .read(inventoryControllerProvider.notifier)
+                      .issueMaterialToProject(
+                        item: item,
+                        quantity: qty,
+                        projectId: selectedProjectId!,
+                        projectName: selectedProjectName!,
+                        notes: notesController.text.trim(),
+                      );
+
+                  if (ctx.mounted) Navigator.of(ctx).pop();
+                  if (context.mounted) {
+                    if (success) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(
+                            'Issued ${qty.toStringAsFixed(1)} ${item.unit} of ${item.materialName} to $selectedProjectName. Recorded \u20B9${(qty * item.purchasePrice).toStringAsFixed(0)} material expense.',
+                          ),
+                          backgroundColor: AppColors.secondary,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to issue material'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.local_shipping_outlined, size: 18),
+                label: const Text('Issue & Charge Expense'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.error,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final int runwayDays = item.stockRunwayDays;
     final Color runwayColor = runwayDays < 3
         ? AppColors.error
@@ -680,7 +1123,9 @@ class _InventoryCard extends StatelessWidget {
         color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: item.isLowStock ? AppColors.error.withValues(alpha: 0.5) : AppColors.border(context),
+          color: item.isLowStock
+              ? AppColors.error.withValues(alpha: 0.5)
+              : AppColors.border(context),
           width: item.isLowStock ? 1.5 : 1.0,
         ),
       ),
@@ -692,7 +1137,7 @@ class _InventoryCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Header Row: Category Icon & Pill + Runway Analytics + Delete Action
+              // Header Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -701,21 +1146,36 @@ class _InventoryCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(6),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                          color: AppColors.primaryColor(
+                            context,
+                          ).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: Icon(_categoryIcon(item.category), size: 16, color: AppColors.primaryColor(context)),
+                        child: Icon(
+                          _categoryIcon(item.category),
+                          size: 16,
+                          color: AppColors.primaryColor(context),
+                        ),
                       ),
                       const SizedBox(width: 8),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 4,
+                        ),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                          color: AppColors.primaryColor(
+                            context,
+                          ).withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
                           item.category.toUpperCase(),
-                          style: TextStyle(color: AppColors.primaryColor(context), fontWeight: FontWeight.bold, fontSize: 10),
+                          style: TextStyle(
+                            color: AppColors.primaryColor(context),
+                            fontWeight: FontWeight.bold,
+                            fontSize: 10,
+                          ),
                         ),
                       ),
                     ],
@@ -726,18 +1186,31 @@ class _InventoryCard extends StatelessWidget {
                       child: Row(
                         children: [
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: runwayColor.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.timer_outlined, size: 12, color: runwayColor),
+                                Icon(
+                                  Icons.timer_outlined,
+                                  size: 12,
+                                  color: runwayColor,
+                                ),
                                 const SizedBox(width: 4),
                                 Text(
-                                  runwayDays > 90 ? 'Runway: 90+ Days' : 'Runway: $runwayDays Days Left',
-                                  style: TextStyle(color: runwayColor, fontSize: 10, fontWeight: FontWeight.bold),
+                                  runwayDays > 90
+                                      ? 'Runway: 90+ Days'
+                                      : 'Runway: $runwayDays Days Left',
+                                  style: TextStyle(
+                                    color: runwayColor,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                  ),
                                 ),
                               ],
                             ),
@@ -745,18 +1218,29 @@ class _InventoryCard extends StatelessWidget {
                           if (item.isLowStock) ...[
                             const SizedBox(width: 6),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 4,
+                              ),
                               decoration: BoxDecoration(
                                 color: AppColors.error.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: const Row(
                                 children: [
-                                  Icon(Icons.warning_amber_rounded, size: 12, color: AppColors.error),
+                                  Icon(
+                                    Icons.warning_amber_rounded,
+                                    size: 12,
+                                    color: AppColors.error,
+                                  ),
                                   SizedBox(width: 4),
                                   Text(
                                     'LOW STOCK',
-                                    style: TextStyle(color: AppColors.error, fontSize: 10, fontWeight: FontWeight.bold),
+                                    style: TextStyle(
+                                      color: AppColors.error,
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                    ),
                                   ),
                                 ],
                               ),
@@ -767,17 +1251,17 @@ class _InventoryCard extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(width: 4),
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 18),
-                        color: AppColors.error,
-                        onPressed: onDelete,
-                        tooltip: 'Delete Material Record',
-                      ),
-                    ],
+                  IconButton(
+                    icon: const Icon(Icons.delete_outline, size: 18),
+                    color: AppColors.error,
+                    onPressed: onDelete,
+                    tooltip: 'Delete Material Record',
                   ),
-                  const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
 
-              // Material Name, Supplier & Financial Valuation
+              // Material Name & Details
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -787,12 +1271,19 @@ class _InventoryCard extends StatelessWidget {
                       children: [
                         Text(
                           item.materialName,
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.text(context)),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.text(context),
+                          ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          'Supplier: ${item.supplier ?? 'Direct Vendor'} • Rate: ₹${item.purchasePrice.toStringAsFixed(2)}/${item.unit}',
-                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 11),
+                          'Supplier: ${item.supplier ?? 'Direct Vendor'} • Rate: \u20B9${item.purchasePrice.toStringAsFixed(2)}/${item.unit}',
+                          style: TextStyle(
+                            color: AppColors.mutedText(context),
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -801,12 +1292,19 @@ class _InventoryCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       Text(
-                        '₹${item.totalValuation.toInt()}',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppColors.primaryColor(context)),
+                        '\u20B9${item.totalValuation.toInt()}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: AppColors.primaryColor(context),
+                        ),
                       ),
                       Text(
                         'Valuation',
-                        style: TextStyle(color: AppColors.mutedText(context), fontSize: 10),
+                        style: TextStyle(
+                          color: AppColors.mutedText(context),
+                          fontSize: 10,
+                        ),
                       ),
                     ],
                   ),
@@ -814,14 +1312,16 @@ class _InventoryCard extends StatelessWidget {
               ),
               const SizedBox(height: 12),
 
-              // Automated Reorder Recommendation Callout (If Low Stock)
+              // Low Stock Callout
               if (item.isLowStock) ...[
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: Colors.amber.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                    border: Border.all(
+                      color: Colors.amber.withValues(alpha: 0.3),
+                    ),
                   ),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -836,14 +1336,22 @@ class _InventoryCard extends StatelessWidget {
                                 SizedBox(width: 4),
                                 Text(
                                   'Automated Reorder Recommendation',
-                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.amber),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.amber,
+                                  ),
                                 ),
                               ],
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              'Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est. ₹${item.estimatedReorderCost.toInt()})',
-                              style: TextStyle(fontSize: 11, color: AppColors.text(context), fontWeight: FontWeight.w600),
+                              'Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est. \u20B9${item.estimatedReorderCost.toInt()})',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.text(context),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
@@ -851,11 +1359,20 @@ class _InventoryCard extends StatelessWidget {
                       ElevatedButton.icon(
                         onPressed: onGeneratePO,
                         icon: const Icon(Icons.description, size: 12),
-                        label: const Text('PO Requisition', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold)),
+                        label: const Text(
+                          'PO Requisition',
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.amber.shade800,
                           foregroundColor: Colors.white,
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                         ),
                       ),
                     ],
@@ -864,7 +1381,7 @@ class _InventoryCard extends StatelessWidget {
                 const SizedBox(height: 12),
               ],
 
-              // Stock Capacity Progress & Burn Rate Indicator Bar
+              // Available Stock Bar
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -873,14 +1390,20 @@ class _InventoryCard extends StatelessWidget {
                     children: [
                       Text(
                         'Available Stock (Burn Rate ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day):',
-                        style: TextStyle(fontSize: 11, color: AppColors.mutedText(context), fontWeight: FontWeight.w600),
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: AppColors.mutedText(context),
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       Text(
                         '${item.availableStock.toStringAsFixed(1)} ${item.unit}',
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: item.isLowStock ? AppColors.error : AppColors.text(context),
+                          color: item.isLowStock
+                              ? AppColors.error
+                              : AppColors.text(context),
                         ),
                       ),
                     ],
@@ -889,10 +1412,17 @@ class _InventoryCard extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(4),
                     child: LinearProgressIndicator(
-                      value: (item.availableStock / (item.minimumStock > 0 ? item.minimumStock * 2 : 100.0)).clamp(0.0, 1.0),
+                      value:
+                          (item.availableStock /
+                                  (item.minimumStock > 0
+                                      ? item.minimumStock * 2
+                                      : 100.0))
+                              .clamp(0.0, 1.0),
                       backgroundColor: AppColors.border(context),
                       valueColor: AlwaysStoppedAnimation(
-                        item.isLowStock ? AppColors.error : AppColors.secondary,
+                        item.isLowStock
+                            ? AppColors.error
+                            : AppColors.secondary,
                       ),
                       minHeight: 6,
                     ),
@@ -901,14 +1431,24 @@ class _InventoryCard extends StatelessWidget {
               ),
               const SizedBox(height: 16),
 
-              // Quick Action Buttons Row
+              // Action Buttons Row
               Row(
                 children: [
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _showQuickStockDialog(context, true),
-                      icon: const Icon(Icons.add, size: 16, color: AppColors.secondary),
-                      label: const Text('+ Receive Stock', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () => _showReceiveStockModal(context, ref),
+                      icon: const Icon(
+                        Icons.add,
+                        size: 16,
+                        color: AppColors.secondary,
+                      ),
+                      label: const Text(
+                        '+ Receive Stock',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.secondary,
                         side: const BorderSide(color: AppColors.secondary),
@@ -919,9 +1459,19 @@ class _InventoryCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _showQuickStockDialog(context, false),
-                      icon: const Icon(Icons.remove, size: 16, color: AppColors.error),
-                      label: const Text('- Issue Material', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      onPressed: () => _showIssueMaterialModal(context, ref),
+                      icon: const Icon(
+                        Icons.remove,
+                        size: 16,
+                        color: AppColors.error,
+                      ),
+                      label: const Text(
+                        '- Issue Material',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.error,
                         side: const BorderSide(color: AppColors.error),
@@ -931,12 +1481,20 @@ class _InventoryCard extends StatelessWidget {
                   ),
                   const SizedBox(width: 8),
                   IconButton(
-                    icon: const Icon(Icons.history, size: 20, color: AppColors.primary),
+                    icon: const Icon(
+                      Icons.history,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     onPressed: onTap,
                     tooltip: 'View Stock Movement Logs',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.edit_outlined, size: 20, color: AppColors.outline),
+                    icon: const Icon(
+                      Icons.edit_outlined,
+                      size: 20,
+                      color: AppColors.outline,
+                    ),
                     onPressed: onEdit,
                     tooltip: 'Edit Specifications',
                   ),

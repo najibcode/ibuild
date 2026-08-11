@@ -23,4 +23,18 @@ abstract class InventoryRepository {
     required double quantityChange,
     String? notes,
   });
+  Future<void> receiveStock({
+    required InventoryItem item,
+    required double quantity,
+    required String supplier,
+    double? unitPrice,
+    String? notes,
+  });
+  Future<void> issueMaterialToProject({
+    required InventoryItem item,
+    required double quantity,
+    required String projectId,
+    required String projectName,
+    String? notes,
+  });
 }

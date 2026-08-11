@@ -1774,6 +1774,7 @@ class _DashboardBody extends StatelessWidget {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildAttendanceCard(BuildContext context, bool isDark) {
+    final hasWorkers = stats.totalAssigned > 0;
     final rawPct = stats.attendancePct;
     final pct = (rawPct.isNaN || rawPct.isInfinite ? 0.0 : rawPct).clamp(
       0.0,
@@ -1781,66 +1782,100 @@ class _DashboardBody extends StatelessWidget {
     );
 
     return _DashboardCard(
-      title: 'Today\'s Attendance',
+      title: 'Site Attendance Today',
+      subtitle: 'Workers assigned to this project',
       child: Column(
         children: [
           const SizedBox(height: 8),
-          SizedBox(
-            width: 80,
-            height: 80,
-            child: Stack(
-              alignment: Alignment.center,
-              children: [
-                CircularProgressIndicator(
-                  value: pct / 100,
-                  strokeWidth: 8,
-                  backgroundColor: AppColors.border(context),
-                  valueColor: AlwaysStoppedAnimation(
-                    pct > 75
-                        ? AppColors.secondary
-                        : pct > 50
-                        ? AppColors.warning
-                        : AppColors.error,
+          if (hasWorkers) ...[
+            SizedBox(
+              width: 80,
+              height: 80,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  CircularProgressIndicator(
+                    value: pct / 100,
+                    strokeWidth: 8,
+                    backgroundColor: AppColors.border(context),
+                    valueColor: AlwaysStoppedAnimation(
+                      pct > 75
+                          ? AppColors.secondary
+                          : pct > 50
+                          ? AppColors.warning
+                          : AppColors.error,
+                    ),
                   ),
-                ),
-                Text(
-                  '${pct.toInt()}%',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
+                  Text(
+                    '${pct.toInt()}%',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 12),
-          RichText(
-            text: TextSpan(
-              children: [
-                TextSpan(
-                  text: '${stats.workersPresent}',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
+            const SizedBox(height: 12),
+            RichText(
+              text: TextSpan(
+                children: [
+                  TextSpan(
+                    text: '${stats.workersPresent}',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
                   ),
-                ),
-                TextSpan(
-                  text: ' / ${stats.totalAssigned}',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.mutedText(context),
+                  TextSpan(
+                    text: ' / ${stats.totalAssigned}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: AppColors.mutedText(context),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            'workers present today',
-            style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
-          ),
+            const SizedBox(height: 4),
+            Text(
+              'workers present on site today',
+              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+            ),
+          ] else ...[
+            Container(
+              padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+              child: Column(
+                children: [
+                  Icon(
+                    Icons.people_outline,
+                    size: 36,
+                    color: AppColors.mutedText(context).withValues(alpha: 0.4),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '0 Workers Assigned Today',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'No staff assigned to this project for today\'s date',
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.mutedText(context),
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

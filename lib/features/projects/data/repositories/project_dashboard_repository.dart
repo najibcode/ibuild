@@ -85,14 +85,17 @@ class ProjectDashboardRepository {
       final todayStr = DateTime.now().toIso8601String().substring(0, 10);
       final rows = await _client
           .from('attendance')
-          .select('morning_status')
+          .select('morning_status, status, project_id')
           .eq('date', todayStr)
+          .eq('project_id', projectId)
           .timeout(const Duration(seconds: 3));
 
       int present = 0;
       for (final r in (rows as List)) {
-        if (r['morning_status'] == 'present' ||
-            r['morning_status'] == 'Present') {
+        final st = (r['morning_status'] ?? r['status'] ?? '')
+            .toString()
+            .toLowerCase();
+        if (st == 'present') {
           present++;
         }
       }

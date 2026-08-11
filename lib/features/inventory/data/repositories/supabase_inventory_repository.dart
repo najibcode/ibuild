@@ -156,4 +156,106 @@ class SupabaseInventoryRepository implements InventoryRepository {
   Future<void> addHistoryEntry(InventoryHistory entry) async {
     await _client.from('inventory_history').insert(entry.toJson());
   }
+
+  @override
+  Future<void> receiveStock({
+    required InventoryItem item,
+    required double quantity,
+    required String supplier,
+    double? unitPrice,
+    String? notes,
+  }) async {
+    final effectiveUnitPrice = unitPrice ?? item.purchasePrice;
+    final newStock = (item.availableStock + quantity).clamp(0.0, 999999.0);
+    final updatedItem = item.copyWith(
+      availableStock: newStock,
+      supplier: supplier.isNotEmpty ? supplier : item.supplier,
+      purchasePrice:
+          effectiveUnitPrice > 0 ? effectiveUnitPrice : item.purchasePrice,
+    );
+
+    // 1. Update inventory record
+    await updateItem(updatedItem);
+
+    // 2. Log history entry
+    final historyNote =
+        'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
+    await logInventoryChange(
+      inventoryId: item.id,
+      changeType: 'received',
+      quantityChange: quantity,
+      notes: historyNote,
+    );
+
+    // 3. Log site activity & notify
+    await _activityRepo.logSiteActivityAndNotify(
+      actionType: 'inventory_received',
+      entityType: 'Inventory',
+      entityId: item.id,
+      title:
+          'Stock Received: +${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName}',
+      details: {
+        'supplier': supplier,
+        'quantity': quantity,
+        'unit': item.unit,
+        'material': item.materialName,
+      },
+    );
+  }
+
+  @override
+  Future<void> issueMaterialToProject({
+    required InventoryItem item,
+    required double quantity,
+    required String projectId,
+    required String projectName,
+    String? notes,
+  }) async {
+    final newStock = (item.availableStock - quantity).clamp(0.0, 999999.0);
+    final updatedItem = item.copyWith(availableStock: newStock);
+
+    // 1. Update inventory record
+    await updateItem(updatedItem);
+
+    // 2. Calculate expense cost
+    final totalCost = quantity * item.purchasePrice;
+
+    // 3. Insert Expense entry automatically into Supabase expenses table for selected project!
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    await _client.from('expenses').insert({
+      'project_id': projectId,
+      'expense_date': todayStr,
+      'category': 'Material',
+      'amount': totalCost,
+      'payment_mode': 'inventory',
+      'notes':
+          'Issued ${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from Central Stock${notes != null && notes.isNotEmpty ? " ($notes)" : ""}',
+    });
+
+    // 4. Log history entry
+    final historyNote =
+        'Issued -${quantity.toStringAsFixed(1)} ${item.unit} to $projectName${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
+    await logInventoryChange(
+      inventoryId: item.id,
+      changeType: 'issued',
+      quantityChange: -quantity,
+      notes: historyNote,
+    );
+
+    // 5. Log site activity & notify
+    await _activityRepo.logSiteActivityAndNotify(
+      actionType: 'inventory_issued',
+      entityType: 'Inventory',
+      entityId: item.id,
+      projectId: projectId,
+      title:
+          'Material Issued: ${quantity.toStringAsFixed(1)} ${item.unit} to $projectName',
+      details: {
+        'project_name': projectName,
+        'quantity': quantity,
+        'total_cost': totalCost,
+        'material': item.materialName,
+      },
+    );
+  }
 }
