@@ -621,7 +621,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         ref.read(attendanceControllerProvider.notifier).markAttendance(
                           employeeId: employee.id,
                           status: status,
-                          projectId: logged.projectId,
+                          projectId: status.toLowerCase() == 'absent' ? null : logged.projectId,
                         );
                       },
                     ),

@@ -15,6 +15,7 @@ import 'features/projects/presentation/controllers/project_controller.dart';
 import 'mobile_dashboard.dart';
 import 'budget_utilization_mobile.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
+import 'features/attendance/presentation/controllers/attendance_controller.dart';
 import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
@@ -177,6 +178,10 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     try {
       ref.refresh(dashboardStatsProvider);
       ref.read(projectControllerProvider.notifier).loadProjects();
+      final selDate = ref.read(attendanceControllerProvider).selectedDate;
+      if (selDate.isNotEmpty) {
+        ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(selDate, showLoading: false);
+      }
     } catch (_) {}
   }
 

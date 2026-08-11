@@ -122,10 +122,18 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       final Map<String, Attendance> mergedMap = {};
 
       for (final l in logged) {
-        final assignedProjId = l.projectId ?? state.siteAssignments['${l.employeeId}_$date'];
-        if (assignedProjId != null && assignedProjId.isNotEmpty) {
-          state.siteAssignments['${l.employeeId}_$date'] = assignedProjId;
+        final key = '${l.employeeId}_$date';
+        String? assignedProjId;
+        if (l.status == 'Absent') {
+          state.siteAssignments.remove(key);
+          assignedProjId = null;
+        } else {
+          assignedProjId = l.projectId ?? state.siteAssignments[key];
+          if (assignedProjId != null && assignedProjId.isNotEmpty) {
+            state.siteAssignments[key] = assignedProjId;
+          }
         }
+
         final projMatch = projects.where((p) => p.id == assignedProjId);
         final projName = projMatch.isNotEmpty ? projMatch.first.name : l.projectName;
 
@@ -133,25 +141,6 @@ class AttendanceController extends StateNotifier<AttendanceState> {
           projectId: assignedProjId,
           projectName: projName,
         );
-      }
-
-      // Also ensure active employees with site assignments exist in attendanceList
-      for (final emp in active) {
-        final savedProjId = state.siteAssignments['${emp.id}_$date'];
-        if (!mergedMap.containsKey(emp.id) && savedProjId != null) {
-          final projMatch = projects.where((p) => p.id == savedProjId);
-          final projName = projMatch.isNotEmpty ? projMatch.first.name : null;
-
-          mergedMap[emp.id] = Attendance(
-            id: '',
-            employeeId: emp.id,
-            date: date,
-            status: 'Absent',
-            projectId: savedProjId,
-            employeeName: emp.name,
-            projectName: projName,
-          );
-        }
       }
 
       state = state.copyWith(
@@ -181,7 +170,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
 
     debugPrint('[AttendanceCtrl] markAttendance: employee=$employeeId, status=$normalizedStatus, date=$dateStr, project=$projectId');
 
-    // 1. Update site assignments map if projectId is provided
+    // 1. Update site assignments map
     final updatedAssignments = Map<String, String>.from(state.siteAssignments);
     final existingAssignmentKey = '${employeeId}_$dateStr';
 
@@ -189,14 +178,24 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     final existingIdx = updatedList.indexWhere((a) => a.employeeId == employeeId);
     final currentRecord = existingIdx >= 0 ? updatedList[existingIdx] : null;
 
-    final assignedProjId = projectId ?? currentRecord?.projectId ?? updatedAssignments[existingAssignmentKey];
-    if (assignedProjId != null && assignedProjId.isNotEmpty) {
-      updatedAssignments[existingAssignmentKey] = assignedProjId;
-    }
+    String? assignedProjId;
+    String? projName;
 
-    final projects = _ref.read(projectControllerProvider).projects;
-    final projMatch = projects.where((p) => p.id == assignedProjId);
-    final projName = projMatch.isNotEmpty ? projMatch.first.name : currentRecord?.projectName;
+    if (normalizedStatus == 'Absent') {
+      // When marked Absent, clear site assignment so dropdown returns to default "Assign Site"
+      updatedAssignments.remove(existingAssignmentKey);
+      assignedProjId = null;
+      projName = null;
+    } else {
+      // Prioritize explicit new projectId selection
+      assignedProjId = projectId ?? updatedAssignments[existingAssignmentKey] ?? currentRecord?.projectId;
+      if (assignedProjId != null && assignedProjId.isNotEmpty) {
+        updatedAssignments[existingAssignmentKey] = assignedProjId;
+        final projects = _ref.read(projectControllerProvider).projects;
+        final projMatch = projects.where((p) => p.id == assignedProjId);
+        projName = projMatch.isNotEmpty ? projMatch.first.name : currentRecord?.projectName;
+      }
+    }
 
     final newRecord = Attendance(
       id: currentRecord?.id ?? '',
@@ -214,7 +213,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       updatedList.add(newRecord);
     }
 
-    // Apply immediate state update so UI shows assigned site & green badge INSTANTLY (<10ms)
+    // Apply immediate state update so UI shows updated status & clears site assignment INSTANTLY (<10ms)
     state = state.copyWith(
       attendanceList: updatedList,
       siteAssignments: updatedAssignments,
@@ -224,7 +223,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     // Persist to backend asynchronously in background without blocking UI thread
     _repository.saveAttendance(newRecord).then((_) {
       debugPrint('[AttendanceCtrl] markAttendance PERSISTED successfully in background');
-      _ref.invalidate(dashboardStatsProvider);
+      _ref.refresh(dashboardStatsProvider);
     }).catchError((e) {
       debugPrint('[AttendanceCtrl] markAttendance FAILED background persist: $e');
     });

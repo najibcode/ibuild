@@ -115,13 +115,13 @@ class _ProjectDashboardScreenState
               const SizedBox(height: 16),
               ElevatedButton(
                 onPressed: () =>
-                    ref.invalidate(projectDashboardProvider(projectId)),
+                    ref.refresh(projectDashboardProvider(widget.projectId)),
                 child: const Text('Retry'),
               ),
             ],
           ),
         ),
-        data: (stats) => _DashboardBody(stats: stats, projectId: projectId),
+        data: (stats) => _DashboardBody(stats: stats, projectId: widget.projectId),
       ),
     );
   }

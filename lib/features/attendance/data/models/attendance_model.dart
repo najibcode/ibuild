@@ -43,29 +43,23 @@ class Attendance {
   /// Produce the JSON payload for Supabase insert/update.
   Map<String, dynamic> toJson() {
     final lowerStatus = status.toLowerCase() == 'present' ? 'present' : 'absent';
-    final json = <String, dynamic>{
+    return <String, dynamic>{
       'employee_id': employeeId,
       'date': date,
       'morning_status': lowerStatus,   // Must be lowercase to pass PostgreSQL check constraint
       'evening_status': lowerStatus,   // Must be lowercase to pass PostgreSQL check constraint
+      'project_id': (projectId != null && projectId!.isNotEmpty) ? projectId : null,
     };
-    if (projectId != null && projectId!.isNotEmpty) {
-      json['project_id'] = projectId;
-    }
-    return json;
   }
 
   /// Minimal update payload (fields that change on attendance toggle or site assignment)
   Map<String, dynamic> toUpdateJson() {
     final lowerStatus = status.toLowerCase() == 'present' ? 'present' : 'absent';
-    final json = <String, dynamic>{
+    return <String, dynamic>{
       'morning_status': lowerStatus,
       'evening_status': lowerStatus,
+      'project_id': (projectId != null && projectId!.isNotEmpty) ? projectId : null,
     };
-    if (projectId != null && projectId!.isNotEmpty) {
-      json['project_id'] = projectId;
-    }
-    return json;
   }
 
   Attendance copyWith({
