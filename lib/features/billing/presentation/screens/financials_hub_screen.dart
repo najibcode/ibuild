@@ -4,9 +4,13 @@ import '../../../../core/theme/app_colors.dart';
 import 'billing_list_screen.dart';
 import '../../../quotations/presentation/screens/quotation_list_screen.dart';
 import '../../../expenses/presentation/screens/expense_list_screen.dart';
+import '../../../sales_bills/data/repositories/supabase_sales_bill_repository.dart';
+import '../../../payments/data/repositories/supabase_payment_ledger_repository.dart';
+import '../../../expenses/presentation/controllers/expense_controller.dart';
+import '../controllers/billing_controller.dart';
 
-/// Unified Financial Management Hub consolidating Billing, Quotations/Estimates,
-/// and Site Expenses into a single, beginner-friendly streamlined interface.
+/// Streamlined Financial Management Hub consolidating Billing, Quotations/Estimates,
+/// and Site Expenses into a single, user-friendly single-level interface.
 class FinancialsHubScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
 
@@ -22,7 +26,6 @@ class FinancialsHubScreen extends ConsumerStatefulWidget {
 class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
-  bool _showExplanationBanner = true;
 
   @override
   void initState() {
@@ -45,6 +48,38 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
 
   @override
   Widget build(BuildContext context) {
+    // ── Calculate Executive Financial Summary Metrics ──
+    final billingState = ref.watch(billingControllerProvider);
+    final salesBillsAsync = ref.watch(allSalesBillsProvider);
+    final expensesState = ref.watch(expenseControllerProvider);
+    final ledgerAsync = ref.watch(allPaymentLedgerProvider);
+
+    final salesBills = salesBillsAsync.valueOrNull ?? [];
+    final ledgerEntries = ledgerAsync.valueOrNull ?? [];
+
+    // Money In (Sales Invoices Billed/Collected + Ledger Inflows)
+    final double salesInvoicesTotal = salesBills.fold(0.0, (s, b) => s + b.totalAmount);
+    final double ledgerInflow = ledgerEntries
+        .where((e) => e.paymentType.toLowerCase() == 'received')
+        .fold(0.0, (s, e) => s + e.amount);
+    final double totalMoneyIn = salesInvoicesTotal + ledgerInflow;
+
+    // Money Out (Vendor Bills + Site Expenses + Ledger Outflows)
+    final double vendorBillsTotal = billingState.bills.fold(0.0, (s, b) => s + b.amount);
+    final double siteExpensesTotal = expensesState.expenses.fold(0.0, (s, e) => s + e.amount);
+    final double ledgerOutflow = ledgerEntries
+        .where((e) => e.paymentType.toLowerCase() == 'paid')
+        .fold(0.0, (s, e) => s + e.amount);
+    final double totalMoneyOut = vendorBillsTotal + siteExpensesTotal + ledgerOutflow;
+
+    // Net Cash Flow
+    final double netCashFlow = totalMoneyIn - totalMoneyOut;
+
+    // Pending Receivables (Sales Invoices not marked paid)
+    final double pendingReceivables = salesBills
+        .where((b) => b.status.toLowerCase() != 'paid' && b.status.toLowerCase() != 'completed')
+        .fold(0.0, (s, b) => s + b.totalAmount);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
@@ -63,7 +98,7 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
             ),
             const SizedBox(height: 2),
             Text(
-              'Unified view of Client Billing, Proposals, and Site Expenses',
+              'Executive cash flow overview and streamlined accounting',
               style: TextStyle(
                 fontSize: 11,
                 color: AppColors.mutedText(context),
@@ -74,25 +109,29 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
         ),
         actions: [
           IconButton(
-            icon: Icon(
-              _showExplanationBanner ? Icons.help_outline : Icons.help,
-              color: AppColors.primaryColor(context),
-              size: 20,
-            ),
-            tooltip: 'Toggle plain-English helper guide',
+            icon: const Icon(Icons.refresh, size: 20),
+            tooltip: 'Refresh all financial records',
             onPressed: () {
-              setState(() {
-                _showExplanationBanner = !_showExplanationBanner;
-              });
+              ref.read(billingControllerProvider.notifier).loadBills();
+              ref.read(expenseControllerProvider.notifier).loadExpenses();
+              ref.invalidate(allSalesBillsProvider);
+              ref.invalidate(allPaymentLedgerProvider);
             },
           ),
           const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
-          preferredSize: Size.fromHeight(_showExplanationBanner ? 135 : 48),
+          preferredSize: const Size.fromHeight(138),
           child: Column(
             children: [
-              if (_showExplanationBanner) _buildHelperBanner(context),
+              // Executive Finance Summary Banner
+              _buildExecutiveSummaryBanner(
+                context,
+                totalMoneyIn: totalMoneyIn,
+                totalMoneyOut: totalMoneyOut,
+                netCashFlow: netCashFlow,
+                pendingReceivables: pendingReceivables,
+              ),
               TabBar(
                 controller: _tabController,
                 indicatorColor: AppColors.primaryColor(context),
@@ -109,15 +148,15 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
                 tabs: const [
                   Tab(
                     icon: Icon(Icons.receipt_long, size: 18),
-                    text: 'Invoices & Billing (Money In)',
-                  ),
-                  Tab(
-                    icon: Icon(Icons.request_quote, size: 18),
-                    text: 'Quotations & Estimates (Proposals)',
+                    text: '💳 Transactions & Ledger',
                   ),
                   Tab(
                     icon: Icon(Icons.account_balance_wallet, size: 18),
-                    text: 'Expenses & Costs (Money Out)',
+                    text: '💸 Site Expenses',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.request_quote, size: 18),
+                    text: '📝 Quotations & Estimates',
                   ),
                 ],
               ),
@@ -128,121 +167,192 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
       body: TabBarView(
         controller: _tabController,
         children: const [
-          // Sub-Tab 1: Billing & Invoices
-          BillingListScreen(),
+          // Tab 1: Single-level Transactions & Ledger (Client Invoices, Vendor Bills, Payment Logs)
+          BillingListScreen(isEmbedded: true),
 
-          // Sub-Tab 2: Quotations & Commercial Estimates
-          QuotationListScreen(isEmbedded: true),
-
-          // Sub-Tab 3: Site Expenses & Petty Cash Outflow
+          // Tab 2: Site Operational Expenses & Petty Cash
           ExpenseListScreen(isEmbedded: true),
+
+          // Tab 3: Commercial Quotations & Cost Estimator
+          QuotationListScreen(isEmbedded: true),
         ],
       ),
     );
   }
 
-  /// Beginner-friendly explanation banner clarifying financial terms for new users.
-  Widget _buildHelperBanner(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.primaryColor(context).withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: AppColors.primaryColor(context).withValues(alpha: 0.2),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.lightbulb_outline, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
-              const Text(
-                'QUICK FINANCIAL GUIDE FOR NEW USERS',
-                style: TextStyle(
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.primary,
-                  letterSpacing: 0.5,
-                ),
-              ),
-              const Spacer(),
-              InkWell(
-                onTap: () => setState(() => _showExplanationBanner = false),
-                child: const Padding(
-                  padding: EdgeInsets.all(2),
-                  child: Icon(Icons.close, size: 14, color: AppColors.textMuted),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 12,
-            runSpacing: 6,
-            children: [
-              _guideChip(
-                context,
-                badge: '1. Invoices & Billing',
-                badgeColor: AppColors.secondary,
-                description: 'Money collected from clients for finished work.',
-              ),
-              _guideChip(
-                context,
-                badge: '2. Quotations',
-                badgeColor: AppColors.primary,
-                description: 'Price proposals sent to clients before starting work.',
-              ),
-              _guideChip(
-                context,
-                badge: '3. Expenses',
-                badgeColor: AppColors.warning,
-                description: 'Money paid for materials, wages, fuel, and site costs.',
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _guideChip(
+  /// Responsive Executive Financial Summary Banner displaying key cash flow indicators
+  Widget _buildExecutiveSummaryBanner(
     BuildContext context, {
-    required String badge,
-    required Color badgeColor,
-    required String description,
+    required double totalMoneyIn,
+    required double totalMoneyOut,
+    required double netCashFlow,
+    required double pendingReceivables,
   }) {
-    return Row(
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 650;
+          if (isMobile) {
+            return Row(
+              children: [
+                Expanded(
+                  child: _summaryTile(
+                    context,
+                    title: 'MONEY IN',
+                    value: '₹${_fmtAmount(totalMoneyIn)}',
+                    color: AppColors.secondary,
+                    icon: Icons.trending_up,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _summaryTile(
+                    context,
+                    title: 'MONEY OUT',
+                    value: '₹${_fmtAmount(totalMoneyOut)}',
+                    color: AppColors.error,
+                    icon: Icons.trending_down,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: _summaryTile(
+                    context,
+                    title: 'NET CASH',
+                    value: '${netCashFlow >= 0 ? '+' : ''}₹${_fmtAmount(netCashFlow)}',
+                    color: netCashFlow >= 0 ? AppColors.secondary : AppColors.error,
+                    icon: Icons.account_balance_wallet,
+                  ),
+                ),
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              Expanded(
+                child: _summaryTile(
+                  context,
+                  title: 'MONEY IN (INFLOW)',
+                  value: '₹${_fmtAmount(totalMoneyIn)}',
+                  color: AppColors.secondary,
+                  icon: Icons.south_west,
+                  subtitle: 'Sales & Receipts',
+                ),
+              ),
+              const VerticalDivider(width: 16),
+              Expanded(
+                child: _summaryTile(
+                  context,
+                  title: 'MONEY OUT (OUTFLOW)',
+                  value: '₹${_fmtAmount(totalMoneyOut)}',
+                  color: AppColors.error,
+                  icon: Icons.north_east,
+                  subtitle: 'Bills & Site Costs',
+                ),
+              ),
+              const VerticalDivider(width: 16),
+              Expanded(
+                child: _summaryTile(
+                  context,
+                  title: 'NET CASH POSITION',
+                  value: '${netCashFlow >= 0 ? '+' : ''}₹${_fmtAmount(netCashFlow)}',
+                  color: netCashFlow >= 0 ? AppColors.secondary : AppColors.error,
+                  icon: Icons.account_balance,
+                  subtitle: netCashFlow >= 0 ? 'Surplus Cash' : 'Net Outflow',
+                ),
+              ),
+              const VerticalDivider(width: 16),
+              Expanded(
+                child: _summaryTile(
+                  context,
+                  title: 'PENDING RECEIVABLES',
+                  value: '₹${_fmtAmount(pendingReceivables)}',
+                  color: Colors.amber.shade800,
+                  icon: Icons.pending_actions,
+                  subtitle: 'Uncollected Invoices',
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _summaryTile(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required Color color,
+    required IconData icon,
+    String? subtitle,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: badgeColor.withValues(alpha: 0.15),
-            borderRadius: BorderRadius.circular(4),
-          ),
-          child: Text(
-            badge,
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-              color: badgeColor,
+        Row(
+          children: [
+            Icon(icon, size: 14, color: color),
+            const SizedBox(width: 4),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                  letterSpacing: 0.3,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
-          ),
+          ],
         ),
-        const SizedBox(width: 4),
+        const SizedBox(height: 2),
         Text(
-          description,
+          value,
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 15,
+            fontWeight: FontWeight.bold,
             color: AppColors.text(context),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
+        if (subtitle != null)
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 10,
+              color: AppColors.mutedText(context),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
       ],
     );
   }
+
+  String _fmtAmount(double amount) {
+    final abs = amount.abs();
+    if (abs >= 10000000) {
+      return '${(amount / 10000000).toStringAsFixed(2)}Cr';
+    }
+    if (abs >= 100000) {
+      return '${(amount / 100000).toStringAsFixed(2)}L';
+    }
+    if (abs >= 1000) {
+      return '${(amount / 1000).toStringAsFixed(1)}K';
+    }
+    return amount.toStringAsFixed(0);
+  }
 }
+

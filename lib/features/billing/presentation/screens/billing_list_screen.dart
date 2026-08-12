@@ -24,51 +24,15 @@ import '../controllers/billing_controller.dart';
 import 'billing_form_screen.dart';
 
 class BillingListScreen extends ConsumerStatefulWidget {
-  const BillingListScreen({super.key});
+  final bool isEmbedded;
+  const BillingListScreen({super.key, this.isEmbedded = true});
 
   @override
   ConsumerState<BillingListScreen> createState() => _BillingListScreenState();
 }
 
-class _BillingListScreenState extends ConsumerState<BillingListScreen>
-    with SingleTickerProviderStateMixin {
-  late TabController _tabController;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      if (!mounted) return;
-      setState(() {});
-    });
-  }
-
-  @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  void _onPrimaryActionButtonPressed() async {
-    final activeIndex = _tabController.index;
-    if (activeIndex == 0) {
-      // New Vendor Bill
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const BillingFormScreen()));
-      ref.read(billingControllerProvider.notifier).loadBills();
-    } else if (activeIndex == 1) {
-      // New Client Sales Invoice
-      await Navigator.of(
-        context,
-      ).push(MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()));
-      ref.invalidate(allSalesBillsProvider);
-    } else {
-      // Record Payment
-      _showAddPaymentDialog(context);
-    }
-  }
+class _BillingListScreenState extends ConsumerState<BillingListScreen> {
+  String _activeFilter = 'all'; // 'all', 'invoices', 'bills', 'ledger'
 
   void _showAddPaymentDialog(BuildContext context) {
     final titleCtrl = TextEditingController();
@@ -256,17 +220,6 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
     final state = ref.watch(billingControllerProvider);
     final salesBillsAsync = ref.watch(allSalesBillsProvider);
 
-    final activeIndex = _tabController.index;
-    String actionLabel = 'New Vendor Bill';
-    IconData actionIcon = Icons.add;
-    if (activeIndex == 1) {
-      actionLabel = 'New Sales Invoice';
-      actionIcon = Icons.point_of_sale;
-    } else if (activeIndex == 2) {
-      actionLabel = 'Record Payment';
-      actionIcon = Icons.account_balance_wallet;
-    }
-
     final double totalBilled = state.bills.fold(
       0.0,
       (sum, b) => sum + b.amount,
@@ -282,139 +235,348 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen>
         )
         .fold(0.0, (sum, b) => sum + b.amount);
 
+    final content = Column(
+      children: [
+        // ── Filter Chips Bar & Quick Actions Toolbar ──
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            border: Border(bottom: BorderSide(color: AppColors.border(context))),
+          ),
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _filterChip('all', 'All Records', Icons.apps),
+                          const SizedBox(width: 6),
+                          _filterChip('invoices', '📥 Money In (Sales Invoices)', Icons.point_of_sale),
+                          const SizedBox(width: 6),
+                          _filterChip('bills', '💸 Money Out (Vendor Bills)', Icons.receipt_long),
+                          const SizedBox(width: 6),
+                          _filterChip('ledger', '💳 Payment Ledger', Icons.account_balance),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  DataExportActions(
+                    compact: true,
+                    onExportPdfWithDates: (start, end) async {
+                      final filtered = DateRangeFilterHelper.filter(
+                        state.bills,
+                        start: start,
+                        end: end,
+                        getDate: (b) => b.billDate,
+                      );
+                      final totalBilledF = filtered.fold<double>(0, (s, b) => s + b.amount);
+                      final totalPaidF = filtered.where((b) => b.status == 'paid').fold<double>(0, (s, b) => s + b.amount);
+                      final totalPendingF = totalBilledF - totalPaidF;
+                      final bytes = await BuildingPdfGenerator.generateReport(
+                        bills: filtered,
+                        totalAmount: totalBilledF,
+                        totalPaid: totalPaidF,
+                        totalPending: totalPendingF,
+                      );
+                      await PdfDownloadHelper.downloadPdf(
+                        bytes: bytes,
+                        filename:
+                            'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.pdf',
+                      );
+                    },
+                    onExportExcelWithDates: (start, end) async {
+                      final bills = DateRangeFilterHelper.filter(
+                        state.bills,
+                        start: start,
+                        end: end,
+                        getDate: (b) => b.billDate,
+                      );
+                      final excelBytes = ExcelGeneratorService.generateTableExcel(
+                        sheetName: 'Billing_Summary',
+                        title: 'Vendor Bills & Operational Billing Hub',
+                        headers: [
+                          'Bill Number',
+                          'Vendor / Party',
+                          'Category',
+                          'Bill Date',
+                          'Due Date',
+                          'Amount (INR)',
+                          'Status',
+                        ],
+                        rows: bills
+                            .map(
+                              (b) => [
+                                b.billNumber,
+                                b.projectName ?? 'General',
+                                'Operational',
+                                b.billDate,
+                                b.billDate,
+                                b.amount,
+                                b.status.toUpperCase(),
+                              ],
+                            )
+                            .toList(),
+                      );
+                      await ExcelDownloadHelper.downloadExcel(
+                        bytes: excelBytes,
+                        filename:
+                            'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+                      );
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              // ── Action Buttons Row ──
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
+                      );
+                      ref.invalidate(allSalesBillsProvider);
+                    },
+                    icon: const Icon(Icons.add, size: 16),
+                    label: const Text('Client Invoice'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton.icon(
+                    onPressed: () async {
+                      await Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const BillingFormScreen()),
+                      );
+                      ref.read(billingControllerProvider.notifier).loadBills();
+                    },
+                    icon: const Icon(Icons.add_shopping_cart, size: 16),
+                    label: const Text('Vendor Bill'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _showAddPaymentDialog(context),
+                    icon: const Icon(Icons.payments_outlined, size: 16),
+                    label: const Text('Record Payment'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: AppColors.primaryColor(context),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // ── Active Content View ──
+        Expanded(
+          child: _buildActiveFilterView(
+            context,
+            ref,
+            state,
+            salesBillsAsync,
+            totalBilled,
+            totalPaid,
+            totalPending,
+          ),
+        ),
+      ],
+    );
+
+    if (widget.isEmbedded) {
+      return content;
+    }
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 16,
         title: const Text(
-          'Billing & Financial Hub',
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            color: AppColors.primary,
-          ),
+          'Transactions & Billing Hub',
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: AppColors.primaryColor(context),
-          unselectedLabelColor: AppColors.mutedText(context),
-          indicatorColor: AppColors.primaryColor(context),
-          tabs: const [
-            Tab(
-              icon: Icon(Icons.receipt_long, size: 18),
-              text: 'Vendor & Operational Bills',
+      ),
+      body: content,
+    );
+  }
+
+  Widget _filterChip(String id, String label, IconData icon) {
+    final isSelected = _activeFilter == id;
+    final primary = AppColors.primaryColor(context);
+    return ChoiceChip(
+      selected: isSelected,
+      showCheckmark: false,
+      avatar: Icon(
+        icon,
+        size: 14,
+        color: isSelected ? Colors.white : AppColors.mutedText(context),
+      ),
+      label: Text(label),
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? Colors.white : AppColors.text(context),
+      ),
+      selectedColor: primary,
+      backgroundColor: AppColors.cardBg(context),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(
+          color: isSelected ? primary : AppColors.border(context),
+        ),
+      ),
+      onSelected: (val) {
+        if (val) {
+          setState(() {
+            _activeFilter = id;
+          });
+        }
+      },
+    );
+  }
+
+  Widget _buildActiveFilterView(
+    BuildContext context,
+    WidgetRef ref,
+    BillingListState state,
+    AsyncValue<List<SalesBill>> salesBillsAsync,
+    double totalBilled,
+    double totalPaid,
+    double totalPending,
+  ) {
+    switch (_activeFilter) {
+      case 'invoices':
+        return _buildClientSalesInvoicesTab(context, ref, salesBillsAsync);
+      case 'bills':
+        return _buildVendorBillsTab(
+          context,
+          ref,
+          state,
+          totalBilled,
+          totalPaid,
+          totalPending,
+        );
+      case 'ledger':
+        return const PaymentLedgerScreen(isEmbedded: true);
+      case 'all':
+      default:
+        return _buildCombinedTransactionsTab(
+          context,
+          ref,
+          state,
+          salesBillsAsync,
+        );
+    }
+  }
+
+  /// Combined View displaying both Client Invoices and Vendor Bills chronologically
+  Widget _buildCombinedTransactionsTab(
+    BuildContext context,
+    WidgetRef ref,
+    BillingListState state,
+    AsyncValue<List<SalesBill>> salesBillsAsync,
+  ) {
+    final salesBills = salesBillsAsync.valueOrNull ?? [];
+    final vendorBills = state.bills;
+
+    if (salesBills.isEmpty && vendorBills.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.receipt_long_outlined, size: 48, color: AppColors.textMuted),
+            const SizedBox(height: 12),
+            const Text(
+              'No financial transactions recorded yet',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
             ),
-            Tab(
-              icon: Icon(Icons.point_of_sale, size: 18),
-              text: 'Client Sales Invoices',
+            const SizedBox(height: 4),
+            const Text(
+              'Create a Client Invoice or Vendor Bill to start tracking transactions.',
+              style: TextStyle(fontSize: 13, color: AppColors.textMuted),
             ),
-            Tab(
-              icon: Icon(Icons.account_balance, size: 18),
-              text: 'Payment Ledger & Cash Flow',
+            const SizedBox(height: 16),
+            ElevatedButton.icon(
+              onPressed: () async {
+                await Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
+                );
+                ref.invalidate(allSalesBillsProvider);
+              },
+              icon: const Icon(Icons.add),
+              label: const Text('Create First Invoice'),
             ),
           ],
         ),
-        actions: [
-          DataExportActions(
-            compact: true,
-            onExportPdfWithDates: (start, end) async {
-              final filtered = DateRangeFilterHelper.filter(
-                state.bills,
-                start: start,
-                end: end,
-                getDate: (b) => b.billDate,
-              );
-              final totalBilledF = filtered.fold<double>(0, (s, b) => s + b.amount);
-              final totalPaidF = filtered.where((b) => b.status == 'paid').fold<double>(0, (s, b) => s + b.amount);
-              final totalPendingF = totalBilledF - totalPaidF;
-              final bytes = await BuildingPdfGenerator.generateReport(
-                bills: filtered,
-                totalAmount: totalBilledF,
-                totalPaid: totalPaidF,
-                totalPending: totalPendingF,
-              );
-              await PdfDownloadHelper.downloadPdf(
-                bytes: bytes,
-                filename:
-                    'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.pdf',
-              );
-            },
-            onExportExcelWithDates: (start, end) async {
-              final bills = DateRangeFilterHelper.filter(
-                state.bills,
-                start: start,
-                end: end,
-                getDate: (b) => b.billDate,
-              );
-              final excelBytes = ExcelGeneratorService.generateTableExcel(
-                sheetName: 'Billing_Summary',
-                title: 'Vendor Bills & Operational Billing Hub',
-                headers: [
-                  'Bill Number',
-                  'Vendor / Party',
-                  'Category',
-                  'Bill Date',
-                  'Due Date',
-                  'Amount (INR)',
-                  'Status',
-                ],
-                rows: bills
-                    .map(
-                      (b) => [
-                        b.billNumber,
-                        b.projectName ?? 'General',
-                        'Operational',
-                        b.billDate,
-                        b.billDate,
-                        b.amount,
-                        b.status.toUpperCase(),
-                      ],
-                    )
-                    .toList(),
-              );
-              await ExcelDownloadHelper.downloadExcel(
-                bytes: excelBytes,
-                filename:
-                    'IBUILD_Billing_${DateTime.now().millisecondsSinceEpoch}.xlsx',
-              );
-            },
-          ),
-          IconButton(
-            icon: Icon(actionIcon, color: AppColors.primaryColor(context)),
-            tooltip: actionLabel,
-            onPressed: _onPrimaryActionButtonPressed,
-          ),
-          const SizedBox(width: 8),
-          IconButton(
-            icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
-            onPressed: () {
-              ref.read(billingControllerProvider.notifier).loadBills();
-              ref.invalidate(allSalesBillsProvider);
-              ref.invalidate(allPaymentLedgerProvider);
-            },
-          ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Tab 1: Vendor & Operational Bills
-          _buildVendorBillsTab(
-            context,
-            ref,
-            state,
-            totalBilled,
-            totalPaid,
-            totalPending,
-          ),
+      );
+    }
 
-          // Tab 2: Client Sales Invoices
-          _buildClientSalesInvoicesTab(context, ref, salesBillsAsync),
-
-          // Tab 3: Payment Ledger & Cash Flow
-          const PaymentLedgerScreen(isEmbedded: true),
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        if (salesBills.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '📥 CLIENT SALES INVOICES (MONEY IN)',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                      letterSpacing: 0.5,
+                    ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _activeFilter = 'invoices'),
+                child: const Text('View All Invoices'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...salesBills.take(5).map((sb) => _buildSalesBillCard(context, sb)),
+          const SizedBox(height: 24),
         ],
-      ),
+
+        if (vendorBills.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                '💸 VENDOR & PURCHASE BILLS (MONEY OUT)',
+                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.primary,
+                      letterSpacing: 0.5,
+                    ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => _activeFilter = 'bills'),
+                child: const Text('View All Vendor Bills'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ...vendorBills.take(5).map((b) => _buildVendorBillCard(context, ref, b)),
+        ],
+      ],
     );
   }
 
