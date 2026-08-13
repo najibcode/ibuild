@@ -47,12 +47,12 @@ class AppLogo extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Wordmark
+              // Wordmark (IBU uppercase + ild lowercase)
               RichText(
                 text: TextSpan(
                   children: [
                     TextSpan(
-                      text: 'I',
+                      text: 'IBU',
                       style: TextStyle(
                         fontFamily: 'Roboto',
                         fontSize: size * 0.52,
@@ -63,7 +63,7 @@ class AppLogo extends StatelessWidget {
                       ),
                     ),
                     TextSpan(
-                      text: 'BUILD',
+                      text: 'ild',
                       style: TextStyle(
                         fontFamily: 'Roboto',
                         fontSize: size * 0.52,

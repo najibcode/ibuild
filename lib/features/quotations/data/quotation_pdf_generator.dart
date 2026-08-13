@@ -9,7 +9,7 @@ import '../data/models/quotation_model.dart';
 ///
 /// Designed strictly without colorful fonts or decorative styling for a clean, formal corporate finish.
 class QuotationPdfGenerator {
-  static const String _companyName = 'IBUILD';
+  static const String _companyName = 'IBUild';
   static const String _companyTagline = 'Construction & Project Management ERP';
 
   // Professional Monochrome Palette (No colorful fonts)

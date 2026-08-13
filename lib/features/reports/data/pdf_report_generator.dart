@@ -12,7 +12,7 @@ import '../../attendance/data/models/attendance_model.dart';
 ///
 /// Uses bundled Roboto TTF fonts for full Unicode support (including ₹).
 class PdfReportGenerator {
-  static const String _companyName = 'IBUILD';
+  static const String _companyName = 'IBUild';
   static const PdfColor _primaryBlue = PdfColor.fromInt(0xFF1565C0);
   static const PdfColor _darkBlue = PdfColor.fromInt(0xFF0D47A1);
   static const PdfColor _lightBlue = PdfColor.fromInt(0xFFE3F2FD);

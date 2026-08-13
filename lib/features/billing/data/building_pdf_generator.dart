@@ -9,7 +9,7 @@ import '../data/models/bill_model.dart';
 ///
 /// Designed strictly without colorful fonts or decorative styling for a clean, formal corporate finish.
 class BuildingPdfGenerator {
-  static const String _companyName = 'IBUILD';
+  static const String _companyName = 'IBUild';
   static const String _companyTagline = 'Building & Civil Construction ERP';
 
   // Professional Monochrome Palette (No colorful fonts)

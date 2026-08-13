@@ -47,7 +47,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
       text: profile?['phone'] as String? ?? '+91 9876543210',
     );
     _companyController = TextEditingController(
-      text: profile?['company_name'] as String? ?? 'IBUILD Construction',
+      text: profile?['company_name'] as String? ?? 'IBUild Construction',
     );
     _avatarUrlController = TextEditingController(
       text: profile?['avatar_url'] as String? ?? _defaultAvatar,
