@@ -38,7 +38,7 @@ class _WebDashboardState extends ConsumerState<WebDashboard>
 
   void _handleRefresh() {
     _refreshAnimCtrl.forward(from: 0.0);
-    ref.refresh(dashboardStatsProvider);
+    ref.invalidate(dashboardStatsProvider);
   }
 
   @override
@@ -204,102 +204,4 @@ class _WebDashboardState extends ConsumerState<WebDashboard>
       ),
     );
   }
-
-  // ── Helpers ───────────────────────────────────────────────────────────────
-
-  /// Formats a number in Indian currency shorthand.
-  static String _formatCurrency(double amount) {
-    if (amount >= 10000000) {
-      return '${(amount / 10000000).toStringAsFixed(1)}Cr';
-    }
-    if (amount >= 100000) return '${(amount / 100000).toStringAsFixed(1)}L';
-    if (amount >= 1000) return '${(amount / 1000).toStringAsFixed(1)}K';
-    return amount.toStringAsFixed(0);
-  }
-
-  /// Returns a human-readable time-ago string.
-  static String _timeAgo(DateTime dt) {
-    final diff = DateTime.now().difference(dt);
-    if (diff.inMinutes < 1) return 'just now';
-    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
-    if (diff.inHours < 24) return '${diff.inHours}h ago';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return '${dt.day}/${dt.month}/${dt.year}';
-  }
-
-  /// Maps activity type to an icon.
-  static IconData _activityIcon(String type) {
-    switch (type) {
-      case 'add':
-        return Icons.add_circle_outline;
-      case 'edit':
-        return Icons.edit;
-      case 'delete':
-        return Icons.delete_outline;
-      case 'inventory':
-        return Icons.inventory_2_outlined;
-      case 'progress':
-        return Icons.trending_up;
-      case 'expense':
-        return Icons.account_balance_wallet;
-      case 'bill':
-        return Icons.receipt_long;
-      case 'attendance':
-        return Icons.how_to_reg;
-      default:
-        return Icons.info_outline;
-    }
-  }
-
-  /// Maps activity type to a color.
-  static Color _activityColor(String type) {
-    switch (type) {
-      case 'add':
-        return AppColors.secondary;
-      case 'edit':
-        return AppColors.primary;
-      case 'delete':
-        return AppColors.error;
-      case 'inventory':
-        return AppColors.warning;
-      case 'expense':
-        return AppColors.warning;
-      case 'bill':
-        return AppColors.primary;
-      case 'progress':
-        return AppColors.secondary;
-      case 'attendance':
-        return AppColors.primary;
-      default:
-        return AppColors.textMuted;
-    }
-  }
-
-  // ── Widgets ───────────────────────────────────────────────────────────────
-
-  Widget _buildOutlineButton(
-    BuildContext context,
-    IconData icon,
-    String label, {
-    VoidCallback? onPressed,
-  }) {
-    return OutlinedButton.icon(
-      onPressed: onPressed ?? () {},
-      icon: Icon(icon, size: 14, color: AppColors.text(context)),
-      label: Text(
-        label,
-        style: TextStyle(
-          color: AppColors.text(context),
-          fontSize: 13,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      style: OutlinedButton.styleFrom(
-        side: BorderSide(color: AppColors.border(context)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      ),
-    );
-  }
-
 }

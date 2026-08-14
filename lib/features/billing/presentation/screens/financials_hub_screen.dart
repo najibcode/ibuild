@@ -5,7 +5,6 @@ import 'billing_list_screen.dart';
 import '../../../quotations/presentation/screens/quotation_list_screen.dart';
 import '../../../expenses/presentation/screens/expense_list_screen.dart';
 import '../../../sales_bills/data/repositories/supabase_sales_bill_repository.dart';
-import '../../../payments/data/repositories/supabase_payment_ledger_repository.dart';
 import '../../../payments/presentation/screens/payment_ledger_screen.dart';
 import '../../../expenses/presentation/controllers/expense_controller.dart';
 import '../controllers/billing_controller.dart';

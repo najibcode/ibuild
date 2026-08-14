@@ -5,6 +5,7 @@ import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../../core/utils/document_number_generator.dart';
 import '../../data/models/quotation_model.dart';
 import '../../data/repositories/supabase_quotation_repository.dart';
+import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 class QuotationBuilderItem {
   TextEditingController descriptionCtrl = TextEditingController();
@@ -75,13 +76,15 @@ class _QuotationBuilderScreenState extends ConsumerState<QuotationBuilderScreen>
     setState(() => _isSaving = true);
     try {
       final client = ref.read(supabaseClientProvider);
-      final repo = SupabaseQuotationRepository(client);
+      final activityRepo = SupabaseActivityRepository(client);
+      final repo = SupabaseQuotationRepository(client, activityRepo);
 
       final newQuotation = Quotation(
         id: widget.quotation?.id ?? '',
         quotationNumber: _quotationNumber,
         clientName: _clientNameCtrl.text.trim(),
         clientPhone: _clientPhoneCtrl.text.trim().isEmpty ? null : _clientPhoneCtrl.text.trim(),
+        subject: 'Construction Estimate',
         totalAmount: _subtotal,
         status: 'Draft',
         notes: _notesCtrl.text.trim().isEmpty ? null : _notesCtrl.text.trim(),

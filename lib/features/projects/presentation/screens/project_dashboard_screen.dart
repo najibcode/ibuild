@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -48,8 +47,8 @@ class _ProjectDashboardScreenState
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             tooltip: 'Refresh Dashboard',
             onPressed: () {
-              ref.refresh(projectDashboardProvider(widget.projectId));
-              ref.refresh(projectDetailProvider(widget.projectId));
+              ref.invalidate(projectDashboardProvider(widget.projectId));
+              ref.invalidate(projectDetailProvider(widget.projectId));
             },
           ),
           IconButton(
@@ -66,8 +65,8 @@ class _ProjectDashboardScreenState
                     builder: (_) => ProjectFormScreen(project: currentProject),
                   ),
                 );
-                ref.refresh(projectDashboardProvider(widget.projectId));
-                ref.refresh(projectDetailProvider(widget.projectId));
+                ref.invalidate(projectDashboardProvider(widget.projectId));
+                ref.invalidate(projectDetailProvider(widget.projectId));
               }
             },
           ),
@@ -589,23 +588,30 @@ class _DashboardBody extends StatelessWidget {
                 ],
               ),
               const Spacer(),
-              Text(
-                data.value,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text(context),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  data.value,
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
                 ),
               ),
               const SizedBox(height: 2),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    data.label,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.mutedText(context),
+                  Expanded(
+                    child: Text(
+                      data.label,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.mutedText(context),
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                   Icon(

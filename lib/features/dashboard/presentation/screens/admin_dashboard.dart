@@ -33,32 +33,45 @@ class AdminDashboard extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // System Info Cards
-            Wrap(
-              spacing: 16,
-              runSpacing: 16,
-              children: [
-                _buildInfoCard(
-                  context,
-                  icon: Icons.verified_user,
-                  label: 'Your Role',
-                  value: ref.watch(currentRoleProvider).toUpperCase(),
-                  color: AppColors.primary,
-                ),
-                _buildInfoCard(
-                  context,
-                  icon: Icons.info_outline,
-                  label: 'App Version',
-                  value: 'v1.0.0',
-                  color: const Color(0xFF2196F3),
-                ),
-                _buildInfoCard(
-                  context,
-                  icon: Icons.shield_outlined,
-                  label: 'RBAC Status',
-                  value: 'Active',
-                  color: const Color(0xFF4CAF50),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isMobile = constraints.maxWidth < 600;
+                final double cardWidth = isMobile
+                    ? (constraints.maxWidth > 380
+                        ? (constraints.maxWidth - 16) / 2
+                        : constraints.maxWidth)
+                    : 200;
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    _buildInfoCard(
+                      context,
+                      width: cardWidth,
+                      icon: Icons.verified_user,
+                      label: 'Your Role',
+                      value: ref.watch(currentRoleProvider).toUpperCase(),
+                      color: AppColors.primary,
+                    ),
+                    _buildInfoCard(
+                      context,
+                      width: cardWidth,
+                      icon: Icons.info_outline,
+                      label: 'App Version',
+                      value: 'v1.0.0',
+                      color: const Color(0xFF2196F3),
+                    ),
+                    _buildInfoCard(
+                      context,
+                      width: cardWidth,
+                      icon: Icons.shield_outlined,
+                      label: 'RBAC Status',
+                      value: 'Active',
+                      color: const Color(0xFF4CAF50),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 24),
 
@@ -80,9 +93,10 @@ class AdminDashboard extends ConsumerWidget {
     required String label,
     required String value,
     required Color color,
+    double width = 200,
   }) {
     return Container(
-      width: 200,
+      width: width,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
@@ -94,14 +108,22 @@ class AdminDashboard extends ConsumerWidget {
         children: [
           Icon(icon, color: color, size: 28),
           const SizedBox(height: 12),
-          Text(
-            value,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+            ),
           ),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(color: AppColors.textMuted, fontSize: 13)),
+          Text(
+            label,
+            style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+            overflow: TextOverflow.ellipsis,
+          ),
         ],
       ),
     );

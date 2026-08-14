@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -21,12 +20,6 @@ import 'features/settings/presentation/screens/settings_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
 import 'features/billing/presentation/screens/financials_hub_screen.dart';
-import 'features/billing/presentation/screens/billing_list_screen.dart';
-import 'features/sales_bills/presentation/screens/sales_bill_builder_screen.dart';
-import 'features/payments/presentation/screens/payment_ledger_screen.dart';
-import 'features/quotations/presentation/screens/quotation_list_screen.dart';
-
-import 'features/expenses/presentation/screens/expense_list_screen.dart';
 import 'features/projects/presentation/screens/project_list_screen.dart';
 import 'features/inventory/presentation/screens/inventory_list_screen.dart';
 import 'features/equipment/presentation/screens/equipment_list_screen.dart';
@@ -39,9 +32,6 @@ import 'features/dashboard/presentation/screens/supervisor_dashboard.dart';
 import 'features/rbac/presentation/providers/permission_provider.dart';
 
 // ── Controller imports for auto-reload ──
-import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
-import 'features/attendance/presentation/controllers/attendance_controller.dart';
-import 'features/projects/presentation/controllers/project_controller.dart';
 import 'features/subcontractors/presentation/controllers/subcontractor_controller.dart';
 import 'features/expenses/presentation/controllers/expense_controller.dart';
 import 'features/employees/presentation/controllers/employee_controller.dart';
@@ -117,7 +107,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   int _activeWebTab = 0;
 
   RealtimeChannel? _realtimeChannel;
-  Timer? _autoSyncTimer;
 
   @override
   void initState() {
@@ -134,56 +123,94 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'projects',
-            callback: (payload) => _triggerRealtimeRefresh(),
+            callback: (payload) => _onTableChanged('projects'),
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'expenses',
-            callback: (payload) => _triggerRealtimeRefresh(),
+            callback: (payload) => _onTableChanged('expenses'),
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'attendance',
-            callback: (payload) => _triggerRealtimeRefresh(),
+            callback: (payload) => _onTableChanged('attendance'),
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'system_settings',
-            callback: (payload) => _triggerRealtimeRefresh(),
+            callback: (payload) => _onTableChanged('system_settings'),
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'daily_progress',
-            callback: (payload) => _triggerRealtimeRefresh(),
+            callback: (payload) => _onTableChanged('daily_progress'),
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'checklist_items',
-            callback: (payload) => _triggerRealtimeRefresh(),
+            callback: (payload) => _onTableChanged('checklist_items'),
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
             table: 'payments',
-            callback: (payload) => _triggerRealtimeRefresh(),
+            callback: (payload) => _onTableChanged('payments'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'material_stock',
+            callback: (payload) => _onTableChanged('material_stock'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'vendor_bills',
+            callback: (payload) => _onTableChanged('vendor_bills'),
           )
           .subscribe();
     } catch (_) {}
   }
 
-  void _triggerRealtimeRefresh() {
+  /// Selective refresh: only reload the providers affected by the changed table.
+  void _onTableChanged(String table) {
     if (!mounted) return;
     try {
-      ref.refresh(dashboardStatsProvider);
-      ref.read(projectControllerProvider.notifier).loadProjects();
-      final selDate = ref.read(attendanceControllerProvider).selectedDate;
-      if (selDate.isNotEmpty) {
-        ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(selDate, showLoading: false);
+      // Always refresh dashboard stats (lightweight)
+      ref.invalidate(dashboardStatsProvider);
+
+      switch (table) {
+        case 'projects':
+          ref.read(projectControllerProvider.notifier).loadProjects();
+          break;
+        case 'attendance':
+          final selDate = ref.read(attendanceControllerProvider).selectedDate;
+          if (selDate.isNotEmpty) {
+            ref.read(attendanceControllerProvider.notifier).loadAttendanceForDate(selDate, showLoading: false);
+          }
+          break;
+        case 'expenses':
+          ref.read(expenseControllerProvider.notifier).loadExpenses();
+          break;
+        case 'material_stock':
+          // Inventory list will auto-refresh via its own provider watch
+          break;
+        case 'vendor_bills':
+        case 'payments':
+          // Billing/payments screens will refresh via their own provider watch
+          break;
+        case 'daily_progress':
+        case 'checklist_items':
+          // Refresh projects to update progress data
+          ref.read(projectControllerProvider.notifier).loadProjects();
+          break;
+        default:
+          break;
       }
     } catch (_) {}
   }
@@ -212,6 +239,8 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   // Set absolute mobile screen (resets stack) + auto-reload
   void _setMobileTab(MobileScreen screen) {
+    // Skip if already on this tab to avoid unnecessary rebuilds
+    if (_mobileNavStack.length == 1 && _mobileNavStack.last == screen) return;
     setState(() {
       _mobileNavStack.clear();
       _mobileNavStack.add(screen);
@@ -221,15 +250,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   // Get current active mobile screen
   MobileScreen get _currentMobileScreen => _mobileNavStack.last;
-
-  /// Check if user has a specific permission
-  bool _hasPerm(String perm) {
-    final role = ref.watch(currentRoleProvider);
-    final permsAsync = ref.watch(userPermissionsProvider);
-    final perms = permsAsync.valueOrNull ?? {};
-    if (role == 'owner' || role == 'admin' || perms.isEmpty) return true;
-    return ref.watch(hasPermissionProvider(perm));
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -370,7 +390,17 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     }
 
     return Scaffold(
-      body: body,
+      body: SafeArea(
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          switchInCurve: Curves.easeIn,
+          switchOutCurve: Curves.easeOut,
+          child: KeyedSubtree(
+            key: ValueKey(_currentMobileScreen),
+            child: body,
+          ),
+        ),
+      ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: bottomBarIndex,
         type: BottomNavigationBarType.fixed,

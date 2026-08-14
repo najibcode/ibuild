@@ -71,12 +71,17 @@ class StatCard extends StatelessWidget {
               ],
             ),
             const Spacer(),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.bold,
-                color: AppColors.text(context),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text(context),
+                ),
+                maxLines: 1,
               ),
             ),
             const SizedBox(height: 2),

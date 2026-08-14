@@ -26,85 +26,99 @@ class SupervisorDashboard extends ConsumerWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Supervisor Dashboard',
-                        style: Theme.of(context).textTheme.headlineMedium
-                            ?.copyWith(fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'Your daily operations overview',
-                        style: TextStyle(
-                          color: AppColors.textMuted,
-                          fontSize: 14,
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Supervisor Dashboard',
+                          style: Theme.of(context).textTheme.headlineMedium
+                              ?.copyWith(fontWeight: FontWeight.bold),
+                          overflow: TextOverflow.ellipsis,
                         ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (_) => const UserProfileScreen(),
-                            ),
-                          );
-                        },
-                        icon: const Icon(Icons.person_outline, size: 16),
-                        label: const Text('My Profile'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 8,
+                        const SizedBox(height: 4),
+                        const Text(
+                          'Your daily operations overview',
+                          style: TextStyle(
+                            color: AppColors.textMuted,
+                            fontSize: 14,
                           ),
+                          overflow: TextOverflow.ellipsis,
                         ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const UserProfileScreen(),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.person_outline, size: 16),
+                    label: const Text('My Profile'),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 8,
                       ),
-                    ],
+                    ),
                   ),
                 ],
               ),
               const SizedBox(height: 24),
 
               // Quick Stats Row
-              Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  _buildStatCard(
-                    context,
-                    icon: Icons.architecture,
-                    label: 'Active Projects',
-                    value: '${stats.activeProjects}',
-                    color: AppColors.primary,
-                  ),
-                  _buildStatCard(
-                    context,
-                    icon: Icons.people,
-                    label: "Today's Attendance",
-                    value: '${stats.employeesPresent}/${stats.totalEmployees}',
-                    color: const Color(0xFF4CAF50),
-                  ),
-                  _buildStatCard(
-                    context,
-                    icon: Icons.warning_amber_rounded,
-                    label: 'Low Stock Items',
-                    value: '${stats.lowStockItems}',
-                    color: stats.lowStockItems > 0
-                        ? const Color(0xFFF44336)
-                        : const Color(0xFF4CAF50),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(
-                          builder: (_) => const InventoryListScreen(),
-                        ),
-                      );
-                    },
-                  ),
-                ],
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final isMobile = constraints.maxWidth < 600;
+                  final double cardWidth = isMobile
+                      ? (constraints.maxWidth > 380
+                          ? (constraints.maxWidth - 16) / 2
+                          : constraints.maxWidth)
+                      : 200;
+                  return Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    children: [
+                      _buildStatCard(
+                        context,
+                        width: cardWidth,
+                        icon: Icons.architecture,
+                        label: 'Active Projects',
+                        value: '${stats.activeProjects}',
+                        color: AppColors.primary,
+                      ),
+                      _buildStatCard(
+                        context,
+                        width: cardWidth,
+                        icon: Icons.people,
+                        label: "Today's Attendance",
+                        value: '${stats.employeesPresent}/${stats.totalEmployees}',
+                        color: const Color(0xFF4CAF50),
+                      ),
+                      _buildStatCard(
+                        context,
+                        width: cardWidth,
+                        icon: Icons.warning_amber_rounded,
+                        label: 'Low Stock Items',
+                        value: '${stats.lowStockItems}',
+                        color: stats.lowStockItems > 0
+                            ? const Color(0xFFF44336)
+                            : const Color(0xFF4CAF50),
+                        onTap: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute(
+                              builder: (_) => const InventoryListScreen(),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
+                  );
+                },
               ),
               const SizedBox(height: 24),
 
@@ -206,13 +220,14 @@ class SupervisorDashboard extends ConsumerWidget {
     required String label,
     required String value,
     required Color color,
+    double width = 200,
     VoidCallback? onTap,
   }) {
     return InkWell(
       onTap: onTap,
       borderRadius: BorderRadius.circular(AppRadius.md),
       child: Container(
-        width: 200,
+        width: width,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
           color: AppColors.cardBg(context),
@@ -224,16 +239,21 @@ class SupervisorDashboard extends ConsumerWidget {
           children: [
             Icon(icon, color: color, size: 28),
             const SizedBox(height: 12),
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                style: Theme.of(
+                  context,
+                ).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+              ),
             ),
             const SizedBox(height: 4),
             Text(
               label,
-              style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              style: const TextStyle(color: AppColors.textMuted, fontSize: 13),
+              overflow: TextOverflow.ellipsis,
             ),
           ],
         ),

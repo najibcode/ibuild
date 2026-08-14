@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-class SearchFilterBar extends StatelessWidget {
+/// Reusable search + filter + sort bar with built-in 300ms debounce.
+/// The [onSearchChanged] callback fires only after the user stops typing.
+class SearchFilterBar extends StatefulWidget {
   final String hintText;
   final ValueChanged<String> onSearchChanged;
   final List<String>? filterOptions;
@@ -24,6 +27,26 @@ class SearchFilterBar extends StatelessWidget {
   });
 
   @override
+  State<SearchFilterBar> createState() => _SearchFilterBarState();
+}
+
+class _SearchFilterBarState extends State<SearchFilterBar> {
+  Timer? _debounceTimer;
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onChanged(String value) {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), () {
+      widget.onSearchChanged(value);
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     final cardColor = AppColors.cardBg(context);
     final borderColor = AppColors.border(context);
@@ -34,12 +57,12 @@ class SearchFilterBar extends StatelessWidget {
       children: [
         // Search row
         TextField(
-          onChanged: onSearchChanged,
+          onChanged: _onChanged,
           textAlignVertical: TextAlignVertical.center,
           style: TextStyle(color: AppColors.text(context)),
           decoration: InputDecoration(
             isDense: true,
-            hintText: hintText,
+            hintText: widget.hintText,
             hintStyle: TextStyle(color: AppColors.mutedText(context), fontSize: 14),
             prefixIcon: Icon(Icons.search, color: AppColors.mutedText(context), size: 20),
             prefixIconConstraints: const BoxConstraints(minWidth: 44, minHeight: 44),
@@ -60,30 +83,30 @@ class SearchFilterBar extends StatelessWidget {
             contentPadding: const EdgeInsets.symmetric(vertical: 12),
           ),
         ),
-        if (filterOptions != null || sortOptions != null)
+        if (widget.filterOptions != null || widget.sortOptions != null)
           Padding(
             padding: const EdgeInsets.only(top: AppSpacing.stackSm),
             child: Row(
               children: [
                 // Filter chips
-                if (filterOptions != null)
+                if (widget.filterOptions != null)
                   Expanded(
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
                         children: [
-                          _buildChip(context, 'All', activeFilter == null, () => onFilterChanged?.call(null)),
-                          ...filterOptions!.map((f) => _buildChip(context, _capitalize(f), activeFilter == f, () => onFilterChanged?.call(f))),
+                          _buildChip(context, 'All', widget.activeFilter == null, () => widget.onFilterChanged?.call(null)),
+                          ...widget.filterOptions!.map((f) => _buildChip(context, _capitalize(f), widget.activeFilter == f, () => widget.onFilterChanged?.call(f))),
                         ],
                       ),
                     ),
                   ),
                 // Sort dropdown
-                if (sortOptions != null)
+                if (widget.sortOptions != null)
                   PopupMenuButton<String>(
                     icon: Icon(Icons.sort, size: 20, color: AppColors.mutedText(context)),
-                    onSelected: onSortChanged,
-                    itemBuilder: (context) => sortOptions!
+                    onSelected: widget.onSortChanged,
+                    itemBuilder: (context) => widget.sortOptions!
                         .map((s) => PopupMenuItem(value: s, child: Text(s)))
                         .toList(),
                   ),

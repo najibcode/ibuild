@@ -48,8 +48,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final state = ref.watch(authControllerProvider);
 
-    final primaryCol = AppColors.primaryColor(context);
-
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       body: Center(

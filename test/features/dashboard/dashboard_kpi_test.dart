@@ -40,6 +40,11 @@ void main() {
         lowStockItems: 0,
         weeklyProgressCounts: [1, 2, 3, 4, 5, 6, 7],
         recentActivities: [],
+        atRiskCount: 1,
+        inventoryAlerts: [],
+        portfolioProjects: [],
+        progressTrends: [],
+        attentionAlerts: [],
       );
 
       expect(stats.totalProjects, equals(15));
