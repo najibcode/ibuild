@@ -649,9 +649,8 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
       },
       onTogglePaid: () {
         final newStatus = b.status.toLowerCase() == 'paid' ? 'pending' : 'paid';
-        ref.read(billingControllerProvider.notifier).updateBillStatus(
-              b.id,
-              newStatus,
+        ref.read(billingControllerProvider.notifier).editBill(
+              b.copyWith(status: newStatus),
             );
       },
     );
