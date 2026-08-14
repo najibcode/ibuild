@@ -197,12 +197,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
               );
             },
           ),
-          IconButton(
-            icon: Icon(Icons.add_card_outlined, color: AppColors.primaryColor(context)),
-            tooltip: 'Add Expense',
-            onPressed: _openAddForm,
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           IconButton(
             icon: const Icon(Icons.refresh),
             color: AppColors.primaryColor(context),

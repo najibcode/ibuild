@@ -215,26 +215,6 @@ ${quotation.validUntil != null ? 'Valid Until: ${quotation.validUntil}\n' : ''}$
             },
           ),
           const SizedBox(width: 4),
-          ElevatedButton.icon(
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const QuotationFormScreen()),
-              );
-              ref.read(quotationControllerProvider.notifier).loadQuotations();
-            },
-            icon: const Icon(Icons.add, size: 16),
-            label: const Text('New Estimate'),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primaryColor(context),
-              foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              textStyle: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () =>

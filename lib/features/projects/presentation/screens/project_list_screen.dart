@@ -117,17 +117,7 @@ class ProjectListScreen extends ConsumerWidget {
               );
             },
           ),
-          IconButton(
-            icon: Icon(
-              Icons.add_circle_outline,
-              color: AppColors.primaryColor(context),
-            ),
-            tooltip: 'New Project',
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const ProjectFormScreen()),
-            ),
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             tooltip: 'Refresh Projects',

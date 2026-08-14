@@ -307,16 +307,6 @@ class InventoryListScreen extends ConsumerWidget {
           ),
           const SizedBox(width: 4),
           IconButton(
-            icon: const Icon(Icons.add_box_outlined, color: AppColors.secondary),
-            tooltip: 'Add Material',
-            onPressed: () async {
-              await Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const InventoryFormScreen()),
-              );
-              ref.read(inventoryControllerProvider.notifier).loadItems();
-            },
-          ),
-          IconButton(
             icon: const Icon(Icons.bolt, color: Colors.amber),
             tooltip: 'Auto-Generate PO',
             onPressed: () => _showBulkPurchaseOrderModal(context, state.items),

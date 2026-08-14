@@ -1203,12 +1203,7 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
               );
             },
           ),
-          IconButton(
-            icon: Icon(Icons.build_circle_outlined, color: AppColors.primaryColor(context)),
-            tooltip: 'Add Equipment',
-            onPressed: () => _showEquipmentFormDialog(context),
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () =>

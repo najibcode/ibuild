@@ -667,12 +667,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
               );
             },
           ),
-          IconButton(
-            icon: Icon(Icons.person_add_outlined, color: AppColors.primaryColor(context)),
-            tooltip: 'Add Partner',
-            onPressed: () => _showSubcontractorFormDialog(context),
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref
