@@ -425,20 +425,36 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: AppColors.primary,
+                  if (_hasPerm('billing.view'))
+                    ListTile(
+                      leading: const Icon(
+                        Icons.account_balance_wallet_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Financials & Money Hub',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _setMobileTab(MobileScreen.financials);
+                      },
                     ),
-                    title: const Text(
-                      'Financials & Money Hub',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                  if (_hasPerm('inventory.view'))
+                    ListTile(
+                      leading: const Icon(
+                        Icons.inventory_2_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Inventory & Material Stock',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _setMobileTab(MobileScreen.inventory);
+                      },
                     ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _setMobileTab(MobileScreen.financials);
-                    },
-                  ),
                   ListTile(
                     leading: const Icon(
                       Icons.construction_outlined,
