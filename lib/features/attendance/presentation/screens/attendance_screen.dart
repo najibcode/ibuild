@@ -109,11 +109,12 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       appBar: AppBar(
         titleSpacing: 16,
         title: Text(
-          'Attendance & Site Deployment',
+          'Attendance',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor(context),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           DataExportActions(

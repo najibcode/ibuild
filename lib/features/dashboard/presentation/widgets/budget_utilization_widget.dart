@@ -28,29 +28,34 @@ class BudgetUtilizationWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'BUDGET UTILIZATION',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: AppColors.primary,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Allocated contract budget vs actual expenditure',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BUDGET UTILIZATION',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: AppColors.primary,
+                          ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Allocated contract budget vs actual expenditure',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Text(
                 'Top ${activeList.length.clamp(0, 5)} Active',
                 style: const TextStyle(
@@ -118,12 +123,17 @@ class BudgetUtilizationWidget extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(
-              '$spentStr / $budgetStr  (${util.toStringAsFixed(0)}%)',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: AppColors.text(context),
+            const SizedBox(width: 8),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerRight,
+              child: Text(
+                '$spentStr / $budgetStr  (${util.toStringAsFixed(0)}%)',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  color: AppColors.text(context),
+                ),
               ),
             ),
           ],

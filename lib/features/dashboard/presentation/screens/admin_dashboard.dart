@@ -13,11 +13,12 @@ class AdminDashboard extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppSpacing.containerMargin),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppSpacing.containerMargin),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
             // Header
             Text(
               'Admin Dashboard',
@@ -83,6 +84,7 @@ class AdminDashboard extends ConsumerWidget {
             _RecentActivitySection(),
           ],
         ),
+      ),
       ),
     );
   }

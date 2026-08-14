@@ -605,11 +605,12 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(
-          'Subcontractor & Vendor Management',
+          'Subcontractors',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor(context),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           DataExportActions(
@@ -894,14 +895,19 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                     color: AppColors.mutedText(context),
                     letterSpacing: 0.5,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
                   ),
                 ),
                 Text(
@@ -910,6 +916,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                     fontSize: 11,
                     color: AppColors.mutedText(context),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ],
             ),

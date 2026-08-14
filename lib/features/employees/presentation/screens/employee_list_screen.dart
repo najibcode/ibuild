@@ -32,11 +32,12 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
         title: Text(
-          'Workforce & Staff Directory',
+          'Employees',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor(context),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           DataExportActions(
@@ -112,39 +113,13 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
               );
             },
           ),
-          const SizedBox(width: 4),
-          Padding(
-            padding: const EdgeInsets.only(right: 4.0),
-            child: FilledButton.icon(
-              onPressed: () async {
-                await Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const EmployeeFormScreen()),
-                );
-                ref
-                    .read(employeeListControllerProvider.notifier)
-                    .loadEmployees();
-              },
-              icon: const Icon(Icons.person_add, size: 16),
-              label: const Text(
-                '+ Add Employee',
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-              ),
-              style: FilledButton.styleFrom(
-                backgroundColor: AppColors.primaryColor(context),
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
-                ),
-              ),
-            ),
-          ),
           IconButton(
             icon: Icon(Icons.refresh, color: AppColors.primaryColor(context)),
             onPressed: () => ref
                 .read(employeeListControllerProvider.notifier)
                 .loadEmployees(),
           ),
+          const SizedBox(width: 8),
         ],
       ),
       floatingActionButton: FloatingActionButton.extended(
@@ -354,12 +329,16 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text(context),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(context),
+              ),
             ),
           ),
           const SizedBox(height: 2),

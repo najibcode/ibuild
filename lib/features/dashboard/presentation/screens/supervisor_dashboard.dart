@@ -16,9 +16,10 @@ class SupervisorDashboard extends ConsumerWidget {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      body: statsAsync.when(
-        data: (stats) => SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.containerMargin),
+      body: SafeArea(
+        child: statsAsync.when(
+          data: (stats) => SingleChildScrollView(
+            padding: const EdgeInsets.all(AppSpacing.containerMargin),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -210,6 +211,7 @@ class SupervisorDashboard extends ConsumerWidget {
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
+      ),
       ),
     );
   }

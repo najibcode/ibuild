@@ -27,35 +27,43 @@ class InventoryAlertsWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'INVENTORY ALERTS',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: AppColors.primary,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Materials requiring immediate restocking',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'INVENTORY ALERTS',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: AppColors.primary,
+                          ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Materials requiring immediate restocking',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
-              if (alerts.isNotEmpty)
+              if (alerts.isNotEmpty) ...[
+                const SizedBox(width: 8),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: AppColors.error.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppColors.error.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Text(
                     '${alerts.length} Low',
@@ -66,6 +74,7 @@ class InventoryAlertsWidget extends StatelessWidget {
                     ),
                   ),
                 ),
+              ],
             ],
           ),
           const Divider(height: 24),

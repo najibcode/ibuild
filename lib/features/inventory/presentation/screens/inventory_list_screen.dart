@@ -244,8 +244,9 @@ class InventoryListScreen extends ConsumerWidget {
       appBar: AppBar(
         titleSpacing: 16,
         title: Text(
-          'Material Inventory & Stock ERP',
+          'Inventory',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           DataExportActions(
@@ -1266,7 +1267,7 @@ class _InventoryCard extends ConsumerWidget {
 
               // Material Name & Details
               Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
                     child: Column(
@@ -1279,27 +1280,36 @@ class _InventoryCard extends ConsumerWidget {
                             fontSize: 16,
                             color: AppColors.text(context),
                           ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: 2),
+                        const SizedBox(height: 3),
                         Text(
                           'Supplier: ${item.supplier ?? 'Direct Vendor'} • Rate: \u20B9${item.purchasePrice.toStringAsFixed(2)}/${item.unit}',
                           style: TextStyle(
                             color: AppColors.mutedText(context),
                             fontSize: 11,
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ],
                     ),
                   ),
+                  const SizedBox(width: 12),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        '\u20B9${item.totalValuation.toInt()}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16,
-                          color: AppColors.primaryColor(context),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '\u20B9${item.totalValuation >= 100000 ? '${(item.totalValuation / 100000).toStringAsFixed(2)} L' : item.totalValuation.toStringAsFixed(0)}',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.primaryColor(context),
+                          ),
                         ),
                       ),
                       Text(
@@ -1307,6 +1317,7 @@ class _InventoryCard extends ConsumerWidget {
                         style: TextStyle(
                           color: AppColors.mutedText(context),
                           fontSize: 10,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                     ],
@@ -1391,22 +1402,31 @@ class _InventoryCard extends ConsumerWidget {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Available Stock (Burn Rate ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day):',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.mutedText(context),
-                          fontWeight: FontWeight.w600,
+                      Expanded(
+                        child: Text(
+                          'Available Stock (Burn Rate ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day):',
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: AppColors.mutedText(context),
+                            fontWeight: FontWeight.w600,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Text(
-                        '${item.availableStock.toStringAsFixed(1)} ${item.unit}',
-                        style: TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.bold,
-                          color: item.isLowStock
-                              ? AppColors.error
-                              : AppColors.text(context),
+                      const SizedBox(width: 8),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(
+                          '${item.availableStock.toStringAsFixed(1)} ${item.unit}',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: item.isLowStock
+                                ? AppColors.error
+                                : AppColors.text(context),
+                          ),
                         ),
                       ),
                     ],

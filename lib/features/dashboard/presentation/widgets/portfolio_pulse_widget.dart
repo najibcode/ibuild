@@ -117,39 +117,44 @@ class PortfolioPulseWidget extends StatelessWidget {
         children: [
           // Header Row
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.monitor_heart_outlined,
-                        size: 18,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'PORTFOLIO PULSE',
-                        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                              color: AppColors.primary,
-                            ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Key performance indicators across all accessible projects',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.monitor_heart_outlined,
+                          size: 18,
+                          color: AppColors.primary,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          'PORTFOLIO PULSE',
+                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                                color: AppColors.primary,
+                              ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Key performance indicators across all accessible projects',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Tooltip(
                 message:
                     'Real-time automated metrics aggregated from active Supabase database records',
@@ -159,13 +164,17 @@ class PortfolioPulseWidget extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.primary.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(6),
+                    border: Border.all(
+                      color: AppColors.primary.withValues(alpha: 0.2),
+                    ),
                   ),
                   child: const Row(
+                    mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.insights, size: 13, color: AppColors.primary),
                       SizedBox(width: 4),
                       Text(
-                        'Live Supabase Sync',
+                        'Live Sync',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
@@ -564,12 +573,16 @@ class PortfolioPulseWidget extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: -0.5,
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  value,
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: -0.5,
+                  ),
                 ),
               ),
               const SizedBox(height: 8),

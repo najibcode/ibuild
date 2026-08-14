@@ -1144,11 +1144,12 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         title: Text(
-          'Equipment, Machinery & Tools',
+          'Equipment',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor(context),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           DataExportActions(
@@ -1515,14 +1516,17 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                   overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    value,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
                 Text(
                   subtitle,

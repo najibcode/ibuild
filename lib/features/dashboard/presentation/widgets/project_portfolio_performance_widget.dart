@@ -27,34 +27,42 @@ class ProjectPortfolioPerformanceWidget extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'PROJECT PORTFOLIO PERFORMANCE',
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
-                          color: AppColors.primary,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    'Progress across all accessible projects',
-                    style: TextStyle(
-                      color: AppColors.textMuted,
-                      fontSize: 12,
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'PROJECT PORTFOLIO PERFORMANCE',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.5,
+                            color: AppColors.primary,
+                          ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 2),
+                    const Text(
+                      'Progress across all accessible projects',
+                      style: TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
+                  border: Border.all(
+                    color: AppColors.primary.withValues(alpha: 0.2),
+                  ),
                 ),
                 child: Text(
                   '${projects.length} Projects',
@@ -74,7 +82,7 @@ class ProjectPortfolioPerformanceWidget extends StatelessWidget {
               padding: EdgeInsets.symmetric(vertical: 24),
               child: Center(
                 child: Text(
-                  'No portfolio projects available',
+                  'No portfolio projects found.',
                   style: TextStyle(color: AppColors.textMuted),
                 ),
               ),
@@ -87,7 +95,7 @@ class ProjectPortfolioPerformanceWidget extends StatelessWidget {
               separatorBuilder: (_, __) => const SizedBox(height: 12),
               itemBuilder: (context, index) {
                 final item = projects[index];
-                return _buildProjectRow(context, item);
+                return _buildProjectItem(context, item);
               },
             ),
         ],
@@ -95,8 +103,14 @@ class ProjectPortfolioPerformanceWidget extends StatelessWidget {
     );
   }
 
-  Widget _buildProjectRow(BuildContext context, PortfolioProjectItem item) {
-    final statusColor = _getStatusColor(item);
+  Widget _buildProjectItem(BuildContext context, PortfolioProjectItem item) {
+    Color statusColor = AppColors.secondary;
+    final statusLower = item.displayStatus.toLowerCase();
+    if (statusLower.contains('delayed') || statusLower.contains('critical')) {
+      statusColor = AppColors.error;
+    } else if (statusLower.contains('risk') || statusLower.contains('watch')) {
+      statusColor = Colors.orange;
+    }
 
     return InkWell(
       onTap: () {
@@ -110,58 +124,133 @@ class ProjectPortfolioPerformanceWidget extends StatelessWidget {
         );
       },
       borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(AppRadius.sm),
+          border: Border.all(color: AppColors.border(context)),
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    item.name,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 14,
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final isNarrow = constraints.maxWidth < 450;
+                if (isNarrow) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              item.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: statusColor.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Text(
+                              item.displayStatus.toUpperCase(),
+                              style: TextStyle(
+                                color: statusColor,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Text(
+                            'Progress: ${item.physicalProgress.toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w600,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Spent: ${item.budgetUtilizationPct.toStringAsFixed(0)}%',
+                            style: const TextStyle(
+                              color: AppColors.textMuted,
+                              fontSize: 11,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  );
+                }
+
+                return Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        item.name,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  'Progress: ${item.physicalProgress.toStringAsFixed(0)}%',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Text(
-                  'Spent: ${item.budgetUtilizationPct.toStringAsFixed(0)}%',
-                  style: TextStyle(
-                    color: AppColors.textMuted,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    item.displayStatus.toUpperCase(),
-                    style: TextStyle(
-                      color: statusColor,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
+                    const SizedBox(width: 8),
+                    Text(
+                      'Progress: ${item.physicalProgress.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 12,
+                      ),
                     ),
-                  ),
-                ),
-              ],
+                    const SizedBox(width: 12),
+                    Text(
+                      'Spent: ${item.budgetUtilizationPct.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        color: AppColors.textMuted,
+                        fontSize: 12,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        item.displayStatus.toUpperCase(),
+                        style: TextStyle(
+                          color: statusColor,
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             const SizedBox(height: 6),
 
@@ -192,13 +281,5 @@ class ProjectPortfolioPerformanceWidget extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  Color _getStatusColor(PortfolioProjectItem item) {
-    if (item.status == 'completed') return const Color(0xFF4CAF50);
-    if (item.status == 'delayed') return AppColors.error;
-    if (item.status == 'at_risk' || item.variancePct > 15.0) return AppColors.error;
-    if (item.status == 'planning') return Colors.orange;
-    return const Color(0xFF2196F3);
   }
 }

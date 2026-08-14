@@ -683,11 +683,12 @@ class _FullReportGeneratorScreenState
       appBar: AppBar(
         titleSpacing: 16,
         title: Text(
-          'Reports & Audit Exporter',
+          'Reports & Export',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor(context),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
       ),
       body: bodyContent,

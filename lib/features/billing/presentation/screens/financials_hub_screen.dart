@@ -84,28 +84,14 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 16,
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Financials & Money Hub',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 18,
-                color: AppColors.primaryColor(context),
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              'Executive cash flow overview and streamlined accounting',
-              style: TextStyle(
-                fontSize: 11,
-                color: AppColors.mutedText(context),
-                fontWeight: FontWeight.normal,
-              ),
-            ),
-          ],
+        title: Text(
+          'Financials',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+            color: AppColors.primaryColor(context),
+          ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           IconButton(
@@ -134,6 +120,8 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
               ),
               TabBar(
                 controller: _tabController,
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
                 indicatorColor: AppColors.primaryColor(context),
                 labelColor: AppColors.primaryColor(context),
                 unselectedLabelColor: AppColors.mutedText(context),
@@ -148,15 +136,15 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
                 tabs: const [
                   Tab(
                     icon: Icon(Icons.receipt_long, size: 18),
-                    text: '💳 Transactions & Ledger',
+                    text: '💳 Ledger',
                   ),
                   Tab(
                     icon: Icon(Icons.account_balance_wallet, size: 18),
-                    text: '💸 Site Expenses',
+                    text: '💸 Expenses',
                   ),
                   Tab(
                     icon: Icon(Icons.request_quote, size: 18),
-                    text: '📝 Quotations & Estimates',
+                    text: '📝 Quotations',
                   ),
                 ],
               ),
@@ -319,14 +307,17 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
           ],
         ),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.bold,
-            color: AppColors.text(context),
+        FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.centerLeft,
+          child: Text(
+            value,
+            style: TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+              color: AppColors.text(context),
+            ),
           ),
-          overflow: TextOverflow.ellipsis,
         ),
         if (subtitle != null)
           Text(

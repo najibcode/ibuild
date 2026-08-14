@@ -27,11 +27,12 @@ class ProjectListScreen extends ConsumerWidget {
       appBar: AppBar(
         titleSpacing: AppSpacing.containerMargin,
         title: Text(
-          'Projects Directory',
+          'Projects',
           style: TextStyle(
             fontWeight: FontWeight.bold,
             color: AppColors.primaryColor(context),
           ),
+          overflow: TextOverflow.ellipsis,
         ),
         actions: [
           DataExportActions(

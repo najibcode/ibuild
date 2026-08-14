@@ -40,11 +40,18 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Load environment variables from .env file
-  await dotenv.load(fileName: '.env');
+  // Load environment variables from .env file with resilient fallback
+  try {
+    await dotenv.load(fileName: '.env');
+  } catch (e) {
+    debugPrint('Note: .env load warning: $e');
+  }
 
-  final supabaseUrl = dotenv.env['SUPABASE_URL']!;
-  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY']!;
+  const defaultSupabaseUrl = 'https://dxjvvashdbhlfvsjfdjq.supabase.co';
+  const defaultSupabaseKey = 'sb_publishable_mTs0l8WYewMHwLNPwV0wow_FZ6Nvmnd';
+
+  final supabaseUrl = dotenv.env['SUPABASE_URL'] ?? defaultSupabaseUrl;
+  final supabaseAnonKey = dotenv.env['SUPABASE_ANON_KEY'] ?? defaultSupabaseKey;
 
   await Supabase.initialize(
     url: supabaseUrl,
@@ -318,13 +325,20 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         break;
     }
 
-    // Build bottom nav items (Home, Projects, Inventory, Attendance, More)
+    // Build bottom nav items (Dashboard, Attendance, Projects, Inventory, More options)
     final List<_MobileNavEntry> navEntries = [
       _MobileNavEntry(
         screen: MobileScreen.dashboard,
-        icon: Icons.home_outlined,
-        activeIcon: Icons.home,
-        label: 'Home',
+        icon: Icons.dashboard_outlined,
+        activeIcon: Icons.dashboard,
+        label: 'Dashboard',
+        permission: null,
+      ),
+      _MobileNavEntry(
+        screen: MobileScreen.attendance,
+        icon: Icons.how_to_reg_outlined,
+        activeIcon: Icons.how_to_reg,
+        label: 'Attendance',
         permission: null,
       ),
       _MobileNavEntry(
@@ -341,19 +355,12 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         label: 'Inventory',
         permission: null,
       ),
-      _MobileNavEntry(
-        screen: MobileScreen.attendance,
-        icon: Icons.pending_actions_outlined,
-        activeIcon: Icons.pending_actions,
-        label: 'Attendance',
-        permission: null,
-      ),
-      // "More" tab is always visible
+      // "More options" tab is always visible
       _MobileNavEntry(
         screen: MobileScreen.settings, // placeholder
         icon: Icons.more_horiz_outlined,
         activeIcon: Icons.more_horiz,
-        label: 'More',
+        label: 'More options',
         permission: null,
         isMoreTab: true,
       ),
@@ -390,15 +397,13 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     }
 
     return Scaffold(
-      body: SafeArea(
-        child: AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          switchInCurve: Curves.easeIn,
-          switchOutCurve: Curves.easeOut,
-          child: KeyedSubtree(
-            key: ValueKey(_currentMobileScreen),
-            child: body,
-          ),
+      body: AnimatedSwitcher(
+        duration: const Duration(milliseconds: 200),
+        switchInCurve: Curves.easeIn,
+        switchOutCurve: Curves.easeOut,
+        child: KeyedSubtree(
+          key: ValueKey(_currentMobileScreen),
+          child: body,
         ),
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -409,9 +414,9 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         showUnselectedLabels: true,
         selectedLabelStyle: const TextStyle(
           fontWeight: FontWeight.bold,
-          fontSize: 12,
+          fontSize: 11,
         ),
-        unselectedLabelStyle: const TextStyle(fontSize: 12),
+        unselectedLabelStyle: const TextStyle(fontSize: 11),
         onTap: (index) {
           if (index < navEntries.length) {
             final entry = navEntries[index];
@@ -457,24 +462,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.inventory_2_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Inventory & Material Stock',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
-                    subtitle: const Text(
-                      'Receive stock, issue materials & track levels',
-                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
-                    ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _setMobileTab(MobileScreen.inventory);
-                    },
-                  ),
                   ListTile(
                     leading: const Icon(
                       Icons.account_balance_wallet_outlined,
