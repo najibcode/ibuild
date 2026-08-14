@@ -580,6 +580,83 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
     );
   }
 
+  Widget _buildSalesBillCard(BuildContext context, SalesBill b) {
+    final isPaid = b.status.toLowerCase() == 'paid';
+    return Card(
+      color: AppColors.cardBg(context),
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: const Icon(
+          Icons.receipt_long_outlined,
+          color: AppColors.primary,
+        ),
+        title: Text(
+          'INVOICE #${b.billNumber}',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.text(context),
+          ),
+        ),
+        subtitle: Text(
+          'Client: ${b.clientName} • Date: ${b.createdAt.toIso8601String().split('T').first}',
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '₹${b.totalAmount.toInt()}',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
+                ),
+                Text(
+                  b.status,
+                  style: TextStyle(
+                    color: isPaid ? AppColors.secondary : AppColors.error,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+            IconButton(
+              icon: const Icon(Icons.print_outlined, size: 18),
+              tooltip: 'Print Invoice PDF',
+              onPressed: () async {
+                final pdfBytes = await SalesBillPdfGenerator.generatePdf(b);
+                await Printing.layoutPdf(
+                  onLayout: (_) async => Uint8List.fromList(pdfBytes),
+                  name: 'Sales_Invoice_${b.billNumber}.pdf',
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildVendorBillCard(BuildContext context, WidgetRef ref, Bill b) {
+    return _BillCard(
+      bill: b,
+      onEdit: () {
+        ref.read(billingControllerProvider.notifier).loadBills();
+      },
+      onTogglePaid: () {
+        final newStatus = b.status.toLowerCase() == 'paid' ? 'pending' : 'paid';
+        ref.read(billingControllerProvider.notifier).updateBillStatus(
+              b.id,
+              newStatus,
+            );
+      },
+    );
+  }
+
   Widget _buildVendorBillsTab(
     BuildContext context,
     WidgetRef ref,

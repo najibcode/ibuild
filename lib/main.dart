@@ -298,39 +298,36 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         break;
     }
 
-    // Build bottom nav items based on permissions
+    // Build bottom nav items (Home, Projects, Inventory, Attendance, More)
     final List<_MobileNavEntry> navEntries = [
       _MobileNavEntry(
         screen: MobileScreen.dashboard,
         icon: Icons.home_outlined,
         activeIcon: Icons.home,
         label: 'Home',
-        permission: 'dashboard.view',
+        permission: null,
       ),
-      if (_hasPerm('project.view'))
-        _MobileNavEntry(
-          screen: MobileScreen.projectsList,
-          icon: Icons.foundation_outlined,
-          activeIcon: Icons.foundation,
-          label: 'Projects',
-          permission: 'project.view',
-        ),
-      if (_hasPerm('attendance.view'))
-        _MobileNavEntry(
-          screen: MobileScreen.attendance,
-          icon: Icons.pending_actions_outlined,
-          activeIcon: Icons.pending_actions,
-          label: 'Attendance',
-          permission: 'attendance.view',
-        ),
-      if (_hasPerm('employee.view'))
-        _MobileNavEntry(
-          screen: MobileScreen.employees,
-          icon: Icons.people_outline,
-          activeIcon: Icons.people,
-          label: 'Employees',
-          permission: 'employee.view',
-        ),
+      _MobileNavEntry(
+        screen: MobileScreen.projectsList,
+        icon: Icons.foundation_outlined,
+        activeIcon: Icons.foundation,
+        label: 'Projects',
+        permission: null,
+      ),
+      _MobileNavEntry(
+        screen: MobileScreen.inventory,
+        icon: Icons.inventory_2_outlined,
+        activeIcon: Icons.inventory_2,
+        label: 'Inventory',
+        permission: null,
+      ),
+      _MobileNavEntry(
+        screen: MobileScreen.attendance,
+        icon: Icons.pending_actions_outlined,
+        activeIcon: Icons.pending_actions,
+        label: 'Attendance',
+        permission: null,
+      ),
       // "More" tab is always visible
       _MobileNavEntry(
         screen: MobileScreen.settings, // placeholder
@@ -355,7 +352,12 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           _currentMobileScreen == MobileScreen.expenses ||
           _currentMobileScreen == MobileScreen.settings ||
           _currentMobileScreen == MobileScreen.budget ||
-          _currentMobileScreen == MobileScreen.inventory) {
+          _currentMobileScreen == MobileScreen.employees ||
+          _currentMobileScreen == MobileScreen.financials ||
+          _currentMobileScreen == MobileScreen.equipment ||
+          _currentMobileScreen == MobileScreen.vendors ||
+          _currentMobileScreen == MobileScreen.reports ||
+          _currentMobileScreen == MobileScreen.profile) {
         // Find the "More" tab index
         final moreIdx = navEntries.indexWhere((e) => e.isMoreTab);
         if (moreIdx >= 0) bottomBarIndex = moreIdx;
@@ -425,36 +427,52 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  if (_hasPerm('billing.view'))
-                    ListTile(
-                      leading: const Icon(
-                        Icons.account_balance_wallet_outlined,
-                        color: AppColors.primary,
-                      ),
-                      title: const Text(
-                        'Financials & Money Hub',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _setMobileTab(MobileScreen.financials);
-                      },
+                  ListTile(
+                    leading: const Icon(
+                      Icons.inventory_2_outlined,
+                      color: AppColors.primary,
                     ),
-                  if (_hasPerm('inventory.view'))
-                    ListTile(
-                      leading: const Icon(
-                        Icons.inventory_2_outlined,
-                        color: AppColors.primary,
-                      ),
-                      title: const Text(
-                        'Inventory & Material Stock',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _setMobileTab(MobileScreen.inventory);
-                      },
+                    title: const Text(
+                      'Inventory & Material Stock',
+                      style: TextStyle(fontWeight: FontWeight.w600),
                     ),
+                    subtitle: const Text(
+                      'Receive stock, issue materials & track levels',
+                      style: TextStyle(fontSize: 11, color: AppColors.textMuted),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.inventory);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.account_balance_wallet_outlined,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Financials & Money Hub',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.financials);
+                    },
+                  ),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.people_outline,
+                      color: AppColors.primary,
+                    ),
+                    title: const Text(
+                      'Employees & Staff Directory',
+                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ),
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.employees);
+                    },
+                  ),
                   ListTile(
                     leading: const Icon(
                       Icons.construction_outlined,
