@@ -7,7 +7,6 @@ import 'core/theme/theme_provider.dart';
 import 'core/routing/router.dart';
 import 'core/widgets/responsive_layout.dart';
 import 'core/widgets/web_sidebar.dart';
-import 'core/widgets/web_header.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/projects/presentation/controllers/project_controller.dart';
 
@@ -672,14 +671,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           ),
           // ── Main Content Area ──
           Expanded(
-            child: Column(
-              children: [
-                // ── Shared Header ──
-                const WebHeader(),
-                // ── Content Body ──
-                Expanded(child: _buildWebContent()),
-              ],
-            ),
+            child: _buildWebContent(),
           ),
         ],
       ),
