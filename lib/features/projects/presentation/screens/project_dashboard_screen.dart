@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/currency_formatter.dart';
 import '../../data/models/project_dashboard_model.dart';
 import '../controllers/project_dashboard_controller.dart';
 import 'project_operations_screen.dart';
@@ -441,9 +442,14 @@ class _DashboardBody extends StatelessWidget {
     final cards = [
       _KPIData(
         icon: Icons.payments_outlined,
-        value: '₹${_fmt(stats.budget)}',
+        value: CurrencyFormatter.formatCompact(stats.budget),
         label: 'Total Budget',
-        badge: '${utilPct.toInt()}%',
+        subValue: stats.budget > 0
+            ? 'Total: ${CurrencyFormatter.formatFullINR(stats.budget)}'
+            : null,
+        badge: utilPct > 0 && utilPct < 1
+            ? '${utilPct.toStringAsFixed(1)}%'
+            : '${utilPct.toInt()}%',
         badgeColor: utilPct > 90 ? AppColors.error : AppColors.secondary,
         iconColor: AppColors.primary,
         onTap: () => Navigator.of(context).push(
@@ -458,8 +464,11 @@ class _DashboardBody extends StatelessWidget {
       ),
       _KPIData(
         icon: Icons.trending_up_outlined,
-        value: '₹${_fmt(stats.spent)}',
+        value: CurrencyFormatter.formatCompact(stats.spent),
         label: 'Amount Spent',
+        subValue: stats.spent > 0
+            ? 'Spent: ${CurrencyFormatter.formatFullINR(stats.spent)}'
+            : '₹0 spent',
         iconColor: utilPct > 90 ? AppColors.error : const Color(0xFF059669),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
@@ -473,8 +482,9 @@ class _DashboardBody extends StatelessWidget {
       ),
       _KPIData(
         icon: Icons.account_balance_outlined,
-        value: '₹${_fmt(stats.remainingBalance)}',
+        value: CurrencyFormatter.formatCompact(stats.remainingBalance),
         label: 'Remaining Balance',
+        subValue: 'Balance: ${CurrencyFormatter.formatFullINR(stats.remainingBalance)}',
         iconColor: stats.remainingBalance >= 0
             ? const Color(0xFF059669)
             : AppColors.error,
@@ -490,9 +500,9 @@ class _DashboardBody extends StatelessWidget {
       ),
       _KPIData(
         icon: Icons.calculate_outlined,
-        value: '₹${_fmt(stats.estimatedCost)}',
+        value: CurrencyFormatter.formatCompact(stats.estimatedCost),
         label: 'Estimated Cost',
-        subValue: 'Current: ₹${_fmt(stats.currentCost)}',
+        subValue: 'Current: ${CurrencyFormatter.formatCompact(stats.currentCost)}',
         iconColor: const Color(0xFF7C3AED),
         onTap: () => Navigator.of(context).push(
           MaterialPageRoute(
@@ -654,7 +664,8 @@ class _DashboardBody extends StatelessWidget {
 
     return _DashboardCard(
       title: 'Budget vs Actual Financial Performance',
-      subtitle: 'Spent: ₹${_fmt(spent)} of ₹${_fmt(budget)}',
+      subtitle:
+          'Spent: ${CurrencyFormatter.formatFullINR(spent)} of ${CurrencyFormatter.formatFullINR(budget)} (Balance: ${CurrencyFormatter.formatFullINR(remaining)})',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -2190,12 +2201,7 @@ class _DashboardBody extends StatelessWidget {
   }
 
   String _fmt(double v) {
-    if (v.isNaN || v.isInfinite) return '0';
-    if (v < 0) return '-₹${_fmt(-v).replaceAll('₹', '')}';
-    if (v >= 10000000) return '${(v / 10000000).toStringAsFixed(1)}Cr';
-    if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
-    if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
-    return v.toStringAsFixed(0);
+    return CurrencyFormatter.formatCompact(v, includeSymbol: false);
   }
 }
 

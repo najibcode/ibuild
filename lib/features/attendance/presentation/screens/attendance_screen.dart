@@ -637,13 +637,15 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         if (context.mounted) {
                           final match = projects.where((p) => p.id == projId);
                           final siteName = match.isNotEmpty ? match.first.name : 'Site';
+                          final salaryText = employee.salary > 0
+                              ? ' • ₹${employee.salary.toInt()} added to expenses'
+                              : '';
                           ScaffoldMessenger.of(context).clearSnackBars();
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text('${employee.name} assigned to $siteName ✓'),
-                              duration: const Duration(seconds: 1),
+                              content: Text('${employee.name} assigned to $siteName$salaryText ✓'),
+                              duration: const Duration(seconds: 2),
                               behavior: SnackBarBehavior.floating,
-                              width: 280,
                               backgroundColor: AppColors.secondary,
                             ),
                           );

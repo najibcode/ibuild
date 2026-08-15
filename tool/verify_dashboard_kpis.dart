@@ -16,7 +16,20 @@ void main() {
   print('₹25,000      → $test1  ${test1 == "₹25,000" ? "✓ PASSED" : "❌ FAILED"}');
   print('₹2,50,000    → $test2  ${test2 == "₹2.5 L" ? "✓ PASSED" : "❌ FAILED"}');
   print('₹2,45,00,000 → $test3 ${test3 == "₹2.45 Cr" ? "✓ PASSED" : "❌ FAILED"}');
-  print('₹1,38,00,000 → $test4 ${test4 == "₹1.38 Cr" ? "✓ PASSED" : "❌ FAILED"}\n');
+  print('₹1,38,00,000 → $test4 ${test4 == "₹1.38 Cr" ? "✓ PASSED" : "❌ FAILED"}');
+
+  final budget = 6000000.0;
+  final spent = 1900.0;
+  final remaining = budget - spent;
+
+  final compactBudget = CurrencyFormatter.formatCompact(budget);
+  final compactSpent = CurrencyFormatter.formatCompact(spent);
+  final compactRemaining = CurrencyFormatter.formatCompact(remaining);
+  final fullRemaining = CurrencyFormatter.formatFullINR(remaining);
+
+  print('Total Budget:      $compactBudget (${CurrencyFormatter.formatFullINR(budget)}) ${compactBudget == "₹60L" ? "✓" : "❌"}');
+  print('Amount Spent:      $compactSpent (${CurrencyFormatter.formatFullINR(spent)}) ${compactSpent == "₹1.9K" ? "✓" : "❌"}');
+  print('Remaining Balance: $compactRemaining ($fullRemaining) ${compactRemaining == "₹59.98L" && fullRemaining == "₹59,98,100" ? "✓ PASSED" : "❌ FAILED"}\n');
 
   // Test 2: Portfolio Performance Matrix & Variance Calculations
   print('━━━ 2. Portfolio Performance Matrix & Financial Variance ━━━');

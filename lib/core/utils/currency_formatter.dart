@@ -16,6 +16,33 @@ class CurrencyFormatter {
     }
   }
 
+  /// Formats full exact amount with Indian commas (e.g. ₹60,00,000, ₹59,98,100, ₹1,900).
+  static String formatFullINR(double amount, {bool includeSymbol = true}) {
+    final prefix = includeSymbol ? '₹' : '';
+    final formatted = _formatWithCommas(amount.round());
+    return '$prefix$formatted';
+  }
+
+  /// Compact smart formatter for dashboard KPIs (e.g. ₹60L, ₹59.98L, ₹1.9K, ₹850).
+  static String formatCompact(double amount, {bool includeSymbol = true}) {
+    if (amount.isNaN || amount.isInfinite) return includeSymbol ? '₹0' : '0';
+    final prefix = includeSymbol ? '₹' : '';
+    if (amount < 0) return '-$prefix${formatCompact(-amount, includeSymbol: false)}';
+
+    final absAmt = amount.abs();
+    if (absAmt >= 10000000) {
+      final cr = amount / 10000000;
+      return '$prefix${_formatDecimal(cr)}Cr';
+    } else if (absAmt >= 100000) {
+      final lakh = amount / 100000;
+      return '$prefix${_formatDecimal(lakh)}L';
+    } else if (absAmt >= 1000) {
+      final k = amount / 1000;
+      return '$prefix${_formatDecimal(k)}K';
+    }
+    return '$prefix${amount.toStringAsFixed(0)}';
+  }
+
   static String _formatDecimal(double val) {
     final absVal = val.abs();
     if (absVal == absVal.roundToDouble()) {

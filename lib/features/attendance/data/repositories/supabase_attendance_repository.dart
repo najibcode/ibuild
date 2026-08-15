@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../domain/repositories/attendance_repository.dart';
 import '../models/attendance_model.dart';
+import '../../../employees/data/models/employee_model.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 class SupabaseAttendanceRepository implements AttendanceRepository {
@@ -189,6 +190,158 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         return [];
       }
     }
+  }
+
+  @override
+  Future<void> syncEmployeeSalaryExpense({
+    required Employee employee,
+    required String? projectId,
+    required String date,
+    required bool isPresent,
+  }) async {
+    final noteTag = '[EMP:${employee.id}]';
+    final salary = employee.salary;
+
+    try {
+      // Find existing auto-generated wage expense for this employee on this date
+      final existingRows = await _client
+          .from('expenses')
+          .select('id, project_id, amount, notes')
+          .eq('expense_date', date)
+          .eq('category', 'Labour')
+          .ilike('notes', '%$noteTag%');
+
+      final existingList = (existingRows as List);
+
+      if (!isPresent || projectId == null || projectId.isEmpty || salary <= 0) {
+        // Employee is absent or unassigned or has zero salary: Remove any existing auto-wage expense(s)
+        for (final row in existingList) {
+          final expId = row['id'] as String;
+          final pId = row['project_id'] as String?;
+          final amt = (row['amount'] as num?)?.toDouble() ?? 0.0;
+
+          await _client.from('expenses').delete().eq('id', expId);
+          if (pId != null && pId.isNotEmpty && amt > 0) {
+            await _decrementProjectSpent(pId, amt);
+          }
+          debugPrint('[Attendance] Removed salary expense $expId for employee ${employee.name}');
+        }
+        return;
+      }
+
+      // Employee is Present at projectId with salary > 0
+      final noteText = 'Daily salary for ${employee.name} (${employee.role}) $noteTag';
+
+      if (existingList.isNotEmpty) {
+        final first = existingList.first;
+        final existingId = first['id'] as String;
+        final currentProjId = first['project_id'] as String?;
+        final currentAmount = (first['amount'] as num?)?.toDouble() ?? 0.0;
+
+        if (currentProjId == projectId && currentAmount == salary) {
+          debugPrint('[Attendance] Salary expense already up-to-date for ${employee.name} at project $projectId');
+        } else {
+          // Project or amount changed: update expense and adjust spent
+          await _client.from('expenses').update({
+            'project_id': projectId,
+            'amount': salary,
+            'notes': noteText,
+          }).eq('id', existingId);
+
+          if (currentProjId != projectId) {
+            if (currentProjId != null && currentProjId.isNotEmpty && currentAmount > 0) {
+              await _decrementProjectSpent(currentProjId, currentAmount);
+            }
+            await _incrementProjectSpent(projectId, salary);
+          } else if (currentAmount != salary) {
+            final diff = salary - currentAmount;
+            if (diff > 0) {
+              await _incrementProjectSpent(projectId, diff);
+            } else if (diff < 0) {
+              await _decrementProjectSpent(projectId, -diff);
+            }
+          }
+          debugPrint('[Attendance] Updated salary expense $existingId for employee ${employee.name} to project $projectId');
+        }
+
+        // Clean up any duplicate rows if any exist
+        if (existingList.length > 1) {
+          for (int i = 1; i < existingList.length; i++) {
+            final dupId = existingList[i]['id'] as String;
+            final dupPid = existingList[i]['project_id'] as String?;
+            final dupAmt = (existingList[i]['amount'] as num?)?.toDouble() ?? 0.0;
+            await _client.from('expenses').delete().eq('id', dupId);
+            if (dupPid != null && dupPid.isNotEmpty && dupAmt > 0) {
+              await _decrementProjectSpent(dupPid, dupAmt);
+            }
+          }
+        }
+      } else {
+        // No existing expense: Insert new expense
+        await _client.from('expenses').insert({
+          'project_id': projectId,
+          'expense_date': date,
+          'category': 'Labour',
+          'amount': salary,
+          'payment_mode': 'cash',
+          'notes': noteText,
+        });
+
+        await _incrementProjectSpent(projectId, salary);
+        debugPrint('[Attendance] Created salary expense of ₹$salary for employee ${employee.name} at project $projectId');
+
+        try {
+          await _activityRepo.logActivity(
+            actionType: 'created_expense',
+            entityType: 'Expense',
+            entityId: projectId,
+            details: {
+              'category': 'Labour',
+              'amount': salary,
+              'employee_name': employee.name,
+              'notes': noteText,
+            },
+          );
+        } catch (_) {}
+      }
+    } catch (e) {
+      debugPrint('[Attendance] syncEmployeeSalaryExpense FAILED: $e');
+    }
+  }
+
+  Future<void> _incrementProjectSpent(String projectId, double amount) async {
+    try {
+      final row = await _client
+          .from('projects')
+          .select('spent')
+          .eq('id', projectId)
+          .maybeSingle();
+      if (row != null) {
+        final currentSpent = (row['spent'] as num?)?.toDouble() ?? 0.0;
+        await _client
+            .from('projects')
+            .update({'spent': currentSpent + amount})
+            .eq('id', projectId);
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _decrementProjectSpent(String projectId, double amount) async {
+    try {
+      final row = await _client
+          .from('projects')
+          .select('spent')
+          .eq('id', projectId)
+          .maybeSingle();
+      if (row != null) {
+        final currentSpent = (row['spent'] as num?)?.toDouble() ?? 0.0;
+        final newSpent = (currentSpent - amount).clamp(0.0, double.infinity);
+        await _client
+            .from('projects')
+            .update({'spent': newSpent})
+            .eq('id', projectId);
+      }
+    } catch (_) {}
   }
 }
 

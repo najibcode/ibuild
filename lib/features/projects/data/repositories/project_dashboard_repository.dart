@@ -32,6 +32,10 @@ class ProjectDashboardRepository {
       final activities = results[6] as List<ProjectDashboardActivity>;
       final physProg = results[7] as double?;
 
+      final realSpent = expenses.total > 0
+          ? expenses.total
+          : ((project?['spent'] as num?)?.toDouble() ?? 0.0);
+
       return ProjectDashboardStats(
         projectId: projectId,
         projectName: project?['name'] as String? ?? 'Project Dashboard',
@@ -43,7 +47,7 @@ class ProjectDashboardRepository {
         address: project?['address'] as String?,
         imageUrl: project?['image_url'] as String?,
         budget: (project?['budget'] as num?)?.toDouble() ?? 0.0,
-        spent: (project?['spent'] as num?)?.toDouble() ?? 0.0,
+        spent: realSpent,
         estimatedCost: (project?['estimated_cost'] as num?)?.toDouble() ?? 0.0,
         currentCost: (project?['current_cost'] as num?)?.toDouble() ?? 0.0,
         workersPresent: attendance.present,

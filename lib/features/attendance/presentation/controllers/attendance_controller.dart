@@ -10,6 +10,7 @@ import '../../../employees/data/models/employee_model.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
 import '../../../settings/data/repositories/supabase_settings_repository.dart';
+import '../../../expenses/presentation/controllers/expense_controller.dart';
 
 final attendanceRepositoryProvider = Provider<AttendanceRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
@@ -223,7 +224,7 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     // Persist to backend asynchronously in background without blocking UI thread
     _repository.saveAttendance(newRecord).then((_) {
       debugPrint('[AttendanceCtrl] markAttendance PERSISTED successfully in background');
-      _ref.refresh(dashboardStatsProvider);
+      _ref.invalidate(dashboardStatsProvider);
     }).catchError((e) {
       debugPrint('[AttendanceCtrl] markAttendance FAILED background persist: $e');
     });
@@ -234,6 +235,44 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     }).catchError((e) {
       debugPrint('[AttendanceCtrl] site_assignments save error: $e');
     });
+
+    // Automatically sync employee salary to project expenses
+    void doSyncExpense(Employee emp) {
+      _repository.syncEmployeeSalaryExpense(
+        employee: emp,
+        projectId: assignedProjId,
+        date: dateStr,
+        isPresent: normalizedStatus == 'Present',
+      ).then((_) {
+        debugPrint('[AttendanceCtrl] syncEmployeeSalaryExpense completed for ${emp.name}');
+        try {
+          _ref.read(expenseControllerProvider.notifier).loadExpenses();
+          _ref.read(projectControllerProvider.notifier).loadProjects();
+          _ref.invalidate(dashboardStatsProvider);
+        } catch (_) {}
+      }).catchError((e) {
+        debugPrint('[AttendanceCtrl] syncEmployeeSalaryExpense error: $e');
+      });
+    }
+
+    Employee? targetEmployee;
+    for (final e in state.activeEmployees) {
+      if (e.id == employeeId) {
+        targetEmployee = e;
+        break;
+      }
+    }
+
+    if (targetEmployee != null) {
+      doSyncExpense(targetEmployee);
+    } else {
+      _ref.read(employeeRepositoryProvider).getEmployees().then((allEmps) {
+        final match = allEmps.where((e) => e.id == employeeId);
+        if (match.isNotEmpty) {
+          doSyncExpense(match.first);
+        }
+      }).catchError((_) {});
+    }
 
     return true;
   }
