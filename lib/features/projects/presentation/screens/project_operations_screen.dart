@@ -26,11 +26,31 @@ import '../../../daily_progress/presentation/screens/daily_progress_screen.dart'
 import '../../../reports/presentation/screens/full_report_generator_screen.dart';
 import '../../../sales_bills/presentation/screens/sales_bill_builder_screen.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
+import '../../../expenses/data/models/expense_model.dart';
+import '../../../expenses/presentation/controllers/expense_controller.dart';
+import '../../../expenses/presentation/screens/expense_form_screen.dart';
+import '../../../../core/utils/currency_formatter.dart';
+import '../../../../core/services/excel_generator_service.dart';
+import '../../../../core/services/generic_pdf_table_generator.dart';
+import '../../../../core/utils/excel_download_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/widgets/data_export_actions.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_dashboard_screen.dart';
 
 // Providers
+final projectExpensesProvider =
+    FutureProvider.family<List<Expense>, String>((ref, projectId) async {
+      final repo = ref.watch(expenseRepositoryProvider);
+      return await repo.getExpenses(
+        projectId: projectId,
+        limit: 500,
+        sortBy: 'expense_date',
+        ascending: false,
+      );
+    });
+
 final projectChecklistProvider =
     FutureProvider.family<List<ChecklistItem>, String>((ref, projectId) async {
       final client = ref.watch(supabaseClientProvider);
@@ -105,6 +125,10 @@ class ProjectOperationsScreen extends ConsumerStatefulWidget {
 class _ProjectOperationsScreenState
     extends ConsumerState<ProjectOperationsScreen> {
   late int _activeSection; // 1..10 = Submodules
+  int _financeSegment = 0; // 0 = Project Expenses & Outflows, 1 = Payment Receipts & Inflows
+  String _expenseCategoryFilter = 'All';
+  String _expenseSearch = '';
+  final TextEditingController _expenseSearchController = TextEditingController();
 
   @override
   void initState() {
@@ -112,12 +136,18 @@ class _ProjectOperationsScreenState
     _activeSection = widget.initialSection;
   }
 
+  @override
+  void dispose() {
+    _expenseSearchController.dispose();
+    super.dispose();
+  }
+
   final Map<int, String> _sectionTitles = {
     0: 'Project Dashboard',
     1: 'Today Attendance',
     2: 'Materials Inventory',
     3: 'Subcontractor / Trade Partners',
-    4: 'Payment Ledger Status',
+    4: 'Project Expenses & Financials',
     5: 'Checklist Inspection',
     6: 'Site Drawings & Blueprints',
     7: 'Sales Bills & Client Invoices',
@@ -1165,14 +1195,774 @@ class _ProjectOperationsScreenState
     );
   }
 
-  // 4. Payments Tab
+  // 4. Project Expenses & Financials Tab
+  IconData _getExpenseCategoryIcon(String category) {
+    switch (category.toLowerCase()) {
+      case 'labour':
+        return Icons.engineering_outlined;
+      case 'materials':
+      case 'material':
+        return Icons.inventory_2_outlined;
+      case 'transport':
+        return Icons.local_shipping_outlined;
+      case 'equipment':
+        return Icons.build_outlined;
+      case 'food':
+        return Icons.restaurant_outlined;
+      case 'fuel':
+        return Icons.local_gas_station_outlined;
+      case 'office & admin':
+        return Icons.business_outlined;
+      case 'safety & ppe':
+        return Icons.health_and_safety_outlined;
+      default:
+        return Icons.receipt_long_outlined;
+    }
+  }
+
+  Color _getExpenseCategoryColor(String category) {
+    switch (category.toLowerCase()) {
+      case 'materials':
+      case 'material':
+        return const Color(0xFFF59E0B);
+      case 'equipment':
+        return const Color(0xFF6366F1);
+      case 'labour':
+        return const Color(0xFF059669);
+      case 'transport':
+        return const Color(0xFF3B82F6);
+      case 'fuel':
+        return const Color(0xFFEF4444);
+      case 'food':
+        return const Color(0xFFEC4899);
+      case 'office & admin':
+        return const Color(0xFF8B5CF6);
+      case 'safety & ppe':
+        return const Color(0xFF14B8A6);
+      default:
+        return const Color(0xFF94A3B8);
+    }
+  }
+
+  Future<void> _confirmDeleteProjectExpense(Expense expense) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        title: const Text('Delete Expense Record'),
+        content: Text(
+          'Are you sure you want to delete this ₹${expense.amount.toStringAsFixed(2)} (${expense.category}) expense?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.error,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm == true) {
+      final success = await ref
+          .read(expenseControllerProvider.notifier)
+          .removeExpense(expense.id);
+      if (mounted) {
+        if (success) {
+          ref.invalidate(projectExpensesProvider(widget.projectId));
+          ref.invalidate(projectDetailByIdProvider(widget.projectId));
+          ref.read(projectControllerProvider.notifier).loadProjects();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Expense deleted successfully')),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete expense'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
+      }
+    }
+  }
+
   Widget _buildPaymentsTab() {
+    return Column(
+      children: [
+        // Top Segmented Switch: Expenses vs Inflow Receipts
+        Container(
+          margin: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          padding: const EdgeInsets.all(4),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border(context)),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _financeSegment = 0),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _financeSegment == 0
+                          ? AppColors.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.receipt_long_outlined,
+                            size: 16,
+                            color: _financeSegment == 0
+                                ? Colors.white
+                                : AppColors.text(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Project Expenses (All Outflows)',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: _financeSegment == 0
+                                  ? Colors.white
+                                  : AppColors.text(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Expanded(
+                child: InkWell(
+                  onTap: () => setState(() => _financeSegment = 1),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 10),
+                    decoration: BoxDecoration(
+                      color: _financeSegment == 1
+                          ? AppColors.primary
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Center(
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.account_balance_wallet_outlined,
+                            size: 16,
+                            color: _financeSegment == 1
+                                ? Colors.white
+                                : AppColors.text(context),
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Payment Inflows & Ledger',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: _financeSegment == 1
+                                  ? Colors.white
+                                  : AppColors.text(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        // Body Content based on active financial segment
+        Expanded(
+          child: _financeSegment == 0
+              ? _buildProjectExpensesView()
+              : _buildPaymentReceiptsView(),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProjectExpensesView() {
+    final expensesAsync = ref.watch(projectExpensesProvider(widget.projectId));
+
+    return expensesAsync.when(
+      data: (allExpenses) {
+        final totalAmount = allExpenses.fold(0.0, (s, e) => s + e.amount);
+        final labourAmount = allExpenses
+            .where((e) => e.category.toLowerCase() == 'labour')
+            .fold(0.0, (s, e) => s + e.amount);
+        final materialAmount = allExpenses
+            .where((e) =>
+                e.category.toLowerCase().contains('mat') ||
+                e.category.toLowerCase().contains('inven'))
+            .fold(0.0, (s, e) => s + e.amount);
+        final otherAmount =
+            (totalAmount - labourAmount - materialAmount).clamp(0.0, double.infinity);
+
+        // Filter by category and search
+        final filteredExpenses = allExpenses.where((e) {
+          final matchesCat = _expenseCategoryFilter == 'All' ||
+              e.category.toLowerCase() == _expenseCategoryFilter.toLowerCase() ||
+              (_expenseCategoryFilter == 'Materials' &&
+                  e.category.toLowerCase().contains('mat'));
+          final matchesSearch = _expenseSearch.isEmpty ||
+              (e.notes ?? '').toLowerCase().contains(_expenseSearch.toLowerCase()) ||
+              e.category.toLowerCase().contains(_expenseSearch.toLowerCase()) ||
+              (e.projectName ?? '').toLowerCase().contains(_expenseSearch.toLowerCase());
+          return matchesCat && matchesSearch;
+        }).toList();
+
+        return CustomScrollView(
+          slivers: [
+            // KPI Summary Cards Strip
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth >= 600;
+                    final cardList = [
+                      _buildExpenseSummaryTile(
+                        title: 'Total Spent',
+                        amount: totalAmount,
+                        icon: Icons.trending_up_outlined,
+                        color: const Color(0xFF059669),
+                        subtitle: '${allExpenses.length} total expense entries',
+                      ),
+                      _buildExpenseSummaryTile(
+                        title: 'Labour & Wages',
+                        amount: labourAmount,
+                        icon: Icons.engineering_outlined,
+                        color: const Color(0xFF059669),
+                        subtitle: 'Site worker attendance wages',
+                      ),
+                      _buildExpenseSummaryTile(
+                        title: 'Materials & Stock',
+                        amount: materialAmount,
+                        icon: Icons.inventory_2_outlined,
+                        color: const Color(0xFFF59E0B),
+                        subtitle: 'Inventory deliveries & issues',
+                      ),
+                      _buildExpenseSummaryTile(
+                        title: 'Other Operations',
+                        amount: otherAmount,
+                        icon: Icons.build_outlined,
+                        color: const Color(0xFF6366F1),
+                        subtitle: 'Equipment, fuel, transport, etc.',
+                      ),
+                    ];
+
+                    if (isWide) {
+                      return Row(
+                        children: cardList
+                            .map((c) => Expanded(
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                                    child: c,
+                                  ),
+                                ))
+                            .toList(),
+                      );
+                    }
+
+                    return GridView.count(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      crossAxisCount: 2,
+                      childAspectRatio: 1.4,
+                      mainAxisSpacing: 8,
+                      crossAxisSpacing: 8,
+                      children: cardList,
+                    );
+                  },
+                ),
+              ),
+            ),
+
+            // Action Bar: Search, Category Filter, Export, Add Expense
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _expenseSearchController,
+                            style: TextStyle(color: AppColors.text(context), fontSize: 13),
+                            decoration: InputDecoration(
+                              hintText: 'Search expenses (salary, materials, notes)...',
+                              prefixIcon: const Icon(Icons.search, size: 18),
+                              isDense: true,
+                              contentPadding: const EdgeInsets.symmetric(vertical: 10, horizontal: 12),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              suffixIcon: _expenseSearch.isNotEmpty
+                                  ? IconButton(
+                                      icon: const Icon(Icons.clear, size: 16),
+                                      onPressed: () {
+                                        _expenseSearchController.clear();
+                                        setState(() => _expenseSearch = '');
+                                      },
+                                    )
+                                  : null,
+                            ),
+                            onChanged: (v) => setState(() => _expenseSearch = v.trim()),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        DataExportActions(
+                          compact: true,
+                          onExportPdfWithDates: (start, end) async {
+                            final startStr =
+                                '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+                            final endStr =
+                                '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+                            final filtered = allExpenses.where((e) {
+                              final d = DateTime.tryParse(e.expenseDate);
+                              if (d == null) return false;
+                              return !d.isBefore(start) && !d.isAfter(end);
+                            }).toList();
+                            final pdfBytes = await GenericPdfTableGenerator.generatePdf(
+                              title: '${widget.projectName} — Expenses & Outflows',
+                              subtitle:
+                                  'Complete financial outflow ledger ($startStr to $endStr)',
+                              headers: [
+                                'ID',
+                                'Date',
+                                'Category',
+                                'Amount (INR)',
+                                'Mode',
+                                'Description / Notes'
+                              ],
+                              data: filtered
+                                  .map((e) => [
+                                        e.shortId,
+                                        e.expenseDate,
+                                        e.category,
+                                        'INR ${e.amount.toStringAsFixed(2)}',
+                                        e.paymentMode.toUpperCase(),
+                                        e.notes ?? '',
+                                      ])
+                                  .toList(),
+                            );
+                            await PdfDownloadHelper.downloadPdf(
+                              bytes: pdfBytes,
+                              filename:
+                                  '${widget.projectName}_Expenses_${startStr}_to_$endStr.pdf',
+                            );
+                          },
+                          onExportExcelWithDates: (start, end) async {
+                            final startStr =
+                                '${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}';
+                            final endStr =
+                                '${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}';
+                            final filtered = allExpenses.where((e) {
+                              final d = DateTime.tryParse(e.expenseDate);
+                              if (d == null) return false;
+                              return !d.isBefore(start) && !d.isAfter(end);
+                            }).toList();
+                            final excelBytes = ExcelGeneratorService.generateTableExcel(
+                              sheetName: 'Expenses',
+                              title: '${widget.projectName} — Project Outflows',
+                              headers: [
+                                'Expense ID',
+                                'Date',
+                                'Category',
+                                'Amount (INR)',
+                                'Payment Mode',
+                                'Description / Notes'
+                              ],
+                              rows: filtered
+                                  .map((e) => [
+                                        e.shortId,
+                                        e.expenseDate,
+                                        e.category,
+                                        e.amount,
+                                        e.paymentMode.toUpperCase(),
+                                        e.notes ?? '',
+                                      ])
+                                  .toList(),
+                            );
+                            await ExcelDownloadHelper.downloadExcel(
+                              bytes: excelBytes,
+                              filename:
+                                  '${widget.projectName}_Expenses_${startStr}_to_$endStr.xlsx',
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ElevatedButton.icon(
+                          onPressed: () async {
+                            await Navigator.of(context).push(
+                              MaterialPageRoute(
+                                builder: (_) => ExpenseFormScreen(
+                                  initialProjectId: widget.projectId,
+                                ),
+                              ),
+                            );
+                            ref.invalidate(projectExpensesProvider(widget.projectId));
+                            ref.invalidate(projectDetailByIdProvider(widget.projectId));
+                            ref.read(projectControllerProvider.notifier).loadProjects();
+                          },
+                          icon: const Icon(Icons.add, size: 16),
+                          label: const Text('Add Expense'),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppColors.secondary,
+                            foregroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Category Filter Chips
+                    SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          'All',
+                          'Labour',
+                          'Materials',
+                          'Equipment',
+                          'Transport',
+                          'Fuel',
+                          'Food',
+                          'Office & Admin',
+                          'Safety & PPE',
+                          'Miscellaneous',
+                        ].map((cat) {
+                          final isSel = _expenseCategoryFilter == cat;
+                          return Padding(
+                            padding: const EdgeInsets.only(right: 6),
+                            child: FilterChip(
+                              label: Text(
+                                cat,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: isSel ? FontWeight.bold : FontWeight.normal,
+                                  color: isSel ? Colors.white : AppColors.text(context),
+                                ),
+                              ),
+                              selected: isSel,
+                              selectedColor: AppColors.primary,
+                              backgroundColor: AppColors.cardBg(context),
+                              checkmarkColor: Colors.white,
+                              onSelected: (_) {
+                                setState(() => _expenseCategoryFilter = cat);
+                              },
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
+            const SliverToBoxAdapter(child: SizedBox(height: 8)),
+
+            // Expenses List
+            if (filteredExpenses.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _emptyState(
+                  'No expenses found',
+                  allExpenses.isEmpty
+                      ? 'No expenses recorded for this project yet. Assign workers, issue materials, or click "+ Add Expense".'
+                      : 'No expenses match the selected filter or search term.',
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                sliver: SliverList(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) {
+                      final exp = filteredExpenses[index];
+                      final catColor = _getExpenseCategoryColor(exp.category);
+                      final catIcon = _getExpenseCategoryIcon(exp.category);
+
+                      return Card(
+                        color: AppColors.cardBg(context),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: AppColors.border(context)),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 42,
+                                height: 42,
+                                decoration: BoxDecoration(
+                                  color: catColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(10),
+                                  border: Border.all(color: catColor.withValues(alpha: 0.3)),
+                                ),
+                                child: Icon(catIcon, color: catColor, size: 20),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      (exp.notes != null && exp.notes!.trim().isNotEmpty)
+                                          ? exp.notes!
+                                          : '${exp.category} Expense',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: AppColors.text(context),
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Wrap(
+                                      spacing: 8,
+                                      runSpacing: 4,
+                                      children: [
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.mutedText(context).withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            exp.shortId,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.mutedText(context),
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: catColor.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            exp.category,
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.bold,
+                                              color: catColor,
+                                            ),
+                                          ),
+                                        ),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(
+                                              horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.border(context),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: Text(
+                                            exp.paymentMode.toUpperCase(),
+                                            style: TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: AppColors.mutedText(context),
+                                            ),
+                                          ),
+                                        ),
+                                        Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.calendar_today_outlined,
+                                              size: 11,
+                                              color: AppColors.mutedText(context),
+                                            ),
+                                            const SizedBox(width: 3),
+                                            Text(
+                                              exp.expenseDate,
+                                              style: TextStyle(
+                                                fontSize: 11,
+                                                color: AppColors.mutedText(context),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    '-${CurrencyFormatter.formatFullINR(exp.amount)}',
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 15,
+                                      color: AppColors.error,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, size: 16),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        tooltip: 'Edit Expense',
+                                        onPressed: () async {
+                                          await Navigator.of(context).push(
+                                            MaterialPageRoute(
+                                              builder: (_) => ExpenseFormScreen(
+                                                expense: exp,
+                                                initialProjectId: widget.projectId,
+                                              ),
+                                            ),
+                                          );
+                                          ref.invalidate(
+                                              projectExpensesProvider(widget.projectId));
+                                          ref.invalidate(
+                                              projectDetailByIdProvider(widget.projectId));
+                                          ref
+                                              .read(projectControllerProvider.notifier)
+                                              .loadProjects();
+                                        },
+                                      ),
+                                      const SizedBox(width: 10),
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline,
+                                            size: 16, color: AppColors.error),
+                                        visualDensity: VisualDensity.compact,
+                                        padding: EdgeInsets.zero,
+                                        constraints: const BoxConstraints(),
+                                        tooltip: 'Delete Expense',
+                                        onPressed: () => _confirmDeleteProjectExpense(exp),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    },
+                    childCount: filteredExpenses.length,
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error loading project expenses: $e')),
+    );
+  }
+
+  Widget _buildExpenseSummaryTile({
+    required String title,
+    required double amount,
+    required IconData icon,
+    required Color color,
+    required String subtitle,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border(context)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: color, size: 18),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.mutedText(context),
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  CurrencyFormatter.formatCompact(amount),
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
+                ),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: AppColors.mutedText(context),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPaymentReceiptsView() {
     final payAsync = ref.watch(projectPaymentsProvider(widget.projectId));
 
     return Column(
       children: [
         Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -1180,7 +1970,7 @@ class _ProjectOperationsScreenState
                 'Payment Ledger & Receipts',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  fontSize: 16,
+                  fontSize: 15,
                   color: AppColors.text(context),
                 ),
               ),
@@ -1191,6 +1981,7 @@ class _ProjectOperationsScreenState
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.secondary,
                   foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
               ),
             ],
@@ -1202,7 +1993,7 @@ class _ProjectOperationsScreenState
               if (payments.isEmpty) {
                 return _emptyState(
                   'No payment records',
-                  'Record payments received or paid for this project',
+                  'Record client receipts and payments received or paid for this project',
                 );
               }
               return ListView.builder(
@@ -1273,6 +2064,7 @@ class _ProjectOperationsScreenState
       ],
     );
   }
+
 
   // 5. Checklist Tab
   Widget _buildChecklistTab() {

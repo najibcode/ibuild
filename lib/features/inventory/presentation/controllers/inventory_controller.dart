@@ -1,6 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
+import '../../../dashboard/presentation/controllers/dashboard_controller.dart';
+import '../../../expenses/presentation/controllers/expense_controller.dart';
+import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../data/repositories/supabase_inventory_repository.dart';
 import '../../domain/repositories/inventory_repository.dart';
 import '../../data/models/inventory_item_model.dart';
@@ -65,10 +68,19 @@ class InventoryListState {
 
 class InventoryController extends StateNotifier<InventoryListState> {
   final InventoryRepository _repository;
+  final Ref? _ref;
   static const _pageSize = 20;
 
-  InventoryController(this._repository) : super(InventoryListState.initial()) {
+  InventoryController(this._repository, [this._ref]) : super(InventoryListState.initial()) {
     loadItems();
+  }
+
+  void _invalidateConnectedProviders() {
+    if (_ref != null) {
+      _ref.invalidate(lowStockProvider);
+      _ref.invalidate(recentActivitiesProvider);
+      _ref.invalidate(unreadNotificationsCountProvider);
+    }
   }
 
   Future<void> loadItems({bool reset = true}) async {
@@ -104,11 +116,25 @@ class InventoryController extends StateNotifier<InventoryListState> {
   void setSort(String s) { state = state.copyWith(sortBy: s, ascending: !state.ascending); loadItems(); }
 
   Future<bool> addItem(InventoryItem item) async {
-    try { await _repository.createItem(item); await loadItems(); return true; } catch (_) { return false; }
+    try {
+      await _repository.createItem(item);
+      await loadItems();
+      _invalidateConnectedProviders();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> editItem(InventoryItem item) async {
-    try { await _repository.updateItem(item); await loadItems(); return true; } catch (_) { return false; }
+    try {
+      await _repository.updateItem(item);
+      await loadItems();
+      _invalidateConnectedProviders();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 
   Future<bool> adjustStock(InventoryItem item, double delta) async {
@@ -131,6 +157,7 @@ class InventoryController extends StateNotifier<InventoryListState> {
       );
 
       await loadItems();
+      _invalidateConnectedProviders();
       return true;
     } catch (_) {
       return false;
@@ -142,6 +169,8 @@ class InventoryController extends StateNotifier<InventoryListState> {
     required double quantity,
     required String supplier,
     double? unitPrice,
+    String? projectId,
+    String? projectName,
     String? notes,
   }) async {
     try {
@@ -150,9 +179,23 @@ class InventoryController extends StateNotifier<InventoryListState> {
         quantity: quantity,
         supplier: supplier,
         unitPrice: unitPrice,
+        projectId: projectId,
+        projectName: projectName,
         notes: notes,
       );
       await loadItems();
+      _invalidateConnectedProviders();
+      if (_ref != null &&
+          projectId != null &&
+          projectId.isNotEmpty &&
+          projectId != 'central' &&
+          projectId != 'none') {
+        try {
+          _ref.read(expenseControllerProvider.notifier).loadExpenses();
+          _ref.read(projectControllerProvider.notifier).loadProjects();
+          _ref.invalidate(dashboardStatsProvider);
+        } catch (_) {}
+      }
       return true;
     } catch (_) {
       return false;
@@ -175,6 +218,14 @@ class InventoryController extends StateNotifier<InventoryListState> {
         notes: notes,
       );
       await loadItems();
+      _invalidateConnectedProviders();
+      if (_ref != null) {
+        try {
+          _ref.read(expenseControllerProvider.notifier).loadExpenses();
+          _ref.read(projectControllerProvider.notifier).loadProjects();
+          _ref.invalidate(dashboardStatsProvider);
+        } catch (_) {}
+      }
       return true;
     } catch (_) {
       return false;
@@ -182,15 +233,23 @@ class InventoryController extends StateNotifier<InventoryListState> {
   }
 
   Future<bool> removeItem(String id) async {
-    try { await _repository.deleteItem(id); await loadItems(); return true; } catch (_) { return false; }
+    try {
+      await _repository.deleteItem(id);
+      await loadItems();
+      _invalidateConnectedProviders();
+      return true;
+    } catch (_) {
+      return false;
+    }
   }
 }
 
 final inventoryControllerProvider =
     StateNotifierProvider<InventoryController, InventoryListState>((ref) {
   final repo = ref.watch(inventoryRepositoryProvider);
-  return InventoryController(repo);
+  return InventoryController(repo, ref);
 });
+
 
 final lowStockProvider = FutureProvider<List<InventoryItem>>((ref) async {
   final repo = ref.watch(inventoryRepositoryProvider);

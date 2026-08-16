@@ -64,50 +64,51 @@ class SupabaseInventoryRepository implements InventoryRepository {
     }
 
     await _client.from('inventory').insert(item.toJson());
-    
+
     // Log activity & broadcast notifications
-    await _activityRepo.logSiteActivityAndNotify(
-      actionType: 'inventory_added',
-      entityType: 'Inventory',
-      entityId: item.id,
-      title: 'New Stock Added: ${item.materialName} (${item.quantity} ${item.unit})',
-      details: {'item_name': item.materialName, 'quantity': item.quantity, 'unit': item.unit},
-    );
+    try {
+      await _activityRepo.logSiteActivityAndNotify(
+        actionType: 'inventory_added',
+        entityType: 'Inventory',
+        entityId: item.id,
+        title: 'New Stock Added: ${item.materialName} (${item.quantity} ${item.unit})',
+        details: {'item_name': item.materialName, 'quantity': item.quantity, 'unit': item.unit},
+      );
+    } catch (_) {}
   }
 
   @override
   Future<void> updateItem(InventoryItem item) async {
-    final updated = await _client
+    await _client
         .from('inventory')
         .update(item.toJson())
-        .eq('id', item.id)
-        .select('id')
-        .maybeSingle();
-    if (updated == null) {
-      throw StateError('Item was not found or you do not have permission.');
-    }
+        .eq('id', item.id);
 
     // Log activity & broadcast notifications
-    await _activityRepo.logSiteActivityAndNotify(
-      actionType: 'inventory_updated',
-      entityType: 'Inventory',
-      entityId: item.id,
-      title: 'Stock Updated: ${item.materialName} (${item.quantity} ${item.unit})',
-      details: {'item_name': item.materialName, 'quantity': item.quantity},
-    );
+    try {
+      await _activityRepo.logSiteActivityAndNotify(
+        actionType: 'inventory_updated',
+        entityType: 'Inventory',
+        entityId: item.id,
+        title: 'Stock Updated: ${item.materialName} (${item.quantity} ${item.unit})',
+        details: {'item_name': item.materialName, 'quantity': item.quantity},
+      );
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteItem(String id) async {
     await _client.from('inventory').delete().eq('id', id);
-    
+
     // Log activity & broadcast notifications
-    await _activityRepo.logSiteActivityAndNotify(
-      actionType: 'inventory_deleted',
-      entityType: 'Inventory',
-      entityId: id,
-      title: 'Stock Item Removed from Inventory',
-    );
+    try {
+      await _activityRepo.logSiteActivityAndNotify(
+        actionType: 'inventory_deleted',
+        entityType: 'Inventory',
+        entityId: id,
+        title: 'Stock Item Removed from Inventory',
+      );
+    } catch (_) {}
   }
 
   @override
@@ -136,20 +137,24 @@ class SupabaseInventoryRepository implements InventoryRepository {
     required double quantityChange,
     String? notes,
   }) async {
-    await _client.from('inventory_history').insert({
-      'inventory_id': inventoryId,
-      'change_type': changeType,
-      'quantity_change': quantityChange,
-      'notes': notes,
-    });
+    try {
+      await _client.from('inventory_history').insert({
+        'inventory_id': inventoryId,
+        'change_type': changeType,
+        'quantity_change': quantityChange,
+        'notes': notes,
+      });
+    } catch (_) {}
 
     // Log global activity for history change
-    await _activityRepo.logActivity(
-      actionType: 'inventory_$changeType',
-      entityType: 'Inventory',
-      entityId: inventoryId,
-      details: {'quantity_change': quantityChange, 'notes': notes ?? ''},
-    );
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'inventory_$changeType',
+        entityType: 'Inventory',
+        entityId: inventoryId,
+        details: {'quantity_change': quantityChange, 'notes': notes ?? ''},
+      );
+    } catch (_) {}
   }
 
   @override
@@ -163,12 +168,16 @@ class SupabaseInventoryRepository implements InventoryRepository {
     required double quantity,
     required String supplier,
     double? unitPrice,
+    String? projectId,
+    String? projectName,
     String? notes,
   }) async {
     final effectiveUnitPrice = unitPrice ?? item.purchasePrice;
     final newStock = (item.availableStock + quantity).clamp(0.0, 999999.0);
+    final newQty = (item.quantity + quantity).clamp(0.0, 999999.0);
     final updatedItem = item.copyWith(
       availableStock: newStock,
+      quantity: newQty,
       supplier: supplier.isNotEmpty ? supplier : item.supplier,
       purchasePrice:
           effectiveUnitPrice > 0 ? effectiveUnitPrice : item.purchasePrice,
@@ -177,30 +186,86 @@ class SupabaseInventoryRepository implements InventoryRepository {
     // 1. Update inventory record
     await updateItem(updatedItem);
 
-    // 2. Log history entry
-    final historyNote =
-        'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
-    await logInventoryChange(
-      inventoryId: item.id,
-      changeType: 'received',
-      quantityChange: quantity,
-      notes: historyNote,
-    );
+    // 2. Calculate expense cost and record project expense if project assigned
+    final rate = effectiveUnitPrice > 0 ? effectiveUnitPrice : item.purchasePrice;
+    final totalCost = quantity * rate;
+    if (projectId != null &&
+        projectId.isNotEmpty &&
+        projectId != 'central' &&
+        projectId != 'none' &&
+        totalCost > 0) {
+      try {
+        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+        await _client.from('expenses').insert({
+          'project_id': projectId,
+          'expense_date': todayStr,
+          'category': 'Material',
+          'amount': totalCost,
+          'payment_mode': 'cash',
+          'notes':
+              'Received +${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}',
+        });
 
-    // 3. Log site activity & notify
-    await _activityRepo.logSiteActivityAndNotify(
-      actionType: 'inventory_received',
-      entityType: 'Inventory',
-      entityId: item.id,
-      title:
-          'Stock Received: +${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName}',
-      details: {
-        'supplier': supplier,
-        'quantity': quantity,
-        'unit': item.unit,
-        'material': item.materialName,
-      },
-    );
+        // Also increment project spent column in projects table
+        try {
+          final proj = await _client
+              .from('projects')
+              .select('spent')
+              .eq('id', projectId)
+              .maybeSingle();
+          if (proj != null) {
+            final currentSpent = (proj['spent'] as num?)?.toDouble() ?? 0.0;
+            await _client
+                .from('projects')
+                .update({'spent': currentSpent + totalCost})
+                .eq('id', projectId);
+          }
+        } catch (_) {}
+      } catch (_) {}
+    }
+
+    // 3. Log history entry
+    try {
+      final projectSuffix = (projectName != null &&
+              projectName.isNotEmpty &&
+              projectId != 'central' &&
+              projectId != 'none')
+          ? ' for $projectName'
+          : '';
+      final historyNote =
+          'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier$projectSuffix${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
+      await logInventoryChange(
+        inventoryId: item.id,
+        changeType: 'added',
+        quantityChange: quantity,
+        notes: historyNote,
+      );
+    } catch (_) {}
+
+    // 4. Log site activity & notify
+    try {
+      await _activityRepo.logSiteActivityAndNotify(
+        actionType: 'inventory_received',
+        entityType: 'Inventory',
+        entityId: item.id,
+        projectId: (projectId != null &&
+                projectId.isNotEmpty &&
+                projectId != 'central' &&
+                projectId != 'none')
+            ? projectId
+            : null,
+        title:
+            'Stock Received: +${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName}',
+        details: {
+          'supplier': supplier,
+          'quantity': quantity,
+          'unit': item.unit,
+          'material': item.materialName,
+          'total_cost': totalCost,
+          'project_name': projectName ?? '',
+        },
+      );
+    } catch (_) {}
   }
 
   @override
@@ -221,41 +286,66 @@ class SupabaseInventoryRepository implements InventoryRepository {
     final totalCost = quantity * item.purchasePrice;
 
     // 3. Insert Expense entry automatically into Supabase expenses table for selected project!
-    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    await _client.from('expenses').insert({
-      'project_id': projectId,
-      'expense_date': todayStr,
-      'category': 'Material',
-      'amount': totalCost,
-      'payment_mode': 'inventory',
-      'notes':
-          'Issued ${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from Central Stock${notes != null && notes.isNotEmpty ? " ($notes)" : ""}',
-    });
+    if (projectId.isNotEmpty && projectId != 'general' && totalCost > 0) {
+      try {
+        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+        await _client.from('expenses').insert({
+          'project_id': projectId,
+          'expense_date': todayStr,
+          'category': 'Material',
+          'amount': totalCost,
+          'payment_mode': 'cash',
+          'notes':
+              'Issued ${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from Central Stock${notes != null && notes.isNotEmpty ? " ($notes)" : ""}',
+        });
+
+        // Also increment project spent column in projects table
+        try {
+          final proj = await _client
+              .from('projects')
+              .select('spent')
+              .eq('id', projectId)
+              .maybeSingle();
+          if (proj != null) {
+            final currentSpent = (proj['spent'] as num?)?.toDouble() ?? 0.0;
+            await _client
+                .from('projects')
+                .update({'spent': currentSpent + totalCost})
+                .eq('id', projectId);
+          }
+        } catch (_) {}
+      } catch (_) {}
+    }
 
     // 4. Log history entry
-    final historyNote =
-        'Issued -${quantity.toStringAsFixed(1)} ${item.unit} to $projectName${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
-    await logInventoryChange(
-      inventoryId: item.id,
-      changeType: 'issued',
-      quantityChange: -quantity,
-      notes: historyNote,
-    );
+    try {
+      final historyNote =
+          'Issued -${quantity.toStringAsFixed(1)} ${item.unit} to $projectName${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
+      await logInventoryChange(
+        inventoryId: item.id,
+        changeType: 'used',
+        quantityChange: -quantity,
+        notes: historyNote,
+      );
+    } catch (_) {}
 
     // 5. Log site activity & notify
-    await _activityRepo.logSiteActivityAndNotify(
-      actionType: 'inventory_issued',
-      entityType: 'Inventory',
-      entityId: item.id,
-      projectId: projectId,
-      title:
-          'Material Issued: ${quantity.toStringAsFixed(1)} ${item.unit} to $projectName',
-      details: {
-        'project_name': projectName,
-        'quantity': quantity,
-        'total_cost': totalCost,
-        'material': item.materialName,
-      },
-    );
+    try {
+      await _activityRepo.logSiteActivityAndNotify(
+        actionType: 'inventory_issued',
+        entityType: 'Inventory',
+        entityId: item.id,
+        projectId: projectId.isNotEmpty && projectId != 'general' ? projectId : null,
+        title:
+            'Material Issued: ${quantity.toStringAsFixed(1)} ${item.unit} to $projectName',
+        details: {
+          'project_name': projectName,
+          'quantity': quantity,
+          'total_cost': totalCost,
+          'material': item.materialName,
+        },
+      );
+    } catch (_) {}
   }
 }
+

@@ -666,6 +666,49 @@ class _DashboardBody extends StatelessWidget {
       title: 'Budget vs Actual Financial Performance',
       subtitle:
           'Spent: ${CurrencyFormatter.formatFullINR(spent)} of ${CurrencyFormatter.formatFullINR(budget)} (Balance: ${CurrencyFormatter.formatFullINR(remaining)})',
+      action: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'View Outflows',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryColor(context),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_forward,
+                size: 13,
+                color: AppColors.primaryColor(context),
+              ),
+            ],
+          ),
+        ),
+      ),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ProjectOperationsScreen(
+            projectId: projectId,
+            projectName: stats.projectName,
+            initialSection: 4,
+          ),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1577,6 +1620,40 @@ class _DashboardBody extends StatelessWidget {
     return _DashboardCard(
       title: 'Expense Breakdown',
       subtitle: 'Total: ₹${_fmt(stats.totalExpenses)}',
+      action: InkWell(
+        onTap: () => Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => ProjectOperationsScreen(
+              projectId: projectId,
+              projectName: stats.projectName,
+              initialSection: 4,
+            ),
+          ),
+        ),
+        borderRadius: BorderRadius.circular(4),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'View All Expenses',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.primaryColor(context),
+                ),
+              ),
+              const SizedBox(width: 4),
+              Icon(
+                Icons.arrow_forward,
+                size: 13,
+                color: AppColors.primaryColor(context),
+              ),
+            ],
+          ),
+        ),
+      ),
       child: categories.isEmpty
           ? SizedBox(
               height: 200,
@@ -1604,62 +1681,74 @@ class _DashboardBody extends StatelessWidget {
               children: categories.map((cat) {
                 final pct = maxAmount > 0 ? cat.amount / maxAmount : 0.0;
                 final color = _categoryColor(cat.category);
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Row(
-                            children: [
-                              Container(
-                                width: 10,
-                                height: 10,
-                                decoration: BoxDecoration(
-                                  color: color,
-                                  borderRadius: BorderRadius.circular(3),
+                return InkWell(
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => ProjectOperationsScreen(
+                        projectId: projectId,
+                        projectName: stats.projectName,
+                        initialSection: 4,
+                      ),
+                    ),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Container(
+                                  width: 10,
+                                  height: 10,
+                                  decoration: BoxDecoration(
+                                    color: color,
+                                    borderRadius: BorderRadius.circular(3),
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                cat.category,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                  color: AppColors.text(context),
+                                const SizedBox(width: 8),
+                                Text(
+                                  cat.category,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                    color: AppColors.text(context),
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          Text(
-                            '₹${_fmt(cat.amount)}',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.text(context),
+                              ],
                             ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 6),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(4),
-                        child: LinearProgressIndicator(
-                          value: pct.clamp(0.0, 1.0),
-                          backgroundColor: AppColors.border(context),
-                          valueColor: AlwaysStoppedAnimation(color),
-                          minHeight: 6,
+                            Text(
+                              '₹${_fmt(cat.amount)}',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                          ],
                         ),
-                      ),
-                    ],
+                        const SizedBox(height: 6),
+                        ClipRRect(
+                          borderRadius: BorderRadius.circular(4),
+                          child: LinearProgressIndicator(
+                            value: pct.clamp(0.0, 1.0),
+                            backgroundColor: AppColors.border(context),
+                            valueColor: AlwaysStoppedAnimation(color),
+                            minHeight: 6,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 );
               }).toList(),
             ),
     );
   }
+
 
   // ═══════════════════════════════════════════════════════════════════════════
   // 7-DAY PROGRESS SPARKLINE
@@ -2212,103 +2301,132 @@ class _DashboardBody extends StatelessWidget {
 class _DashboardCard extends StatelessWidget {
   final String title;
   final String? subtitle;
+  final Widget? action;
+  final VoidCallback? onTap;
   final Widget child;
 
   const _DashboardCard({
     required this.title,
     this.subtitle,
+    this.action,
+    this.onTap,
     required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.cardBg(context),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border(context)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.03),
-            blurRadius: 8,
-            offset: const Offset(0, 2),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border(context)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 8,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              if (subtitle == null) {
-                return Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
-                  ),
-                );
-              }
-              // If container is narrow, stack title and subtitle vertically to prevent horizontal collisions
-              final isNarrow = constraints.maxWidth < 480;
-              if (isNarrow) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  if (subtitle == null && action == null) {
+                    return Text(
                       title,
                       style: TextStyle(
                         fontSize: 15,
                         fontWeight: FontWeight.bold,
                         color: AppColors.text(context),
                       ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      subtitle!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: AppColors.mutedText(context),
+                    );
+                  }
+                  // If container is narrow, stack title and subtitle vertically to prevent horizontal collisions
+                  final isNarrow = constraints.maxWidth < 480;
+                  if (isNarrow) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Expanded(
+                              child: Text(
+                                title,
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.text(context),
+                                ),
+                              ),
+                            ),
+                            ?action,
+                          ],
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 3),
+                          Text(
+                            subtitle!,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText(context),
+                            ),
+                          ),
+                        ],
+                      ],
+                    );
+                  }
+                  return Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Text(
+                              title,
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                            if (subtitle != null) ...[
+                              const SizedBox(width: 8),
+                              Text(
+                                subtitle!,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: AppColors.mutedText(context),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                       ),
-                    ),
-                  ],
-                );
-              }
-              return Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.text(context),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    subtitle!,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.mutedText(context),
-                    ),
-                  ),
-                ],
-              );
-            },
+                      ?action,
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              child,
+            ],
           ),
-          const SizedBox(height: 16),
-          child,
-        ],
+        ),
       ),
     );
   }
 }
+
 
 // ═════════════════════════════════════════════════════════════════════════════
 // PRIVATE KPI DATA HELPER

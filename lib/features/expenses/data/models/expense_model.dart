@@ -25,6 +25,21 @@ class Expense {
     this.updatedAt,
   });
 
+  /// Returns a concise, user-friendly Expense ID (e.g. EXP-01, EXP-101, or EXP-A1B2)
+  String get shortId {
+    if (id.isEmpty) return 'EXP-01';
+    if (RegExp(r'^EXP-?\d+$', caseSensitive: false).hasMatch(id)) {
+      final numPart = id.replaceAll(RegExp(r'[^0-9]'), '');
+      return 'EXP-$numPart';
+    }
+    final clean = id
+        .replaceAll('-', '')
+        .replaceAll(RegExp(r'EXP', caseSensitive: false), '')
+        .toUpperCase();
+    final code = clean.length > 4 ? clean.substring(0, 4) : clean;
+    return 'EXP-$code';
+  }
+
   factory Expense.fromJson(Map<String, dynamic> json) {
     return Expense(
       id: json['id'] as String,

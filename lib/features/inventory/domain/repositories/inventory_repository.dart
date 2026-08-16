@@ -28,6 +28,8 @@ abstract class InventoryRepository {
     required double quantity,
     required String supplier,
     double? unitPrice,
+    String? projectId,
+    String? projectName,
     String? notes,
   });
   Future<void> issueMaterialToProject({

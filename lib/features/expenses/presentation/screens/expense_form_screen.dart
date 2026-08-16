@@ -7,8 +7,9 @@ import '../../../../features/projects/presentation/controllers/project_controlle
 
 class ExpenseFormScreen extends ConsumerStatefulWidget {
   final Expense? expense;
+  final String? initialProjectId;
 
-  const ExpenseFormScreen({super.key, this.expense});
+  const ExpenseFormScreen({super.key, this.expense, this.initialProjectId});
 
   @override
   ConsumerState<ExpenseFormScreen> createState() => _ExpenseFormScreenState();
@@ -165,7 +166,7 @@ class _ExpenseFormScreenState extends ConsumerState<ExpenseFormScreen> {
     // Normalize category if it doesn't match new list
     if (!_categories.contains(_category)) _category = 'Miscellaneous';
     _paymentMode = widget.expense?.paymentMode ?? 'cash';
-    _selectedProjectId = widget.expense?.projectId;
+    _selectedProjectId = widget.expense?.projectId ?? widget.initialProjectId;
     if (widget.expense != null) {
       _selectedDate = DateTime.tryParse(widget.expense!.expenseDate);
     }

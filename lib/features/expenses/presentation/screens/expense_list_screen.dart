@@ -151,7 +151,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 subtitle: 'Log of operational outflows and petty cash transactions ($startStr to $endStr)',
                 headers: ['ID', 'Date', 'Category', 'Amount (INR)', 'Mode', 'Project Site', 'Notes'],
                 data: expenses.map((e) => [
-                  e.id.length >= 8 ? e.id.substring(0, 8) : e.id,
+                  e.shortId,
                   e.expenseDate,
                   e.category,
                   'INR ${e.amount.toStringAsFixed(2)}',
@@ -182,7 +182,7 @@ class _ExpenseListScreenState extends ConsumerState<ExpenseListScreen> {
                 title: 'Site Expenses & Financial Outflows',
                 headers: ['Expense ID', 'Date', 'Category', 'Amount (INR)', 'Payment Mode', 'Project Site', 'Notes'],
                 rows: expenses.map((e) => [
-                  e.id,
+                  e.shortId,
                   e.expenseDate,
                   e.category,
                   e.amount,
@@ -563,14 +563,37 @@ class _ExpenseCard extends StatelessWidget {
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          expense.category.toUpperCase(),
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                            color: AppColors.text(context),
-                            letterSpacing: 0.5,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              expense.category.toUpperCase(),
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppColors.text(context),
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 1.5,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.mutedText(context).withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                expense.shortId,
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.mutedText(context),
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
                           'Date: ${expense.expenseDate}',

@@ -24,17 +24,16 @@ class Employee {
   double get effectiveTeaSnackAllowance => teaSnackAllowance;
   double get totalDailyCost => salary + teaSnackAllowance;
 
-  /// Returns a concise, user-friendly Employee ID (e.g. EMP-101 or EMP-A1B2C3)
+  /// Returns a concise, user-friendly Employee ID (e.g. EMP-01, EMP-101, or EMP-A1B2)
   String get shortId {
-    if (id.isEmpty) return 'EMP-000';
-    final cleanId = id.replaceAll('-', '').toUpperCase();
-    if (cleanId.startsWith('EMP')) {
-      final code = cleanId.substring(3);
-      return code.length > 6 ? 'EMP-${code.substring(0, 6)}' : 'EMP-$code';
+    if (id.isEmpty) return 'EMP-01';
+    if (RegExp(r'^EMP-?\d+$', caseSensitive: false).hasMatch(id)) {
+      final numPart = id.replaceAll(RegExp(r'[^0-9]'), '');
+      return 'EMP-$numPart';
     }
-    return cleanId.length >= 6
-        ? 'EMP-${cleanId.substring(0, 6)}'
-        : 'EMP-$cleanId';
+    final clean = id.replaceAll('-', '').replaceAll(RegExp(r'EMP', caseSensitive: false), '').toUpperCase();
+    final code = clean.length > 4 ? clean.substring(0, 4) : clean;
+    return 'EMP-$code';
   }
 
   // Earnings & Cost Calculations
