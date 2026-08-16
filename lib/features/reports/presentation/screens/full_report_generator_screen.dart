@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/utils/excel_download_helper.dart';
@@ -312,6 +313,103 @@ class _FullReportGeneratorScreenState
     return buffer.toString();
   }
 
+  String _generateWhatsAppReportText() {
+    final projects = ref.read(projectControllerProvider).projects;
+    final projectName = _selectedProjectId == 'all'
+        ? 'All Portfolio Sites'
+        : (projects.where((p) => p.id == _selectedProjectId).isNotEmpty
+            ? projects.firstWhere((p) => p.id == _selectedProjectId).name
+            : 'Project Site');
+    final expenseState = ref.read(expenseControllerProvider);
+    final attendanceState = ref.read(attendanceControllerProvider);
+    final subcontractorState = ref.read(subcontractorControllerProvider);
+
+    final filteredExpenses = expenseState.expenses.where((e) {
+      final matchesProject = _selectedProjectId == null ||
+          _selectedProjectId == 'all' ||
+          e.projectId == _selectedProjectId;
+      final inRange = e.expenseDate.compareTo(_startDateStr) >= 0 &&
+          e.expenseDate.compareTo(_endDateStr) <= 0;
+      return matchesProject && inRange;
+    }).toList();
+
+    final totalExpensesAmount = filteredExpenses.fold(
+      0.0,
+      (sum, e) => sum + e.amount,
+    );
+
+    final filteredAttendance = attendanceState.attendanceList.where((a) {
+      final matchesProject = _selectedProjectId == null ||
+          _selectedProjectId == 'all' ||
+          a.projectId == _selectedProjectId;
+      final inRange = a.date.compareTo(_startDateStr) >= 0 &&
+          a.date.compareTo(_endDateStr) <= 0;
+      return matchesProject && inRange;
+    }).toList();
+
+    final buffer = StringBuffer();
+    buffer.writeln("🏗️ *IBUILD SITE REPORT* — *$projectName*");
+    buffer.writeln("📅 *Period:* $_periodTitle ($_startDateStr)");
+    buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
+    buffer.writeln("📊 *EXECUTIVE SUMMARY*");
+    buffer.writeln("• 💸 *Period Outflow:* ₹${totalExpensesAmount.toStringAsFixed(0)}");
+    buffer.writeln("• 📦 *Material Shifts:* ${_loadedInventoryHistory.length} records");
+    buffer.writeln("• 👷 *Worker Attendance:* ${filteredAttendance.length} shifts");
+    buffer.writeln("• 🤝 *Trade Partners:* ${subcontractorState.items.length} active");
+    buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
+
+    if (_loadedDailyProgress.isNotEmpty) {
+      buffer.writeln("🚧 *WORK PROGRESS & UPDATES*");
+      for (final dp in _loadedDailyProgress.take(3)) {
+        final notes = dp.allNotes.isNotEmpty ? dp.allNotes.join(', ') : 'Daily site work executed';
+        buffer.writeln("• *${dp.date}* (${dp.progressPercentage}%): $notes");
+      }
+      buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
+    }
+
+    if (_loadedInventoryHistory.isNotEmpty) {
+      buffer.writeln("📦 *INVENTORY STOCK DELIVERIES*");
+      for (final h in _loadedInventoryHistory.take(4)) {
+        final type = h.changeType == 'added' ? '📥 *Received*' : '📤 *Issued*';
+        buffer.writeln("• $type: ${h.quantityChange.abs().toStringAsFixed(0)} units (${h.notes ?? 'Stock Movement'})");
+      }
+      buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
+    }
+
+    buffer.writeln("📱 _Generated via IBUILD Construction ERP_");
+    return buffer.toString();
+  }
+
+  Future<void> _shareViaWhatsApp(BuildContext context) async {
+    final text = _generateWhatsAppReportText();
+    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
+    try {
+      if (await canLaunchUrl(url)) {
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+      } else {
+        await Clipboard.setData(ClipboardData(text: text));
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('WhatsApp not detected. Full message copied to clipboard!'),
+              backgroundColor: Color(0xFF25D366),
+            ),
+          );
+        }
+      }
+    } catch (_) {
+      await Clipboard.setData(ClipboardData(text: text));
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Report text copied to clipboard! Paste into WhatsApp/SMS.'),
+            backgroundColor: Color(0xFF25D366),
+          ),
+        );
+      }
+    }
+  }
+
   void _showReportPreviewModal(BuildContext context) {
     final reportText = _generateFormattedReportText();
 
@@ -364,6 +462,18 @@ class _FullReportGeneratorScreenState
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Close'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _shareViaWhatsApp(context);
+            },
+            icon: const Icon(Icons.send_rounded, size: 16),
+            label: const Text('WhatsApp Dispatch'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF25D366),
+              foregroundColor: Colors.white,
+            ),
           ),
           OutlinedButton.icon(
             onPressed: () {
@@ -838,6 +948,22 @@ class _FullReportGeneratorScreenState
                     label: const Text('Export Excel'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF107C41),
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 10,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                    ),
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _shareViaWhatsApp(context),
+                    icon: const Icon(Icons.send_rounded, size: 16),
+                    label: const Text('WhatsApp Dispatch'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 14,

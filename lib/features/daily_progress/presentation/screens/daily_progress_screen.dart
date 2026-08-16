@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../widgets/cached_image.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
@@ -69,11 +70,21 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
     buffer.writeln('--------------------------------');
     buffer.writeln('Generated via IBUILD Construction ERP');
 
-    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    final text = buffer.toString();
+    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
+    try {
+      canLaunchUrl(url).then((canLaunch) {
+        if (canLaunch) {
+          launchUrl(url, mode: LaunchMode.externalApplication);
+        }
+      });
+    } catch (_) {}
+
+    Clipboard.setData(ClipboardData(text: text));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Copied Site Progress Report to clipboard! ✓'),
-        backgroundColor: AppColors.secondary,
+        content: Text('Site Progress Report copied to clipboard & opened in WhatsApp! ✓'),
+        backgroundColor: Color(0xFF25D366),
       ),
     );
   }
@@ -495,11 +506,6 @@ class _ProgressCard extends StatelessWidget {
     final isReadOnly = onEdit == null;
     final images = entry.allImageUrls;
     final notesList = entry.allNotes;
-
-    final bool hasMorningAndEvening =
-        entry.morningImageUrl != null &&
-        entry.eveningImageUrl != null &&
-        entry.morningImageUrl != entry.eveningImageUrl;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 16),

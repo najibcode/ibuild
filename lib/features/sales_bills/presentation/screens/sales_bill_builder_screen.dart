@@ -198,7 +198,7 @@ class _SalesBillBuilderScreenState
               final client = _clientNameCtrl.text.trim().isEmpty ? 'Valued Client' : _clientNameCtrl.text.trim();
               final excelBytes = ExcelGeneratorService.generateTableExcel(
                 sheetName: 'Sales_Invoice',
-                title: 'Official Client Sales Invoice #$billNum',
+                title: 'Official Client Sales Invoice #$billNum - $client',
                 headers: ['Particular / Work Description', 'Qty', 'Unit Rate (INR)', 'Line Total (INR)'],
                 rows: _rows.map((row) => [
                   row.particularCtrl.text,

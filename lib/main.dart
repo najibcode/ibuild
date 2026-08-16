@@ -11,7 +11,6 @@ import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/projects/presentation/controllers/project_controller.dart';
 
 import 'mobile_dashboard.dart';
-import 'budget_utilization_mobile.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 import 'features/attendance/presentation/controllers/attendance_controller.dart';
 import 'features/employees/presentation/screens/employee_list_screen.dart';
@@ -23,6 +22,7 @@ import 'features/projects/presentation/screens/project_list_screen.dart';
 import 'features/inventory/presentation/screens/inventory_list_screen.dart';
 import 'features/equipment/presentation/screens/equipment_list_screen.dart';
 import 'features/vendors/presentation/screens/vendor_list_screen.dart';
+import 'features/snags/presentation/screens/snag_list_screen.dart';
 import 'features/reports/presentation/screens/full_report_generator_screen.dart';
 
 import 'web_dashboard.dart';
@@ -83,16 +83,13 @@ class MyApp extends ConsumerWidget {
 enum MobileScreen {
   dashboard,
   projectsList,
-  budget,
   inventory,
   attendance,
   employees,
   financials,
-  billing,
-  quotations,
-  expenses,
   equipment,
   vendors,
+  snags,
   reports,
   settings,
   profile,
@@ -281,16 +278,13 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           // Owner or unknown gets the default business dashboard
           body = MobileDashboard(
             onViewProjects: () => _pushMobile(MobileScreen.projectsList),
-            onViewTrack: () => _pushMobile(MobileScreen.budget),
+            onViewTrack: () => _pushMobile(MobileScreen.financials),
             onViewSupply: () => _pushMobile(MobileScreen.inventory),
           );
         }
         break;
       case MobileScreen.projectsList:
         body = const ProjectListScreen();
-        break;
-      case MobileScreen.budget:
-        body = BudgetUtilizationMobile(onBack: _popMobile);
         break;
       case MobileScreen.inventory:
         body = const InventoryListScreen();
@@ -302,9 +296,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         body = const EmployeeListScreen();
         break;
       case MobileScreen.financials:
-      case MobileScreen.billing:
-      case MobileScreen.quotations:
-      case MobileScreen.expenses:
         body = const FinancialsHubScreen();
         break;
       case MobileScreen.equipment:
@@ -312,6 +303,9 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         break;
       case MobileScreen.vendors:
         body = const VendorListScreen();
+        break;
+      case MobileScreen.snags:
+        body = const SnagListScreen();
         break;
       case MobileScreen.reports:
         body = const FullReportGeneratorScreen();
@@ -374,14 +368,12 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         break;
       }
       // Check if current screen is a sub-screen of "More"
-      if (_currentMobileScreen == MobileScreen.billing ||
-          _currentMobileScreen == MobileScreen.expenses ||
-          _currentMobileScreen == MobileScreen.settings ||
-          _currentMobileScreen == MobileScreen.budget ||
+      if (_currentMobileScreen == MobileScreen.settings ||
           _currentMobileScreen == MobileScreen.employees ||
           _currentMobileScreen == MobileScreen.financials ||
           _currentMobileScreen == MobileScreen.equipment ||
           _currentMobileScreen == MobileScreen.vendors ||
+          _currentMobileScreen == MobileScreen.snags ||
           _currentMobileScreen == MobileScreen.reports ||
           _currentMobileScreen == MobileScreen.profile) {
         // Find the "More" tab index
@@ -395,44 +387,52 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       bottomBarIndex = 0;
     }
 
-    return Scaffold(
-      body: AnimatedSwitcher(
-        duration: const Duration(milliseconds: 200),
-        switchInCurve: Curves.easeIn,
-        switchOutCurve: Curves.easeOut,
-        child: KeyedSubtree(
-          key: ValueKey(_currentMobileScreen),
-          child: body,
+    return PopScope(
+      canPop: _mobileNavStack.length <= 1,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && _mobileNavStack.length > 1) {
+          _popMobile();
+        }
+      },
+      child: Scaffold(
+        body: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          switchInCurve: Curves.easeIn,
+          switchOutCurve: Curves.easeOut,
+          child: KeyedSubtree(
+            key: ValueKey(_currentMobileScreen),
+            child: body,
+          ),
         ),
-      ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: bottomBarIndex,
-        type: BottomNavigationBarType.fixed,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.textMuted,
-        showUnselectedLabels: true,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 11,
-        ),
-        unselectedLabelStyle: const TextStyle(fontSize: 11),
-        onTap: (index) {
-          if (index < navEntries.length) {
-            final entry = navEntries[index];
-            if (entry.isMoreTab) {
-              _showMoreMenu(context);
-            } else {
-              _setMobileTab(entry.screen);
+        bottomNavigationBar: BottomNavigationBar(
+          currentIndex: bottomBarIndex,
+          type: BottomNavigationBarType.fixed,
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: AppColors.textMuted,
+          showUnselectedLabels: true,
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 11,
+          ),
+          unselectedLabelStyle: const TextStyle(fontSize: 11),
+          onTap: (index) {
+            if (index < navEntries.length) {
+              final entry = navEntries[index];
+              if (entry.isMoreTab) {
+                _showMoreMenu(context);
+              } else {
+                _setMobileTab(entry.screen);
+              }
             }
-          }
-        },
-        items: navEntries
-            .map((e) => BottomNavigationBarItem(
-                  icon: Icon(e.icon),
-                  activeIcon: Icon(e.activeIcon),
-                  label: e.label,
-                ))
-            .toList(),
+          },
+          items: navEntries
+              .map((e) => BottomNavigationBarItem(
+                    icon: Icon(e.icon),
+                    activeIcon: Icon(e.activeIcon),
+                    label: e.label,
+                  ))
+              .toList(),
+        ),
       ),
     );
   }
@@ -517,20 +517,34 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                       _setMobileTab(MobileScreen.vendors);
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.assessment_outlined,
-                      color: AppColors.primary,
+                    ListTile(
+                      leading: const Icon(
+                        Icons.checklist_rtl_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Site Snags & Quality Punch List',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _setMobileTab(MobileScreen.snags);
+                      },
                     ),
-                    title: const Text(
-                      'Reports & Export',
-                      style: TextStyle(fontWeight: FontWeight.w600),
+                    ListTile(
+                      leading: const Icon(
+                        Icons.assessment_outlined,
+                        color: AppColors.primary,
+                      ),
+                      title: const Text(
+                        'Reports & Export',
+                        style: TextStyle(fontWeight: FontWeight.w600),
+                      ),
+                      onTap: () {
+                        Navigator.pop(context);
+                        _setMobileTab(MobileScreen.reports);
+                      },
                     ),
-                    onTap: () {
-                      Navigator.pop(context);
-                      _setMobileTab(MobileScreen.reports);
-                    },
-                  ),
                   const Divider(),
                   ListTile(
                     leading: const Icon(
@@ -606,15 +620,8 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         break;
       case MobileScreen.inventory:
         _refreshDataForLabel('Inventory');
-        break;
-      case MobileScreen.billing:
-        _refreshDataForLabel('Billing');
-        break;
-      case MobileScreen.quotations:
-        _refreshDataForLabel('Quotations & Estimates');
-        break;
-      case MobileScreen.expenses:
-        _refreshDataForLabel('Expenses');
+      case MobileScreen.financials:
+        _refreshDataForLabel('Financials');
         break;
       case MobileScreen.equipment:
         _refreshDataForLabel('Equipment, Machinery & Tools');
@@ -623,7 +630,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         _refreshDataForLabel('Subcontractors');
         break;
       default:
-        break; // Settings, Profile, Reports, Budget — no background data to reload
+        break; // Settings, Profile, Reports — no background data to reload
     }
   }
 

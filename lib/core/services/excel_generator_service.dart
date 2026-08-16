@@ -49,7 +49,7 @@ class ExcelGeneratorService {
 
     // Row 1: Simple Title Header
     sheet.appendRow([TextCellValue(title)]);
-    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = headerStyle;
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = titleStyle;
 
     // Row 2: Empty spacer
     sheet.appendRow([]);

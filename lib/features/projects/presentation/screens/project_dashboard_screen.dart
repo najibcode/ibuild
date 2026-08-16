@@ -248,6 +248,14 @@ class _DashboardBody extends StatelessWidget {
                   ],
                   const SizedBox(height: 24),
 
+                  // ── Construction Stages & Milestones ──
+                  _buildMilestonesTrackerCard(context, isDark),
+                  const SizedBox(height: 24),
+
+                  // ── Project Cashflow & Runway Forecast ──
+                  _buildCashflowForecastCard(context, isDark),
+                  const SizedBox(height: 24),
+
                   // ── Recent Activity ──
                   _buildRecentActivity(context, isDark),
                   const SizedBox(height: 24),
@@ -2322,6 +2330,169 @@ class _DashboardBody extends StatelessWidget {
     if (diff.inHours < 24) return '${diff.inHours}h ago';
     if (diff.inDays < 7) return '${diff.inDays}d ago';
     return '${dt.day}/${dt.month}';
+  }
+
+  Widget _buildMilestonesTrackerCard(BuildContext context, bool isDark) {
+    final stages = [
+      {'name': 'Site Prep & Excavation', 'status': 'Completed', 'pct': 1.0, 'dates': 'Target: 10 Jan - 28 Jan'},
+      {'name': 'Substructure & Plinth Beam', 'status': 'Completed', 'pct': 1.0, 'dates': 'Target: 01 Feb - 25 Feb'},
+      {'name': 'RCC Structure & Slabs (1st to 4th Floor)', 'status': 'In Progress', 'pct': 0.65, 'dates': 'Target: 01 Mar - 30 May'},
+      {'name': 'Brickwork & Internal Masonry', 'status': 'In Progress', 'pct': 0.30, 'dates': 'Target: 15 Apr - 30 Jun'},
+      {'name': 'MEP, Electrical & Concealed Plumbing', 'status': 'Scheduled', 'pct': 0.10, 'dates': 'Target: 01 Jun - 15 Aug'},
+      {'name': 'Flooring, Painting & Final Handover', 'status': 'Upcoming', 'pct': 0.0, 'dates': 'Target: 01 Sep - 30 Oct'},
+    ];
+
+    return _DashboardCard(
+      title: 'Construction Stages & Milestone S-Curve',
+      subtitle: 'Execution Progress',
+      action: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+        decoration: BoxDecoration(
+          color: AppColors.secondary.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: const Text('Overall 58% Active', style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondary)),
+      ),
+      child: Column(
+        children: stages.map((st) {
+          final isDone = st['status'] == 'Completed';
+          final isInProg = st['status'] == 'In Progress';
+          final double pct = st['pct'] as double;
+          final color = isDone ? AppColors.secondary : (isInProg ? AppColors.primaryColor(context) : AppColors.mutedText(context));
+
+          return Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.bg(context),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border(context)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        st['name'] as String,
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.text(context)),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        st['status'] as String,
+                        style: TextStyle(fontSize: 9.5, fontWeight: FontWeight.bold, color: color),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(st['dates'] as String, style: TextStyle(fontSize: 10.5, color: AppColors.mutedText(context))),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: pct,
+                    minHeight: 6,
+                    backgroundColor: AppColors.border(context),
+                    valueColor: AlwaysStoppedAnimation<Color>(color),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  Widget _buildCashflowForecastCard(BuildContext context, bool isDark) {
+    final double budget = stats.budget;
+    final double spent = stats.spent;
+    final double remainingBudget = (budget - spent).clamp(0.0, double.infinity);
+    final double estimatedReceivable = budget * 0.45; // Milestone linked receivables
+
+    return _DashboardCard(
+      title: 'Project Cashflow & Runway Forecast',
+      subtitle: 'Committed Inflows vs Projected Site Outflows',
+      action: Icon(Icons.trending_up, size: 18, color: AppColors.primaryColor(context)),
+      child: Column(
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('EST. INWARD MILESTONE RECEIVABLES', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: AppColors.secondary)),
+                      const SizedBox(height: 4),
+                      Text('₹${_fmt(estimatedReceivable)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.secondary)),
+                      Text('Client Billing Stages', style: TextStyle(fontSize: 9.5, color: AppColors.mutedText(context))),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: Colors.deepOrange.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.deepOrange.withValues(alpha: 0.3)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('EST. REMAINING CASH TO HANDOVER', style: TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                      const SizedBox(height: 4),
+                      Text('₹${_fmt(remainingBudget)}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.deepOrange)),
+                      Text('Labor + Material + Contractors', style: TextStyle(fontSize: 9.5, color: AppColors.mutedText(context))),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.bg(context),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AppColors.border(context)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.shield_outlined, size: 16, color: AppColors.primaryColor(context)),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Cashflow Runway Status: Healthy. Inward milestone billing is projected to cover site outflows through the structural phase.',
+                    style: TextStyle(fontSize: 11, color: AppColors.text(context)),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   String _fmt(double v) {

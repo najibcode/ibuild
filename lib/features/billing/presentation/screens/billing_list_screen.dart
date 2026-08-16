@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:printing/printing.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
@@ -580,6 +581,178 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
     );
   }
 
+  void _shareSalesBillWhatsApp(BuildContext context, SalesBill b) {
+    final invoiceDateStr = b.createdAt.toIso8601String().split('T').first;
+    final isPaid = b.status.toLowerCase() == 'paid';
+    final msg = "🧾 *TAX INVOICE — IBUILD ERP*\n"
+        "📄 *Invoice No:* #${b.billNumber}\n"
+        "👤 *Client:* ${b.clientName}\n"
+        "📅 *Date:* $invoiceDateStr\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "• Taxable Subtotal: ₹${b.amount.toInt()}\n"
+        "• GST / Tax: ₹${b.taxAmount.toInt()}\n"
+        "💰 *TOTAL INVOICE VALUE:* ₹${b.totalAmount.toInt()}\n"
+        "📌 *Status:* ${isPaid ? 'PAID ✓' : 'PAYMENT DUE'}\n"
+        "━━━━━━━━━━━━━━━━━━━━━\n"
+        "🏦 *Payment Mode:* NEFT / RTGS / UPI\n"
+        "_Thank you for partnering with us!_";
+
+    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(msg)}");
+    try {
+      canLaunchUrl(url).then((ok) {
+        if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
+      });
+    } catch (_) {}
+
+    Clipboard.setData(ClipboardData(text: msg));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Tax Invoice copied & opened in WhatsApp! ✓'),
+        backgroundColor: Color(0xFF25D366),
+      ),
+    );
+  }
+
+  void _showRecordClientPaymentDialog(BuildContext context, SalesBill b) {
+    final amountCtrl = TextEditingController(text: b.totalAmount.toInt().toString());
+    final refCtrl = TextEditingController(text: 'UPI-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}');
+    String pMethod = 'UPI / Bank Transfer';
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final amt = double.tryParse(amountCtrl.text) ?? 0.0;
+          return AlertDialog(
+            backgroundColor: AppColors.cardBg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.check_circle_outline, color: AppColors.secondary, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Record Payment: #${b.billNumber}',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Record inward client payment for ${b.clientName}. Total Invoice: ₹${b.totalAmount.toInt()}',
+                      style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    ),
+                    const SizedBox(height: 14),
+
+                    TextField(
+                      controller: amountCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'Received Amount (₹) *',
+                        prefixIcon: Icon(Icons.currency_rupee, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    DropdownButtonFormField<String>(
+                      initialValue: pMethod,
+                      decoration: const InputDecoration(
+                        labelText: 'Payment Mode *',
+                        prefixIcon: Icon(Icons.account_balance, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: const [
+                        DropdownMenuItem(value: 'UPI / Bank Transfer', child: Text('UPI / Bank Transfer')),
+                        DropdownMenuItem(value: 'NEFT / RTGS', child: Text('NEFT / RTGS')),
+                        DropdownMenuItem(value: 'Cheque', child: Text('Cheque / DD')),
+                        DropdownMenuItem(value: 'Cash', child: Text('Cash')),
+                      ],
+                      onChanged: (v) => setModalState(() => pMethod = v!),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: refCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Transaction / UTR / Cheque Ref No.',
+                        prefixIcon: Icon(Icons.tag, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (amt <= 0) return;
+
+                  try {
+                    // Update Sales Bill Status
+                    await ref.read(salesBillRepositoryProvider).updateSalesBillStatus(b.id, 'Paid');
+
+                    // Record Payment in Ledger
+                    final client = ref.read(supabaseClientProvider);
+                    await client.from('payment_ledger').insert({
+                      'project_id': b.projectId.isNotEmpty ? b.projectId : null,
+                      'party_name': b.clientName,
+                      'party_type': 'Client',
+                      'amount': amt,
+                      'payment_type': 'Received',
+                      'payment_method': pMethod,
+                      'reference_number': refCtrl.text.trim(),
+                      'payment_date': DateTime.now().toIso8601String().split('T').first,
+                    });
+
+                    ref.invalidate(allSalesBillsProvider);
+                    ref.invalidate(allPaymentLedgerProvider);
+
+                    if (context.mounted) {
+                      Navigator.pop(dialogCtx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Marked Invoice #${b.billNumber} as Paid & logged ₹${amt.toInt()} inflow! ✓'),
+                          backgroundColor: AppColors.secondary,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      Navigator.pop(dialogCtx);
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(content: Text('Payment recorded: $e')),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.check, size: 16),
+                label: const Text('Confirm Payment'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   Widget _buildSalesBillCard(BuildContext context, SalesBill b) {
     final isPaid = b.status.toLowerCase() == 'paid';
     return Card(
@@ -624,6 +797,19 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                 ),
               ],
             ),
+            IconButton(
+              icon: const Icon(Icons.share, size: 18),
+              color: const Color(0xFF25D366),
+              tooltip: 'Share Invoice to WhatsApp',
+              onPressed: () => _shareSalesBillWhatsApp(context, b),
+            ),
+            if (!isPaid)
+              IconButton(
+                icon: const Icon(Icons.payment, size: 18),
+                color: AppColors.secondary,
+                tooltip: 'Record Inward Client Payment',
+                onPressed: () => _showRecordClientPaymentDialog(context, b),
+              ),
             IconButton(
               icon: const Icon(Icons.print_outlined, size: 18),
               tooltip: 'Print Invoice PDF',
@@ -827,68 +1013,7 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                   itemCount: bills.length,
                   itemBuilder: (context, i) {
                     final b = bills[i];
-                    final isPaid = b.status.toLowerCase() == 'paid';
-                    return Card(
-                      color: AppColors.cardBg(context),
-                      margin: const EdgeInsets.only(bottom: 12),
-                      child: ListTile(
-                        leading: const Icon(
-                          Icons.receipt_long_outlined,
-                          color: AppColors.primary,
-                        ),
-                        title: Text(
-                          'INVOICE #${b.billNumber}',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(context),
-                          ),
-                        ),
-                        subtitle: Text(
-                          'Client: ${b.clientName} • Date: ${b.createdAt.toIso8601String().split('T').first}',
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              crossAxisAlignment: CrossAxisAlignment.end,
-                              children: [
-                                Text(
-                                  '₹${b.totalAmount.toInt()}',
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.text(context),
-                                  ),
-                                ),
-                                Text(
-                                  b.status,
-                                  style: TextStyle(
-                                    color: isPaid
-                                        ? AppColors.secondary
-                                        : AppColors.error,
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.print_outlined, size: 18),
-                              tooltip: 'Print Invoice PDF',
-                              onPressed: () async {
-                                final pdfBytes =
-                                    await SalesBillPdfGenerator.generatePdf(b);
-                                await Printing.layoutPdf(
-                                  onLayout: (_) async =>
-                                      Uint8List.fromList(pdfBytes),
-                                  name: 'Sales_Invoice_${b.billNumber}.pdf',
-                                );
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
+                    return _buildSalesBillCard(context, b);
                   },
                 ),
               ),

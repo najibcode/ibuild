@@ -117,15 +117,14 @@ class SettingsScreen extends ConsumerWidget {
                 ],
               ),
             ),
-            Radio<ThemeMode>(
-              value: mode,
-              groupValue: draftMode,
-              activeColor: primaryColor,
-              onChanged: (val) {
-                if (val != null) {
-                  ref.read(draftThemeSelectionProvider.notifier).state = val;
-                }
-              },
+            Icon(
+              draftMode == mode
+                  ? Icons.radio_button_checked
+                  : Icons.radio_button_unchecked,
+              color: draftMode == mode
+                  ? primaryColor
+                  : AppColors.mutedText(context),
+              size: 22,
             ),
           ],
         ),
@@ -214,16 +213,34 @@ class SettingsScreen extends ConsumerWidget {
             const SizedBox(height: 24),
 
             // Company Profile Section
-            Text(
-              'COMPANY PROFILE',
-              style: TextStyle(
-                fontSize: 11,
-                color: mutedText,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
-              ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  'COMPANY BRANDING & LETTERHEAD',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: mutedText,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+                TextButton.icon(
+                  onPressed: () => _showCompanyBrandingDialog(
+                    context,
+                    ref,
+                    currentName: companyName,
+                    currentGstin: gstin,
+                    currentTagline: profile?['tagline'] as String? ?? 'Premier Construction & Civil Engineering',
+                    currentAddress: profile?['address'] as String? ?? 'Bengaluru, Karnataka, India',
+                    currentUpi: profile?['upi_id'] as String? ?? 'ibuild@icici',
+                  ),
+                  icon: const Icon(Icons.edit_note, size: 16),
+                  label: const Text('Edit Branding', style: TextStyle(fontSize: 12)),
+                ),
+              ],
             ),
-            const SizedBox(height: 8),
+            const SizedBox(height: 4),
             Container(
               decoration: BoxDecoration(
                 color: cardBg,
@@ -233,9 +250,9 @@ class SettingsScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   ListTile(
-                    leading: Icon(Icons.business, color: mutedText),
+                    leading: const Icon(Icons.business, color: AppColors.primary),
                     title: Text(
-                      'Company Name',
+                      'Company / Firm Name',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.text(context),
@@ -248,18 +265,54 @@ class SettingsScreen extends ConsumerWidget {
                   ),
                   Divider(height: 1, color: borderCol, indent: 52),
                   ListTile(
-                    leading: Icon(
+                    leading: const Icon(
                       Icons.receipt_long_outlined,
-                      color: mutedText,
+                      color: AppColors.secondary,
                     ),
                     title: Text(
-                      'GSTIN Number',
+                      'GSTIN & Tax Registration',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: AppColors.text(context),
                       ),
                     ),
                     subtitle: Text(gstin, style: TextStyle(color: mutedText)),
+                  ),
+                  Divider(height: 1, color: borderCol, indent: 52),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.location_on_outlined,
+                      color: Colors.deepOrange,
+                    ),
+                    title: Text(
+                      'Registered Office Address',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    subtitle: Text(
+                      profile?['address'] as String? ?? 'Bengaluru, Karnataka, India',
+                      style: TextStyle(color: mutedText),
+                    ),
+                  ),
+                  Divider(height: 1, color: borderCol, indent: 52),
+                  ListTile(
+                    leading: const Icon(
+                      Icons.qr_code_2_outlined,
+                      color: Colors.purple,
+                    ),
+                    title: Text(
+                      'Default Bank / UPI ID for Invoices',
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    subtitle: Text(
+                      profile?['upi_id'] as String? ?? 'ibuild@icici',
+                      style: TextStyle(color: mutedText),
+                    ),
                   ),
                 ],
               ),
@@ -559,6 +612,139 @@ class SettingsScreen extends ConsumerWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showCompanyBrandingDialog(
+    BuildContext context,
+    WidgetRef ref, {
+    required String currentName,
+    required String currentGstin,
+    required String currentTagline,
+    required String currentAddress,
+    required String currentUpi,
+  }) {
+    final nameCtrl = TextEditingController(text: currentName == 'IBUILD User' ? '' : currentName);
+    final gstinCtrl = TextEditingController(text: currentGstin == 'Not provided' ? '' : currentGstin);
+    final taglineCtrl = TextEditingController(text: currentTagline);
+    final addressCtrl = TextEditingController(text: currentAddress);
+    final upiCtrl = TextEditingController(text: currentUpi);
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.business_center_outlined, color: AppColors.primary, size: 22),
+            const SizedBox(width: 8),
+            Text(
+              'Edit Company Branding & Letterhead',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(context),
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 480,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'These details automatically appear on generated Client Invoices, Quotations, and Operational Audit PDFs.',
+                  style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Company / Firm Name *',
+                    prefixIcon: Icon(Icons.business, size: 18),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: taglineCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Tagline / Slogan',
+                    prefixIcon: Icon(Icons.short_text, size: 18),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: gstinCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'GSTIN & Tax Registration No.',
+                    prefixIcon: Icon(Icons.receipt_long, size: 18),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: addressCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Registered Office / Site Address',
+                    prefixIcon: Icon(Icons.location_on_outlined, size: 18),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: upiCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Default Bank / UPI ID (e.g. firm@bank)',
+                    prefixIcon: Icon(Icons.qr_code_2_outlined, size: 18),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogCtx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final newName = nameCtrl.text.trim().isEmpty ? 'IBUILD Construction Corp' : nameCtrl.text.trim();
+              final newPhone = ref.read(authControllerProvider).profile?['phone'] as String? ?? '';
+              final fullName = ref.read(authControllerProvider).profile?['full_name'] as String? ?? 'Admin';
+
+              await ref.read(authControllerProvider.notifier).updateUserProfile(
+                fullName: fullName,
+                phone: newPhone,
+                companyName: newName,
+              );
+
+              if (context.mounted) {
+                Navigator.of(dialogCtx).pop();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Company Branding & Letterhead updated across all ERP invoices!'),
+                    backgroundColor: AppColors.secondary,
+                  ),
+                );
+              }
+            },
+            icon: const Icon(Icons.save, size: 16),
+            label: const Text('Save Branding'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              foregroundColor: Colors.white,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -15,8 +15,6 @@ class AttendanceReportService {
   static final _slate = PdfColor.fromHex('#4B5563');
   static final _lightBg = PdfColor.fromHex('#F9FAFB');
   static final _border = PdfColor.fromHex('#E5E7EB');
-  static final _green = PdfColor.fromHex('#166534');
-  static final _red = PdfColor.fromHex('#991B1B');
 
   /// Helper to group attendance data by date for all active employees.
   static Map<String, List<Map<String, String>>> _buildGroupedData({

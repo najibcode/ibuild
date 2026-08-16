@@ -3,9 +3,13 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../models/sales_bill_model.dart';
 
-final allSalesBillsProvider = FutureProvider<List<SalesBill>>((ref) async {
+final salesBillRepositoryProvider = Provider<SupabaseSalesBillRepository>((ref) {
   final client = ref.watch(supabaseClientProvider);
-  return await SupabaseSalesBillRepository(client).fetchAllSalesBills();
+  return SupabaseSalesBillRepository(client);
+});
+
+final allSalesBillsProvider = FutureProvider<List<SalesBill>>((ref) async {
+  return await ref.watch(salesBillRepositoryProvider).fetchAllSalesBills();
 });
 
 class SupabaseSalesBillRepository {
@@ -49,5 +53,14 @@ class SupabaseSalesBillRepository {
     } catch (e) {
       return null;
     }
+  }
+
+  Future<void> updateSalesBillStatus(String id, String status) async {
+    try {
+      await _client
+          .from('sales_bills')
+          .update({'status': status})
+          .eq('id', id);
+    } catch (_) {}
   }
 }

@@ -15,19 +15,46 @@ class SupabaseEquipmentRepository {
   }
 
   Future<EquipmentItem> createEquipment(EquipmentItem item) async {
-    final response = await _client
-        .from('equipment')
-        .insert(item.toJson())
-        .select()
-        .single();
-    return EquipmentItem.fromJson(response);
+    final payload = item.toJson();
+    try {
+      final response = await _client
+          .from('equipment')
+          .insert(payload)
+          .select()
+          .single();
+      return EquipmentItem.fromJson(response);
+    } catch (e) {
+      if (e.toString().contains("'notes'") || e.toString().contains("PGRST204")) {
+        payload.remove('notes');
+        final response = await _client
+            .from('equipment')
+            .insert(payload)
+            .select()
+            .single();
+        return EquipmentItem.fromJson(response);
+      }
+      rethrow;
+    }
   }
 
   Future<void> updateEquipment(EquipmentItem item) async {
-    await _client
-        .from('equipment')
-        .update(item.toJson())
-        .eq('id', item.id);
+    final payload = item.toJson();
+    try {
+      await _client
+          .from('equipment')
+          .update(payload)
+          .eq('id', item.id);
+    } catch (e) {
+      if (e.toString().contains("'notes'") || e.toString().contains("PGRST204")) {
+        payload.remove('notes');
+        await _client
+            .from('equipment')
+            .update(payload)
+            .eq('id', item.id);
+      } else {
+        rethrow;
+      }
+    }
   }
 
   Future<void> deleteEquipment(String id) async {

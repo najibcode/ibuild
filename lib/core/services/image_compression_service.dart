@@ -51,7 +51,7 @@ class ImageCompressionService {
 
       final compressedSizeKB = (compressed.length / 1024).toStringAsFixed(1);
       final savings = rawBytes.length - compressed.length;
-      final savingsPercent = rawBytes.length > 0
+      final savingsPercent = rawBytes.isNotEmpty
           ? ((savings / rawBytes.length) * 100).toStringAsFixed(1)
           : '0';
 

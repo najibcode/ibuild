@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/data_export_actions.dart';
@@ -10,6 +12,8 @@ import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../subcontractors/data/models/subcontractor_model.dart';
 import '../../../subcontractors/presentation/controllers/subcontractor_controller.dart';
+import '../../../expenses/data/models/expense_model.dart';
+import '../../../expenses/presentation/controllers/expense_controller.dart';
 
 class VendorListScreen extends ConsumerStatefulWidget {
   const VendorListScreen({super.key});
@@ -452,75 +456,320 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
   }
 
   void _showRecordPaymentDialog(BuildContext context, Subcontractor vendor) {
-    final amountCtrl = TextEditingController();
+    final grossCtrl = TextEditingController(text: '100000');
+    final advanceCtrl = TextEditingController(text: '0');
+    final notesCtrl = TextEditingController(text: 'RA Bill Clearance');
+    double retentionPct = 5.0; // standard 5% retention
+    double tdsPct = 2.0; // standard 2% TDS under section 194C
+    bool chargeProjectExpense = true;
+
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardBg(context),
-        title: Text(
-          'Record Payment: ${vendor.companyName}',
-          style: TextStyle(color: AppColors.text(context)),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Current Disbursed: ₹${_fmt(vendor.paidAmount)} / Contract: ₹${_fmt(vendor.contractAmount)}',
-              style: TextStyle(
-                fontSize: 12,
-                color: AppColors.mutedText(context),
-              ),
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final double gross = double.tryParse(grossCtrl.text) ?? 0.0;
+          final double advance = double.tryParse(advanceCtrl.text) ?? 0.0;
+          final double retentionMoney = gross * (retentionPct / 100.0);
+          final double tdsDeduction = gross * (tdsPct / 100.0);
+          final double netPayable = (gross - retentionMoney - tdsDeduction - advance).clamp(0.0, double.infinity);
+
+          return AlertDialog(
+            backgroundColor: AppColors.cardBg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.receipt_long, color: AppColors.secondary, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'RA Bill & Retention: ${vendor.companyName}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
             ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountCtrl,
-              keyboardType: TextInputType.number,
-              style: TextStyle(color: AppColors.text(context)),
-              decoration: InputDecoration(
-                labelText: 'New Payment Amount (₹)',
-                hintText: 'e.g. 50000',
-                labelStyle: TextStyle(color: AppColors.mutedText(context)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final addAmount = double.tryParse(amountCtrl.text) ?? 0.0;
-              if (addAmount <= 0) return;
-              final updated = vendor.copyWith(
-                paidAmount: vendor.paidAmount + addAmount,
-              );
-              final success = await ref
-                  .read(subcontractorControllerProvider.notifier)
-                  .updateSubcontractor(updated);
-              if (context.mounted) {
-                Navigator.pop(ctx);
-                if (success) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Recorded payment of ₹$addAmount to ${vendor.companyName}',
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border(context)),
                       ),
-                      backgroundColor: AppColors.secondary,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Contract Value: ₹${_fmt(vendor.contractAmount)}', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                          Text('Already Paid: ₹${_fmt(vendor.paidAmount)}', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.secondary)),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Gross Work Claimed
+                    TextField(
+                      controller: grossCtrl,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setModalState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Gross Certified Work Done (₹) *',
+                        prefixIcon: Icon(Icons.payments_outlined, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Retention Deduction Selector
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Retention Money Held:',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text(context)),
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 4,
+                          children: [0.0, 5.0, 10.0].map((pct) {
+                            final isSel = retentionPct == pct;
+                            return ChoiceChip(
+                              label: Text('${pct.toInt()}%', style: TextStyle(fontSize: 10, color: isSel ? Colors.white : AppColors.text(context))),
+                              selected: isSel,
+                              selectedColor: Colors.deepOrange,
+                              onSelected: (_) => setModalState(() => retentionPct = pct),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // TDS Deduction Selector
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'TDS Deduction (Sec 194C):',
+                            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text(context)),
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 4,
+                          children: [0.0, 1.0, 2.0].map((pct) {
+                            final isSel = tdsPct == pct;
+                            return ChoiceChip(
+                              label: Text('${pct.toInt()}%', style: TextStyle(fontSize: 10, color: isSel ? Colors.white : AppColors.text(context))),
+                              selected: isSel,
+                              selectedColor: Colors.purple,
+                              onSelected: (_) => setModalState(() => tdsPct = pct),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+
+                    // Advance / Material Recovery
+                    TextField(
+                      controller: advanceCtrl,
+                      keyboardType: TextInputType.number,
+                      onChanged: (_) => setModalState(() {}),
+                      decoration: const InputDecoration(
+                        labelText: 'Advance / Material Recovery (₹)',
+                        prefixIcon: Icon(Icons.remove_circle_outline, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Summary Breakdown Box
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border(context)),
+                      ),
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Gross Certified Amount:', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                              Text('₹${_fmt(gross)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text(context))),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('(-) Retention (${retentionPct.toInt()}%):', style: const TextStyle(fontSize: 12, color: Colors.deepOrange)),
+                              Text('-₹${_fmt(retentionMoney)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.deepOrange)),
+                            ],
+                          ),
+                          const SizedBox(height: 4),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('(-) TDS Deduction (${tdsPct.toInt()}%):', style: const TextStyle(fontSize: 12, color: Colors.purple)),
+                              Text('-₹${_fmt(tdsDeduction)}', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.purple)),
+                            ],
+                          ),
+                          if (advance > 0) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text('(-) Advance Recovery:', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                                Text('-₹${_fmt(advance)}', style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: AppColors.text(context))),
+                              ],
+                            ),
+                          ],
+                          const Divider(height: 14),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              const Text('NET DISBURSABLE AMOUNT:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold)),
+                              Text(
+                                '₹${_fmt(netPayable)}',
+                                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    TextField(
+                      controller: notesCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'RA Bill Clearance Notes',
+                        prefixIcon: Icon(Icons.notes, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Charge Project Expense Checkbox
+                    CheckboxListTile(
+                      contentPadding: EdgeInsets.zero,
+                      value: chargeProjectExpense,
+                      activeColor: AppColors.primary,
+                      title: Text(
+                        'Charge Net ₹${_fmt(netPayable)} to Site Project Expense',
+                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                      ),
+                      subtitle: Text(
+                        'Assigned Site: ${vendor.siteName}',
+                        style: TextStyle(fontSize: 10, color: AppColors.mutedText(context)),
+                      ),
+                      onChanged: (val) => setModalState(() => chargeProjectExpense = val ?? true),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  final summaryText = "🏗️ *RA BILL SUMMARY — ${vendor.companyName}*\n"
+                      "📍 *Trade:* ${vendor.tradeSpecialization}\n"
+                      "• Gross Claimed: ₹${_fmt(gross)}\n"
+                      "• Retention Held (${retentionPct.toInt()}%): -₹${_fmt(retentionMoney)}\n"
+                      "• TDS Deducted (${tdsPct.toInt()}%): -₹${_fmt(tdsDeduction)}\n"
+                      "• Advance Recovery: -₹${_fmt(advance)}\n"
+                      "━━━━━━━━━━━━━━━━━━━━━\n"
+                      "💰 *NET PAYABLE:* ₹${_fmt(netPayable)}\n"
+                      "📝 *Notes:* ${notesCtrl.text}\n\n"
+                      "_Generated via IBUILD ERP_";
+
+                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(summaryText)}");
+                  try {
+                    canLaunchUrl(url).then((ok) {
+                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
+                    });
+                  } catch (_) {}
+
+                  Clipboard.setData(ClipboardData(text: summaryText));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('RA Bill statement copied & opened in WhatsApp!'),
+                      backgroundColor: Color(0xFF25D366),
                     ),
                   );
-                }
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.secondary,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Record Payment'),
-          ),
-        ],
+                },
+                icon: const Icon(Icons.share, size: 14),
+                label: const Text('Share RA Bill', style: TextStyle(fontSize: 12)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (netPayable <= 0 && gross <= 0) return;
+
+                  // 1. Update Subcontractor cumulative paid amount
+                  final updated = vendor.copyWith(
+                    paidAmount: vendor.paidAmount + netPayable,
+                  );
+                  await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(updated);
+
+                  // 2. Charge project expense if checked
+                  if (chargeProjectExpense) {
+                    final projects = ref.read(projectControllerProvider).projects;
+                    String? targetProjectId;
+                    if (vendor.siteName.isNotEmpty) {
+                      final match = projects.where((p) => p.name.toLowerCase() == vendor.siteName.toLowerCase());
+                      if (match.isNotEmpty) targetProjectId = match.first.id;
+                    }
+                    if (targetProjectId == null && projects.isNotEmpty) {
+                      targetProjectId = projects.first.id;
+                    }
+
+                    final newExp = Expense(
+                      id: '',
+                      projectId: targetProjectId,
+                      expenseDate: DateTime.now().toIso8601String().substring(0, 10),
+                      category: 'Subcontractor',
+                      amount: netPayable,
+                      paymentMode: 'bank',
+                      notes: 'RA Bill Payment to ${vendor.companyName} (${vendor.tradeSpecialization}) - Net: ₹${_fmt(netPayable)}, Gross: ₹${_fmt(gross)}, Retention: ₹${_fmt(retentionMoney)}. ${notesCtrl.text.trim()}',
+                    );
+                    await ref.read(expenseControllerProvider.notifier).addExpense(newExp);
+                  }
+
+                  if (context.mounted) {
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Certified & Disbursed Net ₹${_fmt(netPayable)} to ${vendor.companyName} ✓'),
+                        backgroundColor: AppColors.secondary,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.check_circle_outline, size: 16),
+                label: const Text('Certify & Disburse'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -1047,7 +1296,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                               color: AppColors.secondary,
                             ),
                             SizedBox(width: 8),
-                            Text('Record Payment'),
+                            Text('RA Bill & Payment'),
                           ],
                         ),
                       ),

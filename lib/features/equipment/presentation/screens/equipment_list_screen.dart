@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/data_export_actions.dart';
@@ -8,6 +10,8 @@ import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
+import '../../../expenses/data/models/expense_model.dart';
+import '../../../expenses/presentation/controllers/expense_controller.dart';
 import '../../data/models/equipment_model.dart';
 import '../controllers/equipment_controller.dart';
 
@@ -1639,6 +1643,12 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                     ),
                   ),
                   IconButton(
+                    icon: const Icon(Icons.local_gas_station_outlined, size: 18),
+                    color: Colors.amber.shade800,
+                    onPressed: () => _showFuelAndMaintenanceDialog(context, item),
+                    tooltip: 'Log Fuel & Maintenance Expense',
+                  ),
+                  IconButton(
                     icon: const Icon(Icons.edit_outlined, size: 18),
                     color: AppColors.primaryColor(context),
                     onPressed: () =>
@@ -1744,5 +1754,227 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
     if (v >= 100000) return '${(v / 100000).toStringAsFixed(1)}L';
     if (v >= 1000) return '${(v / 1000).toStringAsFixed(1)}K';
     return v.toStringAsFixed(0);
+  }
+
+  void _showFuelAndMaintenanceDialog(BuildContext context, EquipmentItem item) {
+    final qtyCtrl = TextEditingController(text: '25'); // liters or hours
+    final rateCtrl = TextEditingController(text: '95'); // ₹95/L standard diesel
+    final notesCtrl = TextEditingController(text: 'Site Fuel Refill');
+    String expenseType = 'Diesel / Fuel Refill';
+    String? selectedProjectId;
+
+    final projects = ref.read(projectControllerProvider).projects;
+    if (item.siteName != 'Central Yard' && item.siteName.isNotEmpty) {
+      final match = projects.where((p) => p.name.toLowerCase() == item.siteName.toLowerCase());
+      if (match.isNotEmpty) selectedProjectId = match.first.id;
+    }
+    if (selectedProjectId == null && projects.isNotEmpty) {
+      selectedProjectId = projects.first.id;
+    }
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final double qty = double.tryParse(qtyCtrl.text) ?? 0.0;
+          final double rate = double.tryParse(rateCtrl.text) ?? 0.0;
+          final double totalCost = qty * rate;
+
+          return AlertDialog(
+            backgroundColor: AppColors.cardBg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.local_gas_station, color: Colors.amber, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Log Fuel & Service: ${item.name}',
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 480,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Record machinery fuel consumption or servicing cost and charge directly to site expense budget.',
+                      style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Expense Type Selector
+                    Wrap(
+                      spacing: 6,
+                      children: ['Diesel / Fuel Refill', 'Periodic Servicing', 'Hydraulic Oil / Grease', 'Repairs & Parts'].map((type) {
+                        final isSel = expenseType == type;
+                        return ChoiceChip(
+                          label: Text(type, style: TextStyle(fontSize: 11, color: isSel ? Colors.white : AppColors.text(context))),
+                          selected: isSel,
+                          selectedColor: AppColors.primaryColor(context),
+                          onSelected: (_) => setModalState(() => expenseType = type),
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: qtyCtrl,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setModalState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Liters / Units *',
+                              prefixIcon: Icon(Icons.speed, size: 18),
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: rateCtrl,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setModalState(() {}),
+                            decoration: const InputDecoration(
+                              labelText: 'Rate per Unit (₹) *',
+                              prefixIcon: Icon(Icons.currency_rupee, size: 18),
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Target Project Dropdown
+                    DropdownButtonFormField<String>(
+                      value: selectedProjectId,
+                      decoration: const InputDecoration(
+                        labelText: 'Charge to Project Site *',
+                        prefixIcon: Icon(Icons.apartment, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                      onChanged: (val) => setModalState(() => selectedProjectId = val),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: notesCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Logbook Notes / Meter Reading',
+                        prefixIcon: Icon(Icons.notes, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Total Calculation Banner
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border(context)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Refuel / Service Cost:', style: TextStyle(fontWeight: FontWeight.bold)),
+                          Text(
+                            '₹${totalCost.toInt()}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.amber),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  final logMsg = "🚜 *EQUIPMENT LOG — ${item.name}*\n"
+                      "🏷️ *Tag:* ${item.tagNumber}\n"
+                      "⛽ *Type:* $expenseType\n"
+                      "• Qty: $qty Units @ ₹$rate/Unit\n"
+                      "💰 *Total Cost:* ₹${totalCost.toInt()}\n"
+                      "📝 *Notes:* ${notesCtrl.text}\n\n"
+                      "_Generated via IBUILD ERP_";
+
+                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(logMsg)}");
+                  try {
+                    canLaunchUrl(url).then((ok) {
+                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
+                    });
+                  } catch (_) {}
+
+                  Clipboard.setData(ClipboardData(text: logMsg));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Equipment log copied & opened in WhatsApp!'),
+                      backgroundColor: Color(0xFF25D366),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.share, size: 14),
+                label: const Text('Share Log', style: TextStyle(fontSize: 12)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (totalCost <= 0) return;
+
+                  final newExp = Expense(
+                    id: '',
+                    projectId: selectedProjectId,
+                    expenseDate: DateTime.now().toIso8601String().substring(0, 10),
+                    category: 'Equipment',
+                    amount: totalCost,
+                    paymentMode: 'cash',
+                    notes: '$expenseType for ${item.name} (${item.tagNumber}) - $qty Units @ ₹$rate. ${notesCtrl.text.trim()}',
+                  );
+
+                  await ref.read(expenseControllerProvider.notifier).addExpense(newExp);
+
+                  if (context.mounted) {
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Logged ₹${totalCost.toInt()} equipment expense to site budget! ✓'),
+                        backgroundColor: AppColors.secondary,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.check_circle_outline, size: 16),
+                label: const Text('Charge to Project'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor(context),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
@@ -204,7 +205,37 @@ class InventoryListScreen extends ConsumerWidget {
             onPressed: () => Navigator.of(ctx).pop(),
             child: const Text('Close'),
           ),
-          if (lowStockItems.isNotEmpty)
+          if (lowStockItems.isNotEmpty) ...[
+            OutlinedButton.icon(
+              onPressed: () {
+                final poText = lowStockItems
+                    .map((item) => "• *${item.materialName}*: +${item.recommendedReorderQty.toInt()} ${item.unit} @ ₹${item.purchasePrice}/unit (Est: ₹${item.estimatedReorderCost.toInt()}) [Supplier: ${item.supplier ?? 'Direct Distributor'}]")
+                    .join("\n");
+                final summaryMsg = "📦 *IBUILD PURCHASE ORDER / REQUISITION*\n"
+                    "💰 *Total Estimated PO Value:* ₹${totalPOCost.toInt()}\n"
+                    "━━━━━━━━━━━━━━━━━━━━━\n"
+                    "📋 *Items Ordered:*\n$poText\n"
+                    "━━━━━━━━━━━━━━━━━━━━━\n"
+                    "_Generated via IBUILD ERP_";
+
+                final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(summaryMsg)}");
+                try {
+                  canLaunchUrl(url).then((ok) {
+                    if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
+                  });
+                } catch (_) {}
+
+                Clipboard.setData(ClipboardData(text: summaryMsg));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('PO Requisition copied & opened in WhatsApp! ✓'),
+                    backgroundColor: Color(0xFF25D366),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.share, size: 14),
+              label: const Text('Share PO to WhatsApp', style: TextStyle(fontSize: 12)),
+            ),
             ElevatedButton.icon(
               onPressed: () {
                 final poText = lowStockItems
@@ -218,14 +249,271 @@ class InventoryListScreen extends ConsumerWidget {
                 );
                 Navigator.of(ctx).pop();
               },
-              icon: const Icon(Icons.copy, size: 16),
-              label: const Text('Copy PO Requisition Draft'),
+              icon: const Icon(Icons.copy, size: 14),
+              label: const Text('Copy Draft', style: TextStyle(fontSize: 12)),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.secondary,
                 foregroundColor: Colors.white,
               ),
             ),
+          ],
         ],
+      ),
+    );
+  }
+
+  void _showInterSiteTransferDialog(BuildContext context, WidgetRef ref, {InventoryItem? preselectedItem}) {
+    final items = ref.read(inventoryControllerProvider).items;
+    final projects = ref.read(projectControllerProvider).projects;
+
+    InventoryItem? selectedItem = preselectedItem ?? (items.isNotEmpty ? items.first : null);
+    String fromSite = 'Central Yard / Warehouse';
+    String? toProjectId = projects.isNotEmpty ? projects.first.id : null;
+    String? toProjectName = projects.isNotEmpty ? projects.first.name : 'Site Project';
+    final qtyCtrl = TextEditingController(text: '10');
+    final vehicleCtrl = TextEditingController(text: 'KA-04-E-4921');
+    final driverCtrl = TextEditingController(text: 'Ramesh (Lorry Driver)');
+    final notesCtrl = TextEditingController(text: 'Site material transfer');
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          final double qty = double.tryParse(qtyCtrl.text) ?? 0.0;
+          final double available = selectedItem?.availableStock ?? 0.0;
+          final bool isOver = qty > available && available > 0;
+
+          return AlertDialog(
+            backgroundColor: AppColors.cardBg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Inter-Site Stock Transfer',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 500,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Transfer materials from warehouse or site to another project with dispatch gate-pass.',
+                      style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Material Selector
+                    DropdownButtonFormField<InventoryItem>(
+                      value: selectedItem,
+                      decoration: const InputDecoration(
+                        labelText: 'Select Material to Transfer *',
+                        prefixIcon: Icon(Icons.inventory_2_outlined, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: items.map((it) => DropdownMenuItem(
+                        value: it,
+                        child: Text('${it.materialName} (Avail: ${it.availableStock.toInt()} ${it.unit})'),
+                      )).toList(),
+                      onChanged: (val) => setModalState(() => selectedItem = val),
+                    ),
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            initialValue: fromSite,
+                            decoration: const InputDecoration(
+                              labelText: 'From (Origin) *',
+                              prefixIcon: Icon(Icons.warehouse_outlined, size: 18),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: [
+                              const DropdownMenuItem(value: 'Central Yard / Warehouse', child: Text('Central Yard')),
+                              ...projects.map((p) => DropdownMenuItem(value: p.name, child: Text(p.name))),
+                            ],
+                            onChanged: (val) => setModalState(() => fromSite = val ?? 'Central Yard / Warehouse'),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Icon(Icons.arrow_forward, size: 18, color: AppColors.mutedText(context)),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: DropdownButtonFormField<String>(
+                            value: toProjectId,
+                            decoration: const InputDecoration(
+                              labelText: 'To (Destination) *',
+                              prefixIcon: Icon(Icons.apartment, size: 18),
+                              border: OutlineInputBorder(),
+                            ),
+                            items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                            onChanged: (val) {
+                              setModalState(() {
+                                toProjectId = val;
+                                final match = projects.where((p) => p.id == val);
+                                if (match.isNotEmpty) toProjectName = match.first.name;
+                              });
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: qtyCtrl,
+                            keyboardType: TextInputType.number,
+                            onChanged: (_) => setModalState(() {}),
+                            decoration: InputDecoration(
+                              labelText: 'Quantity (${selectedItem?.unit ?? 'Units'}) *',
+                              prefixIcon: const Icon(Icons.numbers, size: 18),
+                              errorText: isOver ? 'Exceeds stock (${available.toInt()})' : null,
+                              border: const OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            controller: vehicleCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Vehicle / Lorry No.',
+                              prefixIcon: Icon(Icons.directions_car, size: 18),
+                              border: OutlineInputBorder(),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: driverCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Driver / Supervisor Name',
+                        prefixIcon: Icon(Icons.person_pin, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    TextField(
+                      controller: notesCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Transfer Purpose / Requisition Notes',
+                        prefixIcon: Icon(Icons.notes, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Gate Pass Preview Box
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border(context)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('DISPATCH GATE-PASS SUMMARY', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context))),
+                          const SizedBox(height: 4),
+                          Text(
+                            '• Transfer: ${qty.toInt()} ${selectedItem?.unit ?? ''} ${selectedItem?.materialName ?? ''}',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
+                          Text('• Route: $fromSite ➔ $toProjectName', style: const TextStyle(fontSize: 12)),
+                          Text('• Transport: ${vehicleCtrl.text} (${driverCtrl.text})', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  final matName = selectedItem?.materialName ?? 'Material';
+                  final unit = selectedItem?.unit ?? 'Units';
+                  final challanNo = 'GP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
+                  final passMsg = "🚚 *MATERIAL DISPATCH GATE-PASS*\n"
+                      "🎫 *Challan No:* #$challanNo\n"
+                      "📦 *Material:* $matName\n"
+                      "📊 *Transfer Qty:* ${qty.toInt()} $unit\n"
+                      "━━━━━━━━━━━━━━━━━━━━━\n"
+                      "🚩 *From:* $fromSite\n"
+                      "🏁 *To:* $toProjectName\n"
+                      "🚛 *Vehicle:* ${vehicleCtrl.text}\n"
+                      "👤 *Driver:* ${driverCtrl.text}\n"
+                      "📝 *Notes:* ${notesCtrl.text}\n"
+                      "━━━━━━━━━━━━━━━━━━━━━\n"
+                      "_Authorized by IBUILD ERP Site Operations_";
+
+                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(passMsg)}");
+                  try {
+                    canLaunchUrl(url).then((ok) {
+                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
+                    });
+                  } catch (_) {}
+
+                  Clipboard.setData(ClipboardData(text: passMsg));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Gate-Pass copied & opened in WhatsApp! ✓'),
+                      backgroundColor: Color(0xFF25D366),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.share, size: 14),
+                label: const Text('Share Gate-Pass', style: TextStyle(fontSize: 12)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (selectedItem == null || qty <= 0) return;
+
+                  // 1. Deduct stock from inventory
+                  await ref.read(inventoryControllerProvider.notifier).adjustStock(selectedItem!, -qty);
+
+                  if (context.mounted) {
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Dispatched ${qty.toInt()} ${selectedItem!.unit} to $toProjectName! ✓'),
+                        backgroundColor: AppColors.secondary,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.send_rounded, size: 16),
+                label: const Text('Dispatch Transfer'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor(context),
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -306,6 +594,11 @@ class InventoryListScreen extends ConsumerWidget {
             },
           ),
           const SizedBox(width: 4),
+          IconButton(
+            icon: const Icon(Icons.local_shipping_outlined, color: AppColors.primary),
+            tooltip: 'Inter-Site Stock Transfer',
+            onPressed: () => _showInterSiteTransferDialog(context, ref),
+          ),
           IconButton(
             icon: const Icon(Icons.bolt, color: Colors.amber),
             tooltip: 'Auto-Generate PO',

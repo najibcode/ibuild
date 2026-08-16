@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/utils/excel_download_helper.dart';
@@ -13,6 +15,8 @@ import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../projects/data/models/project_model.dart';
 import '../../../projects/presentation/screens/project_dashboard_screen.dart';
 import '../../../rbac/presentation/providers/permission_provider.dart';
+import '../../../expenses/data/models/expense_model.dart';
+import '../../../expenses/presentation/controllers/expense_controller.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
   const AttendanceScreen({super.key});
@@ -689,21 +693,263 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
         ? 'Absent Today'
         : (dateLabel == 'YESTERDAY' ? 'Absent Yesterday' : 'Absent');
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColors.bg(context),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border(context)),
+    return InkWell(
+      onTap: () => _showMusterRollWageDialog(
+        context,
+        dateLabel,
+        todayPayroll,
+        present,
+        logged,
+        employees,
       ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: [
-          _buildSummaryCol(context, 'Total Staff', '$totalActive', AppColors.primaryColor(context)),
-          _buildSummaryCol(context, presentTitle, '$present', AppColors.secondary),
-          _buildSummaryCol(context, absentTitle, '$absent', AppColors.error),
-          _buildSummaryCol(context, 'Daily Cost (Pay + Tea)', '₹${todayPayroll.toInt()}', Colors.amber.shade800),
-        ],
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.bg(context),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border(context)),
+        ),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildSummaryCol(context, 'Total Staff', '$totalActive', AppColors.primaryColor(context)),
+                _buildSummaryCol(context, presentTitle, '$present', AppColors.secondary),
+                _buildSummaryCol(context, absentTitle, '$absent', AppColors.error),
+                _buildSummaryCol(context, 'Daily Cost (Pay + Tea)', '₹${todayPayroll.toInt()}', Colors.amber.shade800),
+              ],
+            ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.touch_app, size: 12, color: AppColors.primaryColor(context)),
+                const SizedBox(width: 4),
+                Text(
+                  'Tap to view Muster Roll, Wage Breakdown & Disburse Expenses',
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.primaryColor(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showMusterRollWageDialog(
+    BuildContext context,
+    String dateLabel,
+    double totalPayroll,
+    int presentCount,
+    List<Attendance> attendanceList,
+    List<dynamic> activeEmployees,
+  ) {
+    final state = ref.read(attendanceControllerProvider);
+    final projects = ref.read(projectControllerProvider).projects;
+    String? targetProjectId = projects.isNotEmpty ? projects.first.id : null;
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setModalState) {
+          return AlertDialog(
+            backgroundColor: AppColors.cardBg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.account_balance_wallet_outlined, color: AppColors.secondary, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Muster Roll & Wage Outflow ($dateLabel)',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Calculated wage & tea snack allowance for $presentCount present worker${presentCount == 1 ? '' : 's'} on ${state.selectedDate}:',
+                      style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Total Calculation Banner
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(color: AppColors.border(context)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Total Daily Labor Payout:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                          Text(
+                            '₹${totalPayroll.toInt()}',
+                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Site Project Selector
+                    DropdownButtonFormField<String>(
+                      value: targetProjectId,
+                      decoration: const InputDecoration(
+                        labelText: 'Charge Labor Expense to Site Project *',
+                        prefixIcon: Icon(Icons.apartment, size: 18),
+                        border: OutlineInputBorder(),
+                      ),
+                      items: projects.map((p) => DropdownMenuItem(value: p.id, child: Text(p.name))).toList(),
+                      onChanged: (val) => setModalState(() => targetProjectId = val),
+                    ),
+                    const SizedBox(height: 14),
+
+                    Text(
+                      'Staff Attendance Breakdown:',
+                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                    ),
+                    const SizedBox(height: 8),
+                    Container(
+                      constraints: const BoxConstraints(maxHeight: 200),
+                      child: ListView.builder(
+                        shrinkWrap: true,
+                        itemCount: activeEmployees.length,
+                        itemBuilder: (ctx, i) {
+                          final emp = activeEmployees[i];
+                          final logged = attendanceList.firstWhere(
+                            (a) => a.employeeId == emp.id,
+                            orElse: () => Attendance(
+                              id: '',
+                              employeeId: emp.id,
+                              date: state.selectedDate,
+                              status: 'Absent',
+                            ),
+                          );
+                          final isPres = logged.status.toLowerCase() == 'present';
+                          final empCost = isPres ? (emp.salary + emp.teaSnackAllowance).toDouble() : 0.0;
+
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.bg(context),
+                              borderRadius: BorderRadius.circular(6),
+                              border: Border.all(color: AppColors.border(context)),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(emp.name, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.text(context))),
+                                    Text('${emp.role} • ${isPres ? "Present" : "Absent"}', style: TextStyle(fontSize: 11, color: isPres ? AppColors.secondary : AppColors.error)),
+                                  ],
+                                ),
+                                Text(
+                                  isPres ? '₹${empCost.toInt()}' : '₹0',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                    color: isPres ? AppColors.text(context) : AppColors.mutedText(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(dialogCtx),
+                child: const Text('Cancel'),
+              ),
+              OutlinedButton.icon(
+                onPressed: () {
+                  final summaryMsg = "👷 *IBUILD MUSTER ROLL REPORT*\n"
+                      "📅 *Date:* ${state.selectedDate}\n"
+                      "👥 *Present Staff:* $presentCount / ${activeEmployees.length}\n"
+                      "💰 *Total Daily Wage Outflow:* ₹${totalPayroll.toInt()}\n"
+                      "━━━━━━━━━━━━━━━━━━━━━\n"
+                      "_Generated via IBUILD ERP_";
+
+                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(summaryMsg)}");
+                  try {
+                    canLaunchUrl(url).then((ok) {
+                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
+                    });
+                  } catch (_) {}
+
+                  Clipboard.setData(ClipboardData(text: summaryMsg));
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Muster roll copied & opened in WhatsApp!'),
+                      backgroundColor: Color(0xFF25D366),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.share, size: 14),
+                label: const Text('Share to WhatsApp', style: TextStyle(fontSize: 12)),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  if (totalPayroll <= 0) return;
+
+                  final newExp = Expense(
+                    id: '',
+                    projectId: targetProjectId,
+                    expenseDate: state.selectedDate,
+                    category: 'Labour',
+                    amount: totalPayroll,
+                    paymentMode: 'cash',
+                    notes: 'Daily Site Labor Wages & Tea Allowance for $presentCount workers ($dateLabel).',
+                  );
+
+                  await ref.read(expenseControllerProvider.notifier).addExpense(newExp);
+
+                  if (context.mounted) {
+                    Navigator.pop(dialogCtx);
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Recorded ₹${totalPayroll.toInt()} daily labor wage expense to project! ✓'),
+                        backgroundColor: AppColors.secondary,
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.check_circle_outline, size: 16),
+                label: const Text('Disburse & Record Expense'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
       ),
     );
   }
