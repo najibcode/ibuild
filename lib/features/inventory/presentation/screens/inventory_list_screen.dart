@@ -591,336 +591,206 @@ class _InventoryCard extends ConsumerWidget {
     final priceController =
         TextEditingController(text: item.purchasePrice.toStringAsFixed(2));
     final notesController = TextEditingController();
-    double liveExpenseAmount = 0.0;
-
-    final projectState = ref.read(projectControllerProvider);
-    final projects = projectState.projects;
-
-    String? selectedProjectId = projects.isNotEmpty ? projects.first.id : 'none';
-    String? selectedProjectName = projects.isNotEmpty ? projects.first.name : 'Central Stock';
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setState) {
-          void updateExpenseAmount() {
-            final qty = double.tryParse(qtyController.text) ?? 0.0;
-            final price = double.tryParse(priceController.text) ?? item.purchasePrice;
-            setState(() {
-              liveExpenseAmount = qty * price;
-            });
-          }
-
-          return AlertDialog(
-            backgroundColor: AppColors.cardBg(context),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-            title: Row(
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.add_circle_outline, color: AppColors.secondary),
+            const SizedBox(width: 8),
+            Text(
+              'Receive Stock Delivery',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(context),
+              ),
+            ),
+          ],
+        ),
+        content: SingleChildScrollView(
+          child: SizedBox(
+            width: 440,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.add_circle_outline, color: AppColors.secondary),
-                const SizedBox(width: 8),
-                Text(
-                  'Receive Stock Delivery',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.secondary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: AppColors.secondary.withValues(alpha: 0.3),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.inventory_2_outlined,
+                        color: AppColors.secondary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              item.materialName,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                            Text(
+                              'Current Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText(context),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Supplier
+                TextField(
+                  controller: supplierController,
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: const InputDecoration(
+                    labelText: 'Received From / Supplier *',
+                    hintText: 'e.g. Ultratech Cement Depot, Hardware Store',
+                    prefixIcon: Icon(Icons.storefront_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Quantity Received
+                TextField(
+                  controller: qtyController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  autofocus: true,
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: InputDecoration(
+                    labelText: 'Quantity Received *',
+                    suffixText: item.unit,
+                    prefixIcon: const Icon(Icons.add_box_outlined),
+                    border: const OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Purchase Price per Unit
+                TextField(
+                  controller: priceController,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: const InputDecoration(
+                    labelText: 'Purchase Rate per Unit (\u20B9)',
+                    prefixText: '\u20B9 ',
+                    prefixIcon: Icon(Icons.payments_outlined),
+                    border: OutlineInputBorder(),
+                  ),
+                ),
+                const SizedBox(height: 12),
+
+                // Notes / Ref
+                TextField(
+                  controller: notesController,
+                  style: TextStyle(color: AppColors.text(context)),
+                  decoration: const InputDecoration(
+                    labelText: 'Delivery Notes / Invoice Ref (Optional)',
+                    prefixIcon: Icon(Icons.note_alt_outlined),
+                    border: OutlineInputBorder(),
                   ),
                 ),
               ],
             ),
-            content: SingleChildScrollView(
-              child: SizedBox(
-                width: 440,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.secondary.withValues(alpha: 0.3),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.inventory_2_outlined,
-                            color: AppColors.secondary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  item.materialName,
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 14,
-                                    color: AppColors.text(context),
-                                  ),
-                                ),
-                                Text(
-                                  'Current Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.mutedText(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () async {
+              final rawSupplier = supplierController.text.trim();
+              final supplier = rawSupplier.isNotEmpty
+                  ? rawSupplier
+                  : (item.supplier?.isNotEmpty == true
+                      ? item.supplier!
+                      : 'Vendor Delivery');
+              final qty = double.tryParse(qtyController.text);
+              final unitPrice = double.tryParse(priceController.text);
 
-                    // Target Project Dropdown (For Expense Allocation)
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedProjectId,
-                      dropdownColor: AppColors.cardBg(context),
-                      style: TextStyle(color: AppColors.text(context)),
-                      decoration: const InputDecoration(
-                        labelText: 'Charge Expense to Project *',
-                        prefixIcon: Icon(Icons.business_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                      items: [
-                        const DropdownMenuItem<String>(
-                          value: 'none',
-                          child: Text('Central Stock / General (No Project Expense)'),
-                        ),
-                        ...projects.map((p) {
-                          return DropdownMenuItem<String>(
-                            value: p.id,
-                            child: Text(
-                              p.name,
-                              style: TextStyle(color: AppColors.text(context)),
-                            ),
-                          );
-                        }),
-                      ],
-                      onChanged: (val) {
-                        if (val != null) {
-                          if (val == 'none') {
-                            setState(() {
-                              selectedProjectId = 'none';
-                              selectedProjectName = 'Central Stock';
-                            });
-                          } else {
-                            final p = projects.firstWhere(
-                              (proj) => proj.id == val,
-                            );
-                            setState(() {
-                              selectedProjectId = p.id;
-                              selectedProjectName = p.name;
-                            });
-                          }
-                        }
-                      },
-                    ),
-                    const SizedBox(height: 12),
+              if (qty == null || qty <= 0) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Please enter a valid quantity received'),
+                    backgroundColor: AppColors.error,
+                  ),
+                );
+                return;
+              }
 
-                    // Mandatory Ask: Received From / Supplier
-                    TextField(
-                      controller: supplierController,
-                      style: TextStyle(color: AppColors.text(context)),
-                      decoration: const InputDecoration(
-                        labelText: 'Received From / Supplier *',
-                        hintText: 'e.g. Ultratech Cement Depot, Hardware Store',
-                        prefixIcon: Icon(Icons.storefront_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
+              final success = await ref
+                  .read(inventoryControllerProvider.notifier)
+                  .receiveStock(
+                    item: item,
+                    quantity: qty,
+                    supplier: supplier,
+                    unitPrice: unitPrice,
+                    notes: notesController.text.trim(),
+                  );
 
-                    // Quantity Received
-                    TextField(
-                      controller: qtyController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
+              if (ctx.mounted) Navigator.of(ctx).pop();
+              if (context.mounted) {
+                if (success) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Received +${qty.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from $supplier into stock',
                       ),
-                      autofocus: true,
-                      style: TextStyle(color: AppColors.text(context)),
-                      onChanged: (_) => updateExpenseAmount(),
-                      decoration: InputDecoration(
-                        labelText: 'Quantity Received *',
-                        suffixText: item.unit,
-                        prefixIcon: const Icon(Icons.add_box_outlined),
-                        border: const OutlineInputBorder(),
-                      ),
+                      backgroundColor: AppColors.secondary,
                     ),
-                    const SizedBox(height: 12),
-
-                    // Purchase Price per Unit
-                    TextField(
-                      controller: priceController,
-                      keyboardType: const TextInputType.numberWithOptions(
-                        decimal: true,
-                      ),
-                      style: TextStyle(color: AppColors.text(context)),
-                      onChanged: (_) => updateExpenseAmount(),
-                      decoration: const InputDecoration(
-                        labelText: 'Purchase Rate per Unit (\u20B9)',
-                        prefixText: '\u20B9 ',
-                        prefixIcon: Icon(Icons.payments_outlined),
-                        border: OutlineInputBorder(),
-                      ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Failed to record stock delivery'),
+                      backgroundColor: AppColors.error,
                     ),
-                    const SizedBox(height: 12),
-
-                    // Live Auto-Calculated Expense Box
-                    Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: AppColors.secondary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(
-                          color: AppColors.secondary.withValues(alpha: 0.2),
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.receipt_long_outlined,
-                            color: AppColors.secondary,
-                            size: 20,
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'Automated Project Expense Allocation:',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.secondary,
-                                    letterSpacing: 0.5,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  '\u20B9${liveExpenseAmount.toStringAsFixed(2)}',
-                                  style: const TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.secondary,
-                                  ),
-                                ),
-                                Text(
-                                  selectedProjectId != 'none'
-                                      ? 'Will be recorded as Material Expense for ${selectedProjectName ?? "selected project"}'
-                                      : 'Will add stock without creating a project expense',
-                                  style: TextStyle(
-                                    fontSize: 10,
-                                    color: AppColors.mutedText(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Notes / Ref
-                    TextField(
-                      controller: notesController,
-                      style: TextStyle(color: AppColors.text(context)),
-                      decoration: const InputDecoration(
-                        labelText: 'Delivery Notes / Invoice Ref (Optional)',
-                        prefixIcon: Icon(Icons.note_alt_outlined),
-                        border: OutlineInputBorder(),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+                  );
+                }
+              }
+            },
+            icon: const Icon(Icons.check, size: 18),
+            label: const Text('Confirm Receive Stock'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.secondary,
+              foregroundColor: Colors.white,
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Cancel'),
-              ),
-              ElevatedButton.icon(
-                onPressed: () async {
-                  final rawSupplier = supplierController.text.trim();
-                  final supplier = rawSupplier.isNotEmpty
-                      ? rawSupplier
-                      : (item.supplier?.isNotEmpty == true
-                          ? item.supplier!
-                          : 'Vendor Delivery');
-                  final qty = double.tryParse(qtyController.text);
-                  final unitPrice = double.tryParse(priceController.text);
-
-                  if (qty == null || qty <= 0) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Please enter a valid quantity received'),
-                        backgroundColor: AppColors.error,
-                      ),
-                    );
-                    return;
-                  }
-
-                  final success = await ref
-                      .read(inventoryControllerProvider.notifier)
-                      .receiveStock(
-                        item: item,
-                        quantity: qty,
-                        supplier: supplier,
-                        unitPrice: unitPrice,
-                        projectId: selectedProjectId != 'none' ? selectedProjectId : null,
-                        projectName: selectedProjectId != 'none' ? selectedProjectName : null,
-                        notes: notesController.text.trim(),
-                      );
-
-                  if (ctx.mounted) Navigator.of(ctx).pop();
-                  if (context.mounted) {
-                    if (success) {
-                      final effectiveRate = (unitPrice ?? item.purchasePrice);
-                      final totalCost = qty * effectiveRate;
-                      final expenseMsg = (selectedProjectId != null && selectedProjectId != 'none')
-                          ? ' • \u20B9${totalCost.toStringAsFixed(0)} charged to $selectedProjectName ✓'
-                          : '';
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(
-                            'Received +${qty.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from $supplier$expenseMsg',
-                          ),
-                          backgroundColor: AppColors.secondary,
-                        ),
-                      );
-                    } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Failed to record stock delivery'),
-                          backgroundColor: AppColors.error,
-                        ),
-                      );
-                    }
-                  }
-                },
-                icon: const Icon(Icons.check, size: 18),
-                label: const Text('Confirm Receive & Expense'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: Colors.white,
-                ),
-              ),
-            ],
-          );
-        },
+          ),
+        ],
       ),
     );
   }
+
 
 
   void _showIssueMaterialModal(BuildContext context, WidgetRef ref) {

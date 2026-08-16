@@ -102,33 +102,8 @@ class FakeInventoryRepository implements InventoryRepository {
 
     await updateItem(updatedItem);
 
-    final rate = effectiveUnitPrice > 0 ? effectiveUnitPrice : item.purchasePrice;
-    final totalCost = quantity * rate;
-    if (projectId != null &&
-        projectId.isNotEmpty &&
-        projectId != 'central' &&
-        projectId != 'none' &&
-        totalCost > 0) {
-      expenseStore.add({
-        'project_id': projectId,
-        'expense_date': '2026-08-15',
-        'category': 'Material',
-        'amount': totalCost,
-        'payment_mode': 'cash',
-        'notes':
-            'Received +${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}',
-      });
-      projectSpentStore[projectId] = (projectSpentStore[projectId] ?? 0.0) + totalCost;
-    }
-
-    final projectSuffix = (projectName != null &&
-            projectName.isNotEmpty &&
-            projectId != 'central' &&
-            projectId != 'none')
-        ? ' for $projectName'
-        : '';
     final historyNote =
-        'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier$projectSuffix${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
+        'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
     await logInventoryChange(
       inventoryId: item.id,
       changeType: 'added',
@@ -177,7 +152,7 @@ class FakeInventoryRepository implements InventoryRepository {
 
 void main() async {
   print('════════════════════════════════════════════════════════════════════');
-  print('  INVENTORY RECEIVE & ISSUE MATERIAL — SYSTEM VERIFICATION');
+  print('  INVENTORY RECEIVE & ISSUE MATERIAL — CLEAN WORKFLOW VERIFICATION');
   print('════════════════════════════════════════════════════════════════════\n');
 
   final repo = FakeInventoryRepository();
@@ -196,73 +171,53 @@ void main() async {
 
   await repo.createItem(cement);
 
-  // 1. Test Receive Stock allocated directly to Project (Skyline Towers)
-  print('━━━ 1. Test Receive Stock (+50 bags charged to Skyline Towers) ━━━');
+  // 1. Test Receive Stock into Central Warehouse
+  print('━━━ 1. Test Receive Stock (+50 bags received from supplier) ━━━');
   await repo.receiveStock(
     item: cement,
     quantity: 50,
     supplier: 'National Hardware Supply',
     unitPrice: 390.0,
+    notes: 'Invoice #NHS-8821',
+  );
+
+  final itemAfterReceive = await repo.getItemById('mat-001');
+  print(' Available Stock after Receive: ${itemAfterReceive?.availableStock} bags (Expected: 150.0)');
+  print(' Total Stock after Receive:     ${itemAfterReceive?.quantity} bags (Expected: 150.0)');
+  print(' Updated Purchase Rate:         ₹${itemAfterReceive?.purchasePrice}/bag (Expected: 390.0)');
+  print(' Project Expenses Created:      ${repo.expenseStore.length} (Expected: 0 - Central stock replenishment)');
+
+  // 2. Test Issue Material to Site (Skyline Towers)
+  print('\n━━━ 2. Test Issue Material (-30 bags issued to Skyline Towers) ━━━');
+  await repo.issueMaterialToProject(
+    item: itemAfterReceive!,
+    quantity: 30,
     projectId: 'proj-skyline',
     projectName: 'Skyline Towers',
-    notes: 'Invoice #INV-9821',
+    notes: 'Ground floor slab casting',
   );
 
-  final afterReceive = await repo.getItemById('mat-001');
-  final receiveExpense = repo.expenseStore.first;
-  final receiveSuccess = afterReceive != null &&
-      afterReceive.availableStock == 150 &&
-      afterReceive.quantity == 150 &&
-      afterReceive.supplier == 'National Hardware Supply' &&
-      afterReceive.purchasePrice == 390.0 &&
-      receiveExpense['project_id'] == 'proj-skyline' &&
-      receiveExpense['amount'] == (50 * 390.0) &&
-      receiveExpense['payment_mode'] == 'cash' &&
-      repo.projectSpentStore['proj-skyline'] == (50 * 390.0);
+  final itemAfterIssue = await repo.getItemById('mat-001');
+  print(' Available Stock after Issue:   ${itemAfterIssue?.availableStock} bags (Expected: 120.0)');
+  print(' Expenses Created for Project:  ${repo.expenseStore.length} (Expected: 1)');
+  print(' Project Spent (Skyline Towers): ₹${repo.projectSpentStore['proj-skyline']} (Expected: 11700.0)');
+  print(' Expense Details:               ${repo.expenseStore.first}');
 
-  print('Stock Available: ${afterReceive?.availableStock} bags (Expected: 150)');
-  print('Supplier:        ${afterReceive?.supplier}');
-  print('Rate:            ₹${afterReceive?.purchasePrice}/bag');
-  print('Expense Count:   ${repo.expenseStore.length}');
-  print('Expense Project: ${receiveExpense['project_id']} (${receiveExpense['notes']})');
-  print('Expense Amount:  ₹${receiveExpense['amount']} (Expected: ₹19,500)');
-  print('Project Spent:   ₹${repo.projectSpentStore['proj-skyline']}');
-  print('History Entries: ${repo.historyStore.length}');
-  print('Result:          ${receiveSuccess ? "✓ PASSED" : "❌ FAILED"}\n');
-
-  // 2. Test Issue Material to Project (30 bags to Green Villa)
-  print('━━━ 2. Test Issue Material (30 bags to Green Villa) ━━━');
-  await repo.issueMaterialToProject(
-    item: afterReceive!,
-    quantity: 30,
-    projectId: 'proj-green-villa',
-    projectName: 'Green Villa',
-    notes: 'Ground Floor Slab Casting',
-  );
-
-  final afterIssue = await repo.getItemById('mat-001');
-  final issueExpense = repo.expenseStore[1];
-  final issueSuccess = afterIssue != null &&
-      afterIssue.availableStock == 120 &&
-      repo.expenseStore.length == 2 &&
-      issueExpense['project_id'] == 'proj-green-villa' &&
-      issueExpense['amount'] == (30 * 390.0) &&
-      issueExpense['payment_mode'] == 'cash' &&
-      repo.projectSpentStore['proj-green-villa'] == (30 * 390.0);
-
-  print('Stock Available: ${afterIssue?.availableStock} bags (Expected: 120)');
-  print('Expense Count:   ${repo.expenseStore.length}');
-  print('Expense Amount:  ₹${issueExpense['amount']} (Expected: ₹11,700)');
-  print('Payment Mode:    ${issueExpense['payment_mode']} (Valid DB Mode: cash)');
-  print('Project Spent:   ₹${repo.projectSpentStore['proj-green-villa']}');
-  print('History Entries: ${repo.historyStore.length}');
-  print('Result:          ${issueSuccess ? "✓ PASSED" : "❌ FAILED"}\n');
-
-  if (receiveSuccess && issueSuccess) {
-    print('════════════════════════════════════════════════════════════════════');
-    print('  ALL INVENTORY RECEIVE & ISSUE TESTS PASSED SUCCESSFULLY 100% ✓');
-    print('════════════════════════════════════════════════════════════════════');
-  } else {
-    print('❌ SOME TESTS FAILED');
+  // 3. Verify Inventory Movement History
+  print('\n━━━ 3. Verify Inventory Movement History ━━━');
+  final history = await repo.getHistory('mat-001');
+  for (var i = 0; i < history.length; i++) {
+    final h = history[i];
+    print(' [$i] ChangeType: ${h.changeType.padRight(6)} | Qty: ${h.quantityChange > 0 ? "+${h.quantityChange}" : h.quantityChange} | Notes: ${h.notes}');
   }
+
+  final checksPass = itemAfterIssue?.availableStock == 120.0 &&
+      repo.expenseStore.length == 1 &&
+      repo.expenseStore.first['amount'] == 11700.0 &&
+      repo.projectSpentStore['proj-skyline'] == 11700.0 &&
+      history.length == 2;
+
+  print('\n════════════════════════════════════════════════════════════════════');
+  print('Verification Status: ${checksPass ? "✓ ALL CHECKS PASSED (100%)" : "❌ FAILED"}');
+  print('════════════════════════════════════════════════════════════════════');
 }

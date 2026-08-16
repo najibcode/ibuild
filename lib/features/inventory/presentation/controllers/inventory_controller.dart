@@ -185,17 +185,6 @@ class InventoryController extends StateNotifier<InventoryListState> {
       );
       await loadItems();
       _invalidateConnectedProviders();
-      if (_ref != null &&
-          projectId != null &&
-          projectId.isNotEmpty &&
-          projectId != 'central' &&
-          projectId != 'none') {
-        try {
-          _ref.read(expenseControllerProvider.notifier).loadExpenses();
-          _ref.read(projectControllerProvider.notifier).loadProjects();
-          _ref.invalidate(dashboardStatsProvider);
-        } catch (_) {}
-      }
       return true;
     } catch (_) {
       return false;

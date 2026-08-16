@@ -186,54 +186,10 @@ class SupabaseInventoryRepository implements InventoryRepository {
     // 1. Update inventory record
     await updateItem(updatedItem);
 
-    // 2. Calculate expense cost and record project expense if project assigned
-    final rate = effectiveUnitPrice > 0 ? effectiveUnitPrice : item.purchasePrice;
-    final totalCost = quantity * rate;
-    if (projectId != null &&
-        projectId.isNotEmpty &&
-        projectId != 'central' &&
-        projectId != 'none' &&
-        totalCost > 0) {
-      try {
-        final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-        await _client.from('expenses').insert({
-          'project_id': projectId,
-          'expense_date': todayStr,
-          'category': 'Material',
-          'amount': totalCost,
-          'payment_mode': 'cash',
-          'notes':
-              'Received +${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}',
-        });
-
-        // Also increment project spent column in projects table
-        try {
-          final proj = await _client
-              .from('projects')
-              .select('spent')
-              .eq('id', projectId)
-              .maybeSingle();
-          if (proj != null) {
-            final currentSpent = (proj['spent'] as num?)?.toDouble() ?? 0.0;
-            await _client
-                .from('projects')
-                .update({'spent': currentSpent + totalCost})
-                .eq('id', projectId);
-          }
-        } catch (_) {}
-      } catch (_) {}
-    }
-
-    // 3. Log history entry
+    // 2. Log history entry
     try {
-      final projectSuffix = (projectName != null &&
-              projectName.isNotEmpty &&
-              projectId != 'central' &&
-              projectId != 'none')
-          ? ' for $projectName'
-          : '';
       final historyNote =
-          'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier$projectSuffix${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
+          'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
       await logInventoryChange(
         inventoryId: item.id,
         changeType: 'added',
@@ -242,18 +198,15 @@ class SupabaseInventoryRepository implements InventoryRepository {
       );
     } catch (_) {}
 
-    // 4. Log site activity & notify
+    // 3. Log site activity & notify
     try {
+      final rate = effectiveUnitPrice > 0 ? effectiveUnitPrice : item.purchasePrice;
+      final totalCost = quantity * rate;
       await _activityRepo.logSiteActivityAndNotify(
         actionType: 'inventory_received',
         entityType: 'Inventory',
         entityId: item.id,
-        projectId: (projectId != null &&
-                projectId.isNotEmpty &&
-                projectId != 'central' &&
-                projectId != 'none')
-            ? projectId
-            : null,
+        projectId: null,
         title:
             'Stock Received: +${quantity.toStringAsFixed(1)} ${item.unit} of ${item.materialName}',
         details: {
@@ -262,7 +215,6 @@ class SupabaseInventoryRepository implements InventoryRepository {
           'unit': item.unit,
           'material': item.materialName,
           'total_cost': totalCost,
-          'project_name': projectName ?? '',
         },
       );
     } catch (_) {}
