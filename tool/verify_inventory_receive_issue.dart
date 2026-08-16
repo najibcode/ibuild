@@ -60,6 +60,19 @@ class FakeInventoryRepository implements InventoryRepository {
   }
 
   @override
+  Future<List<InventoryHistory>> getAllHistory({String? startDate, String? endDate}) async {
+    return historyStore
+        .map((h) => InventoryHistory(
+              id: h['id'] ?? '',
+              inventoryId: h['inventory_id'],
+              changeType: h['change_type'],
+              quantityChange: h['quantity_change'],
+              notes: h['notes'],
+            ))
+        .toList();
+  }
+
+  @override
   Future<void> logInventoryChange({
     required String inventoryId,
     required String changeType,

@@ -6,7 +6,10 @@ import 'package:intl/intl.dart';
 import '../../projects/data/models/project_model.dart';
 import '../../expenses/data/models/expense_model.dart';
 import '../../inventory/data/models/inventory_item_model.dart';
+import '../../inventory/data/models/inventory_history_model.dart';
 import '../../attendance/data/models/attendance_model.dart';
+import '../../subcontractors/data/models/subcontractor_model.dart';
+import '../../daily_progress/data/models/daily_progress_model.dart';
 
 /// Professional PDF report generator for IBUILD ERP.
 ///
@@ -39,13 +42,20 @@ class PdfReportGenerator {
   /// Generates a complete PDF report as raw bytes.
   static Future<Uint8List> generateReport({
     required String reportType,
+    String? dateRangeLabel,
     required List<Project> projects,
     required List<Expense> expenses,
     required List<InventoryItem> inventoryItems,
+    List<InventoryHistory> inventoryMovements = const [],
+    List<Subcontractor> subcontractors = const [],
+    List<DailyProgress> dailyProgressList = const [],
     required List<Attendance> attendanceRecords,
-    required bool includeExpenses,
-    required bool includeInventory,
-    required bool includeAttendance,
+    bool includeExpenses = true,
+    bool includeInventory = true,
+    bool includeInventoryMovements = true,
+    bool includeSubcontractors = true,
+    bool includeDailyProgress = true,
+    bool includeAttendance = true,
     String? selectedProjectId,
   }) async {
     // Load TTF fonts with full Unicode support
@@ -62,7 +72,7 @@ class PdfReportGenerator {
     );
 
     final now = DateTime.now();
-    final dateFormatted = DateFormat('dd MMMM yyyy').format(now);
+    final dateFormatted = dateRangeLabel ?? DateFormat('dd MMMM yyyy').format(now);
     final timeFormatted = DateFormat('hh:mm:ss a').format(now);
     final timestampFormatted = DateFormat('dd/MM/yyyy HH:mm:ss').format(now);
 
@@ -94,15 +104,16 @@ class PdfReportGenerator {
     pdf.addPage(
       pw.MultiPage(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(40),
+        margin: const pw.EdgeInsets.all(36),
         header: (context) => _buildPageHeader(context, headerFont, bodyFont, dateFormatted, timeFormatted),
         footer: (context) => _buildPageFooter(context, bodyFont, italicFont, timestampFormatted),
         build: (context) => [
-          _buildReportTitleBar(reportType, projectScopeName, headerFont, bodyFont),
-          pw.SizedBox(height: 20),
+          _buildReportTitleBar(reportType, projectScopeName, dateFormatted, headerFont, bodyFont),
+          pw.SizedBox(height: 14),
 
-          _buildSectionTitle('Financial & Portfolio Executive Summary', headerFont),
-          pw.SizedBox(height: 8),
+          // 1. Executive Summary
+          _buildSectionTitle('Executive & Daily Performance Summary', headerFont),
+          pw.SizedBox(height: 6),
           _buildFinancialSummaryTable(
             totalBudget: totalBudget,
             totalSpent: totalSpent,
@@ -110,42 +121,71 @@ class PdfReportGenerator {
             totalExpenses: totalExpensesAmount,
             expenseCount: filteredExpenses.length,
             projectCount: filteredProjects.length,
+            inventoryMovementCount: inventoryMovements.length,
+            subcontractorCount: subcontractors.length,
             headerFont: headerFont,
             bodyFont: bodyFont,
           ),
-          pw.SizedBox(height: 12),
+          pw.SizedBox(height: 14),
 
+          // 2. Project Changes & Daily Progress
           if (filteredProjects.isNotEmpty) ...[
-            _buildSectionTitle('Project Details', headerFont),
-            pw.SizedBox(height: 8),
+            _buildSectionTitle('1. Project Status, Budgets & Updates', headerFont),
+            pw.SizedBox(height: 6),
             _buildProjectDetailsTable(filteredProjects, headerFont, bodyFont),
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 14),
           ],
 
+          if (includeDailyProgress && dailyProgressList.isNotEmpty) ...[
+            _buildSectionTitle('Site Daily Progress & Operational Notes', headerFont),
+            pw.SizedBox(height: 6),
+            _buildDailyProgressTable(dailyProgressList, filteredProjects, headerFont, bodyFont),
+            pw.SizedBox(height: 14),
+          ],
+
+          // 3. Inventory Changes & Movements
+          if (includeInventoryMovements && inventoryMovements.isNotEmpty) ...[
+            _buildSectionTitle('2. Inventory Changes & Stock Movements (Received / Issued)', headerFont),
+            pw.SizedBox(height: 6),
+            _buildInventoryMovementsTable(inventoryMovements, headerFont, bodyFont),
+            pw.SizedBox(height: 14),
+          ],
+
+          // 4. Subcontractor Statuses
+          if (includeSubcontractors && subcontractors.isNotEmpty) ...[
+            _buildSectionTitle('3. Subcontractor & Trade Partner Status', headerFont),
+            pw.SizedBox(height: 6),
+            _buildSubcontractorsTable(subcontractors, headerFont, bodyFont),
+            pw.SizedBox(height: 14),
+          ],
+
+          // 5. Site Expenses & Outflows
           if (includeExpenses && filteredExpenses.isNotEmpty) ...[
-            _buildSectionTitle('Site Expense Outflow Ledger', headerFont),
-            pw.SizedBox(height: 8),
+            _buildSectionTitle('4. Logged Site Expenses & Financial Outflows', headerFont),
+            pw.SizedBox(height: 6),
             _buildExpenseTable(filteredExpenses, headerFont, bodyFont),
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 14),
           ],
 
+          // 6. Material Inventory Snapshot
           if (includeInventory && inventoryItems.isNotEmpty) ...[
-            _buildSectionTitle('Material Inventory & Stock Valuation', headerFont),
-            pw.SizedBox(height: 8),
+            _buildSectionTitle('5. Material Inventory Valuation & Stock Health', headerFont),
+            pw.SizedBox(height: 6),
             _buildInventorySummaryRow(totalInventoryValuation, lowStockCount, inventoryItems.length, bodyFont, headerFont),
-            pw.SizedBox(height: 8),
+            pw.SizedBox(height: 6),
             _buildInventoryTable(inventoryItems, headerFont, bodyFont),
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 14),
           ],
 
+          // 7. Attendance & Shift Log
           if (includeAttendance && attendanceRecords.isNotEmpty) ...[
-            _buildSectionTitle('Worker Attendance & Shift Log', headerFont),
-            pw.SizedBox(height: 8),
+            _buildSectionTitle('6. Worker Attendance & Daily Wages Log', headerFont),
+            pw.SizedBox(height: 6),
             _buildAttendanceTable(attendanceRecords, headerFont, bodyFont),
-            pw.SizedBox(height: 16),
+            pw.SizedBox(height: 14),
           ],
 
-          pw.SizedBox(height: 24),
+          pw.SizedBox(height: 16),
           _buildReportClosure(headerFont, bodyFont, italicFont, timestampFormatted),
         ],
       ),
@@ -159,7 +199,7 @@ class PdfReportGenerator {
     pw.Context context, pw.Font headerFont, pw.Font bodyFont, String date, String time,
   ) {
     return pw.Container(
-      padding: const pw.EdgeInsets.only(bottom: 12),
+      padding: const pw.EdgeInsets.only(bottom: 10),
       decoration: const pw.BoxDecoration(
         border: pw.Border(bottom: pw.BorderSide(color: _primaryBlue, width: 2)),
       ),
@@ -170,15 +210,15 @@ class PdfReportGenerator {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(_companyName, style: pw.TextStyle(font: headerFont, fontSize: 24, color: _darkBlue, letterSpacing: 3)),
+              pw.Text(_companyName, style: pw.TextStyle(font: headerFont, fontSize: 22, color: _darkBlue, letterSpacing: 3)),
             ],
           ),
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.end,
             children: [
-              pw.Text(date, style: pw.TextStyle(font: headerFont, fontSize: 10, color: _darkBlue)),
+              pw.Text(date, style: pw.TextStyle(font: headerFont, fontSize: 9.5, color: _darkBlue)),
               pw.SizedBox(height: 2),
-              pw.Text(time, style: pw.TextStyle(font: bodyFont, fontSize: 9, color: _grey600)),
+              pw.Text(time, style: pw.TextStyle(font: bodyFont, fontSize: 8.5, color: _grey600)),
             ],
           ),
         ],
@@ -198,7 +238,7 @@ class PdfReportGenerator {
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text('CONFIDENTIAL - IBUILD ERP Internal Report', style: pw.TextStyle(font: italicFont, fontSize: 7, color: _grey600)),
+          pw.Text('CONFIDENTIAL - IBUILD ERP Comprehensive Operational Report', style: pw.TextStyle(font: italicFont, fontSize: 7, color: _grey600)),
           pw.Text('Generated: $timestamp  |  Page ${context.pageNumber} of ${context.pagesCount}', style: pw.TextStyle(font: bodyFont, fontSize: 7, color: _grey600)),
         ],
       ),
@@ -206,9 +246,9 @@ class PdfReportGenerator {
   }
 
   // ─── REPORT TITLE BAR ──────────────────────────────────────────────
-  static pw.Widget _buildReportTitleBar(String reportType, String projectScope, pw.Font headerFont, pw.Font bodyFont) {
+  static pw.Widget _buildReportTitleBar(String reportType, String projectScope, String dateFormatted, pw.Font headerFont, pw.Font bodyFont) {
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: pw.BoxDecoration(color: _darkBlue, borderRadius: pw.BorderRadius.circular(6)),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -216,15 +256,15 @@ class PdfReportGenerator {
           pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              pw.Text(reportType.toUpperCase(), style: pw.TextStyle(font: headerFont, fontSize: 14, color: _white, letterSpacing: 1)),
-              pw.SizedBox(height: 4),
-              pw.Text('Scope: $projectScope', style: pw.TextStyle(font: bodyFont, fontSize: 9, color: PdfColor.fromInt(0xFFB3D4FC))),
+              pw.Text(reportType.toUpperCase(), style: pw.TextStyle(font: headerFont, fontSize: 13, color: _white, letterSpacing: 1)),
+              pw.SizedBox(height: 3),
+              pw.Text('Scope: $projectScope  |  Period: $dateFormatted', style: pw.TextStyle(font: bodyFont, fontSize: 8.5, color: PdfColor.fromInt(0xFFB3D4FC))),
             ],
           ),
           pw.Container(
-            padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 4),
             decoration: pw.BoxDecoration(color: _white, borderRadius: pw.BorderRadius.circular(4)),
-            child: pw.Text('ERP AUDIT', style: pw.TextStyle(font: headerFont, fontSize: 8, color: _darkBlue, letterSpacing: 1)),
+            child: pw.Text('DAILY ERP AUDIT', style: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _darkBlue, letterSpacing: 1)),
           ),
         ],
       ),
@@ -240,25 +280,25 @@ class PdfReportGenerator {
       ),
       child: pw.Row(
         children: [
-          pw.Container(width: 4, height: 16, color: _primaryBlue),
-          pw.SizedBox(width: 8),
-          pw.Text(title.toUpperCase(), style: pw.TextStyle(font: headerFont, fontSize: 11, color: _darkBlue, letterSpacing: 0.8)),
+          pw.Container(width: 3.5, height: 14, color: _primaryBlue),
+          pw.SizedBox(width: 6),
+          pw.Text(title.toUpperCase(), style: pw.TextStyle(font: headerFont, fontSize: 10, color: _darkBlue, letterSpacing: 0.6)),
         ],
       ),
     );
   }
 
-  // ─── FINANCIAL SUMMARY ─────────────────────────────────────────────
+  // ─── FINANCIAL & OPERATIONAL SUMMARY ─────────────────────────────────
   static pw.Widget _buildFinancialSummaryTable({
     required double totalBudget, required double totalSpent, required double utilization,
     required double totalExpenses, required int expenseCount, required int projectCount,
+    required int inventoryMovementCount, required int subcontractorCount,
     required pw.Font headerFont, required pw.Font bodyFont,
   }) {
     final f = NumberFormat('#,##,###.00');
-    final remaining = totalBudget - totalSpent;
 
     return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
+      padding: const pw.EdgeInsets.all(10),
       decoration: pw.BoxDecoration(
         color: _lightBlue,
         borderRadius: pw.BorderRadius.circular(4),
@@ -269,21 +309,21 @@ class PdfReportGenerator {
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              _kpiBlock('Total Budget', '\u20B9${f.format(totalBudget)}', _darkBlue, headerFont, bodyFont),
-              _kpiBlock('Total Spent', '\u20B9${f.format(totalSpent)}', _accentOrange, headerFont, bodyFont),
-              _kpiBlock('Remaining', '\u20B9${f.format(remaining)}', remaining >= 0 ? _green : _red, headerFont, bodyFont),
-              _kpiBlock('Utilization', '${utilization.toStringAsFixed(1)}%', utilization > 90 ? _red : _darkBlue, headerFont, bodyFont),
+              _kpiBlock('Period Outflows', '\u20B9${f.format(totalExpenses)}', _accentOrange, headerFont, bodyFont),
+              _kpiBlock('Stock Movements', '$inventoryMovementCount records', _darkBlue, headerFont, bodyFont),
+              _kpiBlock('Active Subcontractors', '$subcontractorCount partners', _green, headerFont, bodyFont),
+              _kpiBlock('Active Projects', '$projectCount sites', _darkBlue, headerFont, bodyFont),
             ],
           ),
-          pw.SizedBox(height: 8),
+          pw.SizedBox(height: 6),
           pw.Divider(color: _primaryBlue, thickness: 0.3),
           pw.SizedBox(height: 4),
           pw.Row(
             mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
             children: [
-              pw.Text('Active Projects: $projectCount', style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _grey600)),
-              pw.Text('Logged Expenses: $expenseCount', style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _grey600)),
-              pw.Text('Total Outflows: \u20B9${f.format(totalExpenses)}', style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _grey600)),
+              pw.Text('Total Budget: \u20B9${f.format(totalBudget)}', style: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: _grey600)),
+              pw.Text('Total Spent: \u20B9${f.format(totalSpent)}', style: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: _grey600)),
+              pw.Text('Overall Utilization: ${utilization.toStringAsFixed(1)}%', style: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: _grey600)),
             ],
           ),
         ],
@@ -295,9 +335,9 @@ class PdfReportGenerator {
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.center,
       children: [
-        pw.Text(label, style: pw.TextStyle(font: bodyFont, fontSize: 7, color: _grey600)),
-        pw.SizedBox(height: 3),
-        pw.Text(value, style: pw.TextStyle(font: headerFont, fontSize: 12, color: color)),
+        pw.Text(label, style: pw.TextStyle(font: bodyFont, fontSize: 6.5, color: _grey600)),
+        pw.SizedBox(height: 2),
+        pw.Text(value, style: pw.TextStyle(font: headerFont, fontSize: 10.5, color: color)),
       ],
     );
   }
@@ -310,18 +350,105 @@ class PdfReportGenerator {
       headerAlignment: pw.Alignment.centerLeft,
       cellAlignment: pw.Alignment.centerLeft,
       headerDecoration: const pw.BoxDecoration(color: _darkBlue),
-      headerStyle: pw.TextStyle(font: headerFont, fontSize: 8, color: _white),
-      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: PdfColors.black),
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-      headers: ['Project Name', 'Client', 'Status', 'Budget (\u20B9)', 'Spent (\u20B9)', 'Start Date'],
-      data: projects.take(20).map((p) => [
-        p.name,
-        p.clientName ?? p.customerName ?? '-',
-        p.status.toUpperCase(),
-        f.format(p.budget),
-        f.format(p.spent),
-        p.startDate ?? '-',
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7, color: PdfColors.black),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4.5),
+      headers: ['Project Name', 'Client', 'Status', 'Progress', 'Budget (\u20B9)', 'Spent (\u20B9)', 'Remaining (\u20B9)'],
+      data: projects.take(20).map((p) {
+        final progressVal = (p.physicalProgress ?? (p.budget > 0 ? (p.spent / p.budget * 100) : 0.0)).clamp(0.0, 100.0);
+        return [
+          p.name,
+          p.clientName ?? p.customerName ?? '-',
+          p.status.toUpperCase(),
+          '${progressVal.toStringAsFixed(0)}%',
+          f.format(p.budget),
+          f.format(p.spent),
+          f.format(p.budget - p.spent),
+        ];
+      }).toList(),
+      oddRowDecoration: const pw.BoxDecoration(color: _rowBg),
+    );
+  }
+
+  // ─── DAILY PROGRESS TABLE ──────────────────────────────────────────
+  static pw.Widget _buildDailyProgressTable(List<DailyProgress> progressList, List<Project> projects, pw.Font headerFont, pw.Font bodyFont) {
+    final projectMap = {for (var p in projects) p.id: p.name};
+    return pw.TableHelper.fromTextArray(
+      border: pw.TableBorder.all(color: _grey200, width: 0.5),
+      headerAlignment: pw.Alignment.centerLeft,
+      cellAlignment: pw.Alignment.centerLeft,
+      headerDecoration: const pw.BoxDecoration(color: _darkBlue),
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7, color: PdfColors.black),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4.5),
+      headers: ['Date', 'Project Site', 'Physical Progress', 'Site Notes & Executed Work'],
+      data: progressList.take(25).map((dp) {
+        final pName = projectMap[dp.projectId] ?? 'Project Site';
+        final notes = dp.allNotes.isNotEmpty ? dp.allNotes.join(' | ') : 'Operational activity recorded';
+        return [
+          dp.date,
+          pName,
+          '${dp.progressPercentage}% Completed',
+          notes.length > 50 ? '${notes.substring(0, 50)}...' : notes,
+        ];
+      }).toList(),
+      oddRowDecoration: const pw.BoxDecoration(color: _rowBg),
+    );
+  }
+
+  // ─── INVENTORY MOVEMENTS TABLE (RECEIVED & ISSUED) ──────────────────
+  static pw.Widget _buildInventoryMovementsTable(List<InventoryHistory> movements, pw.Font headerFont, pw.Font bodyFont) {
+    return pw.TableHelper.fromTextArray(
+      border: pw.TableBorder.all(color: _grey200, width: 0.5),
+      headerAlignment: pw.Alignment.centerLeft,
+      cellAlignment: pw.Alignment.centerLeft,
+      headerDecoration: const pw.BoxDecoration(color: _darkBlue),
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7, color: PdfColors.black),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4.5),
+      headers: ['Timestamp', 'Type', 'Quantity Change', 'Transaction / Delivery Details'],
+      data: movements.take(30).map((m) {
+        final isAdd = m.changeType == 'added';
+        final typeLabel = isAdd ? 'RECEIVED' : (m.changeType == 'used' ? 'ISSUED' : m.changeType.toUpperCase());
+        final sign = m.quantityChange > 0 ? '+${m.quantityChange.toStringAsFixed(1)}' : m.quantityChange.toStringAsFixed(1);
+        final dateStr = (m.createdAt != null && m.createdAt!.length >= 16)
+            ? m.createdAt!.substring(0, 16).replaceAll('T', ' ')
+            : 'Today';
+        return [
+          dateStr,
+          typeLabel,
+          sign,
+          m.notes ?? '-',
+        ];
+      }).toList(),
+      oddRowDecoration: const pw.BoxDecoration(color: _rowBg),
+    );
+  }
+
+  // ─── SUBCONTRACTORS TABLE ──────────────────────────────────────────
+  static pw.Widget _buildSubcontractorsTable(List<Subcontractor> subcontractors, pw.Font headerFont, pw.Font bodyFont) {
+    final f = NumberFormat('#,##,###.00');
+    return pw.TableHelper.fromTextArray(
+      border: pw.TableBorder.all(color: _grey200, width: 0.5),
+      headerAlignment: pw.Alignment.centerLeft,
+      cellAlignment: pw.Alignment.centerLeft,
+      headerDecoration: const pw.BoxDecoration(color: _darkBlue),
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7, color: PdfColors.black),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4.5),
+      headers: ['Subcontractor / Firm', 'Specialization', 'Status', 'Contract (\u20B9)', 'Paid (\u20B9)', 'Balance (\u20B9)', 'Phone'],
+      data: subcontractors.take(25).map((s) => [
+        s.companyName,
+        s.tradeSpecialization,
+        s.status.toUpperCase(),
+        f.format(s.contractValue),
+        f.format(s.paidAmount),
+        f.format(s.outstandingAmount),
+        s.phone ?? '-',
       ]).toList(),
       oddRowDecoration: const pw.BoxDecoration(color: _rowBg),
     );
@@ -335,12 +462,12 @@ class PdfReportGenerator {
       headerAlignment: pw.Alignment.centerLeft,
       cellAlignment: pw.Alignment.centerLeft,
       headerDecoration: const pw.BoxDecoration(color: _darkBlue),
-      headerStyle: pw.TextStyle(font: headerFont, fontSize: 8, color: _white),
-      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: PdfColors.black),
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-      headers: ['Date', 'Category', 'Amount (\u20B9)', 'Payment', 'Project Site', 'Notes'],
-      data: expenses.take(30).map((e) => [
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7, color: PdfColors.black),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4.5),
+      headers: ['Date', 'Category', 'Amount (\u20B9)', 'Payment Mode', 'Project Site', 'Notes'],
+      data: expenses.take(35).map((e) => [
         e.expenseDate,
         e.category.toUpperCase(),
         f.format(e.amount),
@@ -356,14 +483,14 @@ class PdfReportGenerator {
   static pw.Widget _buildInventorySummaryRow(double valuation, int lowStock, int totalItems, pw.Font bodyFont, pw.Font headerFont) {
     final f = NumberFormat('#,##,###.00');
     return pw.Container(
-      padding: const pw.EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: pw.BoxDecoration(color: _lightBlue, borderRadius: pw.BorderRadius.circular(4)),
       child: pw.Row(
         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
         children: [
-          pw.Text('Total Stock Valuation: \u20B9${f.format(valuation)}', style: pw.TextStyle(font: headerFont, fontSize: 9, color: _darkBlue)),
-          pw.Text('Total Items: $totalItems', style: pw.TextStyle(font: bodyFont, fontSize: 8, color: _grey600)),
-          pw.Text('Low Stock Alerts: $lowStock', style: pw.TextStyle(font: headerFont, fontSize: 8, color: lowStock > 0 ? _red : _green)),
+          pw.Text('Total Stock Valuation: \u20B9${f.format(valuation)}', style: pw.TextStyle(font: headerFont, fontSize: 8.5, color: _darkBlue)),
+          pw.Text('Total Items: $totalItems', style: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: _grey600)),
+          pw.Text('Low Stock Alerts: $lowStock', style: pw.TextStyle(font: headerFont, fontSize: 7.5, color: lowStock > 0 ? _red : _green)),
         ],
       ),
     );
@@ -377,12 +504,12 @@ class PdfReportGenerator {
       headerAlignment: pw.Alignment.centerLeft,
       cellAlignment: pw.Alignment.centerLeft,
       headerDecoration: const pw.BoxDecoration(color: _darkBlue),
-      headerStyle: pw.TextStyle(font: headerFont, fontSize: 8, color: _white),
-      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: PdfColors.black),
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7, color: PdfColors.black),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4.5),
       headers: ['Material', 'Category', 'Stock', 'Unit', 'Price (\u20B9)', 'Valuation (\u20B9)', 'Status'],
-      data: items.take(30).map((i) => [
+      data: items.take(25).map((i) => [
         i.materialName,
         i.category,
         i.availableStock.toStringAsFixed(1),
@@ -402,16 +529,16 @@ class PdfReportGenerator {
       headerAlignment: pw.Alignment.centerLeft,
       cellAlignment: pw.Alignment.centerLeft,
       headerDecoration: const pw.BoxDecoration(color: _darkBlue),
-      headerStyle: pw.TextStyle(font: headerFont, fontSize: 8, color: _white),
-      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7.5, color: PdfColors.black),
-      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 6, vertical: 5),
-      headers: ['Date', 'Worker Name', 'Status', 'Project Site'],
+      headerStyle: pw.TextStyle(font: headerFont, fontSize: 7.5, color: _white),
+      cellStyle: pw.TextStyle(font: bodyFont, fontSize: 7, color: PdfColors.black),
+      cellPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 3.5),
+      headerPadding: const pw.EdgeInsets.symmetric(horizontal: 5, vertical: 4.5),
+      headers: ['Date', 'Worker Name', 'Shift Status', 'Assigned Site'],
       data: records.take(30).map((a) => [
         a.date,
         a.employeeName ?? 'Worker',
         a.status.toUpperCase(),
-        a.projectName ?? 'General',
+        a.projectName ?? 'General Site',
       ]).toList(),
       oddRowDecoration: const pw.BoxDecoration(color: _rowBg),
     );
@@ -420,7 +547,7 @@ class PdfReportGenerator {
   // ─── REPORT CLOSURE ────────────────────────────────────────────────
   static pw.Widget _buildReportClosure(pw.Font headerFont, pw.Font bodyFont, pw.Font italicFont, String timestamp) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(14),
+      padding: const pw.EdgeInsets.all(12),
       decoration: pw.BoxDecoration(
         borderRadius: pw.BorderRadius.circular(6),
         border: pw.Border.all(color: _primaryBlue, width: 1),
@@ -428,19 +555,19 @@ class PdfReportGenerator {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.center,
         children: [
-          pw.Text('END OF REPORT', style: pw.TextStyle(font: headerFont, fontSize: 11, color: _darkBlue, letterSpacing: 2)),
-          pw.SizedBox(height: 6),
+          pw.Text('END OF AUDIT REPORT', style: pw.TextStyle(font: headerFont, fontSize: 10, color: _darkBlue, letterSpacing: 2)),
+          pw.SizedBox(height: 4),
           pw.Divider(color: _grey200, thickness: 0.5),
-          pw.SizedBox(height: 6),
-          pw.Text(
-            'This report was auto-generated by the IBUILD ERP Report Engine on $timestamp.',
-            style: pw.TextStyle(font: italicFont, fontSize: 7.5, color: _grey600),
-            textAlign: pw.TextAlign.center,
-          ),
           pw.SizedBox(height: 4),
           pw.Text(
-            'IBUILD | Confidential & Internal Use Only',
-            style: pw.TextStyle(font: headerFont, fontSize: 7, color: _darkBlue, letterSpacing: 0.5),
+            'This report was auto-generated by the IBUILD ERP Engine on $timestamp.',
+            style: pw.TextStyle(font: italicFont, fontSize: 7, color: _grey600),
+            textAlign: pw.TextAlign.center,
+          ),
+          pw.SizedBox(height: 2),
+          pw.Text(
+            'IBUILD | Confidential & Official Corporate Record',
+            style: pw.TextStyle(font: headerFont, fontSize: 6.5, color: _darkBlue, letterSpacing: 0.5),
             textAlign: pw.TextAlign.center,
           ),
         ],

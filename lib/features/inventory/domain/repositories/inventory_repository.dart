@@ -16,6 +16,7 @@ abstract class InventoryRepository {
   Future<void> deleteItem(String id);
   Future<List<InventoryItem>> getLowStockItems();
   Future<List<InventoryHistory>> getHistory(String inventoryId);
+  Future<List<InventoryHistory>> getAllHistory({String? startDate, String? endDate});
   Future<void> addHistoryEntry(InventoryHistory entry);
   Future<void> logInventoryChange({
     required String inventoryId,

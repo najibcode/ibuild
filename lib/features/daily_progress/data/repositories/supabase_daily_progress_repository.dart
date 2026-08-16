@@ -33,6 +33,25 @@ class SupabaseDailyProgressRepository implements DailyProgressRepository {
   }
 
   @override
+  Future<List<DailyProgress>> getProgressForDateRange({
+    String? projectId,
+    required String startDate,
+    required String endDate,
+  }) async {
+    try {
+      var query = _client.from('daily_progress').select();
+      if (projectId != null && projectId.isNotEmpty && projectId != 'all') {
+        query = query.eq('project_id', projectId);
+      }
+      query = query.gte('date', startDate).lte('date', endDate);
+      final response = await query.order('date', ascending: false);
+      return (response as List).map((j) => DailyProgress.fromJson(j)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
   Future<void> upsertProgress(DailyProgress progress) async {
     final Map<String, dynamic> payload = progress.toJson();
 

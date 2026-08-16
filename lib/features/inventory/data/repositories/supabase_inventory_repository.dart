@@ -131,6 +131,23 @@ class SupabaseInventoryRepository implements InventoryRepository {
   }
 
   @override
+  Future<List<InventoryHistory>> getAllHistory({String? startDate, String? endDate}) async {
+    try {
+      var query = _client.from('inventory_history').select();
+      if (startDate != null && startDate.isNotEmpty) {
+        query = query.gte('created_at', '${startDate}T00:00:00.000Z');
+      }
+      if (endDate != null && endDate.isNotEmpty) {
+        query = query.lte('created_at', '${endDate}T23:59:59.999Z');
+      }
+      final response = await query.order('created_at', ascending: false);
+      return (response as List).map((j) => InventoryHistory.fromJson(j)).toList();
+    } catch (_) {
+      return [];
+    }
+  }
+
+  @override
   Future<void> logInventoryChange({
     required String inventoryId,
     required String changeType,
