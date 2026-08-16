@@ -1595,7 +1595,7 @@ class _InventoryCard extends ConsumerWidget {
                         color: AppColors.secondary,
                       ),
                       label: const Text(
-                        '+ Receive Stock',
+                        'Receive Stock',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
@@ -1618,7 +1618,7 @@ class _InventoryCard extends ConsumerWidget {
                         color: AppColors.error,
                       ),
                       label: const Text(
-                        '- Issue Material',
+                        'Issue Material',
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
