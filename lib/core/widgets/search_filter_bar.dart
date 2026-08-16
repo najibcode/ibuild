@@ -121,29 +121,37 @@ class _SearchFilterBarState extends State<SearchFilterBar> {
     final primaryCol = AppColors.primaryColor(context);
     return Padding(
       padding: const EdgeInsets.only(right: 6),
-      child: FilterChip(
-        label: Text(
-          label,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isActive ? Colors.white : AppColors.text(context),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: isActive ? primaryCol : AppColors.cardBg(context),
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            border: Border.all(
+              color: isActive ? primaryCol : AppColors.border(context),
+            ),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w600,
+              color: isActive ? Colors.white : AppColors.text(context),
+            ),
           ),
         ),
-        selected: isActive,
-        onSelected: (_) => onTap(),
-        backgroundColor: AppColors.cardBg(context),
-        selectedColor: primaryCol,
-        side: BorderSide(color: isActive ? primaryCol : AppColors.border(context)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
-        showCheckmark: false,
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       ),
     );
   }
 
   String _capitalize(String s) {
     if (s.isEmpty) return s;
-    return s[0].toUpperCase() + s.substring(1);
+    return s.split('_').map((word) {
+      if (word.isEmpty) return '';
+      return word[0].toUpperCase() + word.substring(1).toLowerCase();
+    }).join(' ');
   }
 }

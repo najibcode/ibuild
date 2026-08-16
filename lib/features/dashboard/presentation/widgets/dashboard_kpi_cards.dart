@@ -243,15 +243,21 @@ class DashboardKPICards extends ConsumerWidget {
         final crossAxisCount = _calculateCrossAxisCount(constraints.maxWidth);
         final cards = _buildCardList(context, stats);
 
+        final double aspectRatio = crossAxisCount >= 6
+            ? 1.55
+            : (crossAxisCount == 3
+                ? 1.55
+                : (constraints.maxWidth < 400 ? 1.18 : 1.25));
+
         return GridView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: cards.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: crossAxisCount,
-            childAspectRatio: crossAxisCount >= 6 ? 1.55 : (crossAxisCount == 3 ? 1.65 : 1.45),
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
+            childAspectRatio: aspectRatio,
+            mainAxisSpacing: 10,
+            crossAxisSpacing: 10,
           ),
           itemBuilder: (context, index) => cards[index],
         );

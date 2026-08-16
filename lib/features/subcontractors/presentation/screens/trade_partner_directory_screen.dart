@@ -34,7 +34,15 @@ class _TradePartnerDirectoryScreenState extends ConsumerState<TradePartnerDirect
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        title: const Text('Trade Partner Directory (Subcontractors)'),
+        titleSpacing: 16,
+        title: Text(
+          'Subcontractors',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: AppColors.primaryColor(context),
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
         actions: [
           DataExportActions(
             compact: true,

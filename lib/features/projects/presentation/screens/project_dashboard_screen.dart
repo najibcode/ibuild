@@ -274,137 +274,164 @@ class _DashboardBody extends StatelessWidget {
         ? stats.projectName
         : 'Project Overview';
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [const Color(0xFF1A2744), const Color(0xFF0F1C33)]
-              : [
-                  AppColors.primary.withValues(alpha: 0.06),
-                  AppColors.secondary.withValues(alpha: 0.04),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Row(
-        children: [
-          // Project avatar / icon
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [AppColors.primary, AppColors.primaryContainer],
-              ),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 550;
+
+        return Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [const Color(0xFF1A2744), const Color(0xFF0F1C33)]
+                  : [
+                      AppColors.primary.withValues(alpha: 0.06),
+                      AppColors.secondary.withValues(alpha: 0.04),
+                    ],
             ),
-            child: Center(
-              child: Text(
-                displayName.isNotEmpty
-                    ? displayName.substring(0, 1).toUpperCase()
-                    : 'P',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border(context)),
           ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Project avatar / icon
+                  Container(
+                    width: 48,
+                    height: 48,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary, AppColors.primaryContainer],
+                      ),
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                    ),
+                    child: Center(
                       child: Text(
-                        displayName,
-                        style: TextStyle(
+                        displayName.isNotEmpty
+                            ? displayName.substring(0, 1).toUpperCase()
+                            : 'P',
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
-                          color: AppColors.text(context),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(AppRadius.full),
-                      ),
-                      child: Text(
-                        stats.status.toUpperCase(),
-                        style: TextStyle(
-                          color: statusColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 0.5,
                         ),
                       ),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  stats.displayClient,
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.mutedText(context),
                   ),
-                ),
-                if (stats.address != null && stats.address!.isNotEmpty)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 2),
-                    child: Row(
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.location_on_outlined,
-                          size: 13,
-                          color: AppColors.mutedText(context),
-                        ),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            stats.address!,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: AppColors.mutedText(context),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                displayName,
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.text(context),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(AppRadius.full),
+                              ),
+                              child: Text(
+                                stats.status.toUpperCase(),
+                                style: TextStyle(
+                                  color: statusColor,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 3),
+                        Text(
+                          stats.displayClient,
+                          style: TextStyle(
+                            fontSize: 13,
+                            color: AppColors.mutedText(context),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (stats.address != null && stats.address!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 13,
+                                  color: AppColors.mutedText(context),
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    stats.address!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.mutedText(context),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                       ],
                     ),
                   ),
-              ],
-            ),
-          ),
-          // Date info
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              if (stats.startDate != null)
-                _dateChip(context, 'Start', stats.startDate!),
-              if (stats.expectedCompletion != null) ...[
-                const SizedBox(height: 4),
-                _dateChip(context, 'Due', stats.expectedCompletion!),
+                  if (!isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (stats.startDate != null)
+                          _dateChip(context, 'Start', stats.startDate!),
+                        if (stats.expectedCompletion != null) ...[
+                          const SizedBox(height: 4),
+                          _dateChip(context, 'Due', stats.expectedCompletion!),
+                        ],
+                      ],
+                    ),
+                ],
+              ),
+              if (isMobile && (stats.startDate != null || stats.expectedCompletion != null)) ...[
+                const SizedBox(height: 10),
+                Divider(height: 1, color: AppColors.border(context).withValues(alpha: 0.5)),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    if (stats.startDate != null)
+                      _dateChip(context, 'Start', stats.startDate!),
+                    if (stats.expectedCompletion != null)
+                      _dateChip(context, 'Due', stats.expectedCompletion!),
+                  ],
+                ),
               ],
             ],
           ),
-        ],
-      ),
+        );
+      },
     );
   }
 
@@ -529,14 +556,22 @@ class _DashboardBody extends StatelessWidget {
       );
     }
 
-    return GridView.count(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      crossAxisCount: isMedium ? 4 : 2,
-      childAspectRatio: isMedium ? 1.3 : 1.5,
-      mainAxisSpacing: 12,
-      crossAxisSpacing: 12,
-      children: cards.map((c) => _buildKPICard(context, c)).toList(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final double childAspectRatio = isMedium
+            ? 1.3
+            : (constraints.maxWidth < 400 ? 1.15 : 1.25);
+
+        return GridView.count(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisCount: isMedium ? 4 : 2,
+          childAspectRatio: childAspectRatio,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
+          children: cards.map((c) => _buildKPICard(context, c)).toList(),
+        );
+      },
     );
   }
 

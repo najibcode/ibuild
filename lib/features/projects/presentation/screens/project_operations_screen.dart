@@ -196,15 +196,11 @@ class _ProjectOperationsScreenState
           ),
           actions: [
             Padding(
-              padding: const EdgeInsets.only(right: 16.0),
-              child: ElevatedButton.icon(
+              padding: const EdgeInsets.only(right: 8.0),
+              child: IconButton(
                 onPressed: () => _openSection(10),
-                icon: const Icon(Icons.description_outlined, size: 16),
-                label: const Text('Download Full Report'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.secondary,
-                  foregroundColor: Colors.white,
-                ),
+                icon: const Icon(Icons.description_outlined, color: AppColors.secondary),
+                tooltip: 'Full Site Reports & Export',
               ),
             ),
           ],

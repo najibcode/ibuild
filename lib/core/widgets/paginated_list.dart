@@ -10,6 +10,7 @@ class PaginatedListView<T> extends StatelessWidget {
   final String emptyMessage;
   final String? errorMessage;
   final VoidCallback? onRetry;
+  final EdgeInsetsGeometry? padding;
 
   const PaginatedListView({
     super.key,
@@ -21,6 +22,7 @@ class PaginatedListView<T> extends StatelessWidget {
     this.emptyMessage = 'No items found.',
     this.errorMessage,
     this.onRetry,
+    this.padding,
   });
 
   @override
@@ -70,7 +72,13 @@ class PaginatedListView<T> extends StatelessWidget {
         return false;
       },
       child: ListView.builder(
-        padding: const EdgeInsets.symmetric(horizontal: AppSpacing.containerMargin),
+        padding: padding ??
+            const EdgeInsets.fromLTRB(
+              AppSpacing.containerMargin,
+              0,
+              AppSpacing.containerMargin,
+              80,
+            ),
         itemCount: items.length + (isLoading ? 1 : 0),
         itemBuilder: (context, index) {
           if (index == items.length) {

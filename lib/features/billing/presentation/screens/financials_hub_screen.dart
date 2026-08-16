@@ -107,7 +107,7 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
           const SizedBox(width: 8),
         ],
         bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(138),
+          preferredSize: const Size.fromHeight(150),
           child: Column(
             children: [
               // Executive Finance Summary Banner

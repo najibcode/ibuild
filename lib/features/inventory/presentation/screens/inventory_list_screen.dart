@@ -365,53 +365,71 @@ class InventoryListScreen extends ConsumerWidget {
           // Interactive 1-Tap Category Filter Chips
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 6.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: Row(
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: FilterChip(
-                    selected: state.categoryFilter == null,
-                    label: Text(
-                      'All Materials',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: state.categoryFilter == null ? Colors.white : AppColors.text(context),
+                  padding: const EdgeInsets.only(right: 8),
+                  child: InkWell(
+                    onTap: () => ref.read(inventoryControllerProvider.notifier).setCategoryFilter(null),
+                    borderRadius: BorderRadius.circular(20),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 150),
+                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: state.categoryFilter == null ? AppColors.primaryColor(context) : AppColors.cardBg(context),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: state.categoryFilter == null ? AppColors.primaryColor(context) : AppColors.border(context),
+                        ),
+                      ),
+                      child: Text(
+                        'All Materials',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: state.categoryFilter == null ? Colors.white : AppColors.text(context),
+                        ),
                       ),
                     ),
-                    onSelected: (_) => ref.read(inventoryControllerProvider.notifier).setCategoryFilter(null),
-                    backgroundColor: AppColors.cardBg(context),
-                    selectedColor: AppColors.primaryColor(context),
-                    side: BorderSide(color: state.categoryFilter == null ? AppColors.primaryColor(context) : AppColors.border(context)),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                    showCheckmark: false,
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   ),
                 ),
                 ..._categories.map((cat) {
                   final isSelected = state.categoryFilter == cat;
+                  final emoji = _getCategoryEmoji(cat);
                   return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: FilterChip(
-                      selected: isSelected,
-                      label: Text(
-                        '${_getCategoryEmoji(cat)} $cat',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                          color: isSelected ? Colors.white : AppColors.text(context),
+                    padding: const EdgeInsets.only(right: 8),
+                    child: InkWell(
+                      onTap: () {
+                        ref.read(inventoryControllerProvider.notifier).setCategoryFilter(isSelected ? null : cat);
+                      },
+                      borderRadius: BorderRadius.circular(20),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 150),
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                        decoration: BoxDecoration(
+                          color: isSelected ? AppColors.primaryColor(context) : AppColors.cardBg(context),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(
+                            color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context),
+                          ),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(emoji, style: const TextStyle(fontSize: 13)),
+                            const SizedBox(width: 6),
+                            Text(
+                              cat,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: isSelected ? Colors.white : AppColors.text(context),
+                              ),
+                            ),
+                          ],
                         ),
                       ),
-                      onSelected: (selected) {
-                        ref.read(inventoryControllerProvider.notifier).setCategoryFilter(selected ? cat : null);
-                      },
-                      backgroundColor: AppColors.cardBg(context),
-                      selectedColor: AppColors.primaryColor(context),
-                      side: BorderSide(color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context)),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                      showCheckmark: false,
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                     ),
                   );
                 }),
@@ -1457,12 +1475,11 @@ class _InventoryCard extends ConsumerWidget {
               Row(
                 children: [
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: ElevatedButton.icon(
                       onPressed: () => _showReceiveStockModal(context, ref),
                       icon: const Icon(
                         Icons.add,
-                        size: 16,
-                        color: AppColors.secondary,
+                        size: 15,
                       ),
                       label: const Text(
                         'Receive Stock',
@@ -1471,21 +1488,23 @@ class _InventoryCard extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.secondary,
-                        side: const BorderSide(color: AppColors.secondary),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
-                    child: OutlinedButton.icon(
+                    child: ElevatedButton.icon(
                       onPressed: () => _showIssueMaterialModal(context, ref),
                       icon: const Icon(
                         Icons.remove,
-                        size: 16,
-                        color: AppColors.error,
+                        size: 15,
                       ),
                       label: const Text(
                         'Issue Material',
@@ -1494,14 +1513,17 @@ class _InventoryCard extends ConsumerWidget {
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: AppColors.error,
-                        side: const BorderSide(color: AppColors.error),
-                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.error,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   IconButton(
                     icon: const Icon(
                       Icons.history,

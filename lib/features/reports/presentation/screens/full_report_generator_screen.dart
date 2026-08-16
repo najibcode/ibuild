@@ -140,7 +140,7 @@ class _FullReportGeneratorScreenState
           _isLoadingPeriodData = false;
         });
       }
-    } catch (e) {
+    } catch (_) {
       if (mounted) {
         setState(() {
           _isLoadingPeriodData = false;
@@ -175,7 +175,6 @@ class _FullReportGeneratorScreenState
   String _generateFormattedReportText() {
     final projectState = ref.read(projectControllerProvider);
     final expenseState = ref.read(expenseControllerProvider);
-    final inventoryState = ref.read(inventoryControllerProvider);
     final attendanceState = ref.read(attendanceControllerProvider);
     final subcontractorState = ref.read(subcontractorControllerProvider);
 
@@ -244,8 +243,8 @@ class _FullReportGeneratorScreenState
       buffer.writeln("• No projects active in selected scope.\n");
     } else {
       for (final p in projects) {
-        final progressPct = (p.progress * 100).toStringAsFixed(0);
-        buffer.writeln("• ${p.name} [${p.status.toUpperCase()}]: $progressPct% Complete | Budget: ₹${p.budget.toStringAsFixed(0)} | Spent: ₹${p.spent.toStringAsFixed(0)}");
+        final progressVal = ((p.physicalProgress ?? (p.budget > 0 ? (p.spent / p.budget * 100) : 0.0))).clamp(0.0, 100.0);
+        buffer.writeln("• ${p.name} [${p.status.toUpperCase()}]: ${progressVal.toStringAsFixed(0)}% Complete | Budget: ₹${p.budget.toStringAsFixed(0)} | Spent: ₹${p.spent.toStringAsFixed(0)}");
       }
       if (_loadedDailyProgress.isNotEmpty) {
         buffer.writeln("\n  Site Daily Progress Notes:");
@@ -295,14 +294,13 @@ class _FullReportGeneratorScreenState
     }
 
     // 6. Worker Attendance
-    buffer.writeln("6. WORKER ATTENDANCE & DAILY WAGES");
+    buffer.writeln("6. WORKER ATTENDANCE LOG");
     buffer.writeln("--------------------------------------------------");
     if (filteredAttendance.isEmpty) {
       buffer.writeln("• No attendance entries recorded for this period.\n");
     } else {
       for (final a in filteredAttendance.take(30)) {
-        final wageStr = a.dailyWage != null ? " | Wage: ₹${a.dailyWage!.toStringAsFixed(0)}" : "";
-        buffer.writeln("• ${a.date} | Worker: ${a.employeeName ?? 'Worker'} | Status: ${a.status.toUpperCase()} | Site: ${a.projectName ?? 'General'}$wageStr");
+        buffer.writeln("• ${a.date} | Worker: ${a.employeeName ?? 'Worker'} | Status: ${a.status.toUpperCase()} | Site: ${a.projectName ?? 'General'}");
       }
       buffer.writeln();
     }
@@ -450,7 +448,7 @@ class _FullReportGeneratorScreenState
       final safeName = _periodTitle.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
       final fileName = 'IBUILD_$safeName.pdf';
 
-      await PdfDownloadHelper.downloadPdf(pdfBytes, fileName);
+      await PdfDownloadHelper.downloadPdf(bytes: pdfBytes, filename: fileName);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -493,13 +491,14 @@ class _FullReportGeneratorScreenState
 
       // 1. Projects
       for (final p in projectState.projects) {
+        final progressVal = ((p.physicalProgress ?? (p.budget > 0 ? (p.spent / p.budget * 100) : 0.0))).clamp(0.0, 100.0);
         rows.add([
           'PROJECT',
           p.startDate ?? '-',
           p.name,
           p.status,
           p.budget,
-          '${(p.progress * 100).toStringAsFixed(0)}%',
+          '${progressVal.toStringAsFixed(0)}%',
           p.name,
           'Spent: ₹${p.spent.toStringAsFixed(2)}',
         ]);
@@ -562,7 +561,7 @@ class _FullReportGeneratorScreenState
         rows: rows,
       );
 
-      await ExcelDownloadHelper.downloadExcel(excelBytes, fileName);
+      await ExcelDownloadHelper.downloadExcel(bytes: excelBytes, filename: fileName);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -622,11 +621,6 @@ class _FullReportGeneratorScreenState
       return matchesProject && inRange;
     }).toList();
 
-    final double totalWorkerWagesForPeriod = filteredAttendance.fold(
-      0.0,
-      (sum, a) => sum + (a.dailyWage ?? 0.0),
-    );
-
     final receivedCount = _loadedInventoryHistory.where((h) => h.changeType == 'added').length;
     final issuedCount = _loadedInventoryHistory.where((h) => h.changeType == 'used').length;
 
@@ -677,7 +671,6 @@ class _FullReportGeneratorScreenState
               activeProjectsCount: filteredProjects.length,
               subcontractorsCount: subcontractorState.items.length,
               workersPresentCount: filteredAttendance.length,
-              workerWages: totalWorkerWagesForPeriod,
             ),
             const SizedBox(height: 18),
 
@@ -732,7 +725,7 @@ class _FullReportGeneratorScreenState
                 const SizedBox(height: 20),
               ],
 
-              // ─── 5. Worker Attendance & Daily Wages ───────────────────────
+              // ─── 5. Worker Attendance & Shifts ────────────────────────────
               if (_activeSectionFilter == 'all' || _activeSectionFilter == 'attendance') ...[
                 _buildAttendanceSection(context, filteredAttendance),
                 const SizedBox(height: 20),
@@ -1027,15 +1020,13 @@ class _FullReportGeneratorScreenState
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.border(context)),
       ),
-      child: Wrap(
-        spacing: 14,
-        runSpacing: 12,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        alignment: WrapAlignment.spaceBetween,
-        children: [
-          // ── Date Navigation Controls ──
-          Row(
-            mainAxisSize: MainAxisSize.min,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isMobile = constraints.maxWidth < 650;
+
+          final dateControls = Row(
+            mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
                 onPressed: () => _shiftDate(-1),
@@ -1048,41 +1039,48 @@ class _FullReportGeneratorScreenState
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              InkWell(
-                onTap: () => _pickDateOrRange(context),
-                borderRadius: BorderRadius.circular(8),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.bg(context),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColors.border(context)),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(
-                        Icons.calendar_today_outlined,
-                        size: 15,
-                        color: AppColors.primary,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        _periodTitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text(context),
+              const SizedBox(width: 4),
+              Expanded(
+                flex: isMobile ? 1 : 0,
+                child: InkWell(
+                  onTap: () => _pickDateOrRange(context),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: AppColors.bg(context),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border(context)),
+                    ),
+                    child: Row(
+                      mainAxisSize: isMobile ? MainAxisSize.max : MainAxisSize.min,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const Icon(
+                          Icons.calendar_today_outlined,
+                          size: 14,
+                          color: AppColors.primary,
                         ),
-                      ),
-                      const SizedBox(width: 6),
-                      const Icon(Icons.arrow_drop_down, size: 18),
-                    ],
+                        const SizedBox(width: 6),
+                        Flexible(
+                          child: Text(
+                            _periodTitle,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(
+                              fontSize: 12.5,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.text(context),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        const Icon(Icons.arrow_drop_down, size: 16),
+                      ],
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
+              const SizedBox(width: 4),
               IconButton(
                 onPressed: () => _shiftDate(1),
                 icon: const Icon(Icons.chevron_right),
@@ -1095,13 +1093,12 @@ class _FullReportGeneratorScreenState
                 ),
               ),
             ],
-          ),
+          );
 
-          // ── Scope / Project Selector Dropdown ──
-          SizedBox(
-            width: 240,
+          final projectDropdown = SizedBox(
+            width: isMobile ? double.infinity : 240,
             child: DropdownButtonFormField<String>(
-              value: _selectedProjectId,
+              initialValue: _selectedProjectId,
               isExpanded: true,
               dropdownColor: AppColors.cardBg(context),
               decoration: InputDecoration(
@@ -1114,11 +1111,11 @@ class _FullReportGeneratorScreenState
               items: [
                 const DropdownMenuItem(
                   value: 'all',
-                  child: Text('All Enterprise Sites (Portfolio)', style: TextStyle(fontSize: 12.5)),
+                  child: Text('All Enterprise Sites (Portfolio)', style: TextStyle(fontSize: 12)),
                 ),
                 ...projects.map((p) => DropdownMenuItem(
                       value: p.id as String,
-                      child: Text(p.name as String, style: const TextStyle(fontSize: 12.5)),
+                      child: Text(p.name as String, style: const TextStyle(fontSize: 12)),
                     )),
               ],
               onChanged: (val) {
@@ -1128,8 +1125,28 @@ class _FullReportGeneratorScreenState
                 _fetchPeriodData();
               },
             ),
-          ),
-        ],
+          );
+
+          if (isMobile) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                dateControls,
+                const SizedBox(height: 10),
+                projectDropdown,
+              ],
+            );
+          }
+
+          return Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              dateControls,
+              const SizedBox(width: 14),
+              projectDropdown,
+            ],
+          );
+        },
       ),
     );
   }
@@ -1193,7 +1210,6 @@ class _FullReportGeneratorScreenState
     required int activeProjectsCount,
     required int subcontractorsCount,
     required int workersPresentCount,
-    required double workerWages,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -1243,9 +1259,9 @@ class _FullReportGeneratorScreenState
             ),
             _kpiCard(
               context,
-              title: 'Labour & Wages',
-              value: '₹${workerWages.toStringAsFixed(0)}',
-              subtitle: '$workersPresentCount worker shifts',
+              title: 'Worker Attendance',
+              value: '$workersPresentCount Shifts',
+              subtitle: 'Worker shifts recorded',
               icon: Icons.badge_outlined,
               color: Colors.teal,
             ),
@@ -1390,10 +1406,11 @@ class _FullReportGeneratorScreenState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: projects.length,
-              separatorBuilder: (_, __) => const Divider(height: 18),
+              separatorBuilder: (context, index) => const Divider(height: 18),
               itemBuilder: (context, idx) {
                 final p = projects[idx];
-                final progressPct = (p.progress * 100).toInt();
+                final progressVal = ((p.physicalProgress ?? (p.budget > 0 ? (p.spent / p.budget * 100) : 0.0))).clamp(0.0, 100.0);
+                final progressPct = progressVal.toInt();
 
                 // Find matching daily progress updates for this project
                 final siteLogs = _loadedDailyProgress
@@ -1449,7 +1466,7 @@ class _FullReportGeneratorScreenState
                     ClipRRect(
                       borderRadius: BorderRadius.circular(4),
                       child: LinearProgressIndicator(
-                        value: (p.progress as num).toDouble(),
+                        value: (progressVal / 100.0).clamp(0.0, 1.0),
                         backgroundColor: AppColors.border(context),
                         color: AppColors.primary,
                         minHeight: 6,
@@ -1560,7 +1577,7 @@ class _FullReportGeneratorScreenState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: _loadedInventoryHistory.length,
-              separatorBuilder: (_, __) => const Divider(height: 14),
+              separatorBuilder: (context, index) => const Divider(height: 14),
               itemBuilder: (context, idx) {
                 final h = _loadedInventoryHistory[idx];
                 final isAdded = h.changeType == 'added';
@@ -1656,7 +1673,7 @@ class _FullReportGeneratorScreenState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: subcontractors.length,
-              separatorBuilder: (_, __) => const Divider(height: 16),
+              separatorBuilder: (context, index) => const Divider(height: 16),
               itemBuilder: (context, idx) {
                 final sub = subcontractors[idx];
                 final isCompleted = sub.status.toLowerCase() == 'completed';
@@ -1756,7 +1773,7 @@ class _FullReportGeneratorScreenState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: expenses.length,
-              separatorBuilder: (_, __) => const Divider(height: 14),
+              separatorBuilder: (context, index) => const Divider(height: 14),
               itemBuilder: (context, idx) {
                 final e = expenses[idx];
                 return Row(
@@ -1826,13 +1843,13 @@ class _FullReportGeneratorScreenState
   }
 
   // ───────────────────────────────────────────────────────────────────────────
-  // SECTION 5: WORKER ATTENDANCE & DAILY WAGES
+  // SECTION 5: WORKER ATTENDANCE & SHIFTS
   // ───────────────────────────────────────────────────────────────────────────
 
   Widget _buildAttendanceSection(BuildContext context, List<dynamic> attendance) {
     return _sectionContainer(
       context,
-      title: '5. Worker Attendance & Daily Wages',
+      title: '5. Worker Attendance & Shifts',
       badge: '${attendance.length} Workers Logged',
       icon: Icons.badge_outlined,
       color: Colors.teal,
@@ -1846,12 +1863,11 @@ class _FullReportGeneratorScreenState
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               itemCount: attendance.length,
-              separatorBuilder: (_, __) => const Divider(height: 14),
+              separatorBuilder: (context, index) => const Divider(height: 14),
               itemBuilder: (context, idx) {
                 final a = attendance[idx];
                 final isPresent = a.status.toLowerCase() == 'present';
-                final isHalfDay = a.status.toLowerCase() == 'half_day';
-                final statusColor = isPresent ? AppColors.secondary : (isHalfDay ? Colors.orange : Colors.red);
+                final statusColor = isPresent ? AppColors.secondary : Colors.red;
 
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1878,35 +1894,20 @@ class _FullReportGeneratorScreenState
                         ],
                       ),
                     ),
-                    Row(
-                      children: [
-                        if (a.dailyWage != null) ...[
-                          Text(
-                            '₹${(a.dailyWage as num).toStringAsFixed(0)}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.teal,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            a.status.toUpperCase(),
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              color: statusColor,
-                            ),
-                          ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        a.status.toUpperCase(),
+                        style: TextStyle(
+                          fontSize: 10,
+                          fontWeight: FontWeight.bold,
+                          color: statusColor,
                         ),
-                      ],
+                      ),
                     ),
                   ],
                 );

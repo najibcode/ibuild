@@ -348,64 +348,68 @@ class _ProjectCard extends StatelessWidget {
               const SizedBox(height: 14),
 
               // ── Key Metrics Grid: Budget | Spent | Progress | Due Date ──
-              LayoutBuilder(
-                builder: (context, constraints) {
-                  final isNarrow = constraints.maxWidth < 450;
-                  return Wrap(
-                    spacing: 16,
-                    runSpacing: 12,
-                    children: [
-                      _buildMetricItem(
-                        context,
-                        label: 'Budget',
-                        value: CurrencyFormatter.formatINR(project.budget),
-                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 100,
-                      ),
-                      _buildMetricItem(
-                        context,
-                        label: 'Spent',
-                        value: CurrencyFormatter.formatINR(project.spent),
-                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 100,
-                      ),
-                      _buildMetricItem(
-                        context,
-                        label: 'Progress',
-                        value: hasRecordedProgress
-                            ? '${progressPct.toStringAsFixed(1)}%'
-                            : '—',
-                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 80,
-                        valueColor: AppColors.primaryColor(context),
-                      ),
-                      _buildMetricItem(
-                        context,
-                        label: 'Due Date',
-                        value: project.formattedDueDate,
-                        width: isNarrow ? (constraints.maxWidth - 16) / 2 : 110,
-                        badge: project.isOverdue
-                            ? Container(
-                                margin: const EdgeInsets.only(top: 2),
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricItem(
+                      context,
+                      label: 'Budget',
+                      value: CurrencyFormatter.formatINR(project.budget),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricItem(
+                      context,
+                      label: 'Spent',
+                      value: CurrencyFormatter.formatINR(project.spent),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: _buildMetricItem(
+                      context,
+                      label: 'Progress',
+                      value: hasRecordedProgress
+                          ? '${progressPct.toStringAsFixed(1)}%'
+                          : '—',
+                      valueColor: AppColors.primaryColor(context),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _buildMetricItem(
+                      context,
+                      label: 'Due Date',
+                      value: project.formattedDueDate,
+                      badge: project.isOverdue
+                          ? Container(
+                              margin: const EdgeInsets.only(top: 2),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.error.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                '⚠ ${project.daysOverdue}d overdue',
+                                style: const TextStyle(
+                                  color: AppColors.error,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
                                 ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: Text(
-                                  '⚠ ${project.daysOverdue}d overdue',
-                                  style: const TextStyle(
-                                    color: AppColors.error,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              )
-                            : null,
-                      ),
-                    ],
-                  );
-                },
+                              ),
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 14),
 
@@ -529,36 +533,32 @@ class _ProjectCard extends StatelessWidget {
     BuildContext context, {
     required String label,
     required String value,
-    required double width,
     Color? valueColor,
     Widget? badge,
   }) {
-    return SizedBox(
-      width: width,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: AppColors.mutedText(context),
-              fontWeight: FontWeight.w500,
-            ),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 11,
+            color: AppColors.mutedText(context),
+            fontWeight: FontWeight.w500,
           ),
-          const SizedBox(height: 2),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              color: valueColor ?? AppColors.text(context),
-            ),
-            overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.bold,
+            color: valueColor ?? AppColors.text(context),
           ),
-          ?badge,
-        ],
-      ),
+          overflow: TextOverflow.ellipsis,
+        ),
+        ?badge,
+      ],
     );
   }
 }
