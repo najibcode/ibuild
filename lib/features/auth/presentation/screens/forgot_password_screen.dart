@@ -52,12 +52,12 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     final state = ref.watch(authControllerProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.background,
+      backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppColors.primary),
+          icon: Icon(Icons.arrow_back, color: AppColors.primaryColor(context)),
           onPressed: () => Navigator.of(context).pop(),
         ),
       ),
@@ -68,9 +68,9 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             constraints: const BoxConstraints(maxWidth: 400),
             padding: const EdgeInsets.all(AppSpacing.cardPadding),
             decoration: BoxDecoration(
-              color: AppColors.surfaceWhite,
+              color: AppColors.cardBg(context),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.borderSubtle),
+              border: Border.all(color: AppColors.border(context)),
               boxShadow: const [
                 BoxShadow(
                   color: Color(0x08000000),
@@ -85,28 +85,28 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.lock_open,
                     size: 48,
-                    color: AppColors.primary,
+                    color: AppColors.primaryColor(context),
                   ),
                   const SizedBox(height: 16),
-                  const Text(
+                  Text(
                     'Reset Password',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
-                      color: AppColors.textMain,
+                      color: AppColors.text(context),
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Enter your email address and we will send you a link to reset your password.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 13,
-                      color: AppColors.textMuted,
+                      color: AppColors.mutedText(context),
                     ),
                   ),
                   const SizedBox(height: 32),

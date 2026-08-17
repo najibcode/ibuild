@@ -31,9 +31,9 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
   void initState() {
     super.initState();
     _tabController = TabController(
-      length: 3,
+      length: 4,
       vsync: this,
-      initialIndex: widget.initialTabIndex.clamp(0, 2),
+      initialIndex: widget.initialTabIndex.clamp(0, 3),
     );
     _tabController.addListener(() {
       if (mounted) setState(() {});
@@ -136,11 +136,15 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
                 tabs: const [
                   Tab(
                     icon: Icon(Icons.receipt_long, size: 18),
-                    text: '💳 Ledger',
+                    text: '📄 Vendor Bills',
                   ),
                   Tab(
                     icon: Icon(Icons.account_balance_wallet, size: 18),
-                    text: '💸 Expenses',
+                    text: '💳 Payment Ledger',
+                  ),
+                  Tab(
+                    icon: Icon(Icons.money_off, size: 18),
+                    text: '💸 Site Expenses',
                   ),
                   Tab(
                     icon: Icon(Icons.request_quote, size: 18),
@@ -155,13 +159,16 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
       body: TabBarView(
         controller: _tabController,
         children: const [
-          // Tab 1: Single-level Transactions & Ledger (Client Invoices, Vendor Bills, Payment Logs)
+          // Tab 1: Vendor Bills & Invoices
           BillingListScreen(isEmbedded: true),
 
-          // Tab 2: Site Operational Expenses & Petty Cash
+          // Tab 2: Payment Ledger & Cash Flow Log
+          PaymentLedgerScreen(),
+
+          // Tab 3: Site Operational Expenses & Petty Cash
           ExpenseListScreen(isEmbedded: true),
 
-          // Tab 3: Commercial Quotations & Cost Estimator
+          // Tab 4: Commercial Quotations & Cost Estimator
           QuotationListScreen(isEmbedded: true),
         ],
       ),

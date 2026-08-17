@@ -620,6 +620,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         break;
       case MobileScreen.inventory:
         _refreshDataForLabel('Inventory');
+        break;
+      case MobileScreen.snags:
+      case MobileScreen.reports:
+      case MobileScreen.profile:
+        break; // These screens load their own data or are local-only
       case MobileScreen.financials:
         _refreshDataForLabel('Financials');
         break;

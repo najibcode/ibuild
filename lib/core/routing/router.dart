@@ -12,7 +12,7 @@ import '../../main.dart'; // We will point this to MainRouterScreen or Dashboard
 
 final routerProvider = Provider<GoRouter>((ref) {
   return GoRouter(
-    initialLocation: '/dashboard',
+    initialLocation: '/splash',
     routes: [
       GoRoute(
         path: '/splash',
