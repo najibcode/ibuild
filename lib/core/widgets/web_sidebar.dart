@@ -356,6 +356,16 @@ class _WebSidebarState extends ConsumerState<WebSidebar> {
   ) {
     final item = visibleItems[index];
     final bool isActive = widget.activeIndex == index;
+    final roleName = ref.watch(currentRoleProvider);
+    final isAdmin = roleName == 'admin';
+
+    final String displayLabel = (item.label == 'Settings' && isAdmin)
+        ? 'Admin Control Center'
+        : item.label;
+
+    final IconData iconData = (item.label == 'Settings' && isAdmin)
+        ? (isActive ? Icons.admin_panel_settings : Icons.admin_panel_settings_outlined)
+        : (isActive ? item.activeIcon : item.icon);
 
     Widget navContent = InkWell(
       onTap: () => widget.onTabSelected(index),
@@ -375,7 +385,7 @@ class _WebSidebarState extends ConsumerState<WebSidebar> {
               : MainAxisAlignment.start,
           children: [
             Icon(
-              isActive ? item.activeIcon : item.icon,
+              iconData,
               color: isActive ? Colors.white : const Color(0xFF94A3B8),
               size: 20,
             ),
@@ -383,7 +393,7 @@ class _WebSidebarState extends ConsumerState<WebSidebar> {
               const SizedBox(width: 12),
               Expanded(
                 child: Text(
-                  item.label,
+                  displayLabel,
                   style: TextStyle(
                     color: isActive ? Colors.white : const Color(0xFFE2E8F0),
                     fontWeight: isActive ? FontWeight.bold : FontWeight.w500,
@@ -403,7 +413,7 @@ class _WebSidebarState extends ConsumerState<WebSidebar> {
       return Padding(
         padding: const EdgeInsets.symmetric(vertical: 3),
         child: Tooltip(
-          message: item.label,
+          message: displayLabel,
           preferBelow: false,
           child: navContent,
         ),

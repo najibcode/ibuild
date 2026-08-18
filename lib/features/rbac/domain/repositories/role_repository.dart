@@ -16,4 +16,10 @@ abstract class RoleRepository {
 
   /// Remove a user's role assignment.
   Future<void> removeRole(String userId);
+
+  /// Fetch all system permissions grouped by module.
+  Future<List<Map<String, dynamic>>> fetchAllPermissions();
+
+  /// Fetch all users with their assigned roles.
+  Future<List<Map<String, dynamic>>> fetchAllUserRoles();
 }

@@ -108,4 +108,31 @@ class SupabaseRoleRepository implements RoleRepository {
   Future<void> removeRole(String userId) async {
     await _client.from('user_roles').delete().eq('user_id', userId);
   }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchAllPermissions() async {
+    try {
+      final response = await _client
+          .from('permissions')
+          .select()
+          .order('module', ascending: true);
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      debugPrint('Failed to fetch all permissions: $e');
+      return [];
+    }
+  }
+
+  @override
+  Future<List<Map<String, dynamic>>> fetchAllUserRoles() async {
+    try {
+      final response = await _client
+          .from('user_roles')
+          .select('user_id, role_id, created_at, roles(name, description)');
+      return List<Map<String, dynamic>>.from(response as List);
+    } catch (e) {
+      debugPrint('Failed to fetch all user roles: $e');
+      return [];
+    }
+  }
 }

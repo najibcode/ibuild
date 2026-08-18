@@ -86,6 +86,15 @@ final isSupervisorProvider = Provider<bool>((ref) {
   return ref.watch(currentRoleProvider) == 'supervisor';
 });
 
+final isEmployeeProvider = Provider<bool>((ref) {
+  return ref.watch(currentRoleProvider) == 'employee';
+});
+
+final isAdminOrOwnerProvider = Provider<bool>((ref) {
+  final role = ref.watch(currentRoleProvider);
+  return role == 'admin' || role == 'owner';
+});
+
 // ── Default Permission Matrix Helper ────────────────────────────────────────
 
 Set<String> _defaultPermissionsForRole(String roleName) {
@@ -178,6 +187,15 @@ Set<String> _defaultPermissionsForRole(String roleName) {
         'daily_progress.view',
         'daily_progress.create',
         'daily_progress.update',
+      };
+    case 'employee':
+      return {
+        'dashboard.view',
+        'project.view',
+        'attendance.view',
+        'attendance.create',
+        'daily_progress.view',
+        'inventory.view',
       };
     default:
       return {

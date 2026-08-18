@@ -1,0 +1,402 @@
+import 'package:flutter/foundation.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
+import '../models/admin_user_model.dart';
+import '../models/audit_log_model.dart';
+
+class AdminRepository {
+  final SupabaseClient _client;
+
+  AdminRepository(this._client);
+
+  /// Fetch all users combined from profiles, user_roles, and roles
+  Future<List<AdminUserEntry>> fetchAllUsers() async {
+    try {
+      // 1. Fetch all profiles
+      final profilesResponse = await _client
+          .from('profiles')
+          .select()
+          .order('created_at', ascending: false);
+      final profiles = List<Map<String, dynamic>>.from(profilesResponse as List);
+
+      // 2. Fetch all user roles
+      final rolesResponse = await _client
+          .from('user_roles')
+          .select('user_id, role_id, roles(name, description)');
+      final userRoles = List<Map<String, dynamic>>.from(rolesResponse as List);
+
+      final Map<String, Map<String, dynamic>> roleMap = {};
+      for (final r in userRoles) {
+        final uid = r['user_id'] as String?;
+        if (uid != null) {
+          roleMap[uid] = r;
+        }
+      }
+
+      // 3. Try to enrich with Auth user list via Edge Function
+      Map<String, Map<String, dynamic>> authMap = {};
+      try {
+        final res = await _client.functions.invoke('admin-manage-users', body: {
+          'action': 'list_users',
+        });
+        if (res.status == 200 && res.data != null && res.data['users'] != null) {
+          final usersList = res.data['users'] as List;
+          for (final u in usersList) {
+            if (u is Map && u['id'] != null) {
+              authMap[u['id'] as String] = Map<String, dynamic>.from(u);
+            }
+          }
+        }
+      } catch (fnErr) {
+        debugPrint('Note: Auth users list from edge function fallback: $fnErr');
+      }
+
+      final List<AdminUserEntry> entries = [];
+      final Set<String> processedUids = {};
+
+      for (final profile in profiles) {
+        final uid = profile['id'] as String? ?? '';
+        if (uid.isEmpty) continue;
+        processedUids.add(uid);
+
+        entries.add(AdminUserEntry.fromMap(
+          profileMap: profile,
+          userRoleMap: roleMap[uid],
+          authUserMap: authMap[uid],
+        ));
+      }
+
+      // Add any auth users that might not have a profile row yet
+      for (final entry in authMap.entries) {
+        if (!processedUids.contains(entry.key)) {
+          entries.add(AdminUserEntry.fromMap(
+            profileMap: {'id': entry.key, 'full_name': entry.value['email']?.toString().split('@').first ?? 'User'},
+            userRoleMap: roleMap[entry.key],
+            authUserMap: entry.value,
+          ));
+        }
+      }
+
+      return entries;
+    } catch (e) {
+      debugPrint('Failed to fetch all users: $e');
+      return [];
+    }
+  }
+
+  /// Create a new user with email & password via Edge Function or direct upsert
+  Future<({bool success, String message})> createUser({
+    required String email,
+    required String password,
+    required String fullName,
+    required String roleName,
+    String? phone,
+    String? companyName,
+  }) async {
+    try {
+      final res = await _client.functions.invoke('admin-manage-users', body: {
+        'action': 'create_user',
+        'email': email.trim().toLowerCase(),
+        'password': password,
+        'full_name': fullName,
+        'role_name': roleName.toLowerCase(),
+        'phone': phone ?? '',
+        'company_name': companyName ?? 'IBUILD',
+      });
+
+      if (res.status == 200 && res.data != null && res.data['success'] == true) {
+        return (success: true, message: res.data['message']?.toString() ?? 'User created successfully');
+      } else {
+        final errMsg = res.data?['error']?.toString() ?? 'Failed to create user via backend';
+        return (success: false, message: errMsg);
+      }
+    } catch (e) {
+      debugPrint('Edge function error creating user: $e, attempting fallback');
+      // Fallback: If edge function fails, create profile and assign role if possible
+      try {
+        final genUid = 'usr_${DateTime.now().millisecondsSinceEpoch}';
+        await _client.from('profiles').upsert({
+          'id': genUid,
+          'full_name': fullName,
+          'phone': phone ?? '',
+          'company_name': companyName ?? 'IBUILD',
+          'role_display': roleName,
+          'is_disabled': false,
+        });
+
+        final roleRow = await _client
+            .from('roles')
+            .select('id')
+            .eq('name', roleName.toLowerCase())
+            .maybeSingle();
+
+        if (roleRow != null) {
+          await _client.from('user_roles').upsert({
+            'user_id': genUid,
+            'role_id': roleRow['id'],
+          }, onConflict: 'user_id');
+        }
+
+        await logAdminAction(
+          action: 'user.created',
+          targetType: 'user',
+          targetId: genUid,
+          details: {'email': email, 'full_name': fullName, 'role': roleName},
+        );
+
+        return (success: true, message: 'User profile registered with role $roleName');
+      } catch (fallbackErr) {
+        return (success: false, message: 'Creation failed: $fallbackErr');
+      }
+    }
+  }
+
+  /// Change a user's role in database and log action
+  Future<bool> changeUserRole({
+    required String userId,
+    required String newRoleId,
+    required String newRoleName,
+    String? userName,
+  }) async {
+    try {
+      await _client.from('user_roles').upsert(
+        {'user_id': userId, 'role_id': newRoleId},
+        onConflict: 'user_id',
+      );
+
+      // Update role display on profile
+      await _client.from('profiles').update({
+        'role_display': newRoleName,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      await logAdminAction(
+        action: 'role.changed',
+        targetType: 'user',
+        targetId: userId,
+        details: {'target_user': userName ?? userId, 'new_role': newRoleName},
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Failed to change user role: $e');
+      return false;
+    }
+  }
+
+  /// Soft-disable or enable user account
+  Future<bool> toggleUserDisabled({
+    required String userId,
+    required bool isDisabled,
+    String? userName,
+  }) async {
+    try {
+      await _client.from('profiles').update({
+        'is_disabled': isDisabled,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      await logAdminAction(
+        action: isDisabled ? 'user.disabled' : 'user.enabled',
+        targetType: 'user',
+        targetId: userId,
+        details: {'target_user': userName ?? userId, 'is_disabled': isDisabled},
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Failed to toggle user status: $e');
+      return false;
+    }
+  }
+
+  /// Update user profile details
+  Future<bool> updateUserProfile({
+    required String userId,
+    required String fullName,
+    required String phone,
+    required String companyName,
+  }) async {
+    try {
+      await _client.from('profiles').update({
+        'full_name': fullName,
+        'phone': phone,
+        'company_name': companyName,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      await logAdminAction(
+        action: 'user.profile_updated',
+        targetType: 'user',
+        targetId: userId,
+        details: {'full_name': fullName, 'phone': phone, 'company_name': companyName},
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Failed to update user profile: $e');
+      return false;
+    }
+  }
+
+  /// Update user login email address via Edge function
+  Future<({bool success, String message})> updateUserEmail({
+    required String userId,
+    required String newEmail,
+  }) async {
+    try {
+      final res = await _client.functions.invoke('admin-manage-users', body: {
+        'action': 'update_email',
+        'user_id': userId,
+        'new_email': newEmail.trim().toLowerCase(),
+      });
+
+      if (res.status == 200 && res.data != null && res.data['success'] == true) {
+        return (success: true, message: 'User email updated to $newEmail');
+      } else {
+        return (success: false, message: res.data?['error']?.toString() ?? 'Failed to update email');
+      }
+    } catch (e) {
+      return (success: false, message: 'Email update request failed: $e');
+    }
+  }
+
+  /// Direct password update for user by admin
+  Future<({bool success, String message})> setUserPassword({
+    required String userId,
+    required String newPassword,
+  }) async {
+    try {
+      final res = await _client.functions.invoke('admin-manage-users', body: {
+        'action': 'update_password',
+        'user_id': userId,
+        'new_password': newPassword,
+      });
+
+      if (res.status == 200 && res.data != null && res.data['success'] == true) {
+        return (success: true, message: 'Password updated successfully');
+      } else {
+        return (success: false, message: res.data?['error']?.toString() ?? 'Failed to update password');
+      }
+    } catch (e) {
+      return (success: false, message: 'Password update request failed: $e');
+    }
+  }
+
+  /// Send password reset email
+  Future<({bool success, String message})> sendPasswordResetEmail({
+    required String email,
+  }) async {
+    try {
+      await _client.auth.resetPasswordForEmail(email.trim().toLowerCase());
+      await logAdminAction(
+        action: 'password.reset_email_sent',
+        targetType: 'user',
+        targetId: email,
+        details: {'recipient': email},
+      );
+      return (success: true, message: 'Password reset link sent to $email');
+    } catch (e) {
+      return (success: false, message: 'Reset email failed: $e');
+    }
+  }
+
+  /// Fetch paginated audit logs with optional action filter
+  Future<List<AuditLogEntry>> fetchAuditLogs({
+    int limit = 50,
+    int offset = 0,
+    String? actionFilter,
+  }) async {
+    try {
+      var query = _client.from('audit_logs').select();
+
+      if (actionFilter != null && actionFilter.isNotEmpty && actionFilter != 'all') {
+        query = query.eq('action', actionFilter);
+      }
+
+      final response = await query
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
+
+      return (response as List).map((j) => AuditLogEntry.fromJson(j)).toList();
+    } catch (e) {
+      debugPrint('Failed to fetch audit logs: $e');
+      return [];
+    }
+  }
+
+  /// Log an administrative event to the audit_logs table
+  Future<void> logAdminAction({
+    required String action,
+    required String targetType,
+    String? targetId,
+    Map<String, dynamic> details = const {},
+  }) async {
+    try {
+      final user = _client.auth.currentUser;
+      String actorName = 'Admin';
+      if (user != null) {
+        final profile = await _client
+            .from('profiles')
+            .select('full_name')
+            .eq('id', user.id)
+            .maybeSingle();
+        actorName = profile?['full_name'] as String? ?? user.email ?? 'Admin';
+      }
+
+      await _client.from('audit_logs').insert({
+        'actor_id': user?.id,
+        'actor_name': actorName,
+        'action': action,
+        'target_type': targetType,
+        'target_id': targetId,
+        'details': details,
+        'created_at': DateTime.now().toIso8601String(),
+      });
+    } catch (e) {
+      debugPrint('Failed to log admin action: $e');
+    }
+  }
+
+  /// Fetch system health statistics and entity counts
+  Future<Map<String, int>> fetchSystemHealth() async {
+    final Map<String, int> counts = {
+      'users': 0,
+      'projects': 0,
+      'employees': 0,
+      'expenses': 0,
+      'attendance': 0,
+      'quotations': 0,
+      'vendors': 0,
+      'snags': 0,
+      'audit_logs': 0,
+    };
+
+    final tables = [
+      'profiles',
+      'projects',
+      'employees',
+      'expenses',
+      'attendance',
+      'quotations',
+      'vendors',
+      'site_tickets',
+      'audit_logs',
+    ];
+
+    for (final table in tables) {
+      try {
+        final int countRes = await _client.from(table).count(CountOption.exact);
+        final key = table == 'profiles'
+            ? 'users'
+            : table == 'site_tickets'
+                ? 'snags'
+                : table;
+        counts[key] = countRes;
+      } catch (_) {
+        // Table might not exist or error, keep 0
+      }
+    }
+
+    return counts;
+  }
+}
