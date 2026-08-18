@@ -23,6 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON public.audit_logs (actor_id);
 -- 2. EXTEND PROFILES TABLE FOR ADMIN MANAGEMENT
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_disabled BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS role_display VARCHAR(50);
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
 
 -- 3. SEED EMPLOYEE ROLE
 INSERT INTO public.roles (name, description) VALUES

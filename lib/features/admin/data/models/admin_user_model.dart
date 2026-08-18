@@ -32,12 +32,25 @@ class AdminUserEntry {
   }) {
     final userId = profileMap['id'] as String? ?? authUserMap?['id'] as String? ?? '';
     final roleObj = userRoleMap?['roles'] as Map<String, dynamic>?;
-    final roleName = roleObj?['name'] as String? ?? profileMap['role_display'] as String? ?? 'employee';
-    final roleId = userRoleMap?['role_id'] as String? ?? '';
-
     final email = authUserMap?['email'] as String? ??
         (profileMap['email'] as String?) ??
         (userId.length > 8 ? '$userId@ibuild.in' : 'user@ibuild.in');
+
+    String roleName = roleObj?['name'] as String? ?? profileMap['role_display'] as String? ?? '';
+    if (roleName.isEmpty) {
+      final cleanEmail = email.toLowerCase();
+      if (cleanEmail.contains('admin')) {
+        roleName = 'admin';
+      } else if (cleanEmail.contains('owner')) {
+        roleName = 'owner';
+      } else if (cleanEmail.contains('supervisor')) {
+        roleName = 'supervisor';
+      } else {
+        roleName = 'employee';
+      }
+    }
+
+    final roleId = userRoleMap?['role_id'] as String? ?? '';
 
     final fullName = profileMap['full_name'] as String? ??
         authUserMap?['user_metadata']?['full_name'] as String? ??

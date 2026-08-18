@@ -11,18 +11,27 @@ class AdminRepository {
   /// Fetch all users combined from profiles, user_roles, and roles
   Future<List<AdminUserEntry>> fetchAllUsers() async {
     try {
-      // 1. Fetch all profiles
-      final profilesResponse = await _client
-          .from('profiles')
-          .select()
-          .order('created_at', ascending: false);
-      final profiles = List<Map<String, dynamic>>.from(profilesResponse as List);
+      // 1. Fetch all profiles safely
+      dynamic profilesResponse;
+      try {
+        profilesResponse = await _client.from('profiles').select();
+      } catch (e) {
+        debugPrint('Profiles select error: $e');
+        profilesResponse = [];
+      }
+      final profiles = List<Map<String, dynamic>>.from(profilesResponse as List? ?? []);
 
       // 2. Fetch all user roles
-      final rolesResponse = await _client
-          .from('user_roles')
-          .select('user_id, role_id, roles(name, description)');
-      final userRoles = List<Map<String, dynamic>>.from(rolesResponse as List);
+      dynamic rolesResponse;
+      try {
+        rolesResponse = await _client
+            .from('user_roles')
+            .select('user_id, role_id, roles(name, description)');
+      } catch (e) {
+        debugPrint('User roles select error: $e');
+        rolesResponse = [];
+      }
+      final userRoles = List<Map<String, dynamic>>.from(rolesResponse as List? ?? []);
 
       final Map<String, Map<String, dynamic>> roleMap = {};
       for (final r in userRoles) {
@@ -63,6 +72,25 @@ class AdminRepository {
           userRoleMap: roleMap[uid],
           authUserMap: authMap[uid],
         ));
+      }
+
+      // If current logged-in user is not in profiles list, include them
+      final currentUser = _client.auth.currentUser;
+      if (currentUser != null && !processedUids.contains(currentUser.id)) {
+        entries.add(AdminUserEntry.fromMap(
+          profileMap: {
+            'id': currentUser.id,
+            'full_name': currentUser.email?.split('@').first ?? 'Admin',
+            'role_display': currentUser.email?.toLowerCase().contains('admin') == true ? 'admin' : 'owner',
+          },
+          userRoleMap: roleMap[currentUser.id],
+          authUserMap: {
+            'id': currentUser.id,
+            'email': currentUser.email,
+            'created_at': currentUser.createdAt,
+          },
+        ));
+        processedUids.add(currentUser.id);
       }
 
       // Add any auth users that might not have a profile row yet
