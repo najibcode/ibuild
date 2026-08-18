@@ -9,6 +9,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../expenses/data/models/expense_model.dart';
 import '../../../expenses/presentation/controllers/expense_controller.dart';
@@ -1912,27 +1913,21 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
               ),
               OutlinedButton.icon(
                 onPressed: () {
-                  final logMsg = "🚜 *EQUIPMENT LOG — ${item.name}*\n"
-                      "🏷️ *Tag:* ${item.tagNumber}\n"
-                      "⛽ *Type:* $expenseType\n"
-                      "• Qty: $qty Units @ ₹$rate/Unit\n"
-                      "💰 *Total Cost:* ₹${totalCost.toInt()}\n"
-                      "📝 *Notes:* ${notesCtrl.text}\n\n"
-                      "_Generated via IBUILD ERP_";
+                  final logMsg = "*IBUILD EQUIPMENT MAINTENANCE & LOG*\n"
+                      "----------------------------------------\n"
+                      "*Equipment:* ${item.name}\n"
+                      "*Tag Number:* ${item.tagNumber}\n"
+                      "*Log Type:* $expenseType\n"
+                      "• Quantity: $qty Units @ INR $rate/Unit\n"
+                      "*Total Cost:* INR ${totalCost.toInt()}\n"
+                      "----------------------------------------\n"
+                      "*Notes:* ${notesCtrl.text}\n"
+                      "_Generated via IBUILD Construction ERP_";
 
-                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(logMsg)}");
-                  try {
-                    canLaunchUrl(url).then((ok) {
-                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
-                    });
-                  } catch (_) {}
-
-                  Clipboard.setData(ClipboardData(text: logMsg));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Equipment log copied & opened in WhatsApp!'),
-                      backgroundColor: Color(0xFF25D366),
-                    ),
+                  WhatsAppHelper.shareMessage(
+                    context: context,
+                    message: logMsg,
+                    successNotice: 'Equipment log prepared',
                   );
                 },
                 icon: const Icon(Icons.share, size: 14),

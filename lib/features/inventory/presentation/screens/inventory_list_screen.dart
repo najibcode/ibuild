@@ -11,6 +11,7 @@ import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/utils/date_range_filter_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../../features/rbac/presentation/widgets/permission_guard.dart';
 import '../../data/models/inventory_item_model.dart';
 import '../controllers/inventory_controller.dart';
@@ -209,28 +210,20 @@ class InventoryListScreen extends ConsumerWidget {
             OutlinedButton.icon(
               onPressed: () {
                 final poText = lowStockItems
-                    .map((item) => "• *${item.materialName}*: +${item.recommendedReorderQty.toInt()} ${item.unit} @ ₹${item.purchasePrice}/unit (Est: ₹${item.estimatedReorderCost.toInt()}) [Supplier: ${item.supplier ?? 'Direct Distributor'}]")
+                    .map((item) => "• *${item.materialName}*: +${item.recommendedReorderQty.toInt()} ${item.unit} @ INR ${item.purchasePrice}/unit (Est: INR ${item.estimatedReorderCost.toInt()}) [Supplier: ${item.supplier ?? 'Direct Distributor'}]")
                     .join("\n");
-                final summaryMsg = "📦 *IBUILD PURCHASE ORDER / REQUISITION*\n"
-                    "💰 *Total Estimated PO Value:* ₹${totalPOCost.toInt()}\n"
-                    "━━━━━━━━━━━━━━━━━━━━━\n"
-                    "📋 *Items Ordered:*\n$poText\n"
-                    "━━━━━━━━━━━━━━━━━━━━━\n"
-                    "_Generated via IBUILD ERP_";
+                final summaryMsg = "*IBUILD PURCHASE ORDER / REQUISITION*\n"
+                    "----------------------------------------\n"
+                    "*Total Estimated Value:* INR ${totalPOCost.toInt()}\n"
+                    "----------------------------------------\n"
+                    "*Items Required:*\n$poText\n"
+                    "----------------------------------------\n"
+                    "_Generated via IBUILD Construction ERP_";
 
-                final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(summaryMsg)}");
-                try {
-                  canLaunchUrl(url).then((ok) {
-                    if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
-                  });
-                } catch (_) {}
-
-                Clipboard.setData(ClipboardData(text: summaryMsg));
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('PO Requisition copied & opened in WhatsApp! ✓'),
-                    backgroundColor: Color(0xFF25D366),
-                  ),
+                WhatsAppHelper.shareMessage(
+                  context: context,
+                  message: summaryMsg,
+                  successNotice: 'Purchase order prepared',
                 );
               },
               icon: const Icon(Icons.share, size: 14),
@@ -456,32 +449,24 @@ class InventoryListScreen extends ConsumerWidget {
                   final matName = selectedItem?.materialName ?? 'Material';
                   final unit = selectedItem?.unit ?? 'Units';
                   final challanNo = 'GP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}';
-                  final passMsg = "🚚 *MATERIAL DISPATCH GATE-PASS*\n"
-                      "🎫 *Challan No:* #$challanNo\n"
-                      "📦 *Material:* $matName\n"
-                      "📊 *Transfer Qty:* ${qty.toInt()} $unit\n"
-                      "━━━━━━━━━━━━━━━━━━━━━\n"
-                      "🚩 *From:* $fromSite\n"
-                      "🏁 *To:* $toProjectName\n"
-                      "🚛 *Vehicle:* ${vehicleCtrl.text}\n"
-                      "👤 *Driver:* ${driverCtrl.text}\n"
-                      "📝 *Notes:* ${notesCtrl.text}\n"
-                      "━━━━━━━━━━━━━━━━━━━━━\n"
-                      "_Authorized by IBUILD ERP Site Operations_";
+                  final passMsg = "*IBUILD SITE DISPATCH & GATE-PASS*\n"
+                      "----------------------------------------\n"
+                      "*Challan No:* #$challanNo\n"
+                      "*Material:* $matName\n"
+                      "*Transfer Qty:* ${qty.toInt()} $unit\n"
+                      "----------------------------------------\n"
+                      "*Origin Site:* $fromSite\n"
+                      "*Destination Site:* $toProjectName\n"
+                      "*Vehicle No:* ${vehicleCtrl.text}\n"
+                      "*Driver Contact:* ${driverCtrl.text}\n"
+                      "*Dispatch Notes:* ${notesCtrl.text}\n"
+                      "----------------------------------------\n"
+                      "_Authorized by IBUILD Site Operations_";
 
-                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(passMsg)}");
-                  try {
-                    canLaunchUrl(url).then((ok) {
-                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
-                    });
-                  } catch (_) {}
-
-                  Clipboard.setData(ClipboardData(text: passMsg));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Gate-Pass copied & opened in WhatsApp! ✓'),
-                      backgroundColor: Color(0xFF25D366),
-                    ),
+                  WhatsAppHelper.shareMessage(
+                    context: context,
+                    message: passMsg,
+                    successNotice: 'Gate-pass prepared',
                   );
                 },
                 icon: const Icon(Icons.share, size: 14),

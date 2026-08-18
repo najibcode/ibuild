@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../expenses/presentation/controllers/expense_controller.dart';
 import '../../../inventory/presentation/controllers/inventory_controller.dart';
@@ -22,7 +23,12 @@ enum ReportCadence { daily, weekly, monthly, custom }
 
 class FullReportGeneratorScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
-  const FullReportGeneratorScreen({super.key, this.showAppBar = true});
+  final String? initialProjectId;
+  const FullReportGeneratorScreen({
+    super.key,
+    this.showAppBar = true,
+    this.initialProjectId,
+  });
 
   @override
   ConsumerState<FullReportGeneratorScreen> createState() =>
@@ -54,6 +60,9 @@ class _FullReportGeneratorScreenState
   @override
   void initState() {
     super.initState();
+    if (widget.initialProjectId != null && widget.initialProjectId!.isNotEmpty) {
+      _selectedProjectId = widget.initialProjectId;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _fetchPeriodData();
     });
@@ -348,66 +357,46 @@ class _FullReportGeneratorScreenState
     }).toList();
 
     final buffer = StringBuffer();
-    buffer.writeln("🏗️ *IBUILD SITE REPORT* — *$projectName*");
-    buffer.writeln("📅 *Period:* $_periodTitle ($_startDateStr)");
-    buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
-    buffer.writeln("📊 *EXECUTIVE SUMMARY*");
-    buffer.writeln("• 💸 *Period Outflow:* ₹${totalExpensesAmount.toStringAsFixed(0)}");
-    buffer.writeln("• 📦 *Material Shifts:* ${_loadedInventoryHistory.length} records");
-    buffer.writeln("• 👷 *Worker Attendance:* ${filteredAttendance.length} shifts");
-    buffer.writeln("• 🤝 *Trade Partners:* ${subcontractorState.items.length} active");
-    buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
+    buffer.writeln("*IBUILD SITE EXECUTIVE REPORT*");
+    buffer.writeln("*Project:* $projectName");
+    buffer.writeln("*Period:* $_periodTitle ($_startDateStr to $_endDateStr)");
+    buffer.writeln("----------------------------------------");
+    buffer.writeln("*EXECUTIVE SUMMARY*");
+    buffer.writeln("• *Period Outflow:* INR ${totalExpensesAmount.toStringAsFixed(0)}");
+    buffer.writeln("• *Material Shifts:* ${_loadedInventoryHistory.length} records");
+    buffer.writeln("• *Worker Attendance:* ${filteredAttendance.length} shifts");
+    buffer.writeln("• *Trade Partners:* ${subcontractorState.items.length} active");
+    buffer.writeln("----------------------------------------");
 
     if (_loadedDailyProgress.isNotEmpty) {
-      buffer.writeln("🚧 *WORK PROGRESS & UPDATES*");
+      buffer.writeln("*WORK PROGRESS & UPDATES*");
       for (final dp in _loadedDailyProgress.take(3)) {
         final notes = dp.allNotes.isNotEmpty ? dp.allNotes.join(', ') : 'Daily site work executed';
         buffer.writeln("• *${dp.date}* (${dp.progressPercentage}%): $notes");
       }
-      buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
+      buffer.writeln("----------------------------------------");
     }
 
     if (_loadedInventoryHistory.isNotEmpty) {
-      buffer.writeln("📦 *INVENTORY STOCK DELIVERIES*");
+      buffer.writeln("*INVENTORY STOCK DELIVERIES*");
       for (final h in _loadedInventoryHistory.take(4)) {
-        final type = h.changeType == 'added' ? '📥 *Received*' : '📤 *Issued*';
+        final type = h.changeType == 'added' ? '[Received]' : '[Issued]';
         buffer.writeln("• $type: ${h.quantityChange.abs().toStringAsFixed(0)} units (${h.notes ?? 'Stock Movement'})");
       }
-      buffer.writeln("━━━━━━━━━━━━━━━━━━━━━");
+      buffer.writeln("----------------------------------------");
     }
 
-    buffer.writeln("📱 _Generated via IBUILD Construction ERP_");
+    buffer.writeln("_Generated via IBUILD Construction ERP_");
     return buffer.toString();
   }
 
   Future<void> _shareViaWhatsApp(BuildContext context) async {
     final text = _generateWhatsAppReportText();
-    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
-    try {
-      if (await canLaunchUrl(url)) {
-        await launchUrl(url, mode: LaunchMode.externalApplication);
-      } else {
-        await Clipboard.setData(ClipboardData(text: text));
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('WhatsApp not detected. Full message copied to clipboard!'),
-              backgroundColor: Color(0xFF25D366),
-            ),
-          );
-        }
-      }
-    } catch (_) {
-      await Clipboard.setData(ClipboardData(text: text));
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Report text copied to clipboard! Paste into WhatsApp/SMS.'),
-            backgroundColor: Color(0xFF25D366),
-          ),
-        );
-      }
-    }
+    await WhatsAppHelper.shareMessage(
+      context: context,
+      message: text,
+      successNotice: 'Executive site report prepared',
+    );
   }
 
   void _showReportPreviewModal(BuildContext context) {

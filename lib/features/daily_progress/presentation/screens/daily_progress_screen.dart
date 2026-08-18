@@ -12,6 +12,7 @@ import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/image_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/utils/date_range_filter_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../data/models/daily_progress_model.dart';
 import '../controllers/daily_progress_controller.dart';
 import 'daily_progress_form_screen.dart';
@@ -36,7 +37,7 @@ class DailyProgressScreen extends ConsumerStatefulWidget {
 class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
   String _searchQuery = '';
 
-  void _shareDailySummary(BuildContext context, List<DailyProgress> entries) {
+  void _shareDailySummary(BuildContext context, List<DailyProgress> entries) async {
     if (entries.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -48,11 +49,11 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
 
     final latest = entries.first;
     final buffer = StringBuffer();
-    buffer.writeln('🏗️ *DAILY SITE PROGRESS REPORT*');
-    buffer.writeln('📍 *Project:* ${widget.projectName}');
-    buffer.writeln('📅 *Date:* ${latest.date}');
-    buffer.writeln('📊 *Overall Completion:* ${latest.progressPercentage}%');
-    buffer.writeln('--------------------------------');
+    buffer.writeln('*DAILY SITE PROGRESS REPORT*');
+    buffer.writeln('*Project:* ${widget.projectName}');
+    buffer.writeln('*Date:* ${latest.date}');
+    buffer.writeln('*Overall Completion:* ${latest.progressPercentage}%');
+    buffer.writeln('----------------------------------------');
 
     for (int i = 0; i < entries.length && i < 5; i++) {
       final entry = entries[i];
@@ -67,25 +68,13 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
       }
     }
 
-    buffer.writeln('--------------------------------');
-    buffer.writeln('Generated via IBUILD Construction ERP');
+    buffer.writeln('----------------------------------------');
+    buffer.writeln('_Generated via IBUILD Construction ERP_');
 
-    final text = buffer.toString();
-    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(text)}");
-    try {
-      canLaunchUrl(url).then((canLaunch) {
-        if (canLaunch) {
-          launchUrl(url, mode: LaunchMode.externalApplication);
-        }
-      });
-    } catch (_) {}
-
-    Clipboard.setData(ClipboardData(text: text));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Site Progress Report copied to clipboard & opened in WhatsApp! ✓'),
-        backgroundColor: Color(0xFF25D366),
-      ),
+    await WhatsAppHelper.shareMessage(
+      context: context,
+      message: buffer.toString(),
+      successNotice: 'Daily site progress report prepared',
     );
   }
 

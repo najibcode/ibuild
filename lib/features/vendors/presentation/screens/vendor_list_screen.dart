@@ -9,6 +9,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../subcontractors/data/models/subcontractor_model.dart';
 import '../../../subcontractors/presentation/controllers/subcontractor_controller.dart';
@@ -687,30 +688,26 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
               ),
               OutlinedButton.icon(
                 onPressed: () {
-                  final summaryText = "🏗️ *RA BILL SUMMARY — ${vendor.companyName}*\n"
-                      "📍 *Trade:* ${vendor.tradeSpecialization}\n"
-                      "• Gross Claimed: ₹${_fmt(gross)}\n"
-                      "• Retention Held (${retentionPct.toInt()}%): -₹${_fmt(retentionMoney)}\n"
-                      "• TDS Deducted (${tdsPct.toInt()}%): -₹${_fmt(tdsDeduction)}\n"
-                      "• Advance Recovery: -₹${_fmt(advance)}\n"
-                      "━━━━━━━━━━━━━━━━━━━━━\n"
-                      "💰 *NET PAYABLE:* ₹${_fmt(netPayable)}\n"
-                      "📝 *Notes:* ${notesCtrl.text}\n\n"
-                      "_Generated via IBUILD ERP_";
+                  final summaryText = "*IBUILD SUBCONTRACTOR RA BILL STATEMENT*\n"
+                      "----------------------------------------\n"
+                      "*Trade Partner:* ${vendor.companyName}\n"
+                      "*Trade Specialization:* ${vendor.tradeSpecialization}\n"
+                      "----------------------------------------\n"
+                      "• Gross Work Claimed: INR ${_fmt(gross)}\n"
+                      "• Retention Held (${retentionPct.toInt()}%): -INR ${_fmt(retentionMoney)}\n"
+                      "• TDS Deducted (${tdsPct.toInt()}%): -INR ${_fmt(tdsDeduction)}\n"
+                      "• Advance Recovery: -INR ${_fmt(advance)}\n"
+                      "----------------------------------------\n"
+                      "*NET PAYABLE AMOUNT:* INR ${_fmt(netPayable)}\n"
+                      "----------------------------------------\n"
+                      "*Notes:* ${notesCtrl.text}\n"
+                      "_Generated via IBUILD Construction ERP_";
 
-                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(summaryText)}");
-                  try {
-                    canLaunchUrl(url).then((ok) {
-                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
-                    });
-                  } catch (_) {}
-
-                  Clipboard.setData(ClipboardData(text: summaryText));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('RA Bill statement copied & opened in WhatsApp!'),
-                      backgroundColor: Color(0xFF25D366),
-                    ),
+                  WhatsAppHelper.shareMessage(
+                    context: context,
+                    message: summaryText,
+                    phoneNumber: vendor.phone,
+                    successNotice: 'RA Bill statement prepared',
                   );
                 },
                 icon: const Icon(Icons.share, size: 14),

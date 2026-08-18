@@ -43,4 +43,13 @@ class SupabaseChecklistRepository {
       return false;
     }
   }
+
+  Future<bool> deleteChecklistItem(String id) async {
+    try {
+      await _client.from('project_checklists').delete().eq('id', id);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 }

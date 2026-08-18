@@ -9,6 +9,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/utils/date_range_filter_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../data/building_pdf_generator.dart';
@@ -584,32 +585,24 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
   void _shareSalesBillWhatsApp(BuildContext context, SalesBill b) {
     final invoiceDateStr = b.createdAt.toIso8601String().split('T').first;
     final isPaid = b.status.toLowerCase() == 'paid';
-    final msg = "🧾 *TAX INVOICE — IBUILD ERP*\n"
-        "📄 *Invoice No:* #${b.billNumber}\n"
-        "👤 *Client:* ${b.clientName}\n"
-        "📅 *Date:* $invoiceDateStr\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n"
-        "• Taxable Subtotal: ₹${b.amount.toInt()}\n"
-        "• GST / Tax: ₹${b.taxAmount.toInt()}\n"
-        "💰 *TOTAL INVOICE VALUE:* ₹${b.totalAmount.toInt()}\n"
-        "📌 *Status:* ${isPaid ? 'PAID ✓' : 'PAYMENT DUE'}\n"
-        "━━━━━━━━━━━━━━━━━━━━━\n"
-        "🏦 *Payment Mode:* NEFT / RTGS / UPI\n"
-        "_Thank you for partnering with us!_";
+    final msg = "*IBUILD TAX INVOICE NOTICE*\n"
+        "----------------------------------------\n"
+        "*Invoice No:* #${b.billNumber}\n"
+        "*Client:* ${b.clientName}\n"
+        "*Date:* $invoiceDateStr\n"
+        "----------------------------------------\n"
+        "• Taxable Subtotal: INR ${b.amount.toInt()}\n"
+        "• GST / Tax: INR ${b.taxAmount.toInt()}\n"
+        "*TOTAL INVOICE VALUE:* INR ${b.totalAmount.toInt()}\n"
+        "*Payment Status:* ${isPaid ? 'PAID' : 'PAYMENT DUE'}\n"
+        "----------------------------------------\n"
+        "*Payment Mode:* NEFT / RTGS / UPI\n"
+        "_Generated via IBUILD Construction ERP_";
 
-    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(msg)}");
-    try {
-      canLaunchUrl(url).then((ok) {
-        if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
-      });
-    } catch (_) {}
-
-    Clipboard.setData(ClipboardData(text: msg));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Tax Invoice copied & opened in WhatsApp! ✓'),
-        backgroundColor: Color(0xFF25D366),
-      ),
+    WhatsAppHelper.shareMessage(
+      context: context,
+      message: msg,
+      successNotice: 'Tax invoice prepared',
     );
   }
 

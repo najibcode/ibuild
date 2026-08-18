@@ -2,69 +2,100 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/supabase/supabase_client.provider.dart';
 import '../models/project_dashboard_model.dart';
 
-/// Fetches all per-project dashboard data from Supabase in parallel safely.
+/// Fetches all per-project dashboard data from Supabase in parallel safely and fault-tolerantly.
 class ProjectDashboardRepository {
   final SupabaseClient _client;
 
   ProjectDashboardRepository(this._client);
 
   Future<ProjectDashboardStats> fetchDashboard(String projectId) async {
+    Map<String, dynamic>? project;
+    _AttendanceData attendance = _AttendanceData(present: 0, total: 0);
+    _ExpenseData expenses = _ExpenseData(total: 0, breakdown: []);
+    _ChecklistData checklist = _ChecklistData(total: 0, completed: 0);
+    _PaymentData payments = _PaymentData(totalReceived: 0, pending: 0);
+    List<int> weekly = List.filled(7, 0);
+    List<ProjectDashboardActivity> activities = [];
+    double? physProg;
+    int materialsCount = 0;
+    int snagsCount = 0;
+
     try {
       await ensureAutoAuth(_client);
 
-      final results = await Future.wait([
-        _fetchProject(projectId), // 0
-        _fetchAttendance(projectId), // 1
-        _fetchExpenses(projectId), // 2
-        _fetchChecklist(projectId), // 3
-        _fetchPayments(projectId), // 4
-        _fetchWeeklyProgress(projectId), // 5
-        _fetchRecentActivity(projectId), // 6
-        _fetchPhysicalProgress(projectId), // 7
-      ]).timeout(const Duration(seconds: 5));
+      // 1. Fetch core project details
+      project = await _fetchProject(projectId);
 
-      final project = results[0] as Map<String, dynamic>?;
-      final attendance = results[1] as _AttendanceData;
-      final expenses = results[2] as _ExpenseData;
-      final checklist = results[3] as _ChecklistData;
-      final payments = results[4] as _PaymentData;
-      final weekly = results[5] as List<int>;
-      final activities = results[6] as List<ProjectDashboardActivity>;
-      final physProg = results[7] as double?;
+      // 2. Fetch parallel sub-metrics with independent error handling
+      final futures = await Future.wait([
+        _fetchAttendance(projectId).catchError((_) => _AttendanceData(present: 0, total: 0)),
+        _fetchExpenses(projectId).catchError((_) => _ExpenseData(total: 0, breakdown: [])),
+        _fetchChecklist(projectId).catchError((_) => _ChecklistData(total: 0, completed: 0)),
+        _fetchPayments(projectId).catchError((_) => _PaymentData(totalReceived: 0, pending: 0)),
+        _fetchWeeklyProgress(projectId).catchError((_) => List.filled(7, 0)),
+        _fetchRecentActivity(projectId).catchError((_) => <ProjectDashboardActivity>[]),
+        _fetchPhysicalProgress(projectId).catchError((_) => null),
+        _fetchMaterialsCount(projectId).catchError((_) => 0),
+        _fetchSnagsCount(projectId).catchError((_) => 0),
+      ]).timeout(const Duration(seconds: 10), onTimeout: () {
+        return [
+          _AttendanceData(present: 0, total: 0),
+          _ExpenseData(total: 0, breakdown: []),
+          _ChecklistData(total: 0, completed: 0),
+          _PaymentData(totalReceived: 0, pending: 0),
+          List.filled(7, 0),
+          <ProjectDashboardActivity>[],
+          null,
+          0,
+          0,
+        ];
+      });
 
-      final realSpent = expenses.total > 0
-          ? expenses.total
-          : ((project?['spent'] as num?)?.toDouble() ?? 0.0);
-
-      return ProjectDashboardStats(
-        projectId: projectId,
-        projectName: project?['name'] as String? ?? 'Project Dashboard',
-        status: project?['status'] as String? ?? 'planning',
-        clientName: project?['client_name'] as String?,
-        customerName: project?['customer_name'] as String?,
-        startDate: project?['start_date'] as String?,
-        expectedCompletion: project?['expected_completion'] as String?,
-        address: project?['address'] as String?,
-        imageUrl: project?['image_url'] as String?,
-        budget: (project?['budget'] as num?)?.toDouble() ?? 0.0,
-        spent: realSpent,
-        estimatedCost: (project?['estimated_cost'] as num?)?.toDouble() ?? 0.0,
-        currentCost: (project?['current_cost'] as num?)?.toDouble() ?? 0.0,
-        workersPresent: attendance.present,
-        totalAssigned: attendance.total,
-        totalExpenses: expenses.total,
-        expenseBreakdown: expenses.breakdown,
-        checklistTotal: checklist.total,
-        checklistCompleted: checklist.completed,
-        totalPayments: payments.totalReceived,
-        pendingPayments: payments.pending,
-        weeklyProgressCounts: weekly,
-        recentActivities: activities,
-        physicalProgress: physProg,
-      );
-    } catch (e) {
-      return ProjectDashboardStats.empty(projectId);
+      attendance = futures[0] as _AttendanceData;
+      expenses = futures[1] as _ExpenseData;
+      checklist = futures[2] as _ChecklistData;
+      payments = futures[3] as _PaymentData;
+      weekly = futures[4] as List<int>;
+      activities = futures[5] as List<ProjectDashboardActivity>;
+      physProg = futures[6] as double?;
+      materialsCount = futures[7] as int;
+      snagsCount = futures[8] as int;
+    } catch (_) {
+      // Gracefully continue with any available data
     }
+
+    final realSpent = expenses.total > 0
+        ? expenses.total
+        : ((project?['spent'] as num?)?.toDouble() ?? 0.0);
+
+    return ProjectDashboardStats(
+      projectId: projectId,
+      projectName: project?['name'] as String? ?? 'Project Overview',
+      status: (project?['status'] as String?)?.toLowerCase() ?? 'active',
+      clientName: project?['client_name'] as String?,
+      customerName: project?['customer_name'] as String?,
+      startDate: project?['start_date'] as String?,
+      expectedCompletion: project?['expected_completion'] as String?,
+      address: project?['address'] as String?,
+      imageUrl: project?['image_url'] as String?,
+      budget: (project?['budget'] as num?)?.toDouble() ?? 0.0,
+      spent: realSpent,
+      estimatedCost: (project?['estimated_cost'] as num?)?.toDouble() ?? 0.0,
+      currentCost: (project?['current_cost'] as num?)?.toDouble() ?? 0.0,
+      workersPresent: attendance.present,
+      totalAssigned: attendance.total,
+      totalExpenses: expenses.total,
+      expenseBreakdown: expenses.breakdown,
+      checklistTotal: checklist.total,
+      checklistCompleted: checklist.completed,
+      totalPayments: payments.totalReceived,
+      pendingPayments: payments.pending,
+      weeklyProgressCounts: weekly,
+      recentActivities: activities,
+      physicalProgress: physProg,
+      materialsCount: materialsCount,
+      openIssuesCount: snagsCount,
+    );
   }
 
   // ── Project core data ─────────────────────────────────────────────────────
@@ -76,7 +107,7 @@ class ProjectDashboardRepository {
           .select()
           .eq('id', projectId)
           .maybeSingle()
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
     } catch (_) {
       return null;
     }
@@ -92,7 +123,7 @@ class ProjectDashboardRepository {
           .select('morning_status, status, project_id')
           .eq('date', todayStr)
           .eq('project_id', projectId)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
 
       int present = 0;
       for (final r in (rows as List)) {
@@ -117,7 +148,7 @@ class ProjectDashboardRepository {
           .from('expenses')
           .select('amount, category')
           .eq('project_id', projectId)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
 
       double total = 0.0;
       final Map<String, double> byCategory = {};
@@ -151,7 +182,7 @@ class ProjectDashboardRepository {
           .from('project_checklists')
           .select('is_completed')
           .eq('project_id', projectId)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
 
       int total = (rows as List).length;
       int completed = rows.where((r) => r['is_completed'] == true).length;
@@ -170,7 +201,7 @@ class ProjectDashboardRepository {
           .from('project_payments')
           .select('amount, status')
           .eq('project_id', projectId)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
 
       double totalReceived = 0.0;
       double pending = 0.0;
@@ -205,7 +236,7 @@ class ProjectDashboardRepository {
           .eq('project_id', projectId)
           .gte('date', weekAgoStr)
           .order('date', ascending: true)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
 
       final Map<String, int> countsByDate = {};
       for (final r in (rows as List)) {
@@ -237,7 +268,7 @@ class ProjectDashboardRepository {
           .eq('entity_id', projectId)
           .order('created_at', ascending: false)
           .limit(5)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
 
       return (rows as List).map((r) {
         final actionType = r['action_type'] as String? ?? 'unknown';
@@ -278,7 +309,7 @@ class ProjectDashboardRepository {
           .eq('project_id', projectId)
           .order('created_at', ascending: false)
           .limit(1)
-          .timeout(const Duration(seconds: 3));
+          .timeout(const Duration(seconds: 5));
 
       if ((rows as List).isNotEmpty) {
         return (rows.first['progress_percentage'] as num?)?.toDouble();
@@ -287,9 +318,37 @@ class ProjectDashboardRepository {
     return null;
   }
 
+  Future<int> _fetchMaterialsCount(String projectId) async {
+    try {
+      final rows = await _client
+          .from('inventory')
+          .select('id')
+          .eq('project_id', projectId)
+          .timeout(const Duration(seconds: 3));
+      return (rows as List).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
+  Future<int> _fetchSnagsCount(String projectId) async {
+    try {
+      final rows = await _client
+          .from('snag_items')
+          .select('id')
+          .eq('project_id', projectId)
+          .neq('status', 'closed')
+          .timeout(const Duration(seconds: 3));
+      return (rows as List).length;
+    } catch (_) {
+      return 0;
+    }
+  }
+
   String _actionVerb(String actionType) {
-    if (actionType.contains('created') || actionType.contains('added'))
+    if (actionType.contains('created') || actionType.contains('added')) {
       return 'Added';
+    }
     if (actionType.contains('updated')) return 'Updated';
     if (actionType.contains('deleted')) return 'Removed';
     if (actionType.contains('archived')) return 'Archived';

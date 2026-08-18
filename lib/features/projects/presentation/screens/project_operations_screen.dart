@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
+import '../../../../core/services/image_compression_service.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../sales_bills/data/sales_bill_pdf_generator.dart';
 import '../../../payments/data/payment_ledger_pdf_generator.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -19,6 +23,9 @@ import '../../../subcontractors/data/models/subcontractor_model.dart';
 import '../../../subcontractors/data/repositories/supabase_subcontractor_repository.dart';
 import '../../../inventory/data/models/inventory_item_model.dart';
 import '../../../inventory/presentation/controllers/inventory_controller.dart';
+import '../../../inventory/presentation/screens/inventory_list_screen.dart';
+import '../../../inventory/presentation/screens/inventory_form_screen.dart';
+import '../../../subcontractors/presentation/controllers/subcontractor_controller.dart';
 import '../../../attendance/presentation/controllers/attendance_controller.dart';
 import '../../../attendance/data/models/attendance_model.dart';
 import '../../../employees/presentation/controllers/employee_controller.dart';
@@ -38,6 +45,7 @@ import '../../../../core/widgets/data_export_actions.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
 import 'project_dashboard_screen.dart';
+import 'project_form_screen.dart';
 
 // Providers
 final projectExpensesProvider =
@@ -130,6 +138,24 @@ class _ProjectOperationsScreenState
   String _expenseSearch = '';
   final TextEditingController _expenseSearchController = TextEditingController();
 
+  // Drawings & Mapping State
+  String _drawingCategoryFilter = 'All';
+  String _drawingSearch = '';
+  final TextEditingController _drawingSearchController = TextEditingController();
+  bool _isDrawingGridView = true;
+
+  // Materials & Inventory State
+  String _materialSearch = '';
+  final TextEditingController _materialSearchController = TextEditingController();
+  bool _onlyLowStockMaterials = false;
+
+  // Subcontractor State
+  String _subcontractorSearch = '';
+  final TextEditingController _subcontractorSearchController = TextEditingController();
+
+  // Checklist State
+  String _checklistFilter = 'All'; // 'All', 'Pending', 'Completed'
+
   @override
   void initState() {
     super.initState();
@@ -139,6 +165,9 @@ class _ProjectOperationsScreenState
   @override
   void dispose() {
     _expenseSearchController.dispose();
+    _drawingSearchController.dispose();
+    _materialSearchController.dispose();
+    _subcontractorSearchController.dispose();
     super.dispose();
   }
 
@@ -149,7 +178,7 @@ class _ProjectOperationsScreenState
     3: 'Subcontractor / Trade Partners',
     4: 'Project Expenses & Financials',
     5: 'Checklist Inspection',
-    6: 'Site Drawings & Blueprints',
+    6: 'Drawings, Plans & Mapping',
     7: 'Sales Bills & Client Invoices',
     8: 'Daily Progress & Site Updates',
     9: 'About Site Specifications',
@@ -240,7 +269,10 @@ class _ProjectOperationsScreenState
       case 9:
         return _buildAboutSiteTab();
       case 10:
-        return const FullReportGeneratorScreen(showAppBar: false);
+        return FullReportGeneratorScreen(
+          showAppBar: false,
+          initialProjectId: widget.projectId,
+        );
       default:
         return ProjectDashboardScreen(
           projectId: widget.projectId,
@@ -858,272 +890,376 @@ class _ProjectOperationsScreenState
     final invAsync = ref.watch(projectInventoryProvider);
 
     return invAsync.when(
-      data: (items) {
-        if (items.isEmpty) {
-          return _emptyState(
-            'No materials in stock',
-            'Register or assign site inventory for this project',
-          );
-        }
+      data: (allItems) {
+        final filteredItems = allItems.where((item) {
+          final matchesSearch = _materialSearch.isEmpty ||
+              item.materialName.toLowerCase().contains(_materialSearch.toLowerCase()) ||
+              item.category.toLowerCase().contains(_materialSearch.toLowerCase());
+          final matchesLowStock = !_onlyLowStockMaterials || item.isLowStock;
+          return matchesSearch && matchesLowStock;
+        }).toList();
 
-        final double totalValuation = items.fold(
+        final double totalValuation = allItems.fold(
           0.0,
           (sum, i) => sum + (i.availableStock * i.purchasePrice),
         );
-        final int lowStockCount = items.where((i) => i.isLowStock).length;
+        final int lowStockCount = allItems.where((i) => i.isLowStock).length;
 
-        return ListView(
-          padding: const EdgeInsets.all(16),
+        return Column(
           children: [
-            // Site Inventory Financial Summary
+            // Site Inventory Top Action & Summary Bar
             Container(
               padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(bottom: 16),
               decoration: BoxDecoration(
                 color: AppColors.cardBg(context),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border(context)),
+                border: Border(bottom: BorderSide(color: AppColors.border(context))),
               ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Site Material Valuation',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: AppColors.mutedText(context),
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        '₹${totalValuation.toInt()}',
-                        style: TextStyle(
-                          fontSize: 22,
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.primaryColor(context),
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        '${items.length} Material Types Tracked',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.mutedText(context),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (lowStockCount > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 10,
-                        vertical: 6,
-                      ),
-                      decoration: BoxDecoration(
-                        color: AppColors.error.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Row(
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Icon(
-                            Icons.warning_amber_rounded,
-                            size: 14,
-                            color: AppColors.error,
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            '$lowStockCount Low Stock',
-                            style: const TextStyle(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.bold,
+                            'Site Material Valuation',
+                            style: TextStyle(
                               fontSize: 11,
+                              color: AppColors.mutedText(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '₹${totalValuation.toInt()}',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor(context),
+                            ),
+                          ),
+                          Text(
+                            '${allItems.length} Materials Tracked • $lowStockCount Low Stock',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: lowStockCount > 0 ? AppColors.error : AppColors.mutedText(context),
+                              fontWeight: lowStockCount > 0 ? FontWeight.bold : FontWeight.normal,
                             ),
                           ),
                         ],
                       ),
-                    ),
+                      Wrap(
+                        spacing: 8,
+                        children: [
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const InventoryListScreen(),
+                                ),
+                              );
+                              ref.invalidate(projectInventoryProvider);
+                            },
+                            icon: const Icon(Icons.inventory_2_outlined, size: 15),
+                            label: const Text('Stock Manager', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                            ),
+                          ),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const InventoryFormScreen(),
+                                ),
+                              );
+                              ref.invalidate(projectInventoryProvider);
+                            },
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('+ Add Material', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor(context),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Search & Filter Row
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _materialSearchController,
+                          decoration: InputDecoration(
+                            hintText: 'Search site materials by name or category...',
+                            prefixIcon: const Icon(Icons.search, size: 18),
+                            suffixIcon: _materialSearch.isNotEmpty
+                                ? IconButton(
+                                    icon: const Icon(Icons.clear, size: 16),
+                                    onPressed: () {
+                                      setState(() {
+                                        _materialSearchController.clear();
+                                        _materialSearch = '';
+                                      });
+                                    },
+                                  )
+                                : null,
+                            isDense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          onChanged: (val) => setState(() => _materialSearch = val.trim()),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      FilterChip(
+                        label: Text('Low Stock ($lowStockCount)', style: const TextStyle(fontSize: 11)),
+                        selected: _onlyLowStockMaterials,
+                        onSelected: (selected) => setState(() => _onlyLowStockMaterials = selected),
+                        selectedColor: AppColors.error.withValues(alpha: 0.2),
+                        checkmarkColor: AppColors.error,
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
 
-            // Material Cards
-            ...items.map((item) {
-              final double valuation = item.totalValuation;
-              final int runwayDays = item.stockRunwayDays;
-              final Color runwayColor = runwayDays < 3
-                  ? AppColors.error
-                  : (runwayDays <= 7 ? Colors.orange : AppColors.secondary);
-
-              return Container(
-                margin: const EdgeInsets.only(bottom: 12),
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: AppColors.cardBg(context),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: item.isLowStock
-                        ? AppColors.error.withValues(alpha: 0.4)
-                        : AppColors.border(context),
-                  ),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            item.category.toUpperCase(),
-                            style: const TextStyle(
-                              fontSize: 10,
+            // Material List / Cards
+            Expanded(
+              child: filteredItems.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.inventory_2_outlined, size: 48, color: AppColors.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            _materialSearch.isNotEmpty ? 'No materials match "$_materialSearch"' : 'No materials in site stock',
+                            style: TextStyle(
                               fontWeight: FontWeight.bold,
-                              color: AppColors.primary,
+                              fontSize: 15,
+                              color: AppColors.text(context),
                             ),
                           ),
-                        ),
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 8,
-                                vertical: 3,
-                              ),
-                              decoration: BoxDecoration(
-                                color: runwayColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                runwayDays > 90
-                                    ? 'Runway: 90+ Days'
-                                    : 'Runway: $runwayDays Days',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  color: runwayColor,
+                          const SizedBox(height: 4),
+                          Text(
+                            'Add items or transfer materials from central inventory',
+                            style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: () async {
+                              await Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const InventoryFormScreen(),
                                 ),
-                              ),
+                              );
+                              ref.invalidate(projectInventoryProvider);
+                            },
+                            icon: const Icon(Icons.add, size: 16),
+                            label: const Text('+ Add First Material'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor(context),
+                              foregroundColor: Colors.white,
                             ),
-                            if (item.isLowStock) ...[
-                              const SizedBox(width: 6),
-                              Container(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 6,
-                                  vertical: 2,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: AppColors.error.withValues(alpha: 0.1),
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
-                                child: const Text(
-                                  'LOW STOCK',
-                                  style: TextStyle(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.error,
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: filteredItems.length,
+                      itemBuilder: (context, idx) {
+                        final item = filteredItems[idx];
+                        final double valuation = item.totalValuation;
+                        final int runwayDays = item.stockRunwayDays;
+                        final Color runwayColor = runwayDays < 3
+                            ? AppColors.error
+                            : (runwayDays <= 7 ? Colors.orange : AppColors.secondary);
+
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardBg(context),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: item.isLowStock
+                                  ? AppColors.error.withValues(alpha: 0.4)
+                                  : AppColors.border(context),
+                            ),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary.withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      item.category.toUpperCase(),
+                                      style: const TextStyle(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.primary,
+                                      ),
+                                    ),
+                                  ),
+                                  Row(
+                                    children: [
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                        decoration: BoxDecoration(
+                                          color: runwayColor.withValues(alpha: 0.12),
+                                          borderRadius: BorderRadius.circular(20),
+                                        ),
+                                        child: Text(
+                                          runwayDays > 90 ? 'Runway: 90+ Days' : 'Runway: $runwayDays Days',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: runwayColor,
+                                          ),
+                                        ),
+                                      ),
+                                      if (item.isLowStock) ...[
+                                        const SizedBox(width: 6),
+                                        Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                          decoration: BoxDecoration(
+                                            color: AppColors.error.withValues(alpha: 0.1),
+                                            borderRadius: BorderRadius.circular(4),
+                                          ),
+                                          child: const Text(
+                                            'LOW STOCK',
+                                            style: TextStyle(
+                                              fontSize: 9,
+                                              fontWeight: FontWeight.bold,
+                                              color: AppColors.error,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.materialName,
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 15,
+                                            color: AppColors.text(context),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Burn Rate: ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day • Rate: ₹${item.purchasePrice.toStringAsFixed(2)}',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            color: AppColors.mutedText(context),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        '₹${valuation.toInt()}',
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 15,
+                                          color: AppColors.primaryColor(context),
+                                        ),
+                                      ),
+                                      Text(
+                                        'Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}',
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppColors.text(context),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 10),
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.end,
+                                children: [
+                                  OutlinedButton.icon(
+                                    onPressed: () => _showAdjustStockDialog(item),
+                                    icon: const Icon(Icons.tune, size: 14),
+                                    label: const Text('Adjust / Receive Stock', style: TextStyle(fontSize: 11)),
+                                    style: OutlinedButton.styleFrom(
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              if (item.isLowStock) ...[
+                                const SizedBox(height: 8),
+                                Container(
+                                  padding: const EdgeInsets.all(8),
+                                  decoration: BoxDecoration(
+                                    color: Colors.amber.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.amber.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      const Icon(
+                                        Icons.bolt,
+                                        size: 14,
+                                        color: Colors.amber,
+                                      ),
+                                      const SizedBox(width: 6),
+                                      Expanded(
+                                        child: Text(
+                                          'Auto Reorder Suggestion: Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est ₹${item.estimatedReorderCost.toInt()})',
+                                          style: TextStyle(
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.bold,
+                                            color: AppColors.text(context),
+                                          ),
+                                        ),
+                                      ),
+                                    ],
                                   ),
                                 ),
-                              ),
+                              ],
                             ],
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 10),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              item.materialName,
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: AppColors.text(context),
-                              ),
-                            ),
-                            const SizedBox(height: 2),
-                            Text(
-                              'Burn Rate: ~${item.estimatedDailyBurnRate.toStringAsFixed(1)} ${item.unit}/day • Rate: ₹${item.purchasePrice.toStringAsFixed(2)}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                color: AppColors.mutedText(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(
-                              '₹${valuation.toInt()}',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 15,
-                                color: AppColors.primaryColor(context),
-                              ),
-                            ),
-                            Text(
-                              'Available: ${item.availableStock.toStringAsFixed(1)} ${item.unit}',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.text(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                    if (item.isLowStock) ...[
-                      const SizedBox(height: 10),
-                      Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.amber.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(
-                            color: Colors.amber.withValues(alpha: 0.3),
                           ),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.bolt,
-                              size: 14,
-                              color: Colors.amber,
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'Auto Reorder Suggestion: Order +${item.recommendedReorderQty.toInt()} ${item.unit} (Est ₹${item.estimatedReorderCost.toInt()})',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.text(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              );
-            }),
+                        );
+                      },
+                    ),
+            ),
           ],
         );
       },
@@ -1132,62 +1268,502 @@ class _ProjectOperationsScreenState
     );
   }
 
+  void _showAdjustStockDialog(InventoryItem item) {
+    final qtyCtrl = TextEditingController();
+    bool isAddition = true;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text('Adjust Stock: ${item.materialName}'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Current Available: ${item.availableStock} ${item.unit}',
+                style: TextStyle(color: AppColors.mutedText(context), fontSize: 13),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('+ Receive Stock'),
+                      selected: isAddition,
+                      onSelected: (s) => setDialogState(() => isAddition = true),
+                      selectedColor: const Color(0xFF10B981).withValues(alpha: 0.2),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: ChoiceChip(
+                      label: const Text('- Issue / Used'),
+                      selected: !isAddition,
+                      onSelected: (s) => setDialogState(() => isAddition = false),
+                      selectedColor: AppColors.error.withValues(alpha: 0.2),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: qtyCtrl,
+                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                decoration: InputDecoration(
+                  labelText: '${isAddition ? 'Quantity Received' : 'Quantity Issued'} (${item.unit}) *',
+                  hintText: 'e.g. 50',
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final qty = double.tryParse(qtyCtrl.text.trim());
+                if (qty == null || qty <= 0) return;
+                final delta = isAddition ? qty : -qty;
+                await ref.read(inventoryControllerProvider.notifier).adjustStock(item, delta);
+                ref.invalidate(projectInventoryProvider);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Stock adjusted: ${delta > 0 ? '+$delta' : '$delta'} ${item.unit} for ${item.materialName}'),
+                      backgroundColor: const Color(0xFF10B981),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Update Stock'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   // 3. Subcontractors Tab
   Widget _buildSubcontractorsTab() {
     final subsAsync = ref.watch(projectSubcontractorsProvider);
 
     return subsAsync.when(
-      data: (subs) => ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: subs.length,
-        itemBuilder: (context, i) {
-          final sub = subs[i];
-          return Card(
-            color: AppColors.cardBg(context),
-            margin: const EdgeInsets.only(bottom: 12),
-            child: ListTile(
-              leading: const Icon(
-                Icons.engineering_outlined,
-                color: AppColors.primary,
+      data: (allSubs) {
+        final subs = allSubs.where((s) {
+          if (_subcontractorSearch.isEmpty) return true;
+          final q = _subcontractorSearch.toLowerCase();
+          return s.name.toLowerCase().contains(q) ||
+              (s.specialization?.toLowerCase().contains(q) ?? false) ||
+              (s.phone?.toLowerCase().contains(q) ?? false);
+        }).toList();
+
+        final double totalContracts = allSubs.fold(0.0, (sum, s) => sum + s.contractValue);
+        final double totalPaid = allSubs.fold(0.0, (sum, s) => sum + s.paidAmount);
+        final double pendingBalance = totalContracts > totalPaid ? (totalContracts - totalPaid) : 0.0;
+
+        return Column(
+          children: [
+            // Top Action & Summary Bar
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBg(context),
+                border: Border(bottom: BorderSide(color: AppColors.border(context))),
               ),
-              title: Text(
-                sub.name,
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.text(context),
-                ),
-              ),
-              subtitle: Text(
-                'Trade: ${sub.specialization ?? 'General'} • Phone: ${sub.phone ?? 'N/A'}',
-              ),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.end,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    '₹${sub.contractValue.toInt()}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.text(context),
-                    ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Trade Partners & Subcontractors',
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.text(context),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Contracts: ₹${totalContracts.toInt()} • Paid: ₹${totalPaid.toInt()} • Due: ₹${pendingBalance.toInt()}',
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: AppColors.mutedText(context),
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _showAddSubcontractorDialog,
+                        icon: const Icon(Icons.person_add_alt_1, size: 16),
+                        label: const Text('+ Add Partner', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor(context),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ],
                   ),
-                  Text(
-                    sub.status,
-                    style: TextStyle(
-                      color: sub.status == 'Active'
-                          ? AppColors.secondary
-                          : AppColors.textMuted,
-                      fontSize: 11,
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: _subcontractorSearchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search trade contractors by name, specialization, phone...',
+                      prefixIcon: const Icon(Icons.search, size: 18),
+                      suffixIcon: _subcontractorSearch.isNotEmpty
+                          ? IconButton(
+                              icon: const Icon(Icons.clear, size: 16),
+                              onPressed: () {
+                                setState(() {
+                                  _subcontractorSearchController.clear();
+                                  _subcontractorSearch = '';
+                                });
+                              },
+                            )
+                          : null,
+                      isDense: true,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
                     ),
+                    onChanged: (val) => setState(() => _subcontractorSearch = val.trim()),
                   ),
                 ],
               ),
             ),
-          );
-        },
-      ),
+
+            // Subcontractor List
+            Expanded(
+              child: subs.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.engineering_outlined, size: 48, color: AppColors.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            _subcontractorSearch.isNotEmpty
+                                ? 'No trade partners match "$_subcontractorSearch"'
+                                : 'No trade partners registered',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: AppColors.text(context),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Manage masonry, electrical, plumbing & fabrication contractors',
+                            style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                          ),
+                          const SizedBox(height: 16),
+                          ElevatedButton.icon(
+                            onPressed: _showAddSubcontractorDialog,
+                            icon: const Icon(Icons.person_add_alt_1, size: 16),
+                            label: const Text('+ Add First Trade Partner'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: AppColors.primaryColor(context),
+                              foregroundColor: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: subs.length,
+                      itemBuilder: (context, i) {
+                        final sub = subs[i];
+                        final balance = sub.contractValue > sub.paidAmount ? (sub.contractValue - sub.paidAmount) : 0.0;
+                        final percent = sub.contractValue > 0
+                            ? (sub.paidAmount / sub.contractValue).clamp(0.0, 1.0)
+                            : 0.0;
+
+                        return Card(
+                          color: AppColors.cardBg(context),
+                          margin: const EdgeInsets.only(bottom: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: AppColors.border(context)),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.all(14.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  children: [
+                                    CircleAvatar(
+                                      backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+                                      child: const Icon(Icons.engineering, color: AppColors.primary, size: 20),
+                                    ),
+                                    const SizedBox(width: 10),
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            sub.name,
+                                            style: TextStyle(
+                                              fontWeight: FontWeight.bold,
+                                              fontSize: 15,
+                                              color: AppColors.text(context),
+                                            ),
+                                          ),
+                                          Text(
+                                            'Trade: ${sub.specialization ?? 'General'} • ${sub.contactPerson}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: AppColors.mutedText(context),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                      decoration: BoxDecoration(
+                                        color: sub.status == 'Active'
+                                            ? AppColors.secondary.withValues(alpha: 0.12)
+                                            : AppColors.error.withValues(alpha: 0.12),
+                                        borderRadius: BorderRadius.circular(12),
+                                      ),
+                                      child: Text(
+                                        sub.status,
+                                        style: TextStyle(
+                                          color: sub.status == 'Active'
+                                              ? AppColors.secondary
+                                              : AppColors.error,
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.bold,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                const Divider(height: 20),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Contract Value', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                                        Text('₹${sub.contractValue.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                      ],
+                                    ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text('Paid to Date', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                                        Text('₹${sub.paidAmount.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF10B981))),
+                                      ],
+                                    ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text('Balance Due', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                                        Text('₹${balance.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.error)),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                                const SizedBox(height: 8),
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(4),
+                                  child: LinearProgressIndicator(
+                                    value: percent,
+                                    backgroundColor: AppColors.border(context),
+                                    color: percent >= 1.0 ? const Color(0xFF10B981) : AppColors.primary,
+                                    minHeight: 5,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    if (sub.phone != null && sub.phone!.isNotEmpty)
+                                      TextButton.icon(
+                                        onPressed: () {
+                                          WhatsAppHelper.shareMessage(
+                                            context: context,
+                                            message: 'Hello ${sub.name}, regarding works on project ${widget.projectName} (Contract: ₹${sub.contractValue.toInt()})...',
+                                            phoneNumber: sub.phone,
+                                            successNotice: 'Opening WhatsApp chat with ${sub.name}',
+                                          );
+                                        },
+                                        icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Color(0xFF25D366)),
+                                        label: Text(
+                                          'WhatsApp (${sub.phone})',
+                                          style: const TextStyle(fontSize: 11, color: Color(0xFF25D366), fontWeight: FontWeight.bold),
+                                        ),
+                                      )
+                                    else
+                                      const SizedBox.shrink(),
+                                    Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                                          tooltip: 'Remove Trade Partner',
+                                          onPressed: () async {
+                                            final confirm = await showDialog<bool>(
+                                              context: context,
+                                              builder: (ctx) => AlertDialog(
+                                                title: const Text('Delete Subcontractor?'),
+                                                content: Text('Are you sure you want to remove "${sub.name}" from trade partners?'),
+                                                actions: [
+                                                  TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                                  ElevatedButton(
+                                                    style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+                                                    onPressed: () => Navigator.pop(ctx, true),
+                                                    child: const Text('Delete'),
+                                                  ),
+                                                ],
+                                              ),
+                                            );
+                                            if (confirm == true) {
+                                              await ref.read(subcontractorControllerProvider.notifier).deleteSubcontractor(sub.id);
+                                              ref.invalidate(projectSubcontractorsProvider);
+                                            }
+                                          },
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, s) => Center(child: Text('Error loading subcontractors: $e')),
+    );
+  }
+
+  void _showAddSubcontractorDialog() {
+    final nameCtrl = TextEditingController();
+    final contactCtrl = TextEditingController();
+    final phoneCtrl = TextEditingController();
+    final contractCtrl = TextEditingController();
+    String specialization = 'Civil & RCC';
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Add Trade Partner / Subcontractor'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: nameCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Company / Contractor Name *',
+                  hintText: 'e.g. Apex Electricals & Wiring',
+                ),
+              ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<String>(
+                initialValue: specialization,
+                decoration: const InputDecoration(labelText: 'Trade / Specialization *'),
+                items: [
+                  'Civil & RCC',
+                  'Masonry & Brickwork',
+                  'Electrical & Wiring',
+                  'Plumbing & Sanitary',
+                  'Fabrication & Steel',
+                  'Painting & Finishing',
+                  'Carpentry & Woodwork',
+                  'Flooring & Tiling',
+                  'Waterproofing',
+                  'HVAC',
+                  'Other',
+                ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                onChanged: (v) => specialization = v ?? specialization,
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contactCtrl,
+                decoration: const InputDecoration(
+                  labelText: 'Contact Person Name',
+                  hintText: 'e.g. Rajesh Kumar',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: phoneCtrl,
+                keyboardType: TextInputType.phone,
+                decoration: const InputDecoration(
+                  labelText: 'Phone / WhatsApp Number',
+                  hintText: 'e.g. 9876543210',
+                ),
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: contractCtrl,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  labelText: 'Total Contract Value (₹) *',
+                  hintText: 'e.g. 250000',
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              if (nameCtrl.text.trim().isEmpty) return;
+              final contractVal = double.tryParse(contractCtrl.text.trim()) ?? 0.0;
+              final sub = Subcontractor(
+                id: '',
+                name: nameCtrl.text.trim(),
+                contactPersonProp: contactCtrl.text.trim().isEmpty ? null : contactCtrl.text.trim(),
+                specialization: specialization,
+                phone: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                contractValue: contractVal,
+                paidAmount: 0.0,
+                status: 'Active',
+                createdAt: DateTime.now(),
+              );
+
+              final ok = await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(sub);
+              ref.invalidate(projectSubcontractorsProvider);
+
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(ok ? 'Trade partner "${sub.name}" added successfully!' : 'Trade partner saved'),
+                    backgroundColor: const Color(0xFF10B981),
+                  ),
+                );
+              }
+            },
+            child: const Text('Add Partner'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2066,172 +2642,938 @@ class _ProjectOperationsScreenState
   Widget _buildChecklistTab() {
     final checkAsync = ref.watch(projectChecklistProvider(widget.projectId));
 
+    return checkAsync.when(
+      data: (allItems) {
+        final completedCount = allItems.where((i) => i.isCompleted).length;
+        final totalCount = allItems.length;
+        final double progress = totalCount > 0 ? (completedCount / totalCount) : 0.0;
+
+        final items = allItems.where((item) {
+          if (_checklistFilter == 'Pending') return !item.isCompleted;
+          if (_checklistFilter == 'Completed') return item.isCompleted;
+          return true;
+        }).toList();
+
+        return Column(
+          children: [
+            // Top Progress & Action Header
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.cardBg(context),
+                border: Border(bottom: BorderSide(color: AppColors.border(context))),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Site Quality & Inspection Tasks',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: AppColors.text(context),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            '$completedCount of $totalCount Inspections Completed (${(progress * 100).toInt()}%)',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: completedCount == totalCount && totalCount > 0
+                                  ? const Color(0xFF10B981)
+                                  : AppColors.mutedText(context),
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: _showAddChecklistDialog,
+                        icon: const Icon(Icons.add_task, size: 16),
+                        label: const Text('+ Add Task', style: TextStyle(fontSize: 12)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor(context),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: LinearProgressIndicator(
+                      value: progress,
+                      backgroundColor: AppColors.border(context),
+                      color: progress >= 1.0 ? const Color(0xFF10B981) : AppColors.primary,
+                      minHeight: 6,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  // Filter Chips
+                  Row(
+                    children: [
+                      ChoiceChip(
+                        label: Text('All ($totalCount)', style: const TextStyle(fontSize: 11)),
+                        selected: _checklistFilter == 'All',
+                        onSelected: (s) => setState(() => _checklistFilter = 'All'),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: Text('Pending (${totalCount - completedCount})', style: const TextStyle(fontSize: 11)),
+                        selected: _checklistFilter == 'Pending',
+                        onSelected: (s) => setState(() => _checklistFilter = 'Pending'),
+                      ),
+                      const SizedBox(width: 8),
+                      ChoiceChip(
+                        label: Text('Completed ($completedCount)', style: const TextStyle(fontSize: 11)),
+                        selected: _checklistFilter == 'Completed',
+                        selectedColor: const Color(0xFF10B981).withValues(alpha: 0.2),
+                        onSelected: (s) => setState(() => _checklistFilter = 'Completed'),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+
+            // Checklist Items List
+            Expanded(
+              child: items.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(Icons.task_alt_outlined, size: 48, color: AppColors.outline),
+                          const SizedBox(height: 12),
+                          Text(
+                            allItems.isEmpty ? 'No inspection tasks created yet' : 'No items match "$_checklistFilter"',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                              color: AppColors.text(context),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Track slump tests, rebar inspections, curing & safety protocols',
+                            style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
+                          ),
+                          if (allItems.isEmpty) ...[
+                            const SizedBox(height: 16),
+                            ElevatedButton.icon(
+                              onPressed: _showAddChecklistDialog,
+                              icon: const Icon(Icons.add, size: 16),
+                              label: const Text('+ Add First Inspection Task'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor(context),
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.all(16),
+                      itemCount: items.length,
+                      itemBuilder: (context, i) {
+                        final item = items[i];
+                        return Card(
+                          color: AppColors.cardBg(context),
+                          margin: const EdgeInsets.only(bottom: 10),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: item.isCompleted ? const Color(0xFF10B981).withValues(alpha: 0.4) : AppColors.border(context),
+                            ),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            child: Row(
+                              children: [
+                                Checkbox(
+                                  value: item.isCompleted,
+                                  activeColor: const Color(0xFF10B981),
+                                  onChanged: (val) async {
+                                    if (val != null) {
+                                      final client = ref.read(supabaseClientProvider);
+                                      await SupabaseChecklistRepository(client).toggleChecklistItem(item.id, val);
+                                      ref.invalidate(projectChecklistProvider(widget.projectId));
+                                    }
+                                  },
+                                ),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        item.title,
+                                        style: TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 14,
+                                          color: AppColors.text(context),
+                                          decoration: item.isCompleted ? TextDecoration.lineThrough : null,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: AppColors.primary.withValues(alpha: 0.08),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              item.category.toUpperCase(),
+                                              style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: AppColors.primary),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 8),
+                                          Text(
+                                            item.isCompleted ? 'Completed ✓' : 'Pending Inspection',
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: item.isCompleted ? const Color(0xFF10B981) : AppColors.mutedText(context),
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                IconButton(
+                                  icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                                  tooltip: 'Delete Task',
+                                  onPressed: () async {
+                                    final confirm = await showDialog<bool>(
+                                      context: context,
+                                      builder: (ctx) => AlertDialog(
+                                        title: const Text('Delete Checklist Task?'),
+                                        content: Text('Remove "${item.title}" from inspection tasks?'),
+                                        actions: [
+                                          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+                                          ElevatedButton(
+                                            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+                                            onPressed: () => Navigator.pop(ctx, true),
+                                            child: const Text('Delete'),
+                                          ),
+                                        ],
+                                      ),
+                                    );
+                                    if (confirm == true) {
+                                      final client = ref.read(supabaseClientProvider);
+                                      await SupabaseChecklistRepository(client).deleteChecklistItem(item.id);
+                                      ref.invalidate(projectChecklistProvider(widget.projectId));
+                                    }
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        );
+      },
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, s) => Center(child: Text('Error loading checklist: $e')),
+    );
+  }
+
+  // 6. Drawings, Plans, Mapping & Site Photos Tab
+  Widget _buildDrawingsTab() {
+    final dwgAsync = ref.watch(projectDrawingsProvider(widget.projectId));
+
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        // Top Action Bar & Stat Bar
+        Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            border: Border(bottom: BorderSide(color: AppColors.border(context))),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Site Inspection Checklist',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppColors.text(context),
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Site Drawings, Plans & Mapping',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            color: AppColors.text(context),
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Upload architectural layouts, structural blueprints, floor plans & site progress photos',
+                          style: TextStyle(fontSize: 11.5, color: AppColors.mutedText(context)),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _isDrawingGridView = !_isDrawingGridView;
+                          });
+                        },
+                        icon: Icon(
+                          _isDrawingGridView ? Icons.view_list_rounded : Icons.grid_view_rounded,
+                          color: AppColors.primaryColor(context),
+                        ),
+                        tooltip: _isDrawingGridView ? 'Switch to List View' : 'Switch to Grid View',
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton.icon(
+                        onPressed: _showAddDrawingDialog,
+                        icon: const Icon(Icons.add_photo_alternate_outlined, size: 16),
+                        label: const Text('Upload Plan / Photo'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor(context),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              ElevatedButton.icon(
-                onPressed: _showAddChecklistDialog,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Task'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor(context),
-                  foregroundColor: Colors.white,
+              const SizedBox(height: 12),
+              // Search & Filter Row
+              Row(
+                children: [
+                  Expanded(
+                    child: SizedBox(
+                      height: 38,
+                      child: TextField(
+                        controller: _drawingSearchController,
+                        decoration: InputDecoration(
+                          hintText: 'Search drawings, floor plans, blueprints, versions...',
+                          hintStyle: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                          prefixIcon: const Icon(Icons.search, size: 18),
+                          suffixIcon: _drawingSearch.isNotEmpty
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  onPressed: () {
+                                    _drawingSearchController.clear();
+                                    setState(() {
+                                      _drawingSearch = '';
+                                    });
+                                  },
+                                )
+                              : null,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 0, horizontal: 12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.border(context)),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                            borderSide: BorderSide(color: AppColors.border(context)),
+                          ),
+                          filled: true,
+                          fillColor: AppColors.bg(context),
+                        ),
+                        onChanged: (v) {
+                          setState(() {
+                            _drawingSearch = v.trim().toLowerCase();
+                          });
+                        },
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              // Category Filter Pills
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    'All',
+                    'Floor Plans & Mapping',
+                    'Architectural',
+                    'Structural',
+                    'Electrical',
+                    'Plumbing',
+                    'Site Photos & Progress',
+                    'HVAC',
+                    'Other',
+                  ].map((cat) {
+                    final isSelected = _drawingCategoryFilter == cat;
+                    return Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: FilterChip(
+                        label: Text(
+                          cat,
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          ),
+                        ),
+                        selected: isSelected,
+                        selectedColor: AppColors.primaryColor(context).withValues(alpha: 0.18),
+                        backgroundColor: AppColors.bg(context),
+                        checkmarkColor: AppColors.primaryColor(context),
+                        labelStyle: TextStyle(
+                          color: isSelected ? AppColors.primaryColor(context) : AppColors.text(context),
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(20),
+                          side: BorderSide(
+                            color: isSelected ? AppColors.primaryColor(context) : AppColors.border(context),
+                          ),
+                        ),
+                        onSelected: (_) {
+                          setState(() {
+                            _drawingCategoryFilter = cat;
+                          });
+                        },
+                      ),
+                    );
+                  }).toList(),
                 ),
               ),
             ],
           ),
         ),
+
+        // Body Content
         Expanded(
-          child: checkAsync.when(
-            data: (items) {
-              if (items.isEmpty) {
+          child: dwgAsync.when(
+            data: (allDrawings) {
+              final filtered = allDrawings.where((d) {
+                final matchCat = _drawingCategoryFilter == 'All' || d.category == _drawingCategoryFilter;
+                final matchSearch = _drawingSearch.isEmpty ||
+                    d.title.toLowerCase().contains(_drawingSearch) ||
+                    d.category.toLowerCase().contains(_drawingSearch) ||
+                    d.version.toLowerCase().contains(_drawingSearch) ||
+                    (d.notes != null && d.notes!.toLowerCase().contains(_drawingSearch));
+                return matchCat && matchSearch;
+              }).toList();
+
+              if (filtered.isEmpty) {
                 return _emptyState(
-                  'No checklist items',
-                  'Add quality inspection tasks for this site',
+                  allDrawings.isEmpty ? 'No site drawings or plans uploaded yet' : 'No drawings match filters',
+                  allDrawings.isEmpty
+                      ? 'Upload blueprints, architectural layouts, structural floor plans, or site progress photos directly.'
+                      : 'Try resetting the search query or category filters.',
                 );
               }
+
+              if (_isDrawingGridView) {
+                return LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isWide = constraints.maxWidth > 1100;
+                    final isMedium = constraints.maxWidth > 700;
+                    final crossAxisCount = isWide ? 4 : (isMedium ? 3 : (constraints.maxWidth > 480 ? 2 : 1));
+                    final childAspectRatio = isWide ? 0.92 : (isMedium ? 0.90 : (constraints.maxWidth > 480 ? 0.88 : 1.3));
+
+                    return GridView.builder(
+                      padding: const EdgeInsets.all(16),
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: crossAxisCount,
+                        crossAxisSpacing: 14,
+                        mainAxisSpacing: 14,
+                        childAspectRatio: childAspectRatio,
+                      ),
+                      itemCount: filtered.length,
+                      itemBuilder: (context, i) => _buildDrawingGridCard(filtered[i]),
+                    );
+                  },
+                );
+              }
+
               return ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                itemCount: items.length,
-                itemBuilder: (context, i) {
-                  final item = items[i];
-                  return Card(
-                    color: AppColors.cardBg(context),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: CheckboxListTile(
-                      value: item.isCompleted,
-                      title: Text(
-                        item.title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text(context),
-                          decoration: item.isCompleted
-                              ? TextDecoration.lineThrough
-                              : null,
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Phase: ${item.phaseGroup} • Status: ${item.approvalStatus}',
-                      ),
-                      onChanged: (val) async {
-                        if (val != null) {
-                          final client = ref.read(supabaseClientProvider);
-                          await SupabaseChecklistRepository(
-                            client,
-                          ).toggleChecklistItem(item.id, val);
-                          ref.invalidate(
-                            projectChecklistProvider(widget.projectId),
-                          );
-                        }
-                      },
-                    ),
-                  );
-                },
+                padding: const EdgeInsets.all(16),
+                itemCount: filtered.length,
+                itemBuilder: (context, i) => _buildDrawingListCard(filtered[i]),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => Center(child: Text('Error loading checklist: $e')),
+            loading: () => const Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 12),
+                  Text('Loading project blueprints & drawings...', style: TextStyle(fontSize: 13)),
+                ],
+              ),
+            ),
+            error: (e, s) => Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.error_outline, color: AppColors.error, size: 36),
+                  const SizedBox(height: 8),
+                  Text('Error loading drawings: $e', style: const TextStyle(fontSize: 13)),
+                  const SizedBox(height: 12),
+                  ElevatedButton(
+                    onPressed: () => ref.refresh(projectDrawingsProvider(widget.projectId)),
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
           ),
         ),
       ],
     );
   }
 
-  // 6. Drawings Tab
-  Widget _buildDrawingsTab() {
-    final dwgAsync = ref.watch(projectDrawingsProvider(widget.projectId));
+  Widget _buildDrawingGridCard(SiteDrawing d) {
+    final catColor = _getDrawingCategoryColor(d.category);
 
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showFullscreenDrawingViewer(d),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.border(context)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.03),
+                blurRadius: 6,
+                offset: const Offset(0, 2),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Blueprints & Site Drawings',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                  color: AppColors.text(context),
+              // Image Thumbnail Header
+              Expanded(
+                flex: 5,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.md)),
+                      child: _buildDrawingThumbnail(d.fileUrl),
+                    ),
+                    // Category Badge Overlay
+                    Positioned(
+                      top: 8,
+                      left: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: catColor.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          d.category,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                    // Version Chip Overlay
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: Colors.black87,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          d.version,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-              ElevatedButton.icon(
-                onPressed: _showAddDrawingDialog,
-                icon: const Icon(Icons.add, size: 16),
-                label: const Text('Add Drawing'),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primaryColor(context),
-                  foregroundColor: Colors.white,
+              // Body Details
+              Expanded(
+                flex: 4,
+                child: Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            d.title,
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: AppColors.text(context),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          if (d.notes != null && d.notes!.isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              d.notes!,
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: AppColors.mutedText(context),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ],
+                      ),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            '${d.createdAt.day}/${d.createdAt.month}/${d.createdAt.year}',
+                            style: TextStyle(fontSize: 10.5, color: AppColors.mutedText(context)),
+                          ),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              IconButton(
+                                icon: const Icon(Icons.fullscreen, size: 18),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Inspect Fullscreen',
+                                onPressed: () => _showFullscreenDrawingViewer(d),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.share_outlined, size: 16),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Share via WhatsApp',
+                                onPressed: () => _shareDrawingViaWhatsApp(d),
+                              ),
+                              const SizedBox(width: 8),
+                              IconButton(
+                                icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                                padding: EdgeInsets.zero,
+                                constraints: const BoxConstraints(),
+                                tooltip: 'Delete Drawing',
+                                onPressed: () => _deleteDrawingWithConfirmation(d),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
           ),
         ),
-        Expanded(
-          child: dwgAsync.when(
-            data: (drawings) {
-              if (drawings.isEmpty) {
-                return _emptyState(
-                  'No site drawings',
-                  'Blueprints and structural layouts will appear here',
-                );
-              }
-              return ListView.builder(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 8,
-                ),
-                itemCount: drawings.length,
-                itemBuilder: (context, i) {
-                  final d = drawings[i];
-                  return Card(
-                    color: AppColors.cardBg(context),
-                    margin: const EdgeInsets.only(bottom: 12),
-                    child: ListTile(
-                      leading: const Icon(
-                        Icons.draw_outlined,
-                        color: AppColors.primary,
-                      ),
-                      title: Text(
-                        d.title,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: AppColors.text(context),
-                        ),
-                      ),
-                      subtitle: Text(
-                        'Category: ${d.category} • Version: ${d.version}',
-                      ),
-                      trailing: const Icon(
-                        Icons.download,
-                        color: AppColors.primary,
-                      ),
-                    ),
-                  );
-                },
-              );
-            },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => Center(child: Text('Error loading drawings: $e')),
+      ),
+    );
+  }
+
+  Widget _buildDrawingListCard(SiteDrawing d) {
+    final catColor = _getDrawingCategoryColor(d.category);
+
+    return Card(
+      color: AppColors.cardBg(context),
+      margin: const EdgeInsets.only(bottom: 10),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(8),
+        side: BorderSide(color: AppColors.border(context)),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        leading: ClipRRect(
+          borderRadius: BorderRadius.circular(6),
+          child: SizedBox(
+            width: 50,
+            height: 50,
+            child: _buildDrawingThumbnail(d.fileUrl),
           ),
         ),
-      ],
+        title: Row(
+          children: [
+            Expanded(
+              child: Text(
+                d.title,
+                style: TextStyle(
+                  fontWeight: FontWeight.bold,
+                  fontSize: 13.5,
+                  color: AppColors.text(context),
+                ),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: catColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                d.category,
+                style: TextStyle(
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  color: catColor,
+                ),
+              ),
+            ),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              decoration: BoxDecoration(
+                color: AppColors.border(context),
+                borderRadius: BorderRadius.circular(4),
+              ),
+              child: Text(
+                d.version,
+                style: TextStyle(
+                  fontSize: 9.5,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text(context),
+                ),
+              ),
+            ),
+          ],
+        ),
+        subtitle: Padding(
+          padding: const EdgeInsets.only(top: 4),
+          child: Text(
+            '${d.notes != null && d.notes!.isNotEmpty ? "${d.notes} • " : ""}Uploaded on ${d.createdAt.day}/${d.createdAt.month}/${d.createdAt.year}',
+            style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+          ),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.fullscreen, size: 20),
+              tooltip: 'Fullscreen View',
+              onPressed: () => _showFullscreenDrawingViewer(d),
+            ),
+            IconButton(
+              icon: const Icon(Icons.share_outlined, size: 18),
+              tooltip: 'Share via WhatsApp',
+              onPressed: () => _shareDrawingViaWhatsApp(d),
+            ),
+            IconButton(
+              icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
+              tooltip: 'Delete Drawing',
+              onPressed: () => _deleteDrawingWithConfirmation(d),
+            ),
+          ],
+        ),
+        onTap: () => _showFullscreenDrawingViewer(d),
+      ),
+    );
+  }
+
+  Widget _buildDrawingThumbnail(String fileUrl) {
+    if (fileUrl.startsWith('data:image')) {
+      try {
+        final commaIndex = fileUrl.indexOf(',');
+        if (commaIndex != -1) {
+          final base64Data = fileUrl.substring(commaIndex + 1);
+          final bytes = base64Decode(base64Data);
+          return Image.memory(
+            bytes,
+            fit: BoxFit.cover,
+            errorBuilder: (context, error, stackTrace) => _fallbackDrawingIcon(),
+          );
+        }
+      } catch (_) {}
+    }
+    if (fileUrl.startsWith('http://') || fileUrl.startsWith('https://')) {
+      return Image.network(
+        fileUrl,
+        fit: BoxFit.cover,
+        loadingBuilder: (context, child, loadingProgress) {
+          if (loadingProgress == null) return child;
+          return Container(
+            color: AppColors.bg(context),
+            child: const Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+            ),
+          );
+        },
+        errorBuilder: (context, error, stackTrace) => _fallbackDrawingIcon(),
+      );
+    }
+    return _fallbackDrawingIcon();
+  }
+
+  Widget _fallbackDrawingIcon() {
+    return Container(
+      color: AppColors.primary.withValues(alpha: 0.08),
+      child: const Center(
+        child: Icon(Icons.architecture_outlined, size: 36, color: AppColors.primary),
+      ),
+    );
+  }
+
+  Color _getDrawingCategoryColor(String category) {
+    switch (category) {
+      case 'Floor Plans & Mapping':
+        return const Color(0xFF8B5CF6);
+      case 'Architectural':
+        return const Color(0xFF0284C7);
+      case 'Structural':
+        return const Color(0xFFEA580C);
+      case 'Electrical':
+        return const Color(0xFFD97706);
+      case 'Plumbing':
+        return const Color(0xFF0D9488);
+      case 'Site Photos & Progress':
+        return const Color(0xFF059669);
+      case 'HVAC':
+        return const Color(0xFF4F46E5);
+      default:
+        return const Color(0xFF64748B);
+    }
+  }
+
+  void _shareDrawingViaWhatsApp(SiteDrawing d) {
+    WhatsAppHelper.shareMessage(
+      context: context,
+      message: "*IBUILD SITE DRAWING & PLAN SHARE*\n"
+          "----------------------------------------\n"
+          "*Project:* ${widget.projectName}\n"
+          "*Drawing Title:* ${d.title}\n"
+          "*Category:* ${d.category}\n"
+          "*Version:* ${d.version}\n"
+          "*File Reference:* ${d.fileUrl.startsWith('http') ? d.fileUrl : 'Stored in IBUILD Site Portal'}\n"
+          "${d.notes != null && d.notes!.isNotEmpty ? '*Notes:* ${d.notes}\n' : ''}"
+          "----------------------------------------\n"
+          "_Shared via IBUILD Construction ERP_",
+      successNotice: 'Drawing details ready to share on WhatsApp',
+    );
+  }
+
+  void _showFullscreenDrawingViewer(SiteDrawing d) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog.fullscreen(
+        child: Scaffold(
+          backgroundColor: Colors.black,
+          appBar: AppBar(
+            backgroundColor: Colors.black87,
+            foregroundColor: Colors.white,
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(d.title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.white)),
+                Text(
+                  '${d.category} • ${d.version} • Uploaded ${d.createdAt.day}/${d.createdAt.month}/${d.createdAt.year}',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
+                ),
+              ],
+            ),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.share_outlined, color: Colors.white),
+                tooltip: 'Share via WhatsApp',
+                onPressed: () => _shareDrawingViaWhatsApp(d),
+              ),
+              IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ],
+          ),
+          body: Center(
+            child: InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 5.0,
+              child: _buildDrawingThumbnail(d.fileUrl),
+            ),
+          ),
+          bottomNavigationBar: d.notes != null && d.notes!.isNotEmpty
+              ? Container(
+                  color: Colors.black87,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  child: Text(
+                    'Notes / Revisions: ${d.notes!}',
+                    style: const TextStyle(color: Colors.white70, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : null,
+        ),
+      ),
+    );
+  }
+
+  void _deleteDrawingWithConfirmation(SiteDrawing d) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Delete Drawing / Plan?'),
+        content: Text('Are you sure you want to remove "${d.title}" (${d.version}) from this project?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              final client = ref.read(supabaseClientProvider);
+              final ok = await SupabaseDrawingRepository(client).deleteDrawing(d.id);
+              if (ok) {
+                ref.invalidate(projectDrawingsProvider(widget.projectId));
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Drawing "${d.title}" deleted.')),
+                  );
+                }
+              }
+            },
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -2365,112 +3707,345 @@ class _ProjectOperationsScreenState
     final versionCtrl = TextEditingController(text: 'v1.0');
     final fileUrlCtrl = TextEditingController();
     final notesCtrl = TextEditingController();
-    String category = 'Architectural';
+    String category = 'Floor Plans & Mapping';
+
+    Uint8List? pickedBytes;
+    String? pickedFileName;
+    String? pickedExtension;
+    bool isUploading = false;
+    String uploadStatus = '';
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Site Drawing & Blueprint'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Drawing Title *',
-                  hintText: 'e.g. Structural Foundation Layout',
+      barrierDismissible: !isUploading,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDialogState) {
+          Future<void> pickImage(ImageSource source) async {
+            try {
+              final result = await ImageCompressionService.pickAndCompress(source: source);
+              if (result != null) {
+                setDialogState(() {
+                  pickedBytes = result.bytes;
+                  pickedExtension = result.extension;
+                  pickedFileName = 'site_${category.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '_')}_${DateTime.now().millisecondsSinceEpoch}.${result.extension}';
+                  if (titleCtrl.text.trim().isEmpty) {
+                    titleCtrl.text = '$category Layout';
+                  }
+                });
+              }
+            } catch (e) {
+              ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text('Error selecting photo: $e')),
+              );
+            }
+          }
+
+          return AlertDialog(
+            title: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryColor(context).withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Icon(Icons.add_photo_alternate_outlined, color: AppColors.primaryColor(context), size: 20),
+                ),
+                const SizedBox(width: 10),
+                const Text('Upload Plan, Blueprint or Site Photo', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ],
+            ),
+            content: SizedBox(
+              width: 520,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Direct Image Upload Picker Box
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                          color: pickedBytes != null ? AppColors.secondary : AppColors.border(context),
+                          width: pickedBytes != null ? 1.5 : 1,
+                        ),
+                      ),
+                      child: pickedBytes != null
+                          ? Column(
+                              children: [
+                                ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Image.memory(
+                                    pickedBytes!,
+                                    height: 140,
+                                    width: double.infinity,
+                                    fit: BoxFit.cover,
+                                  ),
+                                ),
+                                const SizedBox(height: 8),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    Expanded(
+                                      child: Row(
+                                        children: [
+                                          const Icon(Icons.check_circle, size: 16, color: Color(0xFF10B981)),
+                                          const SizedBox(width: 6),
+                                          Expanded(
+                                            child: Text(
+                                              'Selected (${(pickedBytes!.length / 1024).toStringAsFixed(1)} KB)',
+                                              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        setDialogState(() {
+                                          pickedBytes = null;
+                                          pickedFileName = null;
+                                          pickedExtension = null;
+                                        });
+                                      },
+                                      icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                                      label: const Text('Change', style: TextStyle(fontSize: 12, color: AppColors.error)),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            )
+                          : Column(
+                              children: [
+                                const Icon(Icons.cloud_upload_outlined, size: 36, color: AppColors.primary),
+                                const SizedBox(height: 6),
+                                const Text(
+                                  'Direct Image / Blueprint Upload',
+                                  style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Capture live site progress or pick high-res floor plans & blueprints from device',
+                                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                                  textAlign: TextAlign.center,
+                                ),
+                                const SizedBox(height: 10),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    ElevatedButton.icon(
+                                      onPressed: () => pickImage(ImageSource.gallery),
+                                      icon: const Icon(Icons.photo_library_outlined, size: 15),
+                                      label: const Text('Choose File / Gallery', style: TextStyle(fontSize: 12)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.primaryColor(context),
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    OutlinedButton.icon(
+                                      onPressed: () => pickImage(ImageSource.camera),
+                                      icon: const Icon(Icons.camera_alt_outlined, size: 15),
+                                      label: const Text('Take Photo', style: TextStyle(fontSize: 12)),
+                                      style: OutlinedButton.styleFrom(
+                                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Drawing Title
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(
+                        labelText: 'Drawing / Plan Title *',
+                        hintText: 'e.g. Ground Floor Layout & Structural Column Mapping',
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Category
+                    DropdownButtonFormField<String>(
+                      initialValue: category,
+                      decoration: const InputDecoration(labelText: 'Category / Discipline *'),
+                      items: [
+                        'Floor Plans & Mapping',
+                        'Architectural',
+                        'Structural',
+                        'Electrical',
+                        'Plumbing',
+                        'Site Photos & Progress',
+                        'HVAC',
+                        'Other',
+                      ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                      onChanged: (v) {
+                        setDialogState(() {
+                          category = v ?? category;
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Version & Document Reference
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            controller: versionCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'Version',
+                              hintText: 'v1.0 / Rev A',
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          flex: 3,
+                          child: TextField(
+                            controller: fileUrlCtrl,
+                            decoration: const InputDecoration(
+                              labelText: 'External URL (Optional)',
+                              hintText: 'https://...',
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Notes / Revisions
+                    TextField(
+                      controller: notesCtrl,
+                      maxLines: 2,
+                      decoration: const InputDecoration(
+                        labelText: 'Notes / Specifications / Revision Details',
+                        hintText: 'Add revision details, grid references or site inspection notes...',
+                      ),
+                    ),
+
+                    if (isUploading) ...[
+                      const SizedBox(height: 14),
+                      Row(
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 10),
+                          Text(
+                            uploadStatus.isNotEmpty ? uploadStatus : 'Uploading and processing drawing...',
+                            style: TextStyle(fontSize: 12, color: AppColors.primaryColor(context), fontWeight: FontWeight.w600),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ],
                 ),
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: category,
-                decoration: const InputDecoration(labelText: 'Category'),
-                items:
-                    [
-                          'Architectural',
-                          'Structural',
-                          'Electrical',
-                          'Plumbing',
-                          'HVAC',
-                          'Other',
-                        ]
-                        .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                        .toList(),
-                onChanged: (v) => category = v ?? category,
+            ),
+            actions: [
+              TextButton(
+                onPressed: isUploading ? null : () => Navigator.pop(ctx),
+                child: const Text('Cancel'),
               ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: versionCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Version (e.g. v1.0, v2.1)',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: fileUrlCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Blueprint File URL / Document Ref',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: notesCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Notes / Revision Details',
+              ElevatedButton.icon(
+                onPressed: isUploading
+                    ? null
+                    : () async {
+                        if (titleCtrl.text.trim().isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text('Please enter a drawing title.')),
+                          );
+                          return;
+                        }
+
+                        setDialogState(() {
+                          isUploading = true;
+                          uploadStatus = 'Uploading blueprint / site photo...';
+                        });
+
+                        String finalFileUrl = fileUrlCtrl.text.trim();
+
+                        final client = ref.read(supabaseClientProvider);
+                        final drawingRepo = SupabaseDrawingRepository(client);
+
+                        if (pickedBytes != null) {
+                          final uploadedUrl = await drawingRepo.uploadDrawingFile(
+                            projectId: widget.projectId,
+                            bytes: pickedBytes!,
+                            fileName: pickedFileName ?? 'drawing.jpg',
+                            extension: pickedExtension ?? 'jpg',
+                          );
+                          if (uploadedUrl != null && uploadedUrl.isNotEmpty) {
+                            finalFileUrl = uploadedUrl;
+                          }
+                        }
+
+                        if (finalFileUrl.isEmpty) {
+                          finalFileUrl = 'https://storage.supabase.co/drawings/site_blueprint.pdf';
+                        }
+
+                        final drawing = SiteDrawing(
+                          id: '',
+                          projectId: widget.projectId,
+                          title: titleCtrl.text.trim(),
+                          category: category,
+                          version: versionCtrl.text.trim().isEmpty ? 'v1.0' : versionCtrl.text.trim(),
+                          fileUrl: finalFileUrl,
+                          notes: notesCtrl.text.trim().isEmpty ? null : notesCtrl.text.trim(),
+                          fileSizeBytes: pickedBytes?.length ?? 0,
+                          createdAt: DateTime.now(),
+                        );
+
+                        final saved = await drawingRepo.addDrawing(drawing);
+
+                        if (saved != null) {
+                          await SupabaseActivityRepository(client).logSiteActivityAndNotify(
+                            actionType: 'drawing_added',
+                            entityType: 'site_drawings',
+                            entityId: saved.id,
+                            title: 'New Site Blueprint: ${saved.title} (${saved.category})',
+                            projectId: widget.projectId,
+                          );
+                        }
+
+                        ref.invalidate(projectDrawingsProvider(widget.projectId));
+                        ref.invalidate(recentActivitiesProvider);
+                        ref.invalidate(unreadNotificationsCountProvider);
+
+                        if (ctx.mounted) Navigator.pop(ctx);
+
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Drawing "${drawing.title}" uploaded successfully!'),
+                              backgroundColor: const Color(0xFF10B981),
+                            ),
+                          );
+                        }
+                      },
+                icon: const Icon(Icons.cloud_upload_outlined, size: 16),
+                label: const Text('Save & Upload Plan'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primaryColor(context),
+                  foregroundColor: Colors.white,
                 ),
               ),
             ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (titleCtrl.text.trim().isEmpty) return;
-              final drawing = SiteDrawing(
-                id: '',
-                projectId: widget.projectId,
-                title: titleCtrl.text.trim(),
-                category: category,
-                version: versionCtrl.text.trim().isEmpty
-                    ? 'v1.0'
-                    : versionCtrl.text.trim(),
-                fileUrl: fileUrlCtrl.text.trim().isEmpty
-                    ? 'https://storage.supabase.co/drawings/site_blueprint.pdf'
-                    : fileUrlCtrl.text.trim(),
-                notes: notesCtrl.text.trim().isEmpty
-                    ? null
-                    : notesCtrl.text.trim(),
-                createdAt: DateTime.now(),
-              );
-              final client = ref.read(supabaseClientProvider);
-              final saved = await SupabaseDrawingRepository(
-                client,
-              ).addDrawing(drawing);
-              if (saved != null) {
-                await SupabaseActivityRepository(
-                  client,
-                ).logSiteActivityAndNotify(
-                  actionType: 'drawing_added',
-                  entityType: 'site_drawings',
-                  entityId: saved.id,
-                  title:
-                      'New Site Blueprint: ${saved.title} (${saved.category})',
-                  projectId: widget.projectId,
-                );
-              }
-              ref.invalidate(projectDrawingsProvider(widget.projectId));
-              ref.invalidate(recentActivitiesProvider);
-              ref.invalidate(unreadNotificationsCountProvider);
-              if (ctx.mounted) Navigator.pop(ctx);
-            },
-            child: const Text('Save Drawing'),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
@@ -2684,78 +4259,196 @@ class _ProjectOperationsScreenState
           if (p == null) {
             return _emptyState('Site Not Found', 'Could not load site details');
           }
-          return Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: AppColors.cardBg(context),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border(context)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Detailed Site Specifications',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
-                  ),
+
+          final remainingBudget = p.budget - p.spent;
+          final budgetPercent = p.budget > 0 ? (p.spent / p.budget).clamp(0.0, 1.0) : 0.0;
+
+          return Column(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: AppColors.cardBg(context),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: AppColors.border(context)),
                 ),
-                const Divider(height: 24),
-                _infoTile('Site Name', p.name),
-                _infoTile(
-                  'Site Address & Location',
-                  (p.address != null && p.address!.isNotEmpty)
-                      ? p.address!
-                      : 'N/A',
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Detailed Site Specifications',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.text(context),
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'ID: ${p.id}',
+                                style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Wrap(
+                          spacing: 8,
+                          children: [
+                            if (p.customerMobile != null && p.customerMobile!.isNotEmpty)
+                              IconButton.filledTonal(
+                                icon: const Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF25D366)),
+                                tooltip: 'WhatsApp Client / Owner',
+                                onPressed: () {
+                                  WhatsAppHelper.shareMessage(
+                                    context: context,
+                                    message: 'Hello ${p.customerName ?? 'Sir/Madam'}, regarding the construction progress of ${p.name}...',
+                                    phoneNumber: p.customerMobile,
+                                    successNotice: 'Opening WhatsApp chat with client',
+                                  );
+                                },
+                              ),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                await Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => ProjectFormScreen(project: p),
+                                  ),
+                                );
+                                ref.invalidate(projectDetailByIdProvider(widget.projectId));
+                                ref.read(projectControllerProvider.notifier).loadProjects();
+                              },
+                              icon: const Icon(Icons.edit_outlined, size: 15),
+                              label: const Text('Edit Site Details', style: TextStyle(fontSize: 12)),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor(context),
+                                foregroundColor: Colors.white,
+                                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    const Divider(height: 24),
+                    _infoTile('Site Name', p.name),
+                    _infoTile(
+                      'Site Address & Location',
+                      (p.address != null && p.address!.isNotEmpty) ? p.address! : 'N/A',
+                    ),
+                    _infoTile('Project Status', p.status.toUpperCase()),
+                    const Divider(height: 24),
+
+                    // Financial Health Box
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border(context)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text('Budget Utilization', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.mutedText(context))),
+                              Text('${(budgetPercent * 100).toInt()}% Used', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: budgetPercent > 0.9 ? AppColors.error : const Color(0xFF10B981))),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: budgetPercent,
+                              backgroundColor: AppColors.border(context),
+                              color: budgetPercent > 0.9 ? AppColors.error : AppColors.primary,
+                              minHeight: 6,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Allocated Budget', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                                  Text('₹${p.budget.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Total Spent', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                                  Text('₹${p.spent.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.error)),
+                                ],
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('Remaining', style: TextStyle(fontSize: 11, color: AppColors.mutedText(context))),
+                                  Text('₹${remainingBudget.toInt()}', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: remainingBudget >= 0 ? const Color(0xFF10B981) : AppColors.error)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+
+                    const Divider(height: 24),
+                    Text(
+                      'Customer / Owner Information',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _infoTile('Customer Name', p.customerName ?? 'Direct Client'),
+                    _infoTile('Customer Mobile', p.customerMobile ?? 'N/A'),
+                    _infoTile('Customer Email', p.customerEmail ?? 'N/A'),
+                    _infoTile('Customer Address', p.customerAddress ?? 'N/A'),
+                    _infoTile('Customer Date of Birth', p.customerDob ?? 'N/A'),
+                    const Divider(height: 24),
+                    Text(
+                      'Site Engineering Metrics',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _infoTile(
+                      'Built-Up Area',
+                      p.builtUpArea > 0 ? '${p.builtUpArea.toInt()} sqft' : 'N/A',
+                    ),
+                    _infoTile(
+                      'Flat Area',
+                      p.flatArea > 0 ? '${p.flatArea.toInt()} sqft' : 'N/A',
+                    ),
+                    _infoTile(
+                      'Project Duration',
+                      p.duration != null ? '${p.duration} Months' : 'N/A',
+                    ),
+                    _infoTile(
+                      'Assigned Supervisor',
+                      p.supervisorId ?? 'Unassigned',
+                    ),
+                  ],
                 ),
-                _infoTile('Project Status', p.status.toUpperCase()),
-                const Divider(height: 24),
-                Text(
-                  'Customer / Owner Information',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _infoTile('Customer Name', p.customerName ?? 'Direct Client'),
-                _infoTile('Customer Mobile', p.customerMobile ?? 'N/A'),
-                _infoTile('Customer Email', p.customerEmail ?? 'N/A'),
-                _infoTile('Customer Address', p.customerAddress ?? 'N/A'),
-                _infoTile('Customer Date of Birth', p.customerDob ?? 'N/A'),
-                const Divider(height: 24),
-                Text(
-                  'Site Engineering Metrics',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: AppColors.text(context),
-                  ),
-                ),
-                const SizedBox(height: 8),
-                _infoTile(
-                  'Built-Up Area',
-                  p.builtUpArea > 0 ? '${p.builtUpArea.toInt()} sqft' : 'N/A',
-                ),
-                _infoTile(
-                  'Flat Area',
-                  p.flatArea > 0 ? '${p.flatArea.toInt()} sqft' : 'N/A',
-                ),
-                _infoTile(
-                  'Project Duration',
-                  p.duration != null ? '${p.duration} Months' : 'N/A',
-                ),
-                _infoTile(
-                  'Assigned Supervisor',
-                  p.supervisorId ?? 'Unassigned',
-                ),
-                _infoTile('Total Budget Amount', '₹${p.budget.toInt()}'),
-                _infoTile('Total Amount Spent', '₹${p.spent.toInt()}'),
-              ],
-            ),
+              ),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),

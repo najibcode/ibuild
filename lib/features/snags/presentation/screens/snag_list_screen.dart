@@ -8,6 +8,7 @@ import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
 import '../../../subcontractors/presentation/controllers/subcontractor_controller.dart';
 
@@ -145,39 +146,31 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
   void _shareSnagWhatsApp(SnagItem snag) {
     final dateStr = snag.createdAt.toIso8601String().split('T').first;
     final StringBuffer msgBuffer = StringBuffer();
-    msgBuffer.writeln('⚠️ *SITE DEFECT / QUALITY PUNCH LIST NOTICE — IBUILD ERP*');
-    msgBuffer.writeln('━━━━━━━━━━━━━━━━━━━━━');
-    msgBuffer.writeln('🆔 *Ticket Number:* #${snag.id}');
-    msgBuffer.writeln('🏢 *Project Site:* ${snag.projectName ?? "Active Site"}');
-    msgBuffer.writeln('📍 *Location:* ${snag.location}');
-    msgBuffer.writeln('🛠️ *Trade Category:* ${snag.tradeCategory}');
-    msgBuffer.writeln('🚨 *Severity Priority:* ${snag.severity.toUpperCase()}');
-    msgBuffer.writeln('📊 *Current Status:* ${snag.status.toUpperCase()}');
-    msgBuffer.writeln('👤 *Assigned Contractor:* ${snag.assignedSubcontractor ?? "Unassigned"}');
-    msgBuffer.writeln('📅 *Date Logged:* $dateStr');
-    msgBuffer.writeln('━━━━━━━━━━━━━━━━━━━━━');
-    msgBuffer.writeln('📝 *Defect Description:*\n${snag.description}');
+    msgBuffer.writeln('*IBUILD QUALITY PUNCH LIST NOTICE*');
+    msgBuffer.writeln('----------------------------------------');
+    msgBuffer.writeln('*Ticket ID:* #${snag.id}');
+    msgBuffer.writeln('*Project Site:* ${snag.projectName ?? "Active Site"}');
+    msgBuffer.writeln('*Location:* ${snag.location}');
+    msgBuffer.writeln('*Trade Category:* ${snag.tradeCategory}');
+    msgBuffer.writeln('*Severity:* ${snag.severity.toUpperCase()}');
+    msgBuffer.writeln('*Current Status:* ${snag.status.toUpperCase()}');
+    msgBuffer.writeln('*Assigned Contractor:* ${snag.assignedSubcontractor ?? "Unassigned"}');
+    msgBuffer.writeln('*Date Logged:* $dateStr');
+    msgBuffer.writeln('----------------------------------------');
+    msgBuffer.writeln('*Defect Description:*');
+    msgBuffer.writeln(snag.description);
     if (snag.rectificationNotes != null && snag.rectificationNotes!.isNotEmpty) {
-      msgBuffer.writeln('📌 *Rectification Notes:*\n${snag.rectificationNotes}');
+      msgBuffer.writeln('\n*Rectification Notes:*');
+      msgBuffer.writeln(snag.rectificationNotes!);
     }
-    msgBuffer.writeln('━━━━━━━━━━━━━━━━━━━━━');
-    msgBuffer.writeln('📌 *Action Required:* Please inspect, rectify, and confirm closure in IBUILD.');
-    msgBuffer.writeln('_Generated via IBUILD Quality & Punch List Management Hub_');
-    final msg = msgBuffer.toString();
+    msgBuffer.writeln('----------------------------------------');
+    msgBuffer.writeln('*Action Required:* Please inspect, rectify on site, and confirm closure.');
+    msgBuffer.writeln('_Generated via IBUILD Construction ERP_');
 
-    final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(msg)}");
-    try {
-      canLaunchUrl(url).then((ok) {
-        if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
-      });
-    } catch (_) {}
-
-    Clipboard.setData(ClipboardData(text: msg));
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Snag notice formatted and copied to clipboard! Opening WhatsApp... ✓'),
-        backgroundColor: Color(0xFF25D366),
-      ),
+    WhatsAppHelper.shareMessage(
+      context: context,
+      message: msgBuffer.toString(),
+      successNotice: 'Snag notice prepared',
     );
   }
 

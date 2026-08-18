@@ -7,6 +7,7 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
+import '../../../../core/utils/whatsapp_helper.dart';
 import '../controllers/attendance_controller.dart';
 import '../../data/models/attendance_model.dart';
 import '../../data/services/attendance_report_service.dart';
@@ -889,26 +890,18 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
               OutlinedButton.icon(
                 onPressed: () {
-                  final summaryMsg = "👷 *IBUILD MUSTER ROLL REPORT*\n"
-                      "📅 *Date:* ${state.selectedDate}\n"
-                      "👥 *Present Staff:* $presentCount / ${activeEmployees.length}\n"
-                      "💰 *Total Daily Wage Outflow:* ₹${totalPayroll.toInt()}\n"
-                      "━━━━━━━━━━━━━━━━━━━━━\n"
-                      "_Generated via IBUILD ERP_";
+                  final summaryMsg = "*IBUILD MUSTER ROLL & DAILY WAGES*\n"
+                      "----------------------------------------\n"
+                      "*Date:* ${state.selectedDate}\n"
+                      "*Present Staff:* $presentCount / ${activeEmployees.length} active\n"
+                      "*Total Daily Wage Outflow:* INR ${totalPayroll.toInt()}\n"
+                      "----------------------------------------\n"
+                      "_Generated via IBUILD Construction ERP_";
 
-                  final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(summaryMsg)}");
-                  try {
-                    canLaunchUrl(url).then((ok) {
-                      if (ok) launchUrl(url, mode: LaunchMode.externalApplication);
-                    });
-                  } catch (_) {}
-
-                  Clipboard.setData(ClipboardData(text: summaryMsg));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Muster roll copied & opened in WhatsApp!'),
-                      backgroundColor: Color(0xFF25D366),
-                    ),
+                  WhatsAppHelper.shareMessage(
+                    context: context,
+                    message: summaryMsg,
+                    successNotice: 'Muster roll report prepared',
                   );
                 },
                 icon: const Icon(Icons.share, size: 14),
