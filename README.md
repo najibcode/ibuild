@@ -6,7 +6,7 @@
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
-[![Vercel](https://img.shields.io/badge/Vercel-Production%20Web-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare_Workers-Edge_Deployment-F38020?style=for-the-badge&logo=cloudflare&logoColor=white)](https://ibuild.najibcode.workers.dev/#/login)
 [![Riverpod](https://img.shields.io/badge/State_Management-Riverpod%202.x-0553B1?style=for-the-badge)](https://riverpod.dev)
 [![Excel](https://img.shields.io/badge/Export-Multi--Sheet%20Excel-107C41?style=for-the-badge&logo=microsoftexcel&logoColor=white)](https://products.office.com/excel)
 [![PDF](https://img.shields.io/badge/Reporting-Vector%20PDF%20Engine-EC1C24?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](https://pub.dev/packages/pdf)
@@ -14,7 +14,7 @@
 
 *A robust, data-first Construction ERP built for business owners, project directors, site engineers, and accounting teams.*
 
-[🌐 Live Web Application](https://ibuild-najibcodes-projects.vercel.app) • [📊 Vercel Console](https://vercel.com/najibcodes-projects/ibuild) • [🗄️ Database Schemas & Migrations](docs/Database_Migrations.md)
+[🌐 Live Web Application (Cloudflare Edge)](https://ibuild.najibcode.workers.dev/#/login) • [🗄️ Database Schemas & Migrations](docs/Database_Migrations.md)
 
 ---
 
@@ -301,27 +301,35 @@ Key migration files:
 
 ---
 
-## 🌐 Production Web Deployment (Vercel)
+## 🌐 Production Web Deployment (Cloudflare Workers)
 
-The web client is configured for automated single-page application (SPA) deployment on **Vercel** via `vercel.json`:
+The web client is deployed on **Cloudflare Workers** with Static Assets and global edge caching via `wrangler.jsonc`:
 
-```json
+```jsonc
 {
-  "version": 2,
-  "buildCommand": "flutter build web --release",
-  "outputDirectory": "build/web",
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
-  ]
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ibuild",
+  "compatibility_date": "2026-08-17",
+  "observability": {
+    "enabled": true
+  },
+  "assets": {
+    "directory": "build/web",
+    "not_found_handling": "single-page-application"
+  }
 }
 ```
 
-Deploying manually with Vercel CLI:
+### Build & Deploy Commands:
 ```bash
+# 1. Compile production Flutter web bundle
 flutter build web --release
-npx vercel --prod
+
+# 2. Deploy instantly to Cloudflare Edge CDN
+npx wrangler deploy
 ```
+
+Live Production URL: **[https://ibuild.najibcode.workers.dev/#/login](https://ibuild.najibcode.workers.dev/#/login)**
 
 ---
 
