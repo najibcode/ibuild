@@ -30,7 +30,7 @@ import 'features/dashboard/presentation/screens/admin_dashboard.dart';
 import 'features/dashboard/presentation/screens/supervisor_dashboard.dart';
 import 'features/rbac/presentation/providers/permission_provider.dart';
 
-// ── Controller imports for auto-reload ──
+import 'features/auth/presentation/controllers/auth_controller.dart';
 import 'features/subcontractors/presentation/controllers/subcontractor_controller.dart';
 import 'features/expenses/presentation/controllers/expense_controller.dart';
 import 'features/employees/presentation/controllers/employee_controller.dart';
@@ -103,6 +103,9 @@ class MainRouterScreen extends ConsumerStatefulWidget {
 }
 
 class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
+  // Global key for mobile root scaffold to control drawer opening
+  final GlobalKey<ScaffoldState> _mobileScaffoldKey = GlobalKey<ScaffoldState>();
+
   // Navigation history stack for mobile view
   final List<MobileScreen> _mobileNavStack = [MobileScreen.dashboard];
 
@@ -226,9 +229,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   // Push a new mobile screen
   void _pushMobile(MobileScreen screen) {
+    if (_mobileNavStack.isNotEmpty && _mobileNavStack.last == screen) return;
     setState(() {
       _mobileNavStack.add(screen);
     });
+    _refreshDataForMobileScreen(screen);
   }
 
   // Pop the top mobile screen
@@ -265,6 +270,8 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   // --- MOBILE NAVIGATION & LAYOUT ---
   Widget _buildMobileLayout() {
     final role = ref.watch(currentRoleProvider);
+    final canPopMobile = _mobileNavStack.length > 1;
+    final onBack = canPopMobile ? _popMobile : null;
 
     Widget body;
     switch (_currentMobileScreen) {
@@ -280,105 +287,87 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
             onViewProjects: () => _pushMobile(MobileScreen.projectsList),
             onViewTrack: () => _pushMobile(MobileScreen.financials),
             onViewSupply: () => _pushMobile(MobileScreen.inventory),
+            onMenuPressed: () {
+              _mobileScaffoldKey.currentState?.openDrawer();
+            },
           );
         }
         break;
       case MobileScreen.projectsList:
-        body = const ProjectListScreen();
+        body = ProjectListScreen(onBackPressed: onBack);
         break;
       case MobileScreen.inventory:
-        body = const InventoryListScreen();
+        body = InventoryListScreen(onBackPressed: onBack);
         break;
       case MobileScreen.attendance:
-        body = const AttendanceScreen();
+        body = AttendanceScreen(onBackPressed: onBack);
         break;
       case MobileScreen.employees:
-        body = const EmployeeListScreen();
+        body = EmployeeListScreen(onBackPressed: onBack);
         break;
       case MobileScreen.financials:
-        body = const FinancialsHubScreen();
+        body = FinancialsHubScreen(onBackPressed: onBack);
         break;
       case MobileScreen.equipment:
-        body = const EquipmentListScreen();
+        body = EquipmentListScreen(onBackPressed: onBack);
         break;
       case MobileScreen.vendors:
-        body = const VendorListScreen();
+        body = VendorListScreen(onBackPressed: onBack);
         break;
       case MobileScreen.snags:
-        body = const SnagListScreen();
+        body = SnagListScreen(onBackPressed: onBack);
         break;
       case MobileScreen.reports:
-        body = const FullReportGeneratorScreen();
+        body = FullReportGeneratorScreen(onBackPressed: onBack);
         break;
       case MobileScreen.settings:
-        body = const SettingsScreen();
+        body = SettingsScreen(onBackPressed: onBack);
         break;
       case MobileScreen.profile:
-        body = const UserProfileScreen();
+        body = UserProfileScreen(onBackPressed: onBack);
         break;
     }
 
-    // Build bottom nav items (Dashboard, Attendance, Projects, Inventory, More options)
+    // Build 5 primary bottom nav items: Dashboard, Attendance, Projects, Inventory, Financials
     final List<_MobileNavEntry> navEntries = [
       _MobileNavEntry(
         screen: MobileScreen.dashboard,
         icon: Icons.dashboard_outlined,
         activeIcon: Icons.dashboard,
         label: 'Dashboard',
-        permission: null,
       ),
       _MobileNavEntry(
         screen: MobileScreen.attendance,
         icon: Icons.how_to_reg_outlined,
         activeIcon: Icons.how_to_reg,
         label: 'Attendance',
-        permission: null,
       ),
       _MobileNavEntry(
         screen: MobileScreen.projectsList,
         icon: Icons.foundation_outlined,
         activeIcon: Icons.foundation,
         label: 'Projects',
-        permission: null,
       ),
       _MobileNavEntry(
         screen: MobileScreen.inventory,
         icon: Icons.inventory_2_outlined,
         activeIcon: Icons.inventory_2,
         label: 'Inventory',
-        permission: null,
       ),
-      // "More options" tab is always visible
       _MobileNavEntry(
-        screen: MobileScreen.settings, // placeholder
-        icon: Icons.more_horiz_outlined,
-        activeIcon: Icons.more_horiz,
-        label: 'More options',
-        permission: null,
-        isMoreTab: true,
+        screen: MobileScreen.financials,
+        icon: Icons.account_balance_wallet_outlined,
+        activeIcon: Icons.account_balance_wallet,
+        label: 'Financials',
       ),
     ];
 
     // Find the active bottom bar index
     int bottomBarIndex = 0;
     for (int i = 0; i < navEntries.length; i++) {
-      if (navEntries[i].isMoreTab) continue;
       if (_currentMobileScreen == navEntries[i].screen) {
         bottomBarIndex = i;
         break;
-      }
-      // Check if current screen is a sub-screen of "More"
-      if (_currentMobileScreen == MobileScreen.settings ||
-          _currentMobileScreen == MobileScreen.employees ||
-          _currentMobileScreen == MobileScreen.financials ||
-          _currentMobileScreen == MobileScreen.equipment ||
-          _currentMobileScreen == MobileScreen.vendors ||
-          _currentMobileScreen == MobileScreen.snags ||
-          _currentMobileScreen == MobileScreen.reports ||
-          _currentMobileScreen == MobileScreen.profile) {
-        // Find the "More" tab index
-        final moreIdx = navEntries.indexWhere((e) => e.isMoreTab);
-        if (moreIdx >= 0) bottomBarIndex = moreIdx;
       }
     }
 
@@ -395,6 +384,8 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         }
       },
       child: Scaffold(
+        key: _mobileScaffoldKey,
+        drawer: _buildMobileDrawer(context, role),
         body: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           switchInCurve: Curves.easeIn,
@@ -417,12 +408,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           unselectedLabelStyle: const TextStyle(fontSize: 11),
           onTap: (index) {
             if (index < navEntries.length) {
-              final entry = navEntries[index];
-              if (entry.isMoreTab) {
-                _showMoreMenu(context);
-              } else {
-                _setMobileTab(entry.screen);
-              }
+              _setMobileTab(navEntries[index].screen);
             }
           },
           items: navEntries
@@ -437,149 +423,216 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     );
   }
 
-  void _showMoreMenu(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      builder: (context) {
-        return SafeArea(
-          child: SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+  /// Mobile Navigation Drawer accessible from the 3-line hamburger menu
+  Widget _buildMobileDrawer(BuildContext context, String role) {
+    final authState = ref.watch(authControllerProvider);
+    final profile = authState.profile;
+    final displayName = profile?['full_name'] as String? ??
+        (authState.user?.email?.split('@').first ?? 'Business Owner');
+    final email = authState.user?.email ?? 'admin@ibuild.app';
+    final avatarUrl = profile?['avatar_url'] as String? ??
+        'https://lh3.googleusercontent.com/aida-public/AB6AXuCCZjuOoP8-6MOOMrALPsgiKEd5USwzMqGfIaIQWjWcvyG4adhn7Hcd5dQ8vVX7OqxycfYIMrY7aditONBZI9t468aYqVhsEQDG_r5OIiIvjo_2bFixKxk8eDAuWUuM7KVoIFpcC8DseRW1Toy89Ts3N78FWfKk_VT04Vus7TmwDYc8DMTF_yK6QQgeCCZ8NgqJeIjl_Y7typ63ZU7hi5XS9hj94bf6FUL5y5AyukSNdjhtqLpykWALhbglsHhiqjW-wTOlwRK3vhc';
+    final formattedRole = (profile?['role'] as String? ?? role).replaceAll('_', ' ').toUpperCase();
+
+    return Drawer(
+      backgroundColor: AppColors.cardBg(context),
+      child: SafeArea(
+        child: Column(
+          children: [
+            // User Header
+            Container(
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withValues(alpha: 0.08),
+                border: Border(bottom: BorderSide(color: AppColors.border(context))),
+              ),
+              child: Row(
                 children: [
-                  Container(
-                    width: 40,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: AppColors.borderSubtle,
-                      borderRadius: BorderRadius.circular(2),
+                  CircleAvatar(
+                    radius: 24,
+                    backgroundImage: NetworkImage(avatarUrl),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          displayName,
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Text(
+                          email,
+                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 11),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary,
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: Text(
+                            formattedRole,
+                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(height: 16),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.account_balance_wallet_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Financials & Money Hub',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                ],
+              ),
+            ),
+            // Menu Items Organized By Categories (No duplicate primary tabs)
+            Expanded(
+              child: ListView(
+                padding: const EdgeInsets.symmetric(vertical: 6),
+                children: [
+                  // BUSINESS
+                  _drawerSectionHeader(context, 'BUSINESS'),
+                  _drawerItem(
+                    icon: Icons.people_outline,
+                    label: 'Employees & Staff Directory',
+                    isSelected: _currentMobileScreen == MobileScreen.employees,
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.financials);
+                      _pushMobile(MobileScreen.employees);
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.people_outline,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Employees & Staff Directory',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                  _drawerItem(
+                    icon: Icons.assignment_ind_outlined,
+                    label: 'Subcontractors & Trade Partners',
+                    isSelected: _currentMobileScreen == MobileScreen.vendors,
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.employees);
+                      _pushMobile(MobileScreen.vendors);
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.construction_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Equipment, Machinery & Tools',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+
+                  // SITE OPERATIONS
+                  _drawerSectionHeader(context, 'SITE OPERATIONS'),
+                  _drawerItem(
+                    icon: Icons.construction_outlined,
+                    label: 'Equipment, Machinery & Tools',
+                    isSelected: _currentMobileScreen == MobileScreen.equipment,
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.equipment);
+                      _pushMobile(MobileScreen.equipment);
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.assignment_ind_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Subcontractors',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+                  _drawerItem(
+                    icon: Icons.checklist_rtl_outlined,
+                    label: 'Site Snags & Quality Punch List',
+                    isSelected: _currentMobileScreen == MobileScreen.snags,
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.vendors);
+                      _pushMobile(MobileScreen.snags);
                     },
                   ),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.checklist_rtl_outlined,
-                        color: AppColors.primary,
-                      ),
-                      title: const Text(
-                        'Site Snags & Quality Punch List',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _setMobileTab(MobileScreen.snags);
-                      },
-                    ),
-                    ListTile(
-                      leading: const Icon(
-                        Icons.assessment_outlined,
-                        color: AppColors.primary,
-                      ),
-                      title: const Text(
-                        'Reports & Export',
-                        style: TextStyle(fontWeight: FontWeight.w600),
-                      ),
-                      onTap: () {
-                        Navigator.pop(context);
-                        _setMobileTab(MobileScreen.reports);
-                      },
-                    ),
-                  const Divider(),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.account_circle_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'My Profile',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+
+                  // REPORTING
+                  _drawerSectionHeader(context, 'REPORTING'),
+                  _drawerItem(
+                    icon: Icons.assessment_outlined,
+                    label: 'Reports & Data Export',
+                    isSelected: _currentMobileScreen == MobileScreen.reports,
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.profile);
+                      _pushMobile(MobileScreen.reports);
                     },
                   ),
-                  ListTile(
-                    leading: const Icon(
-                      Icons.settings_outlined,
-                      color: AppColors.primary,
-                    ),
-                    title: const Text(
-                      'Settings',
-                      style: TextStyle(fontWeight: FontWeight.w600),
-                    ),
+
+                  // ACCOUNT
+                  _drawerSectionHeader(context, 'ACCOUNT'),
+                  _drawerItem(
+                    icon: Icons.account_circle_outlined,
+                    label: 'My Profile & Notifications',
+                    isSelected: _currentMobileScreen == MobileScreen.profile,
                     onTap: () {
                       Navigator.pop(context);
-                      _setMobileTab(MobileScreen.settings);
+                      _pushMobile(MobileScreen.profile);
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.settings_outlined,
+                    label: 'Settings',
+                    isSelected: _currentMobileScreen == MobileScreen.settings,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _pushMobile(MobileScreen.settings);
                     },
                   ),
                 ],
               ),
             ),
-          ),
-        );
-      },
+            // Footer Logout
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                border: Border(top: BorderSide(color: AppColors.border(context))),
+              ),
+              child: ListTile(
+                dense: true,
+                leading: const Icon(Icons.logout, color: Colors.redAccent),
+                title: const Text(
+                  'Sign Out',
+                  style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
+                ),
+                onTap: () async {
+                  Navigator.pop(context);
+                  await ref.read(authControllerProvider.notifier).signOut();
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerSectionHeader(BuildContext context, String title) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 16, right: 16, top: 12, bottom: 4),
+      child: Text(
+        title,
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.bold,
+          letterSpacing: 0.8,
+          color: AppColors.mutedText(context),
+        ),
+      ),
+    );
+  }
+
+  Widget _drawerItem({
+    required IconData icon,
+    required String label,
+    required bool isSelected,
+    required VoidCallback onTap,
+  }) {
+    return ListTile(
+      dense: true,
+      leading: Icon(
+        icon,
+        color: isSelected ? AppColors.primary : AppColors.mutedText(context),
+        size: 20,
+      ),
+      title: Text(
+        label,
+        style: TextStyle(
+          color: isSelected ? AppColors.primary : AppColors.text(context),
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+          fontSize: 13,
+        ),
+      ),
+      selected: isSelected,
+      selectedTileColor: AppColors.primary.withValues(alpha: 0.1),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+      onTap: onTap,
     );
   }
 
@@ -763,7 +816,6 @@ class _MobileNavEntry {
   final IconData activeIcon;
   final String label;
   final String? permission;
-  final bool isMoreTab;
 
   _MobileNavEntry({
     required this.screen,
@@ -771,6 +823,5 @@ class _MobileNavEntry {
     required this.activeIcon,
     required this.label,
     this.permission,
-    this.isMoreTab = false,
   });
 }

@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/data_export_actions.dart';
@@ -17,7 +15,12 @@ import '../../data/models/equipment_model.dart';
 import '../controllers/equipment_controller.dart';
 
 class EquipmentListScreen extends ConsumerStatefulWidget {
-  const EquipmentListScreen({super.key});
+  final VoidCallback? onBackPressed;
+
+  const EquipmentListScreen({
+    super.key,
+    this.onBackPressed,
+  });
 
   @override
   ConsumerState<EquipmentListScreen> createState() =>
@@ -1145,9 +1148,25 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
       (sum, e) => sum + e.rentalCostPerDay,
     );
 
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : null,
+        titleSpacing: hasBack ? 0 : 16,
         title: Text(
           'Equipment',
           style: TextStyle(

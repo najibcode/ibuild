@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/utils/excel_download_helper.dart';
@@ -17,6 +16,10 @@ import '../../../daily_progress/presentation/controllers/daily_progress_controll
 import '../../../daily_progress/data/models/daily_progress_model.dart';
 import '../../../inventory/data/models/inventory_history_model.dart';
 import '../../../subcontractors/data/models/subcontractor_model.dart';
+import '../../../employees/presentation/controllers/employee_controller.dart';
+import '../../../payments/data/models/payment_ledger_model.dart';
+import '../../../payments/data/repositories/supabase_payment_ledger_repository.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../data/pdf_report_generator.dart';
 
 enum ReportCadence { daily, weekly, monthly, custom }
@@ -24,10 +27,13 @@ enum ReportCadence { daily, weekly, monthly, custom }
 class FullReportGeneratorScreen extends ConsumerStatefulWidget {
   final bool showAppBar;
   final String? initialProjectId;
+  final VoidCallback? onBackPressed;
+
   const FullReportGeneratorScreen({
     super.key,
     this.showAppBar = true,
     this.initialProjectId,
+    this.onBackPressed,
   });
 
   @override
@@ -572,100 +578,157 @@ class _FullReportGeneratorScreenState
   Future<void> _exportExcel(BuildContext context) async {
     final projectState = ref.read(projectControllerProvider);
     final expenseState = ref.read(expenseControllerProvider);
+    final attendanceState = ref.read(attendanceControllerProvider);
     final subcontractorState = ref.read(subcontractorControllerProvider);
+    final inventoryState = ref.read(inventoryControllerProvider);
+    final employees = ref.read(employeeListControllerProvider).valueOrNull ?? [];
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Row(
+            children: [
+              SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              ),
+              SizedBox(width: 12),
+              Text('Generating consolidated ERP Excel report...'),
+            ],
+          ),
+          duration: Duration(seconds: 2),
+        ),
+      );
+    }
 
     try {
-      final List<String> headers = [
-        'Section',
-        'Date / Timestamp',
-        'Title / Entity',
-        'Category / Role / Trade',
-        'Amount / Qty / Value',
-        'Status / Progress',
-        'Project Site',
-        'Notes / Details',
-      ];
+      // 1. Identify Target Project or Portfolio Context
+      final isSingleProject = _selectedProjectId != null && _selectedProjectId != 'all';
+      final projects = isSingleProject
+          ? projectState.projects.where((p) => p.id == _selectedProjectId).toList()
+          : projectState.projects;
+      final targetProject = projects.isNotEmpty ? projects.first : null;
 
-      final List<List<dynamic>> rows = [];
+      final String projectName = isSingleProject
+          ? (targetProject?.name ?? 'Project Site')
+          : 'Enterprise Portfolio (All Sites)';
+      final String siteName = isSingleProject
+          ? (targetProject?.address ?? targetProject?.name ?? 'Site Location')
+          : 'All Construction Sites';
+      final String clientName = isSingleProject
+          ? (targetProject?.clientName ?? targetProject?.customerName ?? 'Direct Client')
+          : 'Multiple Enterprise Clients';
 
-      // 1. Projects
-      for (final p in projectState.projects) {
-        final progressVal = ((p.physicalProgress ?? (p.budget > 0 ? (p.spent / p.budget * 100) : 0.0))).clamp(0.0, 100.0);
-        rows.add([
-          'PROJECT',
-          p.startDate ?? '-',
-          p.name,
-          p.status,
-          p.budget,
-          '${progressVal.toStringAsFixed(0)}%',
-          p.name,
-          'Spent: ₹${p.spent.toStringAsFixed(2)}',
-        ]);
-      }
+      final double totalBudget = isSingleProject
+          ? (targetProject?.budget ?? 0.0)
+          : projectState.projects.fold(0.0, (s, p) => s + p.budget);
+      final double totalSpent = isSingleProject
+          ? (targetProject?.spent ?? 0.0)
+          : projectState.projects.fold(0.0, (s, p) => s + p.spent);
+      final double remainingBalance = totalBudget > totalSpent ? (totalBudget - totalSpent) : 0.0;
+      final double budgetUtilization = totalBudget > 0 ? ((totalSpent / totalBudget) * 100).clamp(0.0, 100.0) : 0.0;
+      final double physicalProgress = isSingleProject
+          ? (targetProject?.physicalProgress ?? (totalBudget > 0 ? ((totalSpent / totalBudget) * 100).clamp(0.0, 100.0) : 0.0))
+          : (projectState.projects.isEmpty
+              ? 0.0
+              : projectState.projects.fold(0.0, (s, p) => s + (p.physicalProgress ?? 0.0)) / projectState.projects.length);
+      final String projectStatus = isSingleProject ? (targetProject?.status ?? 'active') : 'Active Portfolio';
 
-      // 2. Inventory Movements
-      for (final h in _loadedInventoryHistory) {
-        rows.add([
-          'INVENTORY MOVEMENT',
-          h.createdAt ?? _startDateStr,
-          h.changeType.toUpperCase(),
-          'Stock Movement',
-          h.quantityChange,
-          h.changeType == 'added' ? 'RECEIVED' : 'ISSUED',
-          'Depot / Site',
-          h.notes ?? '-',
-        ]);
-      }
-
-      // 3. Subcontractors
-      for (final s in subcontractorState.items) {
-        rows.add([
-          'SUBCONTRACTOR',
-          DateFormat('yyyy-MM-dd').format(s.createdAt),
-          s.companyName,
-          s.tradeSpecialization,
-          s.contractValue,
-          s.status.toUpperCase(),
-          s.siteName,
-          'Paid: ₹${s.paidAmount.toStringAsFixed(2)} | Balance: ₹${s.outstandingAmount.toStringAsFixed(2)}',
-        ]);
-      }
-
-      // 4. Expenses
+      // 2. Filter domain records for period and project scope
       final filteredExpenses = expenseState.expenses.where((e) {
-        return e.expenseDate.compareTo(_startDateStr) >= 0 &&
-            e.expenseDate.compareTo(_endDateStr) <= 0;
+        final inRange = e.expenseDate.compareTo(_startDateStr) >= 0 && e.expenseDate.compareTo(_endDateStr) <= 0;
+        final matchesProject = !isSingleProject || e.projectId == _selectedProjectId;
+        return inRange && matchesProject;
       }).toList();
 
-      for (final e in filteredExpenses) {
-        rows.add([
-          'EXPENSE',
-          e.expenseDate,
-          'EXP-${e.id.substring(0, e.id.length > 6 ? 6 : e.id.length)}',
-          e.category,
-          e.amount,
-          e.paymentMode.toUpperCase(),
-          e.projectName ?? 'General',
-          e.notes ?? '-',
-        ]);
+      final filteredAttendance = attendanceState.attendanceList.where((a) {
+        final inRange = a.date.compareTo(_startDateStr) >= 0 && a.date.compareTo(_endDateStr) <= 0;
+        final matchesProject = !isSingleProject || a.projectId == _selectedProjectId;
+        return inRange && matchesProject;
+      }).toList();
+
+      final filteredSubcontractors = subcontractorState.items.where((s) {
+        if (!isSingleProject) return true;
+        return s.siteName.toLowerCase().contains(projectName.toLowerCase()) ||
+            projectName.toLowerCase().contains(s.siteName.toLowerCase());
+      }).toList();
+
+      final filteredInventory = inventoryState.items;
+
+      // Fetch payment ledger records
+      List<PaymentLedgerEntry> ledgerEntries = [];
+      try {
+        final ledgerRepo = SupabasePaymentLedgerRepository(Supabase.instance.client);
+        final allEntries = isSingleProject && _selectedProjectId != null
+            ? await ledgerRepo.fetchLedgerForProject(_selectedProjectId!)
+            : await ledgerRepo.fetchAllLedgerEntries();
+        ledgerEntries = allEntries.where((p) {
+          final pDateStr = DateFormat('yyyy-MM-dd').format(p.paymentDate);
+          return pDateStr.compareTo(_startDateStr) >= 0 && pDateStr.compareTo(_endDateStr) <= 0;
+        }).toList();
+      } catch (_) {
+        // Fallback if ledger fetch fails
       }
 
-      final safeName = _periodTitle.replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
-      final fileName = 'IBUILD_$safeName.xlsx';
+      // 3. Compile Real Attention Required Items (No mock data)
+      final List<String> attentionItems = [];
+      for (final p in projects) {
+        if (p.spent > p.budget && p.budget > 0) {
+          attentionItems.add('Budget alert: "${p.name}" spent ₹${p.spent.toStringAsFixed(0)} against budget ₹${p.budget.toStringAsFixed(0)}');
+        }
+      }
+      for (final item in filteredInventory) {
+        if (item.isLowStock) {
+          attentionItems.add('Low inventory warning: ${item.materialName} has ${item.availableStock} ${item.unit} in stock (below minimum ${item.minimumStock})');
+        }
+      }
+      for (final s in filteredSubcontractors) {
+        if (s.outstandingAmount > 0) {
+          attentionItems.add('Payment retention balance pending for trade partner ${s.companyName}: ₹${s.outstandingAmount.toStringAsFixed(0)}');
+        }
+      }
 
-      final excelBytes = ExcelGeneratorService.generateTableExcel(
-        sheetName: 'Audit_Report',
-        title: 'IBUILD ERP - $_periodTitle ($_startDateStr to $_endDateStr)',
-        headers: headers,
-        rows: rows,
+      // 4. Generate Multi-Sheet Consolidated Workbook
+      final reportData = ConsolidatedReportData(
+        project: targetProject,
+        projectName: projectName,
+        siteName: siteName,
+        clientName: clientName,
+        periodTitle: _periodTitle,
+        startDate: DateFormat('yyyy-MM-dd').parse(_startDateStr),
+        endDate: DateFormat('yyyy-MM-dd').parse(_endDateStr),
+        generatedAt: DateTime.now(),
+        totalBudget: totalBudget,
+        totalSpent: totalSpent,
+        remainingBalance: remainingBalance,
+        budgetUtilization: budgetUtilization,
+        physicalProgress: physicalProgress,
+        projectStatus: projectStatus,
+        attentionItems: attentionItems,
+        attendanceRecords: filteredAttendance,
+        employees: employees,
+        inventoryHistory: _loadedInventoryHistory,
+        inventoryItems: filteredInventory,
+        subcontractors: filteredSubcontractors,
+        expenses: filteredExpenses,
+        payments: ledgerEntries,
       );
+
+      final excelBytes = ExcelGeneratorService.generateConsolidatedReportExcel(reportData);
+
+      // 5. Generate Safe Dynamic Filename
+      final safeName = (isSingleProject ? targetProject?.name ?? 'Project' : 'Portfolio')
+          .replaceAll(RegExp(r'[^a-zA-Z0-9_-]'), '_');
+      final dateStamp = DateFormat('yyyy-MM-dd').format(DateTime.now());
+      final fileName = 'IBUILD_${safeName}_Report_$dateStamp.xlsx';
 
       await ExcelDownloadHelper.downloadExcel(bytes: excelBytes, filename: fileName);
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Exported structured Excel workbook: $fileName'),
+            content: Text('Report generated successfully: $fileName ✓'),
             backgroundColor: AppColors.secondary,
           ),
         );
@@ -674,7 +737,7 @@ class _FullReportGeneratorScreenState
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to export Excel: $e'),
+            content: Text('Unable to generate report: $e. Please try again.'),
             backgroundColor: AppColors.error,
           ),
         );
@@ -723,10 +786,26 @@ class _FullReportGeneratorScreenState
     final receivedCount = _loadedInventoryHistory.where((h) => h.changeType == 'added').length;
     final issuedCount = _loadedInventoryHistory.where((h) => h.changeType == 'used').length;
 
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: widget.showAppBar
           ? AppBar(
+              leading: hasBack
+                  ? IconButton(
+                      icon: const Icon(Icons.arrow_back),
+                      tooltip: 'Go back',
+                      onPressed: () {
+                        if (widget.onBackPressed != null) {
+                          widget.onBackPressed!();
+                        } else {
+                          Navigator.maybePop(context);
+                        }
+                      },
+                    )
+                  : null,
+              titleSpacing: hasBack ? 0 : 16,
               title: const Text(
                 'Reports & Operational Audits',
                 style: TextStyle(fontWeight: FontWeight.bold),

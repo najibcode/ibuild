@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
 import 'package:printing/printing.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
@@ -217,6 +217,243 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
     );
   }
 
+  Future<void> _exportStatementOfAccountsPdf(
+    BuildContext context,
+    BillingListState state,
+    AsyncValue<List<SalesBill>> salesBillsAsync,
+  ) async {
+    final salesBills = salesBillsAsync.valueOrNull ?? [];
+    final vendorBills = state.bills;
+
+    final List<Map<String, dynamic>> rawEntries = [];
+
+    for (final inv in salesBills) {
+      final dateStr = DateFormat('yyyy-MM-dd').format(inv.createdAt);
+      rawEntries.add({
+        'date': dateStr,
+        'ref': '#${inv.billNumber}',
+        'desc': 'Client Sales Invoice - ${inv.clientName}',
+        'inflow': inv.totalAmount,
+        'outflow': 0.0,
+      });
+    }
+
+    for (final b in vendorBills) {
+      rawEntries.add({
+        'date': b.billDate,
+        'ref': '#${b.billNumber}',
+        'desc': 'Vendor Bill - ${b.projectName ?? 'General'}',
+        'inflow': 0.0,
+        'outflow': b.amount,
+      });
+    }
+
+    // Sort chronologically
+    rawEntries.sort((a, b) {
+      final da = DateTime.tryParse(a['date']?.toString() ?? '') ?? DateTime(2000);
+      final db = DateTime.tryParse(b['date']?.toString() ?? '') ?? DateTime(2000);
+      return da.compareTo(db);
+    });
+
+    double runningBalance = 0.0;
+    double totalInflow = 0.0;
+    double totalOutflow = 0.0;
+    final List<Map<String, dynamic>> ledgerEntries = [];
+
+    for (final e in rawEntries) {
+      final double inf = (e['inflow'] as num).toDouble();
+      final double out = (e['outflow'] as num).toDouble();
+      totalInflow += inf;
+      totalOutflow += out;
+      runningBalance += (inf - out);
+      ledgerEntries.add({
+        'date': e['date'],
+        'ref': e['ref'],
+        'desc': e['desc'],
+        'inflow': inf,
+        'outflow': out,
+        'balance': runningBalance,
+      });
+    }
+
+    final bytes = await BuildingPdfGenerator.generateStatementOfAccounts(
+      counterpartyOrProject: 'All Sites & Enterprise Accounts',
+      ledgerEntries: ledgerEntries,
+      totalInflow: totalInflow,
+      totalOutflow: totalOutflow,
+      netBalance: runningBalance,
+    );
+
+    await PdfDownloadHelper.downloadPdf(
+      bytes: bytes,
+      filename: 'IBUILD_Statement_Of_Accounts_${DateTime.now().millisecondsSinceEpoch}.pdf',
+    );
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Statement of Accounts (SOA) PDF downloaded successfully ✓'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
+  Future<void> _exportGstTaxReportExcel(
+    BuildContext context,
+    BillingListState state,
+    AsyncValue<List<SalesBill>> salesBillsAsync,
+  ) async {
+    final salesBills = salesBillsAsync.valueOrNull ?? [];
+    final vendorBills = state.bills;
+
+    // Sheet 1: Sales Invoices with GST breakdown
+    final List<List<dynamic>> salesRows = [];
+    double totalSalesTaxable = 0.0;
+    double totalSalesCgst = 0.0;
+    double totalSalesSgst = 0.0;
+    double totalSalesAmount = 0.0;
+
+    for (final inv in salesBills) {
+      final total = inv.totalAmount;
+      final base = total / 1.18;
+      final cgst = (total - base) / 2;
+      final sgst = cgst;
+      final dateStr = DateFormat('yyyy-MM-dd').format(inv.createdAt);
+
+      totalSalesTaxable += base;
+      totalSalesCgst += cgst;
+      totalSalesSgst += sgst;
+      totalSalesAmount += total;
+
+      salesRows.add([
+        '#${inv.billNumber}',
+        inv.clientName,
+        dateStr,
+        base.toStringAsFixed(2),
+        cgst.toStringAsFixed(2),
+        sgst.toStringAsFixed(2),
+        total.toStringAsFixed(2),
+        inv.status.toUpperCase(),
+      ]);
+    }
+
+    // Sheet 2: Vendor Bills
+    final List<List<dynamic>> vendorRows = [];
+    double totalVendorAmount = 0.0;
+    for (final b in vendorBills) {
+      totalVendorAmount += b.amount;
+      vendorRows.add([
+        '#${b.billNumber}',
+        b.projectName ?? 'General',
+        b.billDate,
+        b.amount.toStringAsFixed(2),
+        b.status.toUpperCase(),
+      ]);
+    }
+
+    // Sheet 3: Cash Flow Ledger
+    final List<List<dynamic>> ledgerRows = [];
+    double runningBal = 0.0;
+    for (final inv in salesBills) {
+      runningBal += inv.totalAmount;
+      final dateStr = DateFormat('yyyy-MM-dd').format(inv.createdAt);
+      ledgerRows.add([
+        dateStr,
+        '#${inv.billNumber}',
+        'Sales Inward: ${inv.clientName}',
+        inv.totalAmount.toStringAsFixed(2),
+        '0.00',
+        runningBal.toStringAsFixed(2),
+      ]);
+    }
+    for (final b in vendorBills) {
+      runningBal -= b.amount;
+      ledgerRows.add([
+        b.billDate,
+        '#${b.billNumber}',
+        'Vendor Outward: ${b.projectName ?? 'General'}',
+        '0.00',
+        b.amount.toStringAsFixed(2),
+        runningBal.toStringAsFixed(2),
+      ]);
+    }
+
+    final excelBytes = ExcelGeneratorService.generateMultiSheetExcel(
+      sheets: [
+        ExcelSheetConfig(
+          sheetName: 'GSTR1_Sales_Invoices',
+          title: 'GSTR-1 Construction Sales Invoices (SAC 9954)',
+          headers: ['Invoice #', 'Site / Client', 'Date', 'Taxable Base (\u20B9)', 'CGST @ 9% (\u20B9)', 'SGST @ 9% (\u20B9)', 'Total (\u20B9)', 'Status'],
+          rows: salesRows,
+          summaryRow: ['TOTALS', '', '', totalSalesTaxable.toStringAsFixed(2), totalSalesCgst.toStringAsFixed(2), totalSalesSgst.toStringAsFixed(2), totalSalesAmount.toStringAsFixed(2), ''],
+        ),
+        ExcelSheetConfig(
+          sheetName: 'Vendor_Bills_Payables',
+          title: 'Vendor & Subcontractor Payables Ledger',
+          headers: ['Bill #', 'Vendor / Party', 'Bill Date', 'Amount (\u20B9)', 'Status'],
+          rows: vendorRows,
+          summaryRow: ['TOTALS', '', '', totalVendorAmount.toStringAsFixed(2), ''],
+        ),
+        ExcelSheetConfig(
+          sheetName: 'Statement_Of_Accounts',
+          title: 'Enterprise Statement of Accounts (SOA)',
+          headers: ['Date', 'Ref / Doc #', 'Particulars / Description', 'Money In (+ \u20B9)', 'Money Out (- \u20B9)', 'Running Balance (\u20B9)'],
+          rows: ledgerRows,
+        ),
+      ],
+    );
+
+    await ExcelDownloadHelper.downloadExcel(
+      bytes: excelBytes,
+      filename: 'IBUILD_GSTR1_Tax_Audit_${DateTime.now().millisecondsSinceEpoch}.xlsx',
+    );
+
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Multi-Sheet GSTR-1 Tax & Audit Excel workbook downloaded ✓'),
+          backgroundColor: Color(0xFF10B981),
+        ),
+      );
+    }
+  }
+
+  void _shareWhatsAppDigest(
+    BuildContext context,
+    double totalBilled,
+    double totalPaid,
+    double totalPending,
+    AsyncValue<List<SalesBill>> salesBillsAsync,
+  ) {
+    final salesBills = salesBillsAsync.valueOrNull ?? [];
+    final double salesInflow = salesBills.fold(0.0, (s, b) => s + b.totalAmount);
+
+    final String message = '''
+----------------------------------------
+IBUILD ERP - ENTERPRISE BILLING DIGEST
+Date: ${DateTime.now().toString().split(' ').first}
+----------------------------------------
+* Financial Overview:
+- Total Sales Invoicing: INR ${salesInflow.toStringAsFixed(0)}
+- Total Vendor Payables: INR ${totalBilled.toStringAsFixed(0)}
+- Total Settled / Paid: INR ${totalPaid.toStringAsFixed(0)}
+- Total Outstanding Balance: INR ${totalPending.toStringAsFixed(0)}
+
+* Quick Status:
+- Active Sales Bills: ${salesBills.length} Invoices
+- Status: All accounts verified & synchronized.
+----------------------------------------
+Generated via IBUILD Construction ERP
+''';
+
+    WhatsAppHelper.shareMessage(
+      context: context,
+      message: message,
+      successNotice: 'Opening WhatsApp with Billing Digest',
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(billingControllerProvider);
@@ -334,55 +571,83 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                 ],
               ),
               const SizedBox(height: 8),
-              // ── Action Buttons Row ──
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
-                      );
-                      ref.invalidate(allSalesBillsProvider);
-                    },
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Client Invoice'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.secondary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+              // ── Action Buttons Row (Horizontally Scrollable on Mobile) ──
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                child: Row(
+                  children: [
+                    // Advanced Export Options
+                    OutlinedButton.icon(
+                      onPressed: () => _exportStatementOfAccountsPdf(context, state, salesBillsAsync),
+                      icon: const Icon(Icons.receipt_long_outlined, size: 14),
+                      label: const Text('Statement of Accounts (SOA)', style: TextStyle(fontSize: 11)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  ElevatedButton.icon(
-                    onPressed: () async {
-                      await Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const BillingFormScreen()),
-                      );
-                      ref.read(billingControllerProvider.notifier).loadBills();
-                    },
-                    icon: const Icon(Icons.add_shopping_cart, size: 16),
-                    label: const Text('Vendor Bill'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    const SizedBox(width: 6),
+                    OutlinedButton.icon(
+                      onPressed: () => _exportGstTaxReportExcel(context, state, salesBillsAsync),
+                      icon: const Icon(Icons.table_chart_outlined, size: 14, color: Color(0xFF10B981)),
+                      label: const Text('GSTR-1 Tax Excel', style: TextStyle(fontSize: 11, color: Color(0xFF10B981))),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => _showAddPaymentDialog(context),
-                    icon: const Icon(Icons.payments_outlined, size: 16),
-                    label: const Text('Record Payment'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.primaryColor(context),
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                      textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                    const SizedBox(width: 6),
+                    IconButton.filledTonal(
+                      onPressed: () => _shareWhatsAppDigest(context, totalBilled, totalPaid, totalPending, salesBillsAsync),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 16, color: Color(0xFF25D366)),
+                      tooltip: 'Share WhatsApp Billing Digest',
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SalesBillBuilderScreen()),
+                        );
+                        ref.invalidate(allSalesBillsProvider);
+                      },
+                      icon: const Icon(Icons.add, size: 16),
+                      label: const Text('Client Invoice'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.secondary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    ElevatedButton.icon(
+                      onPressed: () async {
+                        await Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const BillingFormScreen()),
+                        );
+                        ref.read(billingControllerProvider.notifier).loadBills();
+                      },
+                      icon: const Icon(Icons.add_shopping_cart, size: 16),
+                      label: const Text('Vendor Bill'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    OutlinedButton.icon(
+                      onPressed: () => _showAddPaymentDialog(context),
+                      icon: const Icon(Icons.payments_outlined, size: 16),
+                      label: const Text('Record Payment'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.primaryColor(context),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ],
           ),

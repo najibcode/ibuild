@@ -16,16 +16,41 @@ import 'project_form_screen.dart';
 import 'project_dashboard_screen.dart';
 
 class ProjectListScreen extends ConsumerWidget {
-  const ProjectListScreen({super.key});
+  final VoidCallback? onBackPressed;
+
+  const ProjectListScreen({
+    super.key,
+    this.onBackPressed,
+  });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(projectControllerProvider);
+    final hasBack = onBackPressed != null || Navigator.canPop(context);
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: AppSpacing.containerMargin,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (onBackPressed != null) {
+                    onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  tooltip: 'Open navigation menu',
+                  onPressed: () => Scaffold.maybeOf(ctx)?.openDrawer(),
+                ),
+              ),
+        titleSpacing: 0,
         title: Text(
           'Projects',
           style: TextStyle(

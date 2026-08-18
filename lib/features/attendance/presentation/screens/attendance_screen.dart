@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/utils/excel_download_helper.dart';
@@ -20,7 +18,12 @@ import '../../../expenses/data/models/expense_model.dart';
 import '../../../expenses/presentation/controllers/expense_controller.dart';
 
 class AttendanceScreen extends ConsumerStatefulWidget {
-  const AttendanceScreen({super.key});
+  final VoidCallback? onBackPressed;
+
+  const AttendanceScreen({
+    super.key,
+    this.onBackPressed,
+  });
 
   @override
   ConsumerState<AttendanceScreen> createState() => _AttendanceScreenState();
@@ -109,10 +112,31 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     final isToday = state.selectedDate == DateTime.now().toIso8601String().substring(0, 10);
     final formattedDateStr = DateFormat('EEE, dd MMMM yyyy').format(selectedDateParsed);
 
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: 16,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  tooltip: 'Open navigation menu',
+                  onPressed: () => Scaffold.maybeOf(ctx)?.openDrawer(),
+                ),
+              ),
+        titleSpacing: 0,
         title: Text(
           'Attendance',
           style: TextStyle(

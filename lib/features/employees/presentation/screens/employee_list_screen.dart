@@ -13,7 +13,12 @@ import 'employee_detail_screen.dart';
 import 'employee_form_screen.dart';
 
 class EmployeeListScreen extends ConsumerStatefulWidget {
-  const EmployeeListScreen({super.key});
+  final VoidCallback? onBackPressed;
+
+  const EmployeeListScreen({
+    super.key,
+    this.onBackPressed,
+  });
 
   @override
   ConsumerState<EmployeeListScreen> createState() => _EmployeeListScreenState();
@@ -26,11 +31,25 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
   @override
   Widget build(BuildContext context) {
     final employeesAsync = ref.watch(employeeListControllerProvider);
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: AppSpacing.containerMargin,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : null,
+        titleSpacing: hasBack ? 0 : AppSpacing.containerMargin,
         title: Text(
           'Employees',
           style: TextStyle(

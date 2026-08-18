@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
@@ -77,7 +75,12 @@ class SnagItem {
 }
 
 class SnagListScreen extends ConsumerStatefulWidget {
-  const SnagListScreen({super.key});
+  final VoidCallback? onBackPressed;
+
+  const SnagListScreen({
+    super.key,
+    this.onBackPressed,
+  });
 
   @override
   ConsumerState<SnagListScreen> createState() => _SnagListScreenState();
@@ -920,10 +923,25 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
     final inProgressCount = _snags.where((s) => s.status.toLowerCase() == 'in progress').length;
     final resolvedCount = _snags.where((s) => s.status.toLowerCase() == 'resolved' || s.status.toLowerCase() == 'closed').length;
 
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: AppSpacing.containerMargin,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : null,
+        titleSpacing: hasBack ? 0 : AppSpacing.containerMargin,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

@@ -16,7 +16,12 @@ final draftThemeSelectionProvider = StateProvider<ThemeMode>((ref) {
 });
 
 class SettingsScreen extends ConsumerStatefulWidget {
-  const SettingsScreen({super.key});
+  final VoidCallback? onBackPressed;
+
+  const SettingsScreen({
+    super.key,
+    this.onBackPressed,
+  });
 
   @override
   ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
@@ -58,11 +63,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildAdminControlCenter(BuildContext context) {
     final primaryColor = AppColors.primaryColor(context);
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: AppSpacing.containerMargin,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : null,
+        titleSpacing: hasBack ? 0 : AppSpacing.containerMargin,
         title: Row(
           children: [
             const Icon(Icons.admin_panel_settings, color: Colors.blueAccent, size: 24),
@@ -135,10 +154,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   // ── STANDARD SETTINGS SCREEN (FOR NON-ADMINS) ────────────────────────────
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildStandardSettings(BuildContext context) {
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: AppSpacing.containerMargin,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : null,
+        titleSpacing: hasBack ? 0 : AppSpacing.containerMargin,
         title: Text(
           'Settings',
           style: TextStyle(

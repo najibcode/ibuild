@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_colors.dart';
+import '../services/push_notification_service.dart';
 import 'global_search_dialog.dart';
 import 'notifications_dropdown.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
@@ -20,6 +21,9 @@ class WebHeader extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Mount push notification realtime listener across active web session
+    ref.read(pushNotificationServiceProvider).initializeRealtimeListener(context);
+
     return Container(
       height: 64,
       decoration: BoxDecoration(

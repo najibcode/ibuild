@@ -13,10 +13,12 @@ import '../controllers/billing_controller.dart';
 /// and Site Expenses into a single, user-friendly single-level interface.
 class FinancialsHubScreen extends ConsumerStatefulWidget {
   final int initialTabIndex;
+  final VoidCallback? onBackPressed;
 
   const FinancialsHubScreen({
     super.key,
     this.initialTabIndex = 0,
+    this.onBackPressed,
   });
 
   @override
@@ -80,10 +82,31 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
         .where((b) => b.status.toLowerCase() != 'paid' && b.status.toLowerCase() != 'completed')
         .fold(0.0, (s, b) => s + b.totalAmount);
 
+    final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: 16,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (widget.onBackPressed != null) {
+                    widget.onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  tooltip: 'Open navigation menu',
+                  onPressed: () => Scaffold.maybeOf(ctx)?.openDrawer(),
+                ),
+              ),
+        titleSpacing: 0,
         title: Text(
           'Financials',
           style: TextStyle(

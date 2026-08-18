@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_colors.dart';
+import 'core/services/push_notification_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
 import 'core/widgets/notifications_dropdown.dart';
@@ -11,39 +12,63 @@ import 'features/dashboard/presentation/widgets/project_health_widget.dart';
 import 'features/dashboard/presentation/widgets/attention_required_widget.dart';
 import 'features/dashboard/presentation/widgets/portfolio_pulse_widget.dart';
 
+import 'features/auth/presentation/controllers/auth_controller.dart';
+
 class MobileDashboard extends ConsumerWidget {
   final VoidCallback onViewProjects;
   final VoidCallback onViewTrack;
   final VoidCallback onViewSupply;
+  final VoidCallback? onMenuPressed;
 
   const MobileDashboard({
     super.key,
     required this.onViewProjects,
     required this.onViewTrack,
     required this.onViewSupply,
+    this.onMenuPressed,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Mount push notification realtime listener on mobile dashboard
+    ref.read(pushNotificationServiceProvider).initializeRealtimeListener(context);
+
     final statsAsync = ref.watch(dashboardStatsProvider);
+    final authState = ref.watch(authControllerProvider);
+    final profile = authState.profile;
+
+    final displayName = profile?['full_name'] as String? ??
+        (authState.user?.email?.split('@').first ?? 'Business Owner');
+    final avatarUrl = profile?['avatar_url'] as String? ??
+        'https://lh3.googleusercontent.com/aida-public/AB6AXuCCZjuOoP8-6MOOMrALPsgiKEd5USwzMqGfIaIQWjWcvyG4adhn7Hcd5dQ8vVX7OqxycfYIMrY7aditONBZI9t468aYqVhsEQDG_r5OIiIvjo_2bFixKxk8eDAuWUuM7KVoIFpcC8DseRW1Toy89Ts3N78FWfKk_VT04Vus7TmwDYc8DMTF_yK6QQgeCCZ8NgqJeIjl_Y7typ63ZU7hi5XS9hj94bf6FUL5y5AyukSNdjhtqLpykWALhbglsHhiqjW-wTOlwRK3vhc';
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: AppSpacing.containerMargin,
-        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        leading: Builder(
+          builder: (ctx) => IconButton(
+            icon: const Icon(Icons.menu, color: AppColors.primary, size: 24),
+            tooltip: 'Open Menu',
+            onPressed: () {
+              if (onMenuPressed != null) {
+                onMenuPressed!();
+              } else {
+                Scaffold.of(ctx).openDrawer();
+              }
+            },
+          ),
+        ),
         title: Row(
           children: [
             Container(
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(color: Colors.white, width: 2),
-                image: const DecorationImage(
-                  image: NetworkImage(
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuCCZjuOoP8-6MOOMrALPsgiKEd5USwzMqGfIaIQWjWcvyG4adhn7Hcd5dQ8vVX7OqxycfYIMrY7aditONBZI9t468aYqVhsEQDG_r5OIiIvjo_2bFixKxk8eDAuWUuM7KVoIFpcC8DseRW1Toy89Ts3N78FWfKk_VT04Vus7TmwDYc8DMTF_yK6QQgeCCZ8NgqJeIjl_Y7typ63ZU7hi5XS9hj94bf6FUL5y5AyukSNdjhtqLpykWALhbglsHhiqjW-wTOlwRK3vhc',
-                  ),
+                image: DecorationImage(
+                  image: NetworkImage(avatarUrl),
                   fit: BoxFit.cover,
                 ),
               ),
@@ -55,14 +80,14 @@ class MobileDashboard extends ConsumerWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    'Good morning,',
+                    'Welcome,',
                     style: Theme.of(
                       context,
                     ).textTheme.labelSmall?.copyWith(color: AppColors.textMuted),
                     overflow: TextOverflow.ellipsis,
                   ),
                   Text(
-                    'Master Admin',
+                    displayName,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.primary,

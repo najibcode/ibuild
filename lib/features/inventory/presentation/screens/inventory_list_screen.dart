@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
@@ -20,7 +19,12 @@ import 'inventory_form_screen.dart';
 import 'inventory_history_screen.dart';
 
 class InventoryListScreen extends ConsumerWidget {
-  const InventoryListScreen({super.key});
+  final VoidCallback? onBackPressed;
+
+  const InventoryListScreen({
+    super.key,
+    this.onBackPressed,
+  });
 
   static const _categories = [
     'Cement',
@@ -512,10 +516,31 @@ class InventoryListScreen extends ConsumerWidget {
     final int lowStockCount = state.items.where((item) => item.isLowStock).length;
     final int totalItemsCount = state.items.length;
 
+    final hasBack = onBackPressed != null || Navigator.canPop(context);
+
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: 16,
+        leading: hasBack
+            ? IconButton(
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Go back',
+                onPressed: () {
+                  if (onBackPressed != null) {
+                    onBackPressed!();
+                  } else {
+                    Navigator.maybePop(context);
+                  }
+                },
+              )
+            : Builder(
+                builder: (ctx) => IconButton(
+                  icon: const Icon(Icons.menu),
+                  tooltip: 'Open navigation menu',
+                  onPressed: () => Scaffold.maybeOf(ctx)?.openDrawer(),
+                ),
+              ),
+        titleSpacing: 0,
         title: Text(
           'Inventory',
           style: TextStyle(fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
