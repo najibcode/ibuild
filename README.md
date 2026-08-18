@@ -2,17 +2,19 @@
 
 # 🏗️ IBUILD ERP
 
-**Internal Construction Management & Operations ERP**
+### **Enterprise Construction Management & Site Operations ERP**
 
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?style=for-the-badge&logo=flutter&logoColor=white)](https://flutter.dev)
-[![Supabase](https://img.shields.io/badge/Supabase-Database%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
-[![Vercel](https://img.shields.io/badge/Vercel-Deployed-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com)
-[![Riverpod](https://img.shields.io/badge/State_Management-Riverpod-0553B1?style=for-the-badge)](https://riverpod.dev)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL%20%26%20Auth-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](https://supabase.com)
+[![Vercel](https://img.shields.io/badge/Vercel-Production%20Web-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com)
+[![Riverpod](https://img.shields.io/badge/State_Management-Riverpod%202.x-0553B1?style=for-the-badge)](https://riverpod.dev)
+[![Excel](https://img.shields.io/badge/Export-Multi--Sheet%20Excel-107C41?style=for-the-badge&logo=microsoftexcel&logoColor=white)](https://products.office.com/excel)
+[![PDF](https://img.shields.io/badge/Reporting-Vector%20PDF%20Engine-EC1C24?style=for-the-badge&logo=adobeacrobatreader&logoColor=white)](https://pub.dev/packages/pdf)
 [![License](https://img.shields.io/badge/License-Proprietary-FF6B6B?style=for-the-badge)]()
 
-*A streamlined, high-performance Construction Management ERP built for site supervisors and business owners.*
+*A robust, data-first Construction ERP built for business owners, project directors, site engineers, and accounting teams.*
 
-[Live Web App](https://ibuild-najibcodes-projects.vercel.app) • [Vercel Dashboard](https://vercel.com/najibcodes-projects/ibuild) • [Database Migration Specs](docs/Database_Migrations.md)
+[🌐 Live Web Application](https://ibuild-najibcodes-projects.vercel.app) • [📊 Vercel Console](https://vercel.com/najibcodes-projects/ibuild) • [🗄️ Database Schemas & Migrations](docs/Database_Migrations.md)
 
 ---
 
@@ -20,77 +22,113 @@
 
 ## 📌 Executive Overview
 
-**IBUILD ERP** is an internal, multi-platform construction management platform engineered to deliver real-time operational visibility over active construction sites. Built with **Flutter Web/Mobile** and **Supabase**, it replaces manual paperwork with structured site progress tracking, attendance, worker daily allowances, equipment management, and expense tracking.
+**IBUILD ERP** is a full-featured, cross-platform construction management system designed to streamline real-time operations, workforce accountability, inventory logistics, quality control, and financial governance across construction project sites.
 
-> [!NOTE]  
-> **IBUILD ERP** is tailored exclusively for internal operations by construction business owners and site supervisors, prioritizing speed, reliability on low-end mobile devices, and zero unnecessary operational overhead.
-
----
-
-## ✨ Key Feature Modules
-
-### 📊 1. Executive & Supervisor Dashboard
-- **Real-Time Portfolio KPIs**: Track Active Projects, Workers Present, Low Stock Material Alerts, and Total Expense Outflows.
-- **Budget Utilization Monitoring**: Interactive progress bars tracking percentage of overall capital spent against site baselines.
-- **Site Velocity Chart**: Visual 7-day progress velocity charts built with `fl_chart`.
-- **Live Activity Feed**: Real-time log of recent site logs, equipment transfers, and expense entries.
+Built with **Flutter** (Web, Mobile, Desktop) and backed by **Supabase PostgreSQL with Row-Level Security (RLS)**, IBUILD replaces manual paperwork, disjointed spreadsheets, and WhatsApp trails with an integrated single source of truth.
 
 ---
 
-### 🏗️ 2. Project Management
-- **Site Portfolio**: Comprehensive directory of ongoing and completed construction sites.
-- **Budget Allocation**: Track allocated budget vs. actual outflows per site.
-- **Phase Breakdowns**: Track structural milestone stages from foundation to finishing.
-- **Dynamic Site Linking**: Auto-link materials, machinery, worker attendance, and expenses to specific project IDs.
+## 🌟 Key Functional Modules
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    IBUILD ERP SUITE                                    │
+├──────────────────────┬──────────────────────┬───────────────────┬──────────────────────┤
+│ 1. Project Portfolio │ 2. Workforce & Muster│ 3. Materials & SC │ 4. Financials & GST  │
+├──────────────────────┼──────────────────────┼───────────────────┼──────────────────────┤
+│ 5. Heavy Machinery   │ 6. Daily Logs (DPR)  │ 7. Quality Snags  │ 8. Audit Reports     │
+└──────────────────────┴──────────────────────┴───────────────────┴──────────────────────┘
+```
+
+### 📊 1. Executive & Operational Dashboards
+- **Role-Tailored Perspectives**: Dedicated dashboards for **Business Owners**, **Super Administrators**, and **Site Supervisors**.
+- **Real-Time KPIs**: Live metrics tracking Active Projects, Workforce Present, Low-Stock Material Thresholds, and Expense Outflows.
+- **Budget Utilization & Progress Gauge**: Dynamic visual tracking of allocated capital vs. actual spent against physical milestone completion.
+- **Attention Required Engine**: Automated detection of low inventory, over-budget projects, and pending subcontractor retention.
 
 ---
 
-### 👷 3. Employee & Attendance System
-- **Employee Directory**: Manage site engineers, masons, carpenters, plumbers, and general labellers.
-- **Tea & Daily Allowance Tracking**: Built-in calculation for daily tea and snacks allowance (default **₹20/day** per worker, stored separately from base wages to accommodate inflation adjustments).
-- **Attendance Capture**: Fast morning/evening status capture with automated daily wage tallying.
-- **Inline Employee Onboarding**: Quick "+ Add Employee" dialog to register new site staff instantly.
+### 🏗️ 2. Project Portfolio Management
+- **Site Directory**: Comprehensive registry of commercial, residential, and infrastructure sites.
+- **Budget & Cost Tracking**: Live budget variance tracking, physical progress metrics, and timeline baselines.
+- **Submodule Operations Hub**: 8 itemized project operational submodules (Team, Materials, Machinery, Logs, Financials, Drawings, Snags, Reports).
+- **Interactive Budget vs Actual**: Visual bar comparisons and overall health indices per site.
 
 ---
 
-### 🛠️ 4. Equipment, Machinery & Tools Fleet
-- **Multi-Category Fleet Management**: Track heavy machinery (excavators, concrete mixers), power tools (drilling machines), climbing gear (ladders, step stools), hand tools, and generators.
-- **Searchable Autocomplete Locations**: Hybrid search dropdown allowing users to search existing site projects (e.g. typing `"RVS"`) or type freeform storage spots (e.g. *"Lorry Tool Box"*, *"Central Pool"*).
-- **Usage & Maintenance Notes**: Log equipment condition, fuel consumption rates, and storage locations.
+### 👷 3. Attendance & Muster Roll
+- **Workforce Registry**: Directory of engineers, foremen, masons, carpenters, plumbers, and general laborers.
+- **Daily Attendance Capture**: Fast morning/evening check-in/check-out with status tracking (*Present*, *Half-Day*, *Absent*, *Overtime*).
+- **Wage & Allowance Engine**: Automated calculation of base daily wages and tea/snacks daily allowance (default ₹20/day).
+- **Muster Roll Reports**: Date-filtered worker shifts and payroll summaries.
 
 ---
 
-### 📑 5. Quotations & Project Estimator
-- **Itemized Cost Estimation Builder**: Build project cost quotes with custom particulars (*Description*, *Unit*, *Qty*, *Rate*).
-- **Status Lifecycle Pipeline**: Track quotation status via visual badges (🟡 *Draft*, 🟦 *Sent to Client*, 🟢 *Approved*, 🔴 *Rejected*).
-- **1-Click Draft Export**: 1-tap clipboard copying formatted for instant WhatsApp / Email sharing with clients.
+### 🧱 4. Materials & Supply Chain Management
+- **Real-Time Stock Depots**: Track cement bags, structural steel (TMT), sand, gravel, and bricks.
+- **Transaction Ledger**: Complete audit trail of stock movements (*RECEIVED*, *ISSUED*, *ADJUSTED*).
+- **Low-Stock Automation**: Threshold-triggered alerts with automated reorder quantity recommendations.
+- **Project-Linked Consumption**: Assign material dispatches directly to project sites to track material cost consumption.
 
 ---
 
-### 💰 6. Site Outflows & Expenses
-- **Streamlined Expense Logger**: Record site operational costs, petty cash payouts, and supplier bills.
-- **Category Filter Chips**: Single-tap filtering by category (*Labour*, *Materials*, *Transport*, *Equipment*, *Food*, *Fuel*, *Miscellaneous*).
-- **Payment Mode Badges**: Track payment methods (*Cash*, *Bank Transfer*, *UPI*, *Cheque*).
-- **Card-Level Quick Actions**: Instant Edit and Delete capabilities with popup confirmation dialogs.
+### 💳 5. Financials & Billing Hub
+- **Client Invoicing**: Build GST-compliant client invoices with itemized tax breakdowns (CGST + SGST or IGST).
+- **Vendor & Supplier Bills**: Record purchasing vouchers, vendor invoices, and track outstanding payables.
+- **Payment Ledger**: Real-time *Money In* / *Money Out* ledger with running account balance.
+- **Statement of Accounts (SOA)**: 1-click generation of party-wise financial statements and GSTR-1 tax workbooks.
+- **Instant WhatsApp Dispatch**: Share payment receipts and invoice summaries directly to clients via WhatsApp API.
 
 ---
 
-### 🧱 6. Material Inventory
-- **Live Stock Levels**: Track cement, steel reinforcement, sand, aggregate, and bricks.
-- **Low Stock Warnings**: Automatic threshold alerts highlighting items requiring immediate restock.
-- **Stock Movement Log**: Inward supply vs. site consumption tracking.
+### 🤝 6. Subcontractor & Trade Partner Management
+- **Specialized Trade Directory**: Manage electrical, plumbing, HVAC, masonry, and painting contractors.
+- **Contract & Retention Tracking**: Monitor total contract value, cumulative disbursements, and pending retention balances.
+- **Work Order Milestones**: Track trade progress and milestone approvals before releasing stage payments.
 
 ---
 
-### 🤝 7. Subcontractor Management
-- **Trade Directory**: Manage electrical, plumbing, painting, and carpentry subcontractors.
-- **Contract Monitoring**: Active contract values, completed milestones, and pending disbursements.
+### 🚜 7. Equipment, Machinery & Tools Fleet
+- **Multi-Category Asset Directory**: Track heavy machinery (excavators, mixers), power tools, scaffolding, and generators.
+- **Dynamic Asset Tracking**: Assign equipment to specific sites or freeform locations (*"Central Yard"*, *"Lorry Tool Box"*).
+- **Maintenance & Condition Logs**: Log service records, operational health, and fuel consumption rates.
 
 ---
 
-### 👤 8. User Profile & RBAC Settings
-- **Owner & Supervisor Profiles**: View and edit user details, phone, email, and company metadata.
-- **Permission Guards**: Role-based access control (`PermissionGuard`) safeguarding sensitive financial operations.
+### 📋 8. Daily Progress Reports (DPR) & Site Logs
+- **Daily Site Journal**: Log workforce counts, weather conditions, equipment deployed, and activities completed.
+- **Site Photo Documentation**: Cloud-synced site progress photos with timestamps.
+- **Site Delays & Obstacles**: Record delay reasons (*weather, material shortage, power outage*) for audit defense.
+
+---
+
+### 🔍 9. Quality Punch List & Snag Management
+- **Snag Registry**: Log quality defects with location tags, severity (*Critical*, *High*, *Medium*, *Low*), and trade partner assignments.
+- **Rectification Workflow**: Visual status pipeline (*Open* ➔ *In Progress* ➔ *Resolved* ➔ *Closed*).
+- **Photo Evidence**: Before and after rectification photo attachments.
+
+---
+
+### 📈 10. Multi-Sheet Excel & Vector PDF Reporting
+- **Consolidated ERP Excel Workbook**:
+  - **Sheet 1: `Executive Summary`**: Title block, financial health, operational activity, and actionable alerts.
+  - **Sheet 2: `Attendance`**: Individual worker attendance, hours, daily wages, allowances, and net payable.
+  - **Sheet 3: `Materials`**: Stock transactions, unit rates, total valuation, and site dispatches.
+  - **Sheet 4: `Subcontractors`**: Trade details, contract values, disbursements, and retention balances.
+  - **Sheet 5: `Expenses`**: Direct site expenses, categories, payment modes, and voucher numbers.
+  - **Sheet 6: `Payments`**: Payment ledger transactions, flow types, counterparties, and running balances.
+  - *Data-First Architecture: 100% authoritative Supabase data, true numeric cell types (`DoubleCellValue`/`IntCellValue`), auto-fit columns, and zero mock data.*
+- **Vector PDF Generator**: Executive audit reports with vector charts, financial summaries, and printable tables.
+
+---
+
+### ⚙️ 11. Admin Control Center & RBAC
+- **4-Tab Super Admin Suite**:
+  1. *System Overview & App Health* (live metrics, active sessions, table row counts)
+  2. *User & Credentials Management* (assign roles: Owner, Admin, Supervisor, Viewer)
+  3. *Security Audit Trail* (user login history and security events)
+  4. *System Preferences & Branding*
+- **Granular Permissions**: Role-based access control safeguarding sensitive financial, deletion, and export actions.
 
 ---
 
@@ -98,12 +136,15 @@
 
 | Layer | Technology | Purpose |
 | :--- | :--- | :--- |
-| **Frontend Framework** | [Flutter 3.x](https://flutter.dev) | Multiplatform Web, iOS & Android UI |
-| **State Management** | [Flutter Riverpod](https://riverpod.dev) | Reactive, decoupled state controller architecture |
-| **Database & Auth** | [Supabase PostgreSQL](https://supabase.com) | Relational database with Row Level Security (RLS) |
-| **Cloud Storage** | Supabase Storage | Site progress photos & asset storage |
-| **Charts & Data Viz** | [fl_chart](https://pub.dev/packages/fl_chart) | Responsive vector charts and trend graphs |
-| **Web Hosting** | [Vercel](https://vercel.com) | Production Web SPA deployment |
+| **Frontend Framework** | [Flutter 3.x](https://flutter.dev) | High-performance multiplatform Web, iOS & Android UI |
+| **State Management** | [Flutter Riverpod](https://riverpod.dev) | Declarative, testable, and reactive state container |
+| **Backend & Database** | [Supabase PostgreSQL](https://supabase.com) | Relational SQL database with strict Row-Level Security (RLS) |
+| **Authentication** | Supabase Auth | Secure session management, password authentication, and JWT tokens |
+| **Realtime Sync** | Supabase Realtime (WebSockets) | Live data synchronization across connected mobile and desktop clients |
+| **Spreadsheet Engine** | [excel](https://pub.dev/packages/excel) | Native OpenXML `.xlsx` multi-sheet workbook generation |
+| **PDF Engine** | [pdf](https://pub.dev/packages/pdf) & [printing](https://pub.dev/packages/printing) | High-resolution vector document synthesis and printing |
+| **Charts & Analytics** | [fl_chart](https://pub.dev/packages/fl_chart) | Dynamic vector graphs, trends, and budget visualization |
+| **Web Deployment** | [Vercel](https://vercel.com) | Optimized single-page application (SPA) edge hosting |
 
 ---
 
@@ -111,60 +152,89 @@
 
 ```mermaid
 graph TD
-    A[Client Application - Web / Mobile] -->|Riverpod State Notifiers| B[Feature Controllers]
-    B -->|Repository Pattern| C[Supabase Repositories]
-    C -->|REST / WebSockets| D[Supabase Backend]
+    User([User: Web / Mobile]) -->|UI Interaction| Views[Flutter Presentation Layer]
+    Views -->|Riverpod State & Notifiers| Controllers[Domain Controllers]
+    Controllers -->|Repository Pattern| Repositories[Supabase Repositories]
     
-    subgraph Supabase Cloud
-        D --> E[(PostgreSQL Database)]
-        D --> F[Supabase Auth]
-        D --> G[Supabase Storage]
+    subgraph Client Architecture
+        Views
+        Controllers
+        Repositories
     end
-    
-    subgraph PostgreSQL Tables
-        E --> H[projects]
-        E --> I[employees]
-        E --> J[attendance]
-        E --> K[equipment]
-        E --> L[expenses]
-        E --> M[inventory]
-        E --> N[subcontractors]
+
+    Repositories -->|HTTPS / WSS| Backend[Supabase Cloud Platform]
+
+    subgraph Supabase Cloud
+        Backend --> Auth[Supabase Auth]
+        Backend --> DB[(PostgreSQL Database)]
+        Backend --> Storage[Supabase Storage]
+        Backend --> Realtime[Realtime Broadcast Engine]
+    end
+
+    subgraph Relational Tables
+        DB --> T1[projects]
+        DB --> T2[employees]
+        DB --> T3[attendance]
+        DB --> T4[inventory]
+        DB --> T5[equipment]
+        DB --> T6[subcontractors]
+        DB --> T7[expenses]
+        DB --> T8[sales_bills]
+        DB --> T9[payment_ledger]
+        DB --> T10[daily_progress]
+        DB --> T11[snags]
+        DB --> T12[audit_logs]
     end
 ```
 
 ---
 
-## 📁 Directory Structure
+## 📁 Repository Structure
 
 ```text
 ibuild/
-├── docs/                      # Architectural specs & migration SQL
+├── docs/                                # Architecture specs & migration documentation
 │   ├── AI_Agent.md
 │   ├── Database_Migrations.md
 │   └── System_Architecture.md
 ├── lib/
-│   ├── core/                  # Design system, themes, & global widgets
-│   │   ├── routing/           # GoRouter / router configurations
-│   │   ├── supabase/          # Supabase client provider
-│   │   ├── theme/             # AppColors & design tokens
-│   │   └── widgets/           # Header, Sidebar, Navigation UI
-│   ├── features/              # Feature modules (Clean Architecture)
-│   │   ├── attendance/        # Attendance tracking & tea allowance
-│   │   ├── auth/              # Authentication & login screens
-│   │   ├── dashboard/         # Executive & supervisor dashboards
-│   │   ├── employees/         # Employee directory & profile cards
-│   │   ├── equipment/         # Fleet, tools, drill machines, & ladders
-│   │   ├── expenses/          # Site outflows & payment logs
-│   │   ├── inventory/         # Stock levels & restock alerts
-│   │   ├── profile/           # User profile & business details
-│   │   ├── projects/          # Site projects & budget baselines
-│   │   ├── rbac/              # Role-based access permission guards
-│   │   └── subcontractors/    # Trade partner contract tracking
-│   ├── main.dart              # Application entry point
-│   ├── mobile_dashboard.dart  # Mobile layout entry point
-│   └── web_dashboard.dart     # Web layout entry point
-├── pubspec.yaml               # Flutter package configuration
-└── vercel.json                # Vercel SPA deployment configuration
+│   ├── core/                            # Shared core utilities & foundational layer
+│   │   ├── navigation/                  # Mobile navigation helpers & drawer controllers
+│   │   ├── routing/                     # App router configurations
+│   │   ├── services/                    # Excel, PDF, Push Notification services
+│   │   ├── supabase/                    # Supabase client provider & realtime listeners
+│   │   ├── theme/                       # Design tokens, color palettes, and typography
+│   │   ├── utils/                       # Currency formatters, download helpers, WhatsApp API
+│   │   └── widgets/                     # Web sidebar, header, search bars, paginated lists
+│   ├── features/                        # Clean Architecture Feature Modules
+│   │   ├── activities/                  # Activity logging & feeds
+│   │   ├── admin/                       # Admin Control Center tabs & user management
+│   │   ├── attendance/                  # Attendance tracking, wages & tea allowances
+│   │   ├── auth/                        # Authentication, login & session persistence
+│   │   ├── billing/                     # Invoices, vendor bills & Financials Hub
+│   │   ├── daily_progress/              # DPR daily progress reports & site photos
+│   │   ├── dashboard/                   # Role-specific executive & supervisor dashboards
+│   │   ├── employees/                   # Staff directory & employee profile management
+│   │   ├── equipment/                   # Heavy machinery, power tools & fleet assets
+│   │   ├── expenses/                    # Site operational expense logging & categories
+│   │   ├── inventory/                   # Material inventory & stock movements
+│   │   ├── payments/                    # Payment ledger, money in/out & account balances
+│   │   ├── profile/                     # User profile settings & notification preferences
+│   │   ├── projects/                    # Site project portfolio & budget operations
+│   │   ├── quotations/                  # Cost estimates & quotation builder
+│   │   ├── rbac/                        # Role-based access control & permission guards
+│   │   ├── reports/                     # Consolidated report generator (Excel & PDF)
+│   │   ├── sales_bills/                 # Sales bills & tax invoice processing
+│   │   ├── settings/                    # App settings & theme toggling
+│   │   ├── snags/                       # Quality punch list & snag management
+│   │   └── vendors/                     # Subcontractors & trade partner contracts
+│   ├── main.dart                        # Application entry point & responsive root router
+│   ├── mobile_dashboard.dart            # Mobile executive layout
+│   └── web_dashboard.dart               # Desktop executive layout
+├── supabase/
+│   └── migrations/                      # Version-controlled SQL migration scripts
+├── pubspec.yaml                         # Flutter dependencies & asset declarations
+└── vercel.json                          # Vercel SPA configuration
 ```
 
 ---
@@ -172,9 +242,9 @@ ibuild/
 ## 🚀 Quick Start & Local Setup
 
 ### Prerequisites
-- **Flutter SDK**: `^3.19.0` or higher ([Install Flutter](https://docs.flutter.dev/get-started/install))
-- **Dart SDK**: `^3.3.0`
-- **Supabase Account / Instance**
+- **Flutter SDK**: `^3.22.0` or higher ([Install Flutter](https://docs.flutter.dev/get-started/install))
+- **Dart SDK**: `^3.4.0`
+- **Supabase Account / Project Instance**
 
 ### Installation
 
@@ -192,38 +262,48 @@ ibuild/
 3. **Configure Environment Variables**:
    Create a `.env` file in the root directory:
    ```env
-   SUPABASE_URL=https://your-supabase-instance.supabase.co
-   SUPABASE_ANON_KEY=your-supabase-anon-key
+   SUPABASE_URL=https://your-project.supabase.co
+   SUPABASE_ANON_KEY=your-anon-key
    ```
 
-4. **Run Locally**:
-   - **Run Web Server**:
-     ```bash
-     flutter run -d web-server
-     ```
-   - **Run Chrome**:
+4. **Run Application**:
+   - **Web Development Server**:
      ```bash
      flutter run -d chrome
      ```
+   - **Web Server (Headless/Network)**:
+     ```bash
+     flutter run -d web-server --web-port=8080
+     ```
+   - **Mobile Device / Emulator**:
+     ```bash
+     flutter run
+     ```
+
+5. **Static Analysis & Build Verification**:
+   ```bash
+   flutter analyze
+   flutter build web --release
+   ```
 
 ---
 
-## 🗄️ Database Migrations & Security
+## 🗄️ Database Migrations
 
-The database runs on **Supabase PostgreSQL** with strict **Row Level Security (RLS)** policies enabled. Full DDL schemas and migration scripts are available in [docs/Database_Migrations.md](docs/Database_Migrations.md).
+Database tables, constraints, and Row Level Security (RLS) policies are managed via SQL scripts in the `supabase/migrations/` folder.
 
-Key tables include:
-- `projects`: Project details, budget, timelines, and status.
-- `employees`: Staff metadata, role, base wage rate, and `tea_snacks_allowance`.
-- `attendance`: Daily morning/evening attendance records.
-- `equipment`: Machinery & tools fleet details, tag number, site location, and notes.
-- `expenses`: Financial outflows, payment mode, category, and remarks.
+Key migration files:
+- `001_initial_schema.sql` — Core tables (`projects`, `employees`, `attendance`, `inventory`, `equipment`, `expenses`)
+- `005_subcontractors.sql` — Trade partners, contracts, and retention tracking
+- `008_billing_and_payments.sql` — Invoicing, vendor bills, and payment ledger
+- `009_daily_progress_and_snags.sql` — Daily site journals, photos, and punch list snags
+- `010_admin_control_center.sql` — Super-admin audit trail, system preferences, and user role management
 
 ---
 
-## 🌐 Web Deployment (Vercel)
+## 🌐 Production Web Deployment (Vercel)
 
-The web client is configured for zero-configuration SPA deployments on **Vercel** via `vercel.json`:
+The web client is configured for automated single-page application (SPA) deployment on **Vercel** via `vercel.json`:
 
 ```json
 {
@@ -237,7 +317,7 @@ The web client is configured for zero-configuration SPA deployments on **Vercel*
 }
 ```
 
-To build and deploy manually:
+Deploying manually with Vercel CLI:
 ```bash
 flutter build web --release
 npx vercel --prod
@@ -245,6 +325,15 @@ npx vercel --prod
 
 ---
 
-## 🛡️ License
+## 🛡️ Security & Access Governance
 
-Copyright © 2026 IBUILD. All rights reserved. Proprietary software for internal construction management operations.
+- **Row Level Security (RLS)**: Enforced on all PostgreSQL tables.
+- **Role-Based Access Control (RBAC)**: Supported roles include `Owner`, `Admin`, `Supervisor`, and `Viewer`.
+- **Audit Logging**: Sensitive operations (user management, invoice creation, status changes) trigger immutable entries in the audit trail.
+
+---
+
+## 📄 License
+
+Copyright © 2026 **IBUILD**. All rights reserved.  
+*Proprietary software engineered for internal construction management and operations.*

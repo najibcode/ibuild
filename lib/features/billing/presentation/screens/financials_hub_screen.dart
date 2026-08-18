@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/mobile_nav_helper.dart';
 import 'billing_list_screen.dart';
 import '../../../quotations/presentation/screens/quotation_list_screen.dart';
 import '../../../expenses/presentation/screens/expense_list_screen.dart';
@@ -99,12 +100,10 @@ class _FinancialsHubScreenState extends ConsumerState<FinancialsHubScreen>
                   }
                 },
               )
-            : Builder(
-                builder: (ctx) => IconButton(
-                  icon: const Icon(Icons.menu),
-                  tooltip: 'Open navigation menu',
-                  onPressed: () => Scaffold.maybeOf(ctx)?.openDrawer(),
-                ),
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open navigation menu',
+                onPressed: MobileNavHelper.openDrawer,
               ),
         titleSpacing: 0,
         title: Text(

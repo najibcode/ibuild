@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/mobile_nav_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/paginated_list.dart';
 import '../../../../core/widgets/data_export_actions.dart';
@@ -43,12 +44,10 @@ class ProjectListScreen extends ConsumerWidget {
                   }
                 },
               )
-            : Builder(
-                builder: (ctx) => IconButton(
-                  icon: const Icon(Icons.menu),
-                  tooltip: 'Open navigation menu',
-                  onPressed: () => Scaffold.maybeOf(ctx)?.openDrawer(),
-                ),
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open navigation menu',
+                onPressed: MobileNavHelper.openDrawer,
               ),
         titleSpacing: 0,
         title: Text(

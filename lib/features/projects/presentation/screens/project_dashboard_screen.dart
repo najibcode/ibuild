@@ -744,7 +744,7 @@ class _DashboardBody extends StatelessWidget {
             .expand(
               (c) => [
                 Expanded(child: _buildKPICard(context, c)),
-                if (c != cards.last) const SizedBox(width: 16),
+                if (c != cards.last) const SizedBox(width: 12),
               ],
             )
             .toList(),
@@ -753,17 +753,22 @@ class _DashboardBody extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final double childAspectRatio = isMedium
-            ? 1.45
-            : (constraints.maxWidth < 400 ? 1.25 : 1.35);
+        final crossAxisCount = constraints.maxWidth < 600
+            ? 2
+            : (constraints.maxWidth < 950 ? 2 : 4);
+        final double childAspectRatio = constraints.maxWidth < 400
+            ? 1.15
+            : (constraints.maxWidth < 600
+                ? 1.20
+                : (constraints.maxWidth < 950 ? 1.70 : 1.25));
 
         return GridView.count(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          crossAxisCount: isMedium ? 4 : 2,
+          crossAxisCount: crossAxisCount,
           childAspectRatio: childAspectRatio,
-          mainAxisSpacing: 12,
-          crossAxisSpacing: 12,
+          mainAxisSpacing: 10,
+          crossAxisSpacing: 10,
           children: cards.map((c) => _buildKPICard(context, c)).toList(),
         );
       },
@@ -777,7 +782,7 @@ class _DashboardBody extends StatelessWidget {
         onTap: data.onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Container(
-          padding: const EdgeInsets.all(14),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
           decoration: BoxDecoration(
             color: AppColors.cardBg(context),
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -793,22 +798,23 @@ class _DashboardBody extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            mainAxisSize: MainAxisSize.max,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(6),
+                    padding: const EdgeInsets.all(5),
                     decoration: BoxDecoration(
                       color: data.iconColor.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: Icon(data.icon, color: data.iconColor, size: 18),
+                    child: Icon(data.icon, color: data.iconColor, size: 16),
                   ),
                   if (data.badge != null)
                     Container(
                       padding: const EdgeInsets.symmetric(
-                        horizontal: 7,
+                        horizontal: 6,
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
@@ -827,14 +833,14 @@ class _DashboardBody extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 4),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 alignment: Alignment.centerLeft,
                 child: Text(
                   data.value,
                   style: TextStyle(
-                    fontSize: 20,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: AppColors.text(context),
                   ),
@@ -848,7 +854,7 @@ class _DashboardBody extends StatelessWidget {
                     child: Text(
                       data.label,
                       style: TextStyle(
-                        fontSize: 11.5,
+                        fontSize: 11,
                         color: AppColors.mutedText(context),
                       ),
                       overflow: TextOverflow.ellipsis,
@@ -862,7 +868,7 @@ class _DashboardBody extends StatelessWidget {
                 ],
               ),
               if (data.subValue != null) ...[
-                const SizedBox(height: 2),
+                const SizedBox(height: 1),
                 Text(
                   data.subValue!,
                   style: TextStyle(
@@ -870,6 +876,7 @@ class _DashboardBody extends StatelessWidget {
                     color: AppColors.mutedText(context),
                   ),
                   overflow: TextOverflow.ellipsis,
+                  maxLines: 1,
                 ),
               ],
             ],

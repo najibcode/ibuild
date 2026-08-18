@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/mobile_nav_helper.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
@@ -940,8 +941,12 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
                   }
                 },
               )
-            : null,
-        titleSpacing: hasBack ? 0 : AppSpacing.containerMargin,
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open navigation menu',
+                onPressed: MobileNavHelper.openDrawer,
+              ),
+        titleSpacing: 0,
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [

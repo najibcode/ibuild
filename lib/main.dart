@@ -5,6 +5,8 @@ import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_provider.dart';
 import 'core/routing/router.dart';
+import 'core/navigation/mobile_nav_helper.dart';
+import 'core/services/push_notification_service.dart';
 import 'core/widgets/responsive_layout.dart';
 import 'core/widgets/web_sidebar.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
@@ -103,9 +105,6 @@ class MainRouterScreen extends ConsumerStatefulWidget {
 }
 
 class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
-  // Global key for mobile root scaffold to control drawer opening
-  final GlobalKey<ScaffoldState> _mobileScaffoldKey = GlobalKey<ScaffoldState>();
-
   // Navigation history stack for mobile view
   final List<MobileScreen> _mobileNavStack = [MobileScreen.dashboard];
 
@@ -118,6 +117,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   void initState() {
     super.initState();
     _subscribeToRealtimeSync();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        ref.read(pushNotificationServiceProvider).initializeRealtimeListener(context);
+      }
+    });
   }
 
   void _subscribeToRealtimeSync() {
@@ -287,9 +291,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
             onViewProjects: () => _pushMobile(MobileScreen.projectsList),
             onViewTrack: () => _pushMobile(MobileScreen.financials),
             onViewSupply: () => _pushMobile(MobileScreen.inventory),
-            onMenuPressed: () {
-              _mobileScaffoldKey.currentState?.openDrawer();
-            },
+            onMenuPressed: MobileNavHelper.openDrawer,
           );
         }
         break;
@@ -384,7 +386,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         }
       },
       child: Scaffold(
-        key: _mobileScaffoldKey,
+        key: MobileNavHelper.scaffoldKey,
         drawer: _buildMobileDrawer(context, role),
         body: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),

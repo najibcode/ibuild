@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/mobile_nav_helper.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
@@ -80,8 +81,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   }
                 },
               )
-            : null,
-        titleSpacing: hasBack ? 0 : AppSpacing.containerMargin,
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open navigation menu',
+                onPressed: MobileNavHelper.openDrawer,
+              ),
+        titleSpacing: 0,
         title: Row(
           children: [
             const Icon(Icons.admin_panel_settings, color: Colors.blueAccent, size: 24),
@@ -171,8 +176,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   }
                 },
               )
-            : null,
-        titleSpacing: hasBack ? 0 : AppSpacing.containerMargin,
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open navigation menu',
+                onPressed: MobileNavHelper.openDrawer,
+              ),
+        titleSpacing: 0,
         title: Text(
           'Settings',
           style: TextStyle(

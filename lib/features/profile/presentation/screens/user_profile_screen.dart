@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/mobile_nav_helper.dart';
 import '../../../../core/widgets/image_upload_card.dart';
 import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../core/providers/notification_preferences_provider.dart';
@@ -165,8 +166,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen> {
                   }
                 },
               )
-            : null,
-        titleSpacing: hasBack ? 0 : 16,
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open navigation menu',
+                onPressed: MobileNavHelper.openDrawer,
+              ),
+        titleSpacing: 0,
         title: const Text('My Profile'),
       ),
       body: SingleChildScrollView(

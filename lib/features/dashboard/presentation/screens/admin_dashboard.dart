@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
+import 'package:ibuild/core/navigation/mobile_nav_helper.dart';
 import 'package:ibuild/features/activities/data/repositories/supabase_activity_repository.dart';
 import 'package:ibuild/features/rbac/presentation/providers/permission_provider.dart';
 import 'package:ibuild/core/supabase/supabase_client.provider.dart';
@@ -15,12 +16,10 @@ class AdminDashboard extends ConsumerWidget {
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 0,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.primary),
-            tooltip: 'Open Menu',
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: AppColors.primary),
+          tooltip: 'Open Menu',
+          onPressed: MobileNavHelper.openDrawer,
         ),
         title: const Text(
           'Admin Dashboard',

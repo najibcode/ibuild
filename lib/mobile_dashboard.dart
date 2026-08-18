@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_colors.dart';
+import 'core/navigation/mobile_nav_helper.dart';
 import 'core/services/push_notification_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
@@ -46,18 +47,10 @@ class MobileDashboard extends ConsumerWidget {
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 0,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.primary, size: 24),
-            tooltip: 'Open Menu',
-            onPressed: () {
-              if (onMenuPressed != null) {
-                onMenuPressed!();
-              } else {
-                Scaffold.of(ctx).openDrawer();
-              }
-            },
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: AppColors.primary, size: 24),
+          tooltip: 'Open Menu',
+          onPressed: onMenuPressed ?? MobileNavHelper.openDrawer,
         ),
         title: Row(
           children: [

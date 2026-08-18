@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
+import 'package:ibuild/core/navigation/mobile_nav_helper.dart';
 import 'package:ibuild/features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'package:ibuild/features/inventory/presentation/screens/inventory_list_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
@@ -18,12 +19,10 @@ class SupervisorDashboard extends ConsumerWidget {
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
         titleSpacing: 0,
-        leading: Builder(
-          builder: (ctx) => IconButton(
-            icon: const Icon(Icons.menu, color: AppColors.primary),
-            tooltip: 'Open Menu',
-            onPressed: () => Scaffold.of(ctx).openDrawer(),
-          ),
+        leading: IconButton(
+          icon: const Icon(Icons.menu, color: AppColors.primary),
+          tooltip: 'Open Menu',
+          onPressed: MobileNavHelper.openDrawer,
         ),
         title: const Text(
           'Supervisor Dashboard',

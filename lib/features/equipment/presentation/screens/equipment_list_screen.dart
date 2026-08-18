@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/navigation/mobile_nav_helper.dart';
 import '../../../../core/widgets/search_filter_bar.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
@@ -1165,8 +1166,12 @@ class _EquipmentListScreenState extends ConsumerState<EquipmentListScreen> {
                   }
                 },
               )
-            : null,
-        titleSpacing: hasBack ? 0 : 16,
+            : IconButton(
+                icon: const Icon(Icons.menu),
+                tooltip: 'Open navigation menu',
+                onPressed: MobileNavHelper.openDrawer,
+              ),
+        titleSpacing: 0,
         title: Text(
           'Equipment',
           style: TextStyle(
