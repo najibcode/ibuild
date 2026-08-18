@@ -730,6 +730,9 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         return const EquipmentListScreen();
       case 'Subcontractors':
         return const VendorListScreen();
+      case 'Site Snags & Quality Punch List':
+      case 'Snags':
+        return const SnagListScreen();
       case 'Reports & Export':
         return const FullReportGeneratorScreen();
       case 'Settings':

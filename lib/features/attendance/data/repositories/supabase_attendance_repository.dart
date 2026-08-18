@@ -16,7 +16,7 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     try {
       final response = await _client
           .from('attendance')
-          .select('*, employees(name), projects(name)')
+          .select('*, employees(name)')
           .eq('date', date);
 
       return (response as List).map((json) {
@@ -24,21 +24,8 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         return Attendance.fromJson(json, employeeName: employeeName);
       }).toList();
     } catch (e) {
-      debugPrint('[Attendance] getAttendanceForDate with project join failed: $e');
-      try {
-        final response = await _client
-            .from('attendance')
-            .select('*, employees(name)')
-            .eq('date', date);
-
-        return (response as List).map((json) {
-          final employeeName = (json['employees'] as Map?)?['name'] as String?;
-          return Attendance.fromJson(json, employeeName: employeeName);
-        }).toList();
-      } catch (e2) {
-        debugPrint('[Attendance] getAttendanceForDate fallback failed: $e2');
-        return [];
-      }
+      debugPrint('[Attendance] getAttendanceForDate failed: $e');
+      return [];
     }
   }
 
@@ -162,7 +149,7 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     try {
       final response = await _client
           .from('attendance')
-          .select('*, employees(name), projects(name)')
+          .select('*, employees(name)')
           .gte('date', startDate)
           .lte('date', endDate)
           .order('date', ascending: false);
@@ -173,22 +160,7 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
       }).toList();
     } catch (e) {
       debugPrint('[Attendance] getAttendanceForDateRange failed: $e');
-      try {
-        final response = await _client
-            .from('attendance')
-            .select('*, employees(name)')
-            .gte('date', startDate)
-            .lte('date', endDate)
-            .order('date', ascending: false);
-
-        return (response as List).map((json) {
-          final employeeName = (json['employees'] as Map?)?['name'] as String?;
-          return Attendance.fromJson(json, employeeName: employeeName);
-        }).toList();
-      } catch (e2) {
-        debugPrint('[Attendance] getAttendanceForDateRange fallback failed: $e2');
-        return [];
-      }
+      return [];
     }
   }
 

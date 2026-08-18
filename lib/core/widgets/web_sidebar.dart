@@ -86,6 +86,12 @@ class WebSidebar extends ConsumerStatefulWidget {
       requiredPermission: null,
     ),
     WebSidebarItem(
+      icon: Icons.checklist_rtl_outlined,
+      activeIcon: Icons.checklist_rtl,
+      label: 'Site Snags & Quality Punch List',
+      requiredPermission: null,
+    ),
+    WebSidebarItem(
       icon: Icons.assessment_outlined,
       activeIcon: Icons.assessment,
       label: 'Reports & Export',
