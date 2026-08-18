@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../features/rbac/presentation/providers/permission_provider.dart';
+import 'package:ibuild/core/utils/avatar_helper.dart';
 import 'package:ibuild/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 import 'app_logo.dart';
@@ -257,8 +258,11 @@ class _WebSidebarState extends ConsumerState<WebSidebar> {
                   final profile = authState.profile;
                   final userName =
                       profile?['full_name'] as String? ?? 'IBUILD User';
-                  final avatarUrl = profile?['avatar_url'] as String? ??
-                      'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc';
+                  final avatarUrl = RoleAvatarHelper.getAvatarUrl(
+                    customAvatarUrl: profile?['avatar_url'] as String?,
+                    role: profile?['role'] as String? ?? roleName,
+                    email: authState.user?.email,
+                  );
 
                   if (_isCollapsed) {
                     return Tooltip(

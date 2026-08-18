@@ -1,4 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/utils/avatar_helper.dart';
 import '../../domain/repositories/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -58,6 +59,7 @@ class AuthRepositoryImpl implements AuthRepository {
           'company_name': 'IBUILD Construction',
           'gstin': '27AAAAA0000A1Z5',
           'full_name': name,
+          'avatar_url': RoleAvatarHelper.getAvatarUrl(email: email),
         };
         try {
           await _client.from('profiles').upsert(newProfile);

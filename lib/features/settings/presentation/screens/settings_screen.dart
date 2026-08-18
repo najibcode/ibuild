@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/navigation/mobile_nav_helper.dart';
+import '../../../../core/utils/avatar_helper.dart';
 import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
@@ -206,6 +207,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     final companyName = profile?['company_name'] as String? ?? 'IBUILD User';
     final gstin = profile?['gstin'] as String? ?? 'Not provided';
     final userEmail = authState.user?.email ?? 'Unknown';
+    final roleName = ref.watch(currentRoleProvider);
 
     final cardBg = AppColors.cardBg(context);
     final borderCol = AppColors.border(context);
@@ -237,8 +239,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
           child: ListTile(
             leading: CircleAvatar(
               backgroundImage: NetworkImage(
-                profile?['avatar_url'] as String? ??
-                    'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc',
+                RoleAvatarHelper.getAvatarUrl(
+                  customAvatarUrl: profile?['avatar_url'] as String?,
+                  role: profile?['role'] as String? ?? roleName,
+                  email: userEmail,
+                ),
               ),
               radius: 20,
             ),

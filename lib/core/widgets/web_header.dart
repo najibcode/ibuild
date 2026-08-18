@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../theme/app_colors.dart';
 import '../services/push_notification_service.dart';
+import '../utils/avatar_helper.dart';
 import 'global_search_dialog.dart';
 import 'notifications_dropdown.dart';
+import 'package:ibuild/features/auth/presentation/controllers/auth_controller.dart';
+import 'package:ibuild/features/rbac/presentation/providers/permission_provider.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 
 /// Shared top header bar for the web (desktop) layout.
@@ -23,6 +26,17 @@ class WebHeader extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     // Mount push notification realtime listener across active web session
     ref.read(pushNotificationServiceProvider).initializeRealtimeListener(context);
+
+    final authState = ref.watch(authControllerProvider);
+    final profile = authState.profile;
+    final roleName = ref.watch(currentRoleProvider);
+    final displayName = profile?['full_name'] as String? ??
+        (authState.user?.email?.split('@').first ?? 'Business Owner');
+    final avatarUrl = RoleAvatarHelper.getAvatarUrl(
+      customAvatarUrl: profile?['avatar_url'] as String?,
+      role: profile?['role'] as String? ?? roleName,
+      email: authState.user?.email,
+    );
 
     return Container(
       height: 64,
@@ -90,20 +104,37 @@ class WebHeader extends ConsumerWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               const NotificationsDropdown(),
-              IconButton(
-                icon: const Icon(
-                  Icons.account_circle_outlined,
-                  color: AppColors.outline,
-                  size: 22,
-                ),
-                onPressed: () {
+              const SizedBox(width: 6),
+              InkWell(
+                onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
                       builder: (_) => const UserProfileScreen(),
                     ),
                   );
                 },
-                tooltip: 'My Profile',
+                borderRadius: BorderRadius.circular(20),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                  child: Tooltip(
+                    message: 'My Profile ($displayName)',
+                    child: Container(
+                      width: 32,
+                      height: 32,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: AppColors.primary.withValues(alpha: 0.5),
+                          width: 1.5,
+                        ),
+                        image: DecorationImage(
+                          image: NetworkImage(avatarUrl),
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
               ),
               IconButton(
                 icon: const Icon(

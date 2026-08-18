@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
+import 'package:ibuild/core/utils/avatar_helper.dart';
 import 'package:ibuild/features/rbac/presentation/providers/permission_provider.dart';
 import 'package:ibuild/features/admin/data/models/admin_user_model.dart';
 import 'package:ibuild/features/admin/presentation/providers/admin_providers.dart';
@@ -225,18 +226,19 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
       child: Row(
         children: [
           // Avatar
-          CircleAvatar(
-            radius: 22,
-            backgroundImage: (user.avatarUrl != null && user.avatarUrl!.isNotEmpty)
-                ? NetworkImage(user.avatarUrl!)
-                : null,
-            backgroundColor: roleColor.withValues(alpha: 0.15),
-            child: (user.avatarUrl == null || user.avatarUrl!.isEmpty)
-                ? Text(
-                    user.fullName.isNotEmpty ? user.fullName[0].toUpperCase() : 'U',
-                    style: TextStyle(fontWeight: FontWeight.bold, color: roleColor, fontSize: 16),
-                  )
-                : null,
+          Builder(
+            builder: (context) {
+              final avatar = RoleAvatarHelper.getAvatarUrl(
+                customAvatarUrl: user.avatarUrl,
+                role: user.roleName,
+                email: user.email,
+              );
+              return CircleAvatar(
+                radius: 22,
+                backgroundImage: NetworkImage(avatar),
+                backgroundColor: roleColor.withValues(alpha: 0.15),
+              );
+            },
           ),
           const SizedBox(width: 14),
 

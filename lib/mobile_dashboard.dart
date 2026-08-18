@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_colors.dart';
 import 'core/navigation/mobile_nav_helper.dart';
+import 'core/utils/avatar_helper.dart';
 import 'core/services/push_notification_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
@@ -40,8 +41,11 @@ class MobileDashboard extends ConsumerWidget {
 
     final displayName = profile?['full_name'] as String? ??
         (authState.user?.email?.split('@').first ?? 'Business Owner');
-    final avatarUrl = profile?['avatar_url'] as String? ??
-        'https://lh3.googleusercontent.com/aida-public/AB6AXuCCZjuOoP8-6MOOMrALPsgiKEd5USwzMqGfIaIQWjWcvyG4adhn7Hcd5dQ8vVX7OqxycfYIMrY7aditONBZI9t468aYqVhsEQDG_r5OIiIvjo_2bFixKxk8eDAuWUuM7KVoIFpcC8DseRW1Toy89Ts3N78FWfKk_VT04Vus7TmwDYc8DMTF_yK6QQgeCCZ8NgqJeIjl_Y7typ63ZU7hi5XS9hj94bf6FUL5y5AyukSNdjhtqLpykWALhbglsHhiqjW-wTOlwRK3vhc';
+    final avatarUrl = RoleAvatarHelper.getAvatarUrl(
+      customAvatarUrl: profile?['avatar_url'] as String?,
+      role: profile?['role'] as String?,
+      email: authState.user?.email,
+    );
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),

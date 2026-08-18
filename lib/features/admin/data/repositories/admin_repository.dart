@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ibuild/core/utils/avatar_helper.dart';
 import '../models/admin_user_model.dart';
 import '../models/audit_log_model.dart';
 
@@ -129,6 +130,7 @@ class AdminRepository {
         'role_name': roleName.toLowerCase(),
         'phone': phone ?? '',
         'company_name': companyName ?? 'IBUILD',
+        'avatar_url': RoleAvatarHelper.getAvatarUrl(role: roleName, email: email),
       });
 
       if (res.status == 200 && res.data != null && res.data['success'] == true) {
@@ -147,6 +149,7 @@ class AdminRepository {
           'full_name': fullName,
           'phone': phone ?? '',
           'company_name': companyName ?? 'IBUILD',
+          'avatar_url': RoleAvatarHelper.getAvatarUrl(role: roleName, email: email),
           'role_display': roleName,
           'is_disabled': false,
         });

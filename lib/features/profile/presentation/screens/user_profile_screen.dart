@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/navigation/mobile_nav_helper.dart';
+import '../../../../core/utils/avatar_helper.dart';
 import '../../../../core/widgets/image_upload_card.dart';
 import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../core/providers/notification_preferences_provider.dart';
@@ -40,9 +41,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
   String _devicePermissionStatus = 'default';
   bool _isSendingResetEmail = false;
 
-  static const String _defaultAvatar =
-      'https://lh3.googleusercontent.com/aida-public/AB6AXuCZnkMp8GaOnpeTS6OaCmsGI3BT-AMfqKQlZgzWl_1P_wcfcpgsueuBT4g62apzZaMM9KDkryd5NwO0zRN2_qLL3tVRv-tkiZRKLnT4yZ4jh501MqajmHWV3-Tb0c-i328KeaLVPjpouYAeHclbEWmGX3AUSDoVNlY9uR_PjZhazvKln1VD_OY2Heh8KEFXssZ8Xdam3ObeFuJxVLLzfu2zy1jVcOM0hcAKPmqxBIh6d75KpFm9T7V-oUnUvLYk5UEqRnVhrWXTfOc';
-
   @override
   void initState() {
     super.initState();
@@ -66,9 +64,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     _companyController = TextEditingController(
       text: profile?['company_name'] as String? ?? 'IBUILD Construction & Infrastructure',
     );
-    _avatarUrlController = TextEditingController(
-      text: profile?['avatar_url'] as String? ?? _defaultAvatar,
+    final initialAvatar = RoleAvatarHelper.getAvatarUrl(
+      customAvatarUrl: profile?['avatar_url'] as String?,
+      role: profile?['role'] as String?,
+      email: user?.email,
     );
+    _avatarUrlController = TextEditingController(text: initialAvatar);
     _siteHubController = TextEditingController(
       text: profile?['assigned_hub'] as String? ?? 'Central Headquarters & Project Sites',
     );
@@ -200,9 +201,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
         roleIcon = Icons.person_outline;
     }
 
-    final avatarUrl = _avatarUrlController.text.trim().isNotEmpty
-        ? _avatarUrlController.text.trim()
-        : _defaultAvatar;
+    final avatarUrl = RoleAvatarHelper.getAvatarUrl(
+      customAvatarUrl: _avatarUrlController.text.trim(),
+      role: roleName,
+      email: userEmail,
+    );
 
     final hasBack = widget.onBackPressed != null || Navigator.canPop(context);
 
@@ -261,6 +264,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
               // ── TAB 1: IDENTITY & INFO ──────────────────────────────────────────
               _buildIdentityTab(
                 context,
+                roleName,
                 roleDisplay,
                 roleColor,
                 roleIcon,
@@ -300,6 +304,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildIdentityTab(
     BuildContext context,
+    String roleName,
     String roleDisplay,
     Color roleColor,
     IconData roleIcon,
@@ -468,7 +473,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                             isUploading: _isUploadingAvatar,
                             onImagePicked: _onAvatarPicked,
                             onDeleteRequested: () {
-                              _avatarUrlController.text = _defaultAvatar;
+                              _avatarUrlController.text =
+                                  RoleAvatarHelper.getDefaultAvatarForRole(roleName);
                             },
                           ),
                         ),
