@@ -18,7 +18,7 @@ class Project {
   final String? deadline;
   final String? createdAt;
 
-  // Extended Site-Centered Attributes (Pojo Infra360 Alignment)
+  // Extended Site-Centered Attributes (IBUILD Specifications)
   final double builtUpArea;
   final double flatArea;
   final String? duration;

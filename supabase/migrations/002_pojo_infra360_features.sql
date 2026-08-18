@@ -1,5 +1,5 @@
 -- ============================================================
--- MIGRATION 002: POJO INFRA360 PRODUCTION FEATURES
+-- MIGRATION 002: IBUILD ENTERPRISE PRODUCTION FEATURES
 -- Adds Quotations, Vendors, Subcontractors, Site Tickets, and Drawings
 -- ============================================================
 

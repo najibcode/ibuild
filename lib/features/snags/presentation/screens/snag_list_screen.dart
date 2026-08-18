@@ -114,7 +114,7 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
       tradeCategory: 'RCC & Structure',
       severity: 'Critical',
       status: 'In Progress',
-      assignedSubcontractor: 'Apex Infra Structurals',
+      assignedSubcontractor: 'Apex Structural Contractors',
       projectName: 'TigerFalls Resort',
       rectificationNotes: 'Shuttering removed; epoxy coat applied, awaiting inspection.',
       createdAt: DateTime.now().subtract(const Duration(days: 3)),

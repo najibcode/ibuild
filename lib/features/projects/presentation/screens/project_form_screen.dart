@@ -25,7 +25,7 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
   late final TextEditingController _descriptionCtrl;
   late final TextEditingController _notesCtrl;
 
-  // Extended Site Controllers (Pojo Infra360 Alignment)
+  // Extended Site Controllers (IBUILD Site Specifications)
   late final TextEditingController _builtUpCtrl;
   late final TextEditingController _flatAreaCtrl;
   late final TextEditingController _durationCtrl;

@@ -11,7 +11,7 @@ void main() {
       final json = {
         'id': 'proj-101',
         'name': 'Skyline Towers Phase 1',
-        'client_name': 'Acme Infrastructure',
+        'client_name': 'Horizon Developers',
         'project_code': 'PRJ-101',
         'address': 'Plot 45, Cyber City',
         'budget': 50000000.0,
@@ -72,7 +72,7 @@ void main() {
         id: 'bill-501',
         projectId: 'proj-101',
         billNumber: 'INV-2026-001',
-        clientName: 'Acme Infrastructure',
+        clientName: 'Horizon Developers',
         amount: 500000.0,
         taxAmount: 90000.0,
         totalAmount: 590000.0,

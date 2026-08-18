@@ -1,5 +1,5 @@
 -- ============================================================
--- MIGRATION 003: PROJECT OPERATIONAL WORKFLOWS (POJO INFRA360 EQUIVALENT)
+-- MIGRATION 003: PROJECT OPERATIONAL WORKFLOWS (IBUILD ENTERPRISE)
 -- Adds Extended Site Properties, Checklists, Sales Bills, and Payments
 -- ============================================================
 
