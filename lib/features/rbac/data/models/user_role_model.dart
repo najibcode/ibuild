@@ -12,11 +12,20 @@ class UserRole {
   });
 
   factory UserRole.fromJson(Map<String, dynamic> json) {
-    final role = json['roles'] as Map<String, dynamic>?;
+    Map<String, dynamic>? role;
+    if (json['roles'] is Map<String, dynamic>) {
+      role = json['roles'] as Map<String, dynamic>;
+    } else if (json['roles'] is List && (json['roles'] as List).isNotEmpty) {
+      final first = (json['roles'] as List).first;
+      if (first is Map<String, dynamic>) {
+        role = first;
+      }
+    }
+
     return UserRole(
-      userId: json['user_id'] as String,
-      roleId: json['role_id'] as String,
-      roleName: role?['name'] as String? ?? 'unknown',
+      userId: json['user_id'] as String? ?? '',
+      roleId: json['role_id'] as String? ?? '',
+      roleName: role?['name'] as String? ?? 'owner',
       roleDescription: role?['description'] as String?,
     );
   }

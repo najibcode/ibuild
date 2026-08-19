@@ -14,5 +14,6 @@ abstract class AuthRepository {
     required String companyName,
     String? avatarUrl,
   });
+  Future<UserResponse> updatePassword({required String newPassword});
 }
 

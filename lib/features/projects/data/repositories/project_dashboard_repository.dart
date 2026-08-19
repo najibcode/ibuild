@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/supabase/supabase_client.provider.dart';
 import '../models/project_dashboard_model.dart';
 
 /// Fetches all per-project dashboard data from Supabase in parallel safely and fault-tolerantly.
@@ -21,8 +20,6 @@ class ProjectDashboardRepository {
     int snagsCount = 0;
 
     try {
-      await ensureAutoAuth(_client);
-
       // 1. Fetch core project details
       project = await _fetchProject(projectId);
 

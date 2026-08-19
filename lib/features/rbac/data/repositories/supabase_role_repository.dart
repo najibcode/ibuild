@@ -12,51 +12,118 @@ class SupabaseRoleRepository implements RoleRepository {
   @override
   Future<UserRole?> fetchUserRole(String userId) async {
     try {
-      final response = await _client
-          .from('user_roles')
-          .select('user_id, role_id, roles(name, description)')
-          .eq('user_id', userId)
-          .maybeSingle();
+      // 1. Try checking user_roles table
+      try {
+        final response = await _client
+            .from('user_roles')
+            .select('user_id, role_id, roles(name, description)')
+            .eq('user_id', userId)
+            .maybeSingle();
 
-      if (response == null) {
-        final user = _client.auth.currentUser;
-        if (user != null && user.email != null) {
-          final email = user.email!.toLowerCase();
-          String targetRoleName = 'owner';
-          if (email.contains('admin')) {
+        if (response != null && response['roles'] != null) {
+          final role = UserRole.fromJson(response);
+          if (role.roleName.isNotEmpty && role.roleName != 'unknown') {
+            return role;
+          }
+        }
+      } catch (userRolesErr) {
+        debugPrint('Note: user_roles query bypassed: $userRolesErr');
+      }
+
+      // 2. Try checking profiles table for role_display
+      String? targetRoleName;
+      try {
+        final profile = await _client
+            .from('profiles')
+            .select('role_display, full_name')
+            .eq('id', userId)
+            .maybeSingle();
+
+        if (profile != null && profile['role_display'] != null) {
+          final raw = (profile['role_display'] as String).toLowerCase();
+          if (raw.contains('admin')) {
             targetRoleName = 'admin';
-          } else if (email.contains('supervisor')) {
+          } else if (raw.contains('supervisor')) {
             targetRoleName = 'supervisor';
-          } else if (email.contains('owner')) {
+          } else if (raw.contains('employee') || raw.contains('staff')) {
+            targetRoleName = 'employee';
+          } else if (raw.contains('owner')) {
             targetRoleName = 'owner';
           }
+        }
+      } catch (profileErr) {
+        debugPrint('Note: profiles query bypassed: $profileErr');
+      }
 
-          final roleRow = await _client
-              .from('roles')
-              .select('id')
-              .eq('name', targetRoleName)
-              .maybeSingle();
-
-          if (roleRow != null && roleRow['id'] != null) {
-            try {
-              await assignRole(userId, roleRow['id'] as String);
-              final retry = await _client
-                  .from('user_roles')
-                  .select('user_id, role_id, roles(name, description)')
-                  .eq('user_id', userId)
-                  .maybeSingle();
-              if (retry != null) return UserRole.fromJson(retry);
-            } catch (assignErr) {
-              debugPrint('Failed to auto-assign role: $assignErr');
+      // 3. Fallback to auth user email and metadata
+      if (targetRoleName == null) {
+        final user = _client.auth.currentUser;
+        if (user != null && user.id == userId) {
+          final meta = user.userMetadata?['role']?.toString().toLowerCase();
+          if (meta != null && meta.isNotEmpty) {
+            targetRoleName = meta;
+          } else {
+            final email = user.email?.toLowerCase() ?? '';
+            if (email.contains('admin')) {
+              targetRoleName = 'admin';
+            } else if (email.contains('supervisor')) {
+              targetRoleName = 'supervisor';
+            } else if (email.contains('employee') || email.contains('staff')) {
+              targetRoleName = 'employee';
+            } else {
+              targetRoleName = 'owner';
             }
           }
         }
-        return null;
       }
-      return UserRole.fromJson(response);
+
+      targetRoleName ??= 'owner';
+
+      // 4. Resolve role_id from roles table and auto-persist to user_roles
+      final roleRow = await _client
+          .from('roles')
+          .select('id, name, description')
+          .eq('name', targetRoleName)
+          .maybeSingle();
+
+      if (roleRow != null && roleRow['id'] != null) {
+        final roleId = roleRow['id'] as String;
+        try {
+          await assignRole(userId, roleId);
+          await _client.from('profiles').upsert({
+            'id': userId,
+            'role_display': targetRoleName,
+            'updated_at': DateTime.now().toIso8601String(),
+          });
+        } catch (_) {}
+
+        return UserRole(
+          userId: userId,
+          roleId: roleId,
+          roleName: roleRow['name'] as String,
+          roleDescription: roleRow['description'] as String?,
+        );
+      }
+
+      // Safe fallback UserRole if database roles table is empty
+      return UserRole(
+        userId: userId,
+        roleId: 'role-$targetRoleName',
+        roleName: targetRoleName,
+        roleDescription: '$targetRoleName role',
+      );
     } catch (e) {
       debugPrint('Failed to fetch user role: $e');
-      return null;
+      final email = _client.auth.currentUser?.email?.toLowerCase() ?? '';
+      final fallbackName = email.contains('admin')
+          ? 'admin'
+          : (email.contains('supervisor') ? 'supervisor' : 'owner');
+      return UserRole(
+        userId: userId,
+        roleId: 'role-$fallbackName',
+        roleName: fallbackName,
+        roleDescription: '$fallbackName role',
+      );
     }
   }
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../controllers/auth_controller.dart';
@@ -20,11 +21,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
   }
 
   void _checkAuth() async {
-    await Future.delayed(const Duration(seconds: 2));
+    // Subtle brief delay for smooth branding impression
+    await Future.delayed(const Duration(milliseconds: 600));
     if (!mounted) return;
 
+    final session = Supabase.instance.client.auth.currentSession;
     final authState = ref.read(authControllerProvider);
-    if (authState.user != null) {
+
+    if (session != null || authState.user != null) {
       context.go('/dashboard');
     } else {
       context.go('/login');
@@ -40,13 +44,18 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             AppLogo(
-              size: 72,
-              subtitle: 'CONSTRUCTION ERP',
+              size: 64,
+              subtitle: 'ERP ENTERPRISE',
               inverted: true,
             ),
-            SizedBox(height: 36),
-            CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+            SizedBox(height: 32),
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+              ),
             ),
           ],
         ),

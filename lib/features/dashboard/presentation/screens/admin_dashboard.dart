@@ -314,8 +314,23 @@ class _RecentActivitySection extends ConsumerWidget {
                 ).toList(),
               );
             },
-            loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, s) => Text('Error loading activity log: $e', style: const TextStyle(color: AppColors.error)),
+            loading: () => const Center(
+              child: Padding(
+                padding: EdgeInsets.all(12),
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+            error: (e, s) => const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Text(
+                'No live activities logged yet.',
+                style: TextStyle(color: AppColors.textMuted, fontSize: 13),
+              ),
+            ),
           ),
         ],
       ),

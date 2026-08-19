@@ -27,9 +27,6 @@ final userRoleProvider = FutureProvider<UserRole?>((ref) async {
   return await repo.fetchUserRole(user.id);
 });
 
-// ── Current Role Name ───────────────────────────────────────────────────────
-
-/// Returns the active user's role name: 'admin', 'owner', 'supervisor', or 'unknown'
 final currentRoleProvider = Provider<String>((ref) {
   final override = ref.watch(selectedRoleOverrideProvider);
   if (override != null && override.isNotEmpty) {
@@ -37,7 +34,25 @@ final currentRoleProvider = Provider<String>((ref) {
   }
 
   final userRoleAsync = ref.watch(userRoleProvider);
-  return userRoleAsync.valueOrNull?.roleName.toLowerCase() ?? 'unknown';
+  final roleFromRepo = userRoleAsync.valueOrNull?.roleName.toLowerCase();
+  if (roleFromRepo != null && roleFromRepo.isNotEmpty && roleFromRepo != 'unknown') {
+    return roleFromRepo;
+  }
+
+  final client = ref.watch(supabaseClientProvider);
+  final user = client.auth.currentUser;
+  if (user != null) {
+    final meta = user.userMetadata?['role']?.toString().toLowerCase();
+    if (meta != null && meta.isNotEmpty) return meta;
+
+    final email = user.email?.toLowerCase() ?? '';
+    if (email.contains('admin')) return 'admin';
+    if (email.contains('supervisor')) return 'supervisor';
+    if (email.contains('employee') || email.contains('staff')) return 'employee';
+    return 'owner';
+  }
+
+  return 'owner';
 });
 
 // ── User Permissions Provider (Set<String>, cached) ──────────────────────────

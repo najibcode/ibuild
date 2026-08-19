@@ -30,10 +30,11 @@ class AuthState {
     String? errorMessage,
     User? user,
     Map<String, dynamic>? profile,
+    bool clearError = false,
   }) {
     return AuthState(
       isLoading: isLoading ?? this.isLoading,
-      errorMessage: errorMessage,
+      errorMessage: clearError ? null : (errorMessage ?? this.errorMessage),
       user: user ?? this.user,
       profile: profile ?? this.profile,
     );
@@ -51,63 +52,55 @@ class AuthController extends StateNotifier<AuthState> {
   void _checkInitialSession() async {
     final session = _repository.getCurrentSession();
     if (session != null) {
-      state = state.copyWith(isLoading: true);
+      state = state.copyWith(isLoading: true, clearError: true);
       final profile = await _repository.getUserProfile(uid: session.user.id);
       state = state.copyWith(
         isLoading: false,
         user: session.user,
         profile: profile,
       );
-      // Trigger RBAC permission loading
+      // Trigger live RBAC role & permission loading from database
       _ref.invalidate(userRoleProvider);
       _ref.invalidate(userPermissionsProvider);
     }
   }
 
+  /// Authenticates user against Supabase Auth without any mock/hardcoded fallbacks.
   Future<bool> signIn(String email, String password) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     final cleanEmail = email.trim().toLowerCase();
 
-    // Infer role from email prefix
-    String? targetRole;
-    if (cleanEmail.startsWith('admin')) {
-      targetRole = 'admin';
-    } else if (cleanEmail.startsWith('owner')) {
-      targetRole = 'owner';
-    } else if (cleanEmail.startsWith('supervisor')) {
-      targetRole = 'supervisor';
-    }
-
     try {
-      AuthResponse response;
-      try {
-        response = await _repository.signIn(email: cleanEmail, password: password);
-      } catch (signInErr) {
-        // Fallback to active admin session if Supabase Auth rejects unconfirmed/unregistered role email
-        try {
-          response = await _repository.signIn(email: 'admin@ibuild.in', password: 'admin@123');
-        } catch (_) {
-          try {
-            response = await _repository.signUp(email: cleanEmail, password: password);
-          } catch (_) {
-            rethrow;
-          }
-        }
-      }
+      final response = await _repository.signIn(
+        email: cleanEmail,
+        password: password,
+      );
 
       final user = response.user;
-      final profile = user != null ? await _repository.getUserProfile(uid: user.id) : null;
+      if (user == null) {
+        throw const AuthException('No authenticated user returned from backend.');
+      }
+
+      final profile = await _repository.getUserProfile(uid: user.id);
+
+      // Check if the account has been deactivated by an administrator
+      if (profile != null && profile['is_disabled'] == true) {
+        await _repository.signOut();
+        state = state.copyWith(
+          isLoading: false,
+          errorMessage: 'Your account has been deactivated. Please contact your administrator.',
+        );
+        return false;
+      }
 
       state = state.copyWith(
         isLoading: false,
         user: user,
         profile: profile,
+        clearError: true,
       );
 
-      // Set target role override
-      _ref.read(selectedRoleOverrideProvider.notifier).state = targetRole;
-
-      // Invalidate RBAC providers to refresh permissions
+      // Trigger live RBAC role & permission loading
       _ref.invalidate(userRoleProvider);
       _ref.invalidate(userPermissionsProvider);
 
@@ -115,70 +108,134 @@ class AuthController extends StateNotifier<AuthState> {
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: _formatAuthError(e),
       );
       return false;
     }
   }
 
+  /// Secure sign out: clears session, cached state, and permissions.
   Future<void> signOut() async {
     state = state.copyWith(isLoading: true);
-    await _repository.signOut();
-    // Clear cached RBAC data and role override
+    try {
+      await _repository.signOut();
+    } catch (_) {}
+
+    // Invalidate cached RBAC role and permissions
     _ref.read(selectedRoleOverrideProvider.notifier).state = null;
     _ref.invalidate(userRoleProvider);
     _ref.invalidate(userPermissionsProvider);
+
     state = AuthState.initial();
   }
 
+  /// Dispatches a password reset email via Supabase Auth.
   Future<bool> sendPasswordReset(String email) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     try {
-      await _repository.sendPasswordResetEmail(email: email);
-      state = state.copyWith(isLoading: false);
+      await _repository.sendPasswordResetEmail(email: email.trim().toLowerCase());
+      state = state.copyWith(isLoading: false, clearError: true);
       return true;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: _formatAuthError(e),
       );
       return false;
     }
   }
 
+  /// Updates password for the authenticated recovery session.
+  Future<bool> updatePassword(String newPassword) async {
+    state = state.copyWith(isLoading: true, clearError: true);
+    try {
+      await _repository.updatePassword(newPassword: newPassword);
+      state = state.copyWith(isLoading: false, clearError: true);
+      return true;
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        errorMessage: _formatAuthError(e),
+      );
+      return false;
+    }
+  }
+
+  /// Updates profile information for the current user.
   Future<bool> updateUserProfile({
     required String fullName,
     required String phone,
     required String companyName,
     String? avatarUrl,
   }) async {
-    state = state.copyWith(isLoading: true);
+    state = state.copyWith(isLoading: true, clearError: true);
     final user = state.user ?? _repository.getCurrentSession()?.user;
-    final uid = user?.id ?? 'demo-user-id';
+    if (user == null) {
+      state = state.copyWith(isLoading: false, errorMessage: 'User session not found.');
+      return false;
+    }
+
     try {
       await _repository.updateProfile(
-        uid: uid,
+        uid: user.id,
         fullName: fullName,
         phone: phone,
         companyName: companyName,
         avatarUrl: avatarUrl,
       );
-      final updatedProfile = await _repository.getUserProfile(uid: uid);
+      final updatedProfile = await _repository.getUserProfile(uid: user.id);
       state = state.copyWith(
         isLoading: false,
         profile: updatedProfile,
+        clearError: true,
       );
       return true;
     } catch (e) {
       state = state.copyWith(
         isLoading: false,
-        errorMessage: e.toString(),
+        errorMessage: _formatAuthError(e),
       );
       return false;
     }
   }
-}
 
+  /// Converts Supabase backend errors into clean, human-readable messages.
+  static String _formatAuthError(dynamic error) {
+    if (error is AuthException) {
+      final msg = error.message.toLowerCase();
+      if (msg.contains('invalid login credentials') ||
+          msg.contains('invalid_credentials') ||
+          msg.contains('invalid username or password')) {
+        return 'Incorrect email or password.';
+      }
+      if (msg.contains('email not confirmed') || msg.contains('unconfirmed')) {
+        return 'Please verify your email address before signing in.';
+      }
+      if (msg.contains('user disabled') || msg.contains('user_disabled')) {
+        return 'Your account has been deactivated. Please contact your administrator.';
+      }
+      if (msg.contains('too many requests') ||
+          msg.contains('rate limit') ||
+          msg.contains('over_email_send_rate_limit')) {
+        return 'Too many attempts. Please wait a moment and try again.';
+      }
+      if (msg.contains('password should be at least')) {
+        return 'Password must be at least 6 characters.';
+      }
+      return error.message;
+    }
+
+    final str = error.toString().toLowerCase();
+    if (str.contains('socketexception') ||
+        str.contains('clientexception') ||
+        str.contains('network') ||
+        str.contains('failed host lookup')) {
+      return 'Unable to connect. Check your internet connection and try again.';
+    }
+
+    return 'Unable to process request right now. Please try again.';
+  }
+}
 
 final authControllerProvider = StateNotifierProvider<AuthController, AuthState>((ref) {
   final repository = ref.watch(authRepositoryProvider);

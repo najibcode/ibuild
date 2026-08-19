@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
@@ -8,6 +9,7 @@ import 'core/routing/router.dart';
 import 'core/navigation/mobile_nav_helper.dart';
 import 'core/utils/avatar_helper.dart';
 import 'core/services/push_notification_service.dart';
+import 'core/widgets/app_logo.dart';
 import 'core/widgets/responsive_layout.dart';
 import 'core/widgets/web_sidebar.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
@@ -113,11 +115,19 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   int _activeWebTab = 0;
 
   RealtimeChannel? _realtimeChannel;
+  dynamic _authSubscription;
 
   @override
   void initState() {
     super.initState();
     _subscribeToRealtimeSync();
+    _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.event == AuthChangeEvent.passwordRecovery) {
+        if (mounted) {
+          context.go('/reset-password');
+        }
+      }
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(pushNotificationServiceProvider).initializeRealtimeListener(context);
@@ -229,6 +239,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   @override
   void dispose() {
     _realtimeChannel?.unsubscribe();
+    _authSubscription?.cancel();
     super.dispose();
   }
 
@@ -266,9 +277,131 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final session = Supabase.instance.client.auth.currentSession;
+    final authState = ref.watch(authControllerProvider);
+    final profile = authState.profile;
+
+    // 1. Session verification: if unauthenticated, redirect to login
+    if (session == null && authState.user == null) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) context.go('/login');
+      });
+      return _buildLoadingScreen(context);
+    }
+
+    // 2. Disabled account check: block deactivated users
+    if (profile != null && profile['is_disabled'] == true) {
+      return _buildDeactivatedAccountScreen(context);
+    }
+
     return ResponsiveLayout(
       mobileLayout: _buildMobileLayout(),
       desktopLayout: _buildDesktopLayout(),
+    );
+  }
+
+  Widget _buildLoadingScreen(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg(context),
+      body: const Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            AppLogo(
+              size: 52,
+              subtitle: 'ERP ENTERPRISE',
+            ),
+            SizedBox(height: 28),
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDeactivatedAccountScreen(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.bg(context),
+      body: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 420),
+          margin: const EdgeInsets.all(AppSpacing.containerMargin),
+          padding: const EdgeInsets.all(32),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 20,
+                offset: const Offset(0, 8),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.redAccent.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(
+                  Icons.block_outlined,
+                  color: Colors.redAccent,
+                  size: 30,
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Account Deactivated',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text(context),
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                'Your enterprise account has been deactivated by a system administrator. Please contact your administrator to restore portal access.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 13,
+                  color: AppColors.mutedText(context),
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 28),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  await ref.read(authControllerProvider.notifier).signOut();
+                  if (context.mounted) context.go('/login');
+                },
+                icon: const Icon(Icons.logout, size: 18),
+                label: const Text('Sign Out'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.redAccent,
+                  foregroundColor: Colors.white,
+                  minimumSize: const Size(double.infinity, 46),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -821,13 +954,11 @@ class _MobileNavEntry {
   final IconData icon;
   final IconData activeIcon;
   final String label;
-  final String? permission;
 
   _MobileNavEntry({
     required this.screen,
     required this.icon,
     required this.activeIcon,
     required this.label,
-    this.permission,
   });
 }

@@ -85,9 +85,16 @@ class AuthRepositoryImpl implements AuthRepository {
       'full_name': fullName,
       'phone': phone,
       'company_name': companyName,
-      'avatar_url': ?avatarUrl,
+      if (avatarUrl != null) 'avatar_url': avatarUrl,
       'updated_at': DateTime.now().toIso8601String(),
     };
     await _client.from('profiles').upsert(payload);
+  }
+
+  @override
+  Future<UserResponse> updatePassword({required String newPassword}) async {
+    return await _client.auth.updateUser(
+      UserAttributes(password: newPassword),
+    );
   }
 }

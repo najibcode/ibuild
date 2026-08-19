@@ -1,5 +1,4 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../models/project_model.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
@@ -20,8 +19,6 @@ class SupabaseProjectRepository implements ProjectRepository {
     int offset = 0,
     bool includeArchived = false,
   }) async {
-    await ensureAutoAuth(_client);
-
     dynamic query = _client.from('projects').select();
 
     if (!includeArchived) {
