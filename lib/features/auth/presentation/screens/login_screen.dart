@@ -390,6 +390,62 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         const SizedBox(height: 24),
 
+                        // ── Quick Enterprise Role Access ──
+                        Row(
+                          children: [
+                            Expanded(child: Divider(color: AppColors.border(context))),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              child: Text(
+                                'QUICK ENTERPRISE ROLE LOGIN',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.8,
+                                  color: AppColors.mutedText(context),
+                                ),
+                              ),
+                            ),
+                            Expanded(child: Divider(color: AppColors.border(context))),
+                          ],
+                        ),
+                        const SizedBox(height: 14),
+
+                        Row(
+                          children: [
+                            _buildRoleButton(
+                              title: 'Owner',
+                              roleSubtitle: 'Full Business',
+                              email: 'owner@ibuild.in',
+                              password: 'owner@123',
+                              icon: Icons.business_center_outlined,
+                              color: const Color(0xFF2196F3),
+                              isLoading: isLoading,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildRoleButton(
+                              title: 'Supervisor',
+                              roleSubtitle: 'Site & Logs',
+                              email: 'supervisor@ibuild.in',
+                              password: 'supervisor@123',
+                              icon: Icons.engineering_outlined,
+                              color: const Color(0xFF4CAF50),
+                              isLoading: isLoading,
+                            ),
+                            const SizedBox(width: 8),
+                            _buildRoleButton(
+                              title: 'Admin',
+                              roleSubtitle: 'Full System',
+                              email: 'admin@ibuild.in',
+                              password: 'admin@123',
+                              icon: Icons.admin_panel_settings_outlined,
+                              color: const Color(0xFFE91E63),
+                              isLoading: isLoading,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+
                         // ── Enterprise Notice Footer ──
                         Container(
                           padding: const EdgeInsets.all(12),
@@ -424,6 +480,66 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                   ),
                 ),
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildRoleButton({
+    required String title,
+    required String roleSubtitle,
+    required String email,
+    required String password,
+    required IconData icon,
+    required Color color,
+    required bool isLoading,
+  }) {
+    return Expanded(
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: isLoading
+              ? null
+              : () {
+                  _emailController.text = email;
+                  _passwordController.text = password;
+                  _onLogin();
+                },
+          borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+          child: Container(
+            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 4),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+              border: Border.all(color: color.withValues(alpha: 0.3)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 22),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  roleSubtitle,
+                  style: TextStyle(
+                    color: AppColors.mutedText(context),
+                    fontSize: 10,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
             ),
           ),
         ),

@@ -30,25 +30,28 @@ class SupabaseRoleRepository implements RoleRepository {
         debugPrint('Note: user_roles query bypassed: $userRolesErr');
       }
 
-      // 2. Try checking profiles table for role_display
+      // 2. Try checking profiles table for role_display / role
       String? targetRoleName;
       try {
         final profile = await _client
             .from('profiles')
-            .select('role_display, full_name')
+            .select()
             .eq('id', userId)
             .maybeSingle();
 
-        if (profile != null && profile['role_display'] != null) {
-          final raw = (profile['role_display'] as String).toLowerCase();
-          if (raw.contains('admin')) {
-            targetRoleName = 'admin';
-          } else if (raw.contains('supervisor')) {
-            targetRoleName = 'supervisor';
-          } else if (raw.contains('employee') || raw.contains('staff')) {
-            targetRoleName = 'employee';
-          } else if (raw.contains('owner')) {
-            targetRoleName = 'owner';
+        if (profile != null) {
+          final roleVal = (profile['role_display'] ?? profile['role']) as String?;
+          if (roleVal != null && roleVal.isNotEmpty) {
+            final raw = roleVal.toLowerCase();
+            if (raw.contains('admin')) {
+              targetRoleName = 'admin';
+            } else if (raw.contains('supervisor')) {
+              targetRoleName = 'supervisor';
+            } else if (raw.contains('employee') || raw.contains('staff')) {
+              targetRoleName = 'employee';
+            } else if (raw.contains('owner')) {
+              targetRoleName = 'owner';
+            }
           }
         }
       } catch (profileErr) {
