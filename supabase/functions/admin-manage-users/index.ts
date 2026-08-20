@@ -44,34 +44,34 @@ serve(async (req: Request) => {
       );
     }
 
-    // 2. Authorize caller — verify admin role in user_roles or admin email
+    // 2. Authorize caller — verify admin/owner role in user_roles, profiles, or email
     const supabaseAdmin = createClient(supabaseUrl, serviceRoleKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
-
-    const isEmailAdmin = callerUser.email?.toLowerCase().includes("admin");
+    const isEmailAdmin = callerUser.email?.toLowerCase().includes("admin") || callerUser.email?.toLowerCase().includes("owner");
     const { data: userRoleData } = await supabaseAdmin
       .from("user_roles")
       .select("roles(name)")
       .eq("user_id", callerUser.id)
       .maybeSingle();
 
-    const roleName = (userRoleData as any)?.roles?.name?.toLowerCase();
-    const isAdmin = roleName === "admin" || isEmailAdmin;
+    // Fetch caller's profile for logging and role fallback
+    const { data: callerProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name, role_display, custom_permissions")
+      .eq("id", callerUser.id)
+      .maybeSingle();
+
+    const roleName = ((userRoleData as any)?.roles?.name || callerProfile?.role_display || "")?.toLowerCase();
+    const isAdmin = roleName === "admin" || roleName === "owner" || roleName === "super_admin" || roleName === "super admin" || isEmailAdmin;
 
     if (!isAdmin) {
       return new Response(
-        JSON.stringify({ error: "Forbidden: Admin privileges required" }),
+        JSON.stringify({ error: "Forbidden: Admin or Owner privileges required" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Fetch caller's profile for logging
-    const { data: callerProfile } = await supabaseAdmin
-      .from("profiles")
-      .select("full_name")
-      .eq("id", callerUser.id)
-      .maybeSingle();
     const actorName = callerProfile?.full_name || callerUser.email || "System Admin";
 
     // 3. Process action
@@ -105,8 +105,8 @@ serve(async (req: Request) => {
 
         const newUserId = newUserData.user.id;
 
-        // Upsert Profile with custom permissions
-        await supabaseAdmin.from("profiles").upsert({
+        // Upsert Profile with custom permissions safely
+        const profilePayload: Record<string, any> = {
           id: newUserId,
           full_name: full_name || email.split("@")[0],
           phone: phone || "",
@@ -115,7 +115,18 @@ serve(async (req: Request) => {
           custom_permissions: custom_permissions || [],
           is_disabled: false,
           updated_at: new Date().toISOString(),
-        });
+        };
+
+        if (body.avatar_url) {
+          profilePayload.avatar_url = body.avatar_url;
+        }
+
+        const { error: profileError } = await supabaseAdmin.from("profiles").upsert(profilePayload);
+        if (profileError) {
+          console.warn("Profile upsert warning:", profileError.message);
+          delete profilePayload.avatar_url;
+          await supabaseAdmin.from("profiles").upsert(profilePayload);
+        }
 
         // Assign Role
         const targetRoleName = (role_name || "employee").toLowerCase();

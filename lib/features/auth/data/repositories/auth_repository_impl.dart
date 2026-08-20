@@ -80,15 +80,24 @@ class AuthRepositoryImpl implements AuthRepository {
     required String companyName,
     String? avatarUrl,
   }) async {
-    final payload = {
+    final payload = <String, dynamic>{
       'id': uid,
       'full_name': fullName,
       'phone': phone,
       'company_name': companyName,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
+      'avatar_url': ?avatarUrl,
       'updated_at': DateTime.now().toIso8601String(),
     };
-    await _client.from('profiles').upsert(payload);
+    try {
+      await _client.from('profiles').upsert(payload);
+    } catch (e) {
+      if (payload.containsKey('avatar_url')) {
+        payload.remove('avatar_url');
+        await _client.from('profiles').upsert(payload);
+      } else {
+        rethrow;
+      }
+    }
   }
 
   @override

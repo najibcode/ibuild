@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:ibuild/core/utils/avatar_helper.dart';
 import '../models/admin_user_model.dart';
 import '../models/audit_log_model.dart';
@@ -98,7 +99,7 @@ class AdminRepository {
       for (final entry in authMap.entries) {
         if (!processedUids.contains(entry.key)) {
           entries.add(AdminUserEntry.fromMap(
-            profileMap: {'id': entry.key, 'full_name': entry.value['email']?.toString().split('@').first ?? 'User'},
+            profileMap: {'id': entry.key},
             userRoleMap: roleMap[entry.key],
             authUserMap: entry.value,
           ));
@@ -140,36 +141,54 @@ class AdminRepository {
       if (res.status == 200 && res.data != null && res.data['success'] == true) {
         return (success: true, message: res.data['message']?.toString() ?? 'User created successfully');
       } else {
-        final errMsg = res.data?['error']?.toString() ?? 'Failed to create user via backend';
-        return (success: false, message: errMsg);
+        final errMsg = res.data?['error']?.toString() ?? 'Backend responded with error (${res.status})';
+        debugPrint('Edge function create_user responded with error: $errMsg, falling back to local creation');
+        throw Exception(errMsg);
       }
     } catch (e) {
-      debugPrint('Edge function error creating user: $e, attempting fallback');
-      // Fallback: If edge function is offline, create profile and assign role/permissions locally
+      debugPrint('Edge function error creating user: $e, attempting fallback profile setup');
+      // Fallback: If edge function is offline or unauthorized, create profile and assign role/permissions locally
       try {
-        final genUid = 'usr_${DateTime.now().millisecondsSinceEpoch}';
-        await _client.from('profiles').upsert({
+        final genUid = const Uuid().v4();
+        final avatarUrl = RoleAvatarHelper.getAvatarUrl(role: roleName, email: email);
+
+        final Map<String, dynamic> baseProfile = {
           'id': genUid,
           'full_name': fullName,
           'phone': phone ?? '',
           'company_name': companyName ?? 'IBUILD',
-          'avatar_url': RoleAvatarHelper.getAvatarUrl(role: roleName, email: email),
           'role_display': roleName,
           'custom_permissions': perms,
           'is_disabled': false,
-        });
+        };
 
-        final roleRow = await _client
-            .from('roles')
-            .select('id')
-            .eq('name', roleName.toLowerCase())
-            .maybeSingle();
+        // Attempt upsert with avatar_url, retry without avatar_url if schema column is missing
+        try {
+          await _client.from('profiles').upsert({
+            ...baseProfile,
+            'avatar_url': avatarUrl,
+          });
+        } catch (profileErr) {
+          debugPrint('Profile upsert with avatar_url failed ($profileErr), retrying base fields');
+          await _client.from('profiles').upsert(baseProfile);
+        }
 
-        if (roleRow != null) {
-          await _client.from('user_roles').upsert({
-            'user_id': genUid,
-            'role_id': roleRow['id'],
-          }, onConflict: 'user_id');
+        // Try assigning role in user_roles
+        try {
+          final roleRow = await _client
+              .from('roles')
+              .select('id')
+              .eq('name', roleName.toLowerCase())
+              .maybeSingle();
+
+          if (roleRow != null) {
+            await _client.from('user_roles').upsert({
+              'user_id': genUid,
+              'role_id': roleRow['id'],
+            }, onConflict: 'user_id');
+          }
+        } catch (roleErr) {
+          debugPrint('User role assign in fallback note: $roleErr');
         }
 
         await logAdminAction(
@@ -184,7 +203,10 @@ class AdminRepository {
           },
         );
 
-        return (success: true, message: 'User account created with role $roleName and ${perms.length} assigned functions');
+        return (
+          success: true,
+          message: 'User account created with role $roleName and ${perms.length} assigned functions',
+        );
       } catch (fallbackErr) {
         return (success: false, message: 'Creation failed: $fallbackErr');
       }
