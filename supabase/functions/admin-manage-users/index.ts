@@ -80,7 +80,7 @@ serve(async (req: Request) => {
 
     switch (action) {
       case "create_user": {
-        const { email, password, full_name, role_name, phone, company_name } = body;
+        const { email, password, full_name, role_name, phone, company_name, custom_permissions } = body;
         if (!email || !password) {
           return new Response(
             JSON.stringify({ error: "Email and password are required" }),
@@ -105,13 +105,14 @@ serve(async (req: Request) => {
 
         const newUserId = newUserData.user.id;
 
-        // Upsert Profile
+        // Upsert Profile with custom permissions
         await supabaseAdmin.from("profiles").upsert({
           id: newUserId,
           full_name: full_name || email.split("@")[0],
           phone: phone || "",
           company_name: company_name || "IBUILD",
           role_display: role_name || "employee",
+          custom_permissions: custom_permissions || [],
           is_disabled: false,
           updated_at: new Date().toISOString(),
         });
@@ -138,15 +139,49 @@ serve(async (req: Request) => {
           action: "user.created",
           target_type: "user",
           target_id: newUserId,
-          details: { email, full_name, role: targetRoleName },
+          details: {
+            email,
+            full_name,
+            role: targetRoleName,
+            functions_count: (custom_permissions || []).length,
+          },
         });
 
         return new Response(
           JSON.stringify({
             success: true,
             user_id: newUserId,
-            message: `User ${email} created successfully with role ${targetRoleName}`,
+            message: `User ${email} created successfully with role ${targetRoleName} and ${(custom_permissions || []).length} assigned functions`,
           }),
+          { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      case "update_permissions": {
+        const { user_id, custom_permissions } = body;
+        if (!user_id) {
+          return new Response(
+            JSON.stringify({ error: "user_id is required" }),
+            { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+          );
+        }
+
+        await supabaseAdmin.from("profiles").update({
+          custom_permissions: custom_permissions || [],
+          updated_at: new Date().toISOString(),
+        }).eq("id", user_id);
+
+        await supabaseAdmin.from("audit_logs").insert({
+          actor_id: callerUser.id,
+          actor_name: actorName,
+          action: "permissions.updated",
+          target_type: "user",
+          target_id: user_id,
+          details: { functions_count: (custom_permissions || []).length },
+        });
+
+        return new Response(
+          JSON.stringify({ success: true, message: "User functions and permissions updated successfully" }),
           { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }

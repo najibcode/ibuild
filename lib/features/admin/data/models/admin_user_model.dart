@@ -1,3 +1,5 @@
+import 'erp_function_model.dart';
+
 class AdminUserEntry {
   final String userId;
   final String email;
@@ -8,6 +10,7 @@ class AdminUserEntry {
   final String roleName;
   final String roleId;
   final bool isDisabled;
+  final List<String> customPermissions;
   final DateTime? createdAt;
   final DateTime? lastSignInAt;
 
@@ -21,9 +24,27 @@ class AdminUserEntry {
     required this.roleName,
     required this.roleId,
     required this.isDisabled,
+    this.customPermissions = const [],
     this.createdAt,
     this.lastSignInAt,
   });
+
+  /// Inferred or assigned operational function keys for this user.
+  List<String> get activeFunctionKeys {
+    if (customPermissions.isNotEmpty) {
+      return ErpFunctionRegistry.permissionsToFunctionKeys(customPermissions);
+    }
+    return ErpFunctionRegistry.getDefaultFunctionKeysForRole(roleName);
+  }
+
+  /// List of ErpFunctionItem objects currently assigned to this user.
+  List<ErpFunctionItem> get activeFunctionItems {
+    final keys = activeFunctionKeys;
+    return keys
+        .map((k) => ErpFunctionRegistry.functionMap[k])
+        .whereType<ErpFunctionItem>()
+        .toList();
+  }
 
   factory AdminUserEntry.fromMap({
     required Map<String, dynamic> profileMap,
@@ -61,6 +82,11 @@ class AdminUserEntry {
     final avatarUrl = profileMap['avatar_url'] as String?;
     final isDisabled = profileMap['is_disabled'] as bool? ?? false;
 
+    final customPermsRaw = profileMap['custom_permissions'] ?? profileMap['permissions'];
+    final List<String> customPermissions = customPermsRaw is List
+        ? List<String>.from(customPermsRaw.map((e) => e.toString()))
+        : [];
+
     DateTime? createdAt;
     if (profileMap['created_at'] != null) {
       createdAt = DateTime.tryParse(profileMap['created_at'].toString());
@@ -83,6 +109,7 @@ class AdminUserEntry {
       roleName: roleName.toLowerCase(),
       roleId: roleId,
       isDisabled: isDisabled,
+      customPermissions: customPermissions,
       createdAt: createdAt,
       lastSignInAt: lastSignInAt,
     );
@@ -97,6 +124,7 @@ class AdminUserEntry {
     String? roleName,
     String? roleId,
     bool? isDisabled,
+    List<String>? customPermissions,
   }) {
     return AdminUserEntry(
       userId: userId,
@@ -108,6 +136,7 @@ class AdminUserEntry {
       roleName: roleName ?? this.roleName,
       roleId: roleId ?? this.roleId,
       isDisabled: isDisabled ?? this.isDisabled,
+      customPermissions: customPermissions ?? this.customPermissions,
       createdAt: createdAt,
       lastSignInAt: lastSignInAt,
     );

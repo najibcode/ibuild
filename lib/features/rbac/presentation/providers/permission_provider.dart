@@ -61,6 +61,28 @@ final userPermissionsProvider = FutureProvider<Set<String>>((ref) async {
   final roleName = ref.watch(currentRoleProvider);
   if (roleName == 'unknown') return {};
 
+  final client = ref.watch(supabaseClientProvider);
+  final user = client.auth.currentUser;
+
+  // 1. Check if user has custom granular functions/permissions in profile
+  if (user != null) {
+    try {
+      final profile = await client
+          .from('profiles')
+          .select()
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (profile != null) {
+        final customRaw = profile['custom_permissions'] ?? profile['permissions'];
+        if (customRaw is List && customRaw.isNotEmpty) {
+          return Set<String>.from(customRaw.map((e) => e.toString()));
+        }
+      }
+    } catch (_) {}
+  }
+
+  // 2. Query permissions from database role_permissions
   try {
     final repo = ref.watch(roleRepositoryProvider);
     final allRoles = await repo.fetchAllRoles();
@@ -75,7 +97,7 @@ final userPermissionsProvider = FutureProvider<Set<String>>((ref) async {
     }
   } catch (_) {}
 
-  // Fallback to default permission matrix for the role
+  // 3. Fallback to default permission matrix for the role
   return _defaultPermissionsForRole(roleName);
 });
 

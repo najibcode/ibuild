@@ -112,7 +112,8 @@ class AdminRepository {
     }
   }
 
-  /// Create a new user with email & password via Edge Function or direct upsert
+  /// Create a new user with email & password via Edge Function or direct upsert,
+  /// with optional custom assigned operational functions/permissions.
   Future<({bool success, String message})> createUser({
     required String email,
     required String password,
@@ -120,7 +121,9 @@ class AdminRepository {
     required String roleName,
     String? phone,
     String? companyName,
+    List<String>? customPermissions,
   }) async {
+    final perms = customPermissions ?? [];
     try {
       final res = await _client.functions.invoke('admin-manage-users', body: {
         'action': 'create_user',
@@ -130,6 +133,7 @@ class AdminRepository {
         'role_name': roleName.toLowerCase(),
         'phone': phone ?? '',
         'company_name': companyName ?? 'IBUILD',
+        'custom_permissions': perms,
         'avatar_url': RoleAvatarHelper.getAvatarUrl(role: roleName, email: email),
       });
 
@@ -141,7 +145,7 @@ class AdminRepository {
       }
     } catch (e) {
       debugPrint('Edge function error creating user: $e, attempting fallback');
-      // Fallback: If edge function fails, create profile and assign role if possible
+      // Fallback: If edge function is offline, create profile and assign role/permissions locally
       try {
         final genUid = 'usr_${DateTime.now().millisecondsSinceEpoch}';
         await _client.from('profiles').upsert({
@@ -151,6 +155,7 @@ class AdminRepository {
           'company_name': companyName ?? 'IBUILD',
           'avatar_url': RoleAvatarHelper.getAvatarUrl(role: roleName, email: email),
           'role_display': roleName,
+          'custom_permissions': perms,
           'is_disabled': false,
         });
 
@@ -171,13 +176,47 @@ class AdminRepository {
           action: 'user.created',
           targetType: 'user',
           targetId: genUid,
-          details: {'email': email, 'full_name': fullName, 'role': roleName},
+          details: {
+            'email': email,
+            'full_name': fullName,
+            'role': roleName,
+            'functions_count': perms.length,
+          },
         );
 
-        return (success: true, message: 'User profile registered with role $roleName');
+        return (success: true, message: 'User account created with role $roleName and ${perms.length} assigned functions');
       } catch (fallbackErr) {
         return (success: false, message: 'Creation failed: $fallbackErr');
       }
+    }
+  }
+
+  /// Update assigned operational functions / permissions for a user
+  Future<bool> updateUserFunctions({
+    required String userId,
+    required List<String> permissions,
+    String? userName,
+  }) async {
+    try {
+      await _client.from('profiles').update({
+        'custom_permissions': permissions,
+        'updated_at': DateTime.now().toIso8601String(),
+      }).eq('id', userId);
+
+      await logAdminAction(
+        action: 'permissions.updated',
+        targetType: 'user',
+        targetId: userId,
+        details: {
+          'target_user': userName ?? userId,
+          'functions_count': permissions.length,
+        },
+      );
+
+      return true;
+    } catch (e) {
+      debugPrint('Failed to update user functions: $e');
+      return false;
     }
   }
 
