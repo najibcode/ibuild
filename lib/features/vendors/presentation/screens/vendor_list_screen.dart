@@ -10,10 +10,9 @@ import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/utils/whatsapp_helper.dart';
 import '../../../projects/presentation/controllers/project_controller.dart';
+import '../../../projects/presentation/controllers/project_dashboard_controller.dart';
 import '../../../subcontractors/data/models/subcontractor_model.dart';
 import '../../../subcontractors/presentation/controllers/subcontractor_controller.dart';
-import '../../../expenses/data/models/expense_model.dart';
-import '../../../expenses/presentation/controllers/expense_controller.dart';
 
 class VendorListScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBackPressed;
@@ -48,11 +47,22 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
       text: (existing?.contractValue ?? 2500000).toStringAsFixed(0),
     );
     final paidCtrl = TextEditingController(
-      text: (existing?.paidAmount ?? 1000000).toStringAsFixed(0),
+      text: (existing?.paidAmount ?? 0).toStringAsFixed(0),
     );
     String selectedTrade = existing?.tradeSpecialization ?? 'Electrical & MEP';
     String selectedStatus = existing?.status ?? 'Active';
-    String? selectedSiteProject = existing?.siteName;
+
+    final initialProjects = ref.read(projectControllerProvider).projects;
+    String? selectedProjectId = existing?.projectId;
+    if (selectedProjectId == null && existing?.siteNameProp != null && existing!.siteNameProp != 'Unassigned') {
+      final match = initialProjects.where(
+        (p) => p.name.toLowerCase() == existing.siteNameProp!.toLowerCase(),
+      );
+      if (match.isNotEmpty) selectedProjectId = match.first.id;
+    }
+    if (selectedProjectId == null && existing == null && initialProjects.isNotEmpty) {
+      selectedProjectId = initialProjects.first.id;
+    }
 
     // Ensure projects are loaded fresh
     ref.read(projectControllerProvider.notifier).loadProjects();
@@ -90,7 +100,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                   ),
                   ...projects.map(
                     (p) => DropdownMenuItem<String?>(
-                      value: p.name,
+                      value: p.id,
                       child: Row(
                         children: [
                           Icon(
@@ -105,6 +115,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                               style: TextStyle(
                                 color: AppColors.text(context),
                                 fontSize: 13,
+                                fontWeight: FontWeight.w600,
                               ),
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -155,7 +166,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                           controller: companyCtrl,
                           style: TextStyle(color: AppColors.text(context)),
                           decoration: InputDecoration(
-                            labelText: 'Company / Firm Name',
+                            labelText: 'Company / Firm Name *',
                             hintText: 'e.g. Sri Laxmi Electricals',
                             labelStyle: TextStyle(
                               color: AppColors.mutedText(context),
@@ -203,7 +214,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
 
                         // Assigned Site / Project Dropdown
                         Text(
-                          'ASSIGNED SITE / PROJECT',
+                          'ASSIGNED PROJECT SITE',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -215,9 +226,9 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                         DropdownButtonFormField<String?>(
                           initialValue:
                               siteDropdownItems.any(
-                                (i) => i.value == selectedSiteProject,
+                                (i) => i.value == selectedProjectId,
                               )
-                              ? selectedSiteProject
+                              ? selectedProjectId
                               : null,
                           dropdownColor: AppColors.cardBg(context),
                           isExpanded: true,
@@ -238,16 +249,21 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                           items: siteDropdownItems,
                           onChanged: (val) {
                             setDialogState(() {
-                              selectedSiteProject = val;
-                              if (val != '__custom__') {
-                                siteCtrl.text = val ?? '';
+                              selectedProjectId = val;
+                              if (val != '__custom__' && val != null) {
+                                final match = projects.where((element) => element.id == val);
+                                if (match.isNotEmpty) {
+                                  siteCtrl.text = match.first.name;
+                                }
+                              } else if (val == null) {
+                                siteCtrl.text = 'General Operations';
                               } else {
                                 siteCtrl.clear();
                               }
                             });
                           },
                         ),
-                        if (selectedSiteProject == '__custom__') ...[
+                        if (selectedProjectId == '__custom__') ...[
                           const SizedBox(height: 8),
                           TextField(
                             controller: siteCtrl,
@@ -347,7 +363,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                                   color: AppColors.text(context),
                                 ),
                                 decoration: InputDecoration(
-                                  labelText: 'Contract Amount (₹)',
+                                  labelText: 'Contract Amount (₹) *',
                                   labelStyle: TextStyle(
                                     color: AppColors.mutedText(context),
                                   ),
@@ -363,7 +379,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                                   color: AppColors.text(context),
                                 ),
                                 decoration: InputDecoration(
-                                  labelText: 'Amount Paid (₹)',
+                                  labelText: 'Disbursed to Date (₹)',
                                   labelStyle: TextStyle(
                                     color: AppColors.mutedText(context),
                                   ),
@@ -383,6 +399,20 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                     ElevatedButton(
                       onPressed: () async {
                         if (companyCtrl.text.trim().isEmpty) return;
+
+                        String? targetProjectId;
+                        String finalSiteName = 'General Operations';
+
+                        if (selectedProjectId == '__custom__') {
+                          finalSiteName = siteCtrl.text.trim().isEmpty ? 'Custom Site' : siteCtrl.text.trim();
+                        } else if (selectedProjectId != null) {
+                          targetProjectId = selectedProjectId;
+                          final matched = projects.where((p) => p.id == selectedProjectId);
+                          if (matched.isNotEmpty) {
+                            finalSiteName = matched.first.name;
+                          }
+                        }
+
                         final newSub = Subcontractor(
                           id: existing?.id ?? '',
                           name: companyCtrl.text.trim(),
@@ -392,9 +422,8 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                               : personCtrl.text.trim(),
                           phone: phoneCtrl.text.trim(),
                           specialization: selectedTrade,
-                          siteNameProp: siteCtrl.text.trim().isEmpty
-                              ? 'Main Site'
-                              : siteCtrl.text.trim(),
+                          projectId: targetProjectId,
+                          siteNameProp: finalSiteName,
                           contractValue:
                               double.tryParse(contractCtrl.text) ?? 0.0,
                           paidAmount: double.tryParse(paidCtrl.text) ?? 0.0,
@@ -414,6 +443,11 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                                   )
                                   .updateSubcontractor(newSub);
 
+                        if (targetProjectId != null) {
+                          ref.invalidate(projectDashboardProvider(targetProjectId));
+                        }
+                        ref.invalidate(projectControllerProvider);
+
                         if (context.mounted) {
                           Navigator.pop(dialogCtx);
                           if (success) {
@@ -421,8 +455,8 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                               SnackBar(
                                 content: Text(
                                   existing == null
-                                      ? 'Subcontractor vendor registered successfully'
-                                      : 'Subcontractor details updated successfully',
+                                      ? 'Subcontractor registered & linked to $finalSiteName ✓'
+                                      : 'Subcontractor details updated successfully ✓',
                                 ),
                                 backgroundColor: AppColors.secondary,
                               ),
@@ -457,6 +491,185 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
           },
         );
       },
+    );
+  }
+
+  void _showQuickAssignProjectDialog(BuildContext context, Subcontractor vendor) {
+    final projects = ref.read(projectControllerProvider).projects;
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        backgroundColor: AppColors.cardBg(context),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.apartment, color: AppColors.primary, size: 22),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                'Assign ${vendor.companyName} to Project Site',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.text(context),
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 440,
+          child: projects.isEmpty
+              ? Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Text(
+                    'No active projects found. Please create a project first.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: AppColors.mutedText(context)),
+                  ),
+                )
+              : SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'Linking this contractor to a project will display the site name and sync their ₹${_fmt(vendor.paidAmount)} disbursed amount to the project financial tracker.',
+                          style: TextStyle(fontSize: 11, color: AppColors.text(context)),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      ...projects.map((p) {
+                        final isSelected = vendor.projectId == p.id ||
+                            vendor.siteName.toLowerCase() == p.name.toLowerCase();
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 8),
+                          color: isSelected
+                              ? AppColors.primary.withValues(alpha: 0.12)
+                              : AppColors.bg(context),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                            side: BorderSide(
+                              color: isSelected ? AppColors.primary : AppColors.border(context),
+                              width: isSelected ? 1.5 : 1.0,
+                            ),
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: isSelected
+                                  ? AppColors.primary
+                                  : AppColors.primary.withValues(alpha: 0.1),
+                              child: Icon(
+                                isSelected ? Icons.check : Icons.apartment,
+                                color: isSelected ? Colors.white : AppColors.primary,
+                                size: 18,
+                              ),
+                            ),
+                            title: Text(
+                              p.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                            subtitle: Text(
+                              'Budget: ₹${_fmt(p.budget)} • Recorded Spent: ₹${_fmt(p.spent)}',
+                              style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                            ),
+                            trailing: isSelected
+                                ? const Text(
+                                    'Active Site',
+                                    style: TextStyle(
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 11,
+                                    ),
+                                  )
+                                : ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppColors.primaryColor(context),
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                      visualDensity: VisualDensity.compact,
+                                    ),
+                                    onPressed: () async {
+                                      Navigator.pop(dialogCtx);
+                                      final ok = await ref
+                                          .read(subcontractorControllerProvider.notifier)
+                                          .assignProject(
+                                            sub: vendor,
+                                            projectId: p.id,
+                                            siteName: p.name,
+                                          );
+
+                                      ref.invalidate(projectDashboardProvider(p.id));
+                                      ref.invalidate(projectControllerProvider);
+                                      ref.invalidate(subcontractorControllerProvider);
+
+                                      if (context.mounted) {
+                                        ScaffoldMessenger.of(context).showSnackBar(
+                                          SnackBar(
+                                            content: Text(ok
+                                                ? 'Linked "${vendor.companyName}" to "${p.name}" & synced ₹${_fmt(vendor.paidAmount)} to project!'
+                                                : 'Failed to assign project'),
+                                            backgroundColor: ok
+                                                ? const Color(0xFF10B981)
+                                                : AppColors.error,
+                                          ),
+                                        );
+                                      }
+                                    },
+                                    child: const Text('Assign', style: TextStyle(fontSize: 11)),
+                                  ),
+                            onTap: () async {
+                              Navigator.pop(dialogCtx);
+                              final ok = await ref
+                                  .read(subcontractorControllerProvider.notifier)
+                                  .assignProject(
+                                    sub: vendor,
+                                    projectId: p.id,
+                                    siteName: p.name,
+                                  );
+
+                              ref.invalidate(projectDashboardProvider(p.id));
+                              ref.invalidate(projectControllerProvider);
+                              ref.invalidate(subcontractorControllerProvider);
+
+                              if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: Text(ok
+                                        ? 'Linked "${vendor.companyName}" to "${p.name}" & synced ₹${_fmt(vendor.paidAmount)} to project!'
+                                        : 'Failed to assign project'),
+                                    backgroundColor: ok
+                                        ? const Color(0xFF10B981)
+                                        : AppColors.error,
+                                  ),
+                                );
+                              }
+                            },
+                          ),
+                        );
+                      }),
+                    ],
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx),
+            child: const Text('Cancel'),
+          ),
+        ],
+      ),
     );
   }
 
@@ -721,41 +934,39 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
                 onPressed: () async {
                   if (netPayable <= 0 && gross <= 0) return;
 
-                  // 1. Update Subcontractor cumulative paid amount
-                  final updated = vendor.copyWith(
-                    paidAmount: vendor.paidAmount + netPayable,
-                  );
-                  await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(updated);
+                  final projects = ref.read(projectControllerProvider).projects;
+                  String? targetProjectId = vendor.projectId;
+                  if (targetProjectId == null && vendor.siteName.isNotEmpty) {
+                    final match = projects.where((p) => p.name.toLowerCase() == vendor.siteName.toLowerCase());
+                    if (match.isNotEmpty) targetProjectId = match.first.id;
+                  }
+                  if (targetProjectId == null && projects.isNotEmpty) {
+                    targetProjectId = projects.first.id;
+                  }
 
-                  // 2. Charge project expense if checked
+                  final targetSub = vendor.copyWith(projectId: targetProjectId);
+
                   if (chargeProjectExpense) {
-                    final projects = ref.read(projectControllerProvider).projects;
-                    String? targetProjectId;
-                    if (vendor.siteName.isNotEmpty) {
-                      final match = projects.where((p) => p.name.toLowerCase() == vendor.siteName.toLowerCase());
-                      if (match.isNotEmpty) targetProjectId = match.first.id;
-                    }
-                    if (targetProjectId == null && projects.isNotEmpty) {
-                      targetProjectId = projects.first.id;
-                    }
-
-                    final newExp = Expense(
-                      id: '',
-                      projectId: targetProjectId,
-                      expenseDate: DateTime.now().toIso8601String().substring(0, 10),
-                      category: 'Subcontractor',
+                    await ref.read(subcontractorControllerProvider.notifier).recordPayment(
+                      sub: targetSub,
                       amount: netPayable,
-                      paymentMode: 'bank',
-                      notes: 'RA Bill Payment to ${vendor.companyName} (${vendor.tradeSpecialization}) - Net: ₹${_fmt(netPayable)}, Gross: ₹${_fmt(gross)}, Retention: ₹${_fmt(retentionMoney)}. ${notesCtrl.text.trim()}',
+                      paymentMode: 'Bank Transfer',
+                      remarks: 'RA Bill Payment (${vendor.tradeSpecialization}) - Net: ₹${_fmt(netPayable)}, Gross: ₹${_fmt(gross)}, Retention: ₹${_fmt(retentionMoney)}. ${notesCtrl.text.trim()}',
                     );
-                    await ref.read(expenseControllerProvider.notifier).addExpense(newExp);
+                    ref.invalidate(projectControllerProvider);
+                  } else {
+                    final updated = vendor.copyWith(
+                      paidAmount: vendor.paidAmount + netPayable,
+                      projectId: targetProjectId,
+                    );
+                    await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(updated);
                   }
 
                   if (context.mounted) {
                     Navigator.pop(dialogCtx);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
-                        content: Text('Certified & Disbursed Net ₹${_fmt(netPayable)} to ${vendor.companyName} ✓'),
+                        content: Text('Certified & Disbursed Net ₹${_fmt(netPayable)} to ${vendor.companyName} & synced to Project Expenses ✓'),
                         backgroundColor: AppColors.secondary,
                       ),
                     );
@@ -1366,25 +1577,58 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
               ),
               const SizedBox(width: 8),
               Expanded(
-                child: Row(
-                  children: [
-                    Icon(
-                      Icons.location_on_outlined,
-                      size: 12,
-                      color: AppColors.mutedText(context),
-                    ),
-                    const SizedBox(width: 2),
-                    Expanded(
-                      child: Text(
-                        vendor.siteName,
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: AppColors.mutedText(context),
-                        ),
-                        overflow: TextOverflow.ellipsis,
+                child: GestureDetector(
+                  onTap: () => _showQuickAssignProjectDialog(context, vendor),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: (vendor.projectId == null || vendor.siteName == 'Unassigned')
+                          ? Colors.amber.withValues(alpha: 0.15)
+                          : AppColors.primary.withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(6),
+                      border: Border.all(
+                        color: (vendor.projectId == null || vendor.siteName == 'Unassigned')
+                            ? Colors.amber.shade700.withValues(alpha: 0.5)
+                            : AppColors.primary.withValues(alpha: 0.25),
                       ),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          (vendor.projectId == null || vendor.siteName == 'Unassigned')
+                              ? Icons.add_location_alt_outlined
+                              : Icons.apartment,
+                          size: 13,
+                          color: (vendor.projectId == null || vendor.siteName == 'Unassigned')
+                              ? Colors.amber.shade900
+                              : AppColors.primaryColor(context),
+                        ),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            (vendor.projectId == null || vendor.siteName == 'Unassigned')
+                                ? 'Assign Project Site +'
+                                : vendor.siteName,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: (vendor.projectId == null || vendor.siteName == 'Unassigned')
+                                  ? Colors.amber.shade900
+                                  : AppColors.text(context),
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          size: 14,
+                          color: AppColors.mutedText(context),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
             ],

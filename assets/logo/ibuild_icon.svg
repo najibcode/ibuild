@@ -1,40 +1,120 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#1E40AF"/>
-      <stop offset="100%" stop-color="#0D2563"/>
+    <!-- Background Space Obsidian Gradient -->
+    <linearGradient id="tileBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B132B"/>
+      <stop offset="50%" stop-color="#070B18"/>
+      <stop offset="100%" stop-color="#030712"/>
     </linearGradient>
+
+    <!-- Glass Rim Border Gradient -->
+    <linearGradient id="rimGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA" stop-opacity="0.8"/>
+      <stop offset="35%" stop-color="#3B82F6" stop-opacity="0.5"/>
+      <stop offset="70%" stop-color="#10B981" stop-opacity="0.3"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.9"/>
+    </linearGradient>
+
+    <!-- Royal Cobalt Sapphire Crystal Column Gradient -->
+    <linearGradient id="cobaltGlass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#60A5FA"/>
+      <stop offset="30%" stop-color="#3B82F6"/>
+      <stop offset="70%" stop-color="#1D4ED8"/>
+      <stop offset="100%" stop-color="#1E40AF"/>
+    </linearGradient>
+
+    <!-- Cobalt Glow Filter -->
+    <filter id="cobaltGlow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur stdDeviation="12" result="blur"/>
+      <feComposite in="SourceGraphic" in2="blur" operator="over"/>
+    </filter>
+
+    <!-- Emerald Inner Core Gradient -->
+    <linearGradient id="emeraldCore" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="50%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
+    </linearGradient>
+
+    <!-- Platinum/Titanium Top Bevel Gradient -->
+    <linearGradient id="titaniumTop" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="50%" stop-color="#E2E8F0"/>
+      <stop offset="100%" stop-color="#CBD5E1"/>
+    </linearGradient>
+
+    <!-- Titanium Side Dark Gradient -->
+    <linearGradient id="titaniumSide" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94A3B8"/>
+      <stop offset="50%" stop-color="#64748B"/>
+      <stop offset="100%" stop-color="#334155"/>
+    </linearGradient>
+
+    <!-- Inner Ambient Radial Glow -->
+    <radialGradient id="centerGlow" cx="42%" cy="42%" r="55%">
+      <stop offset="0%" stop-color="#3B82F6" stop-opacity="0.35"/>
+      <stop offset="50%" stop-color="#10B981" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
   </defs>
 
-  <!-- Background rounded square -->
-  <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="url(#bg)"/>
+  <!-- Ambient Backdrop Glow -->
+  <rect x="0" y="0" width="512" height="512" fill="#030712"/>
+  <rect x="0" y="0" width="512" height="512" fill="url(#centerGlow)"/>
 
-  <!-- Left Column (shortest) -->
-  <rect x="102" y="246" width="92" height="174" rx="13" ry="13" fill="white" opacity="0.82"/>
+  <!-- Squircle Base Tile with Ambient Shadow -->
+  <rect x="28" y="28" width="456" height="456" rx="108" ry="108" fill="url(#tileBg)"/>
+  <rect x="28" y="28" width="456" height="456" rx="108" ry="108" fill="none" stroke="url(#rimGlow)" stroke-width="2.5"/>
 
-  <!-- Center Column (tallest) -->
-  <rect x="215" y="113" width="92" height="307" rx="13" ry="13" fill="white"/>
+  <!-- 3D Isometric Interlocking 'iB' Structure -->
+  <g transform="translate(6, 0)">
+    <!-- Floating Glowing 'i' Dot Cube -->
+    <g filter="url(#cobaltGlow)">
+      <!-- Top Face -->
+      <polygon points="172,142 208,122 244,142 208,162" fill="#93C5FD"/>
+      <!-- Left Face -->
+      <polygon points="172,142 208,162 208,206 172,186" fill="#3B82F6"/>
+      <!-- Right Face -->
+      <polygon points="208,162 244,142 244,206 208,206" fill="#1D4ED8"/>
+    </g>
 
-  <!-- Right Column (medium) -->
-  <rect x="328" y="184" width="92" height="236" rx="13" ry="13" fill="white" opacity="0.82"/>
+    <!-- Lower 'i' Sapphire Crystal Pillar -->
+    <g filter="url(#cobaltGlow)">
+      <!-- Top Face -->
+      <polygon points="172,216 208,196 244,216 208,236" fill="#93C5FD"/>
+      <!-- Left Face -->
+      <polygon points="172,216 208,236 208,354 172,334" fill="url(#cobaltGlass)"/>
+      <!-- Right Face -->
+      <polygon points="208,236 244,216 244,334 208,354" fill="#1E40AF"/>
+    </g>
 
-  <!-- Emerald Chevron Crown -->
-  <polygon points="261,82 321,123 201,123" fill="#059669"/>
+    <!-- Central Sapphire Glass Spire -->
+    <g filter="url(#cobaltGlow)">
+      <!-- Top Face -->
+      <polygon points="244,96 280,76 316,96 280,116" fill="#BFDBFE"/>
+      <!-- Left Face -->
+      <polygon points="244,96 280,116 280,396 244,376" fill="url(#cobaltGlass)"/>
+      <!-- Right Face -->
+      <polygon points="280,116 316,96 316,376 280,396" fill="#172554"/>
+    </g>
 
-  <!-- Window Accents (Center Column) -->
-  <rect x="236" y="164" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
-  <rect x="236" y="215" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
-  <rect x="236" y="266" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
-  <rect x="236" y="317" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+    <!-- Interlocking Titanium 'B' Geometric Arch & Loops -->
+    <!-- Top Horizontal Cantilever Beam -->
+    <polygon points="208,172 264,140 376,204 320,236" fill="url(#titaniumTop)"/>
+    <polygon points="208,172 320,236 320,286 208,222" fill="url(#titaniumSide)"/>
+    <polygon points="320,236 376,204 376,254 320,286" fill="#1E293B"/>
 
-  <!-- Window Accents (Left Column) -->
-  <rect x="123" y="287" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
-  <rect x="123" y="338" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+    <!-- Emerald Glow Inset in B loop -->
+    <polygon points="324,240 370,214 370,248 324,274" fill="url(#emeraldCore)" opacity="0.85"/>
 
-  <!-- Window Accents (Right Column) -->
-  <rect x="349" y="225" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
-  <rect x="349" y="276" width="41" height="20" rx="5" ry="5" fill="white" opacity="0.20"/>
+    <!-- Bottom Cantilever Return Loop -->
+    <polygon points="296,256 384,204 384,334 340,360 340,288 296,312" fill="url(#titaniumSide)"/>
+    <polygon points="340,288 384,262 384,334 340,360" fill="url(#titaniumTop)"/>
 
-  <!-- Foundation Base Line -->
-  <line x1="82" y1="440" x2="430" y2="440" stroke="white" stroke-width="23" stroke-linecap="round"/>
+    <!-- Emerald Bottom Inset Core -->
+    <polygon points="344,292 378,272 378,324 344,344" fill="url(#emeraldCore)" opacity="0.85"/>
+  </g>
+
+  <!-- Specular Reflection Highlight Curve across glass top -->
+  <path d="M 56 120 Q 256 50 456 120" stroke="white" stroke-width="1.5" stroke-opacity="0.25" fill="none"/>
 </svg>

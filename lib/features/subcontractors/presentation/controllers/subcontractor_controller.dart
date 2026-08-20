@@ -42,10 +42,10 @@ class SubcontractorController extends StateNotifier<SubcontractorState> {
     loadSubcontractors();
   }
 
-  Future<void> loadSubcontractors() async {
+  Future<void> loadSubcontractors({String? projectId}) async {
     state = state.copyWith(isLoading: true, clearError: true);
     try {
-      final items = await _repo.fetchSubcontractors();
+      final items = await _repo.fetchSubcontractors(projectId: projectId);
       state = state.copyWith(items: items, isLoading: false);
     } catch (e) {
       state = state.copyWith(isLoading: false, error: 'Failed to load subcontractors: $e');
@@ -55,14 +55,11 @@ class SubcontractorController extends StateNotifier<SubcontractorState> {
   Future<bool> addSubcontractor(Subcontractor sub) async {
     try {
       final created = await _repo.createSubcontractor(sub);
-      // Successfully persisted — add to local state
       final list = [...state.items, created];
       state = state.copyWith(items: list, clearError: true);
-      // Re-fetch from DB to ensure consistency
       await loadSubcontractors();
       return true;
     } catch (e) {
-      // Persistence failed — do NOT add to local state
       state = state.copyWith(error: 'Failed to save subcontractor: $e');
       return false;
     }
@@ -73,9 +70,56 @@ class SubcontractorController extends StateNotifier<SubcontractorState> {
       await _repo.updateSubcontractor(sub);
       final list = state.items.map((e) => e.id == sub.id ? sub : e).toList();
       state = state.copyWith(items: list, clearError: true);
+      await loadSubcontractors();
       return true;
     } catch (e) {
       state = state.copyWith(error: 'Failed to update subcontractor: $e');
+      return false;
+    }
+  }
+
+  Future<bool> recordPayment({
+    required Subcontractor sub,
+    required double amount,
+    required String paymentMode,
+    String? referenceNumber,
+    String? remarks,
+  }) async {
+    try {
+      final ok = await _repo.recordSubcontractorPayment(
+        subcontractor: sub,
+        paymentAmount: amount,
+        paymentMode: paymentMode,
+        referenceNumber: referenceNumber,
+        remarks: remarks,
+      );
+      if (ok) {
+        await loadSubcontractors();
+      }
+      return ok;
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to record payment: $e');
+      return false;
+    }
+  }
+
+  Future<bool> assignProject({
+    required Subcontractor sub,
+    required String projectId,
+    required String siteName,
+  }) async {
+    try {
+      final ok = await _repo.assignProjectToSubcontractor(
+        subcontractor: sub,
+        projectId: projectId,
+        siteName: siteName,
+      );
+      if (ok) {
+        await loadSubcontractors();
+      }
+      return ok;
+    } catch (e) {
+      state = state.copyWith(error: 'Failed to assign project: $e');
       return false;
     }
   }

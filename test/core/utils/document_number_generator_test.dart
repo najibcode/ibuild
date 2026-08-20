@@ -8,7 +8,7 @@ void main() {
       final billNo = DocumentNumberGenerator.generateBillNumber(date: now);
 
       expect(billNo.startsWith('BILL-20260803-'), isTrue);
-      expect(billNo.length, equals(19)); // BILL-20260803-XXXX
+      expect(billNo.length, equals(18)); // BILL-20260803-XXXX
       expect(DocumentNumberGenerator.verifyAuthenticity(billNo), isTrue);
     });
 
@@ -17,7 +17,7 @@ void main() {
       final invNo = DocumentNumberGenerator.generateSalesBillNumber(date: now);
 
       expect(invNo.startsWith('INV-20260803-'), isTrue);
-      expect(invNo.length, equals(18)); // INV-20260803-XXXX
+      expect(invNo.length, equals(17)); // INV-20260803-XXXX
       expect(DocumentNumberGenerator.verifyAuthenticity(invNo), isTrue);
     });
 
@@ -26,7 +26,7 @@ void main() {
       final estNo = DocumentNumberGenerator.generateQuotationNumber(date: now);
 
       expect(estNo.startsWith('EST-20260803-'), isTrue);
-      expect(estNo.length, equals(18)); // EST-20260803-XXXX
+      expect(estNo.length, equals(17)); // EST-20260803-XXXX
       expect(DocumentNumberGenerator.verifyAuthenticity(estNo), isTrue);
     });
 

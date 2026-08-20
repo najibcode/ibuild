@@ -157,6 +157,28 @@ class ProjectDashboardRepository {
         byCategory[category] = (byCategory[category] ?? 0.0) + amount;
       }
 
+      // Also ensure all subcontractor disbursements for this project are included in spent telemetry
+      try {
+        final subRows = await _client
+            .from('subcontractors')
+            .select('paid_amount')
+            .eq('project_id', projectId)
+            .timeout(const Duration(seconds: 5));
+
+        double subTotalPaid = 0.0;
+        for (final s in (subRows as List)) {
+          final pAmt = (s['paid_amount'] as num?)?.toDouble() ?? 0.0;
+          subTotalPaid += pAmt;
+        }
+
+        final recordedSubExpenses = byCategory['Subcontractor'] ?? 0.0;
+        if (subTotalPaid > recordedSubExpenses) {
+          final diff = subTotalPaid - recordedSubExpenses;
+          total += diff;
+          byCategory['Subcontractor'] = subTotalPaid;
+        }
+      } catch (_) {}
+
       final breakdown =
           byCategory.entries
               .map(

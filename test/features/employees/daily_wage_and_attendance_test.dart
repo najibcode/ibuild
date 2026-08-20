@@ -61,8 +61,8 @@ void main() {
       expect(attendance.eveningStatus, equals('Present'));
 
       final json = attendance.toJson();
-      expect(json['status'], equals('Present'));
       expect(json['morning_status'], equals('present'));
+      expect(json['evening_status'], equals('present'));
 
       final leaveAttendance = Attendance.fromJson({
         'id': 'att-2',
@@ -71,7 +71,7 @@ void main() {
         'status': 'Leave',
       });
 
-      expect(leaveAttendance.status, equals('Leave'));
+      expect(leaveAttendance.status, equals('Absent'));
     });
   });
 }

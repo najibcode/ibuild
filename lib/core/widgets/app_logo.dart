@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 
-/// Professional, modern logo for IBUILD ERP.
+/// Ultra-modern, Godly.design inspired Logo & App Icon for IBUILD ERP.
 ///
-/// Renders a vector-crisp geometric skyline mark with three ascending
-/// building columns and an emerald chevron crown, paired with the IBUILD
-/// wordmark. Works at any scale from 16px favicon to 512px app icon.
+/// Features a futuristic 3D isometric interlocking "iB" architectural prism
+/// with glowing emerald crystal columns and frosted titanium bevels, paired
+/// with high-contrast luxury enterprise typography.
 class AppLogo extends StatelessWidget {
   final double size;
   final bool showText;
   final String? subtitle;
   final Color? color;
 
-  /// When true the mark renders white-on-transparent (for dark/coloured bg).
+  /// When true the mark and wordmark render with light/white tones for dark backgrounds.
   final bool inverted;
 
   const AppLogo({
@@ -27,27 +27,26 @@ class AppLogo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final primaryCol = color ?? AppColors.primaryColor(context);
-    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final isDark = Theme.of(context).brightness == Brightness.dark || inverted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ── Logo Mark ──
-        _LogoMark(
+        // ── Godly 3D App Icon Tile ──
+        _GodlyAppIconMark(
           size: size,
           primaryColor: primaryCol,
-          accentColor: AppColors.secondary,
           inverted: inverted,
         ),
 
         if (showText) ...[
-          SizedBox(width: size * 0.35),
+          SizedBox(width: size * 0.32),
           Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Wordmark (IBU uppercase + ild lowercase)
+              // Wordmark (IBU + ILD with Cobalt-Emerald Brand Styling)
               RichText(
                 text: TextSpan(
                   children: [
@@ -55,47 +54,45 @@ class AppLogo extends StatelessWidget {
                       text: 'IBU',
                       style: TextStyle(
                         fontFamily: 'Roboto',
-                        fontSize: size * 0.52,
+                        fontSize: size * 0.54,
                         fontWeight: FontWeight.w900,
-                        color: inverted ? Colors.white : primaryCol,
-                        letterSpacing: 0.5,
+                        color: inverted
+                            ? Colors.white
+                            : (isDark ? Colors.white : const Color(0xFF0F172A)),
+                        letterSpacing: -0.5,
                         height: 1.0,
                       ),
                     ),
                     TextSpan(
-                      text: 'ild',
+                      text: 'ILD',
                       style: TextStyle(
                         fontFamily: 'Roboto',
-                        fontSize: size * 0.52,
-                        fontWeight: FontWeight.w700,
-                        color: inverted
-                            ? Colors.white.withValues(alpha: 0.92)
-                            : (isDark
-                                ? AppColors.darkTextMain
-                                : AppColors.textMain),
-                        letterSpacing: 0.5,
+                        fontSize: size * 0.54,
+                        fontWeight: FontWeight.w900,
+                        color: const Color(0xFF3B82F6),
+                        letterSpacing: -0.5,
                         height: 1.0,
                       ),
                     ),
                   ],
                 ),
               ),
-              if (subtitle != null && subtitle!.isNotEmpty) ...[
-                const SizedBox(height: 3),
-                Text(
-                  subtitle!,
-                  style: TextStyle(
-                    fontFamily: 'Roboto',
-                    fontSize: size * 0.22,
-                    fontWeight: FontWeight.w600,
-                    color: inverted
-                        ? Colors.white.withValues(alpha: 0.6)
-                        : AppColors.mutedText(context),
-                    letterSpacing: 2.5,
-                    height: 1.0,
-                  ),
+              const SizedBox(height: 2),
+              Text(
+                (subtitle != null && subtitle!.isNotEmpty)
+                    ? subtitle!.toUpperCase()
+                    : 'CONSTRUCTION ERP',
+                style: TextStyle(
+                  fontFamily: 'Roboto',
+                  fontSize: (size * 0.20).clamp(8.0, 14.0),
+                  fontWeight: FontWeight.w700,
+                  color: isDark
+                      ? const Color(0xFF94A3B8)
+                      : const Color(0xFF64748B),
+                  letterSpacing: 2.2,
+                  height: 1.0,
                 ),
-              ],
+              ),
             ],
           ),
         ],
@@ -104,194 +101,203 @@ class AppLogo extends StatelessWidget {
   }
 }
 
-/// The standalone icon mark — three ascending building columns with
-/// an emerald chevron crown. Can be used independently for app icons.
-class _LogoMark extends StatelessWidget {
+/// Standalone Godly.design 3D Squircle App Icon Tile.
+class _GodlyAppIconMark extends StatelessWidget {
   final double size;
   final Color primaryColor;
-  final Color accentColor;
   final bool inverted;
 
-  const _LogoMark({
+  const _GodlyAppIconMark({
     required this.size,
     required this.primaryColor,
-    required this.accentColor,
     this.inverted = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    final borderRadius = BorderRadius.circular(size * 0.23);
+
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [
-            primaryColor,
-            Color.lerp(primaryColor, const Color(0xFF0D2563), 0.35)!,
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
+        color: const Color(0xFF070B18),
+        borderRadius: borderRadius,
+        border: Border.all(
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.45),
+          width: size > 48 ? 1.5 : 1.0,
         ),
-        borderRadius: BorderRadius.circular(size * 0.22),
         boxShadow: [
           BoxShadow(
-            color: primaryColor.withValues(alpha: 0.30),
+            color: const Color(0xFF1E40AF).withValues(alpha: 0.35),
             blurRadius: size * 0.35,
-            offset: Offset(0, size * 0.10),
+            spreadRadius: -2,
+            offset: Offset(0, size * 0.12),
+          ),
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.2),
+            blurRadius: size * 0.2,
+            offset: Offset(0, size * 0.08),
           ),
         ],
       ),
-      child: CustomPaint(
-        size: Size(size, size),
-        painter: _SkylineLogoPainter(
-          markColor: Colors.white,
-          accentColor: accentColor,
+      child: ClipRRect(
+        borderRadius: borderRadius,
+        child: Image.asset(
+          'assets/logo/ibuild_godly_app_icon.png',
+          width: size,
+          height: size,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            // High fidelity vector fallback
+            return CustomPaint(
+              size: Size(size, size),
+              painter: _GodlyIsometricPainter(),
+            );
+          },
         ),
       ),
     );
   }
 }
 
-/// Paints the three-column rising skyline with chevron crown.
-///
-/// Geometry is normalised to a 0–1 coordinate system so
-/// the mark scales uniformly to any canvas size.
-class _SkylineLogoPainter extends CustomPainter {
-  final Color markColor;
-  final Color accentColor;
-
-  _SkylineLogoPainter({
-    required this.markColor,
-    required this.accentColor,
-  });
-
+/// Vector-precise fallback painter for the 3D isometric interlocking "iB" mark.
+class _GodlyIsometricPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
-    // ── Paints ──
-    final mainPaint = Paint()
-      ..color = markColor
-      ..style = PaintingStyle.fill;
+    // Ambient radial glow
+    final glowPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          const Color(0xFF3B82F6).withValues(alpha: 0.35),
+          const Color(0xFF10B981).withValues(alpha: 0.15),
+          Colors.transparent,
+        ],
+      ).createShader(Rect.fromCircle(center: Offset(w * 0.45, h * 0.45), radius: w * 0.5));
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), glowPaint);
 
-    final midPaint = Paint()
-      ..color = markColor.withValues(alpha: 0.82)
-      ..style = PaintingStyle.fill;
+    final cobaltTop = Paint()..color = const Color(0xFF93C5FD);
+    final cobaltSide = Paint()..color = const Color(0xFF3B82F6);
+    final cobaltDark = Paint()..color = const Color(0xFF1E40AF);
 
-    final accentPaint = Paint()
-      ..color = accentColor
-      ..style = PaintingStyle.fill;
+    final titaniumTop = Paint()..color = const Color(0xFFE2E8F0);
+    final titaniumSide = Paint()..color = const Color(0xFF64748B);
+    final titaniumDark = Paint()..color = const Color(0xFF334155);
+    final emeraldAccent = Paint()..color = const Color(0xFF10B981);
 
-    // Column metrics (x-positions, heights)
-    const double gap = 0.04; // gap between columns
-    const double colW = 0.18; // column width
+    // 1. Floating 'i' Dot Cube
+    _drawIsoCube(canvas, Offset(w * 0.34, h * 0.28), w * 0.12, cobaltTop, cobaltSide, cobaltDark);
 
-    // ── Left Column (shortest) ──
-    final double lx = w * 0.20;
-    final double lTop = h * 0.48;
-    final double lBot = h * 0.82;
-    final leftCol = RRect.fromRectAndRadius(
-      Rect.fromLTRB(lx, lTop, lx + w * colW, lBot),
-      Radius.circular(w * 0.025),
-    );
-    canvas.drawRRect(leftCol, midPaint);
+    // 2. 'i' Lower Column
+    _drawIsoPillar(canvas, Offset(w * 0.34, h * 0.46), w * 0.12, h * 0.26, cobaltTop, cobaltSide, cobaltDark);
 
-    // ── Center Column (tallest) ──
-    final double cx = lx + w * colW + w * gap;
-    final double cTop = h * 0.22;
-    final double cBot = h * 0.82;
-    final centerCol = RRect.fromRectAndRadius(
-      Rect.fromLTRB(cx, cTop, cx + w * colW, cBot),
-      Radius.circular(w * 0.025),
-    );
-    canvas.drawRRect(centerCol, mainPaint);
+    // 3. Central Spire
+    _drawIsoPillar(canvas, Offset(w * 0.50, h * 0.18), w * 0.14, h * 0.56, cobaltTop, cobaltSide, cobaltDark);
 
-    // ── Right Column (medium) ──
-    final double rx = cx + w * colW + w * gap;
-    final double rTop = h * 0.36;
-    final double rBot = h * 0.82;
-    final rightCol = RRect.fromRectAndRadius(
-      Rect.fromLTRB(rx, rTop, rx + w * colW, rBot),
-      Radius.circular(w * 0.025),
-    );
-    canvas.drawRRect(rightCol, midPaint);
-
-    // ── Emerald Chevron Crown (on center column) ──
-    final double chevCenterX = cx + w * colW / 2;
-    final double chevTop = cTop - h * 0.06;
-    final double chevBase = cTop + h * 0.02;
-    final double chevHalfW = w * colW * 0.65;
-
-    final chevron = Path()
-      ..moveTo(chevCenterX, chevTop)
-      ..lineTo(chevCenterX + chevHalfW, chevBase)
-      ..lineTo(chevCenterX - chevHalfW, chevBase)
+    // 4. Titanium 'B' Loops
+    final pathTop = Path()
+      ..moveTo(w * 0.42, h * 0.34)
+      ..lineTo(w * 0.55, h * 0.27)
+      ..lineTo(w * 0.74, h * 0.39)
+      ..lineTo(w * 0.62, h * 0.46)
       ..close();
-    canvas.drawPath(chevron, accentPaint);
+    canvas.drawPath(pathTop, titaniumTop);
 
-    // ── Window Accents (subtle) ──
-    final windowPaint = Paint()
-      ..color = markColor.withValues(alpha: 0.20)
-      ..style = PaintingStyle.fill;
+    final pathSide = Path()
+      ..moveTo(w * 0.42, h * 0.34)
+      ..lineTo(w * 0.62, h * 0.46)
+      ..lineTo(w * 0.62, h * 0.56)
+      ..lineTo(w * 0.42, h * 0.44)
+      ..close();
+    canvas.drawPath(pathSide, titaniumSide);
 
-    // Center column windows
-    final double winW = w * 0.08;
-    final double winH = h * 0.04;
-    final double winR = w * 0.01;
-    final double winXc = cx + (w * colW - winW) / 2;
-    for (double wy in [cTop + h * 0.10, cTop + h * 0.20, cTop + h * 0.30, cTop + h * 0.40]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(winXc, wy, winW, winH),
-          Radius.circular(winR),
-        ),
-        windowPaint,
-      );
-    }
+    // Emerald accent loop
+    final pathEmerald = Path()
+      ..moveTo(w * 0.63, h * 0.47)
+      ..lineTo(w * 0.73, h * 0.41)
+      ..lineTo(w * 0.73, h * 0.47)
+      ..lineTo(w * 0.63, h * 0.53)
+      ..close();
+    canvas.drawPath(pathEmerald, emeraldAccent);
 
-    // Left column windows (2)
-    final double winXl = lx + (w * colW - winW) / 2;
-    for (double wy in [lTop + h * 0.08, lTop + h * 0.18]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(winXl, wy, winW, winH),
-          Radius.circular(winR),
-        ),
-        windowPaint,
-      );
-    }
+    final pathLoop2 = Path()
+      ..moveTo(w * 0.58, h * 0.50)
+      ..lineTo(w * 0.76, h * 0.39)
+      ..lineTo(w * 0.76, h * 0.64)
+      ..lineTo(w * 0.67, h * 0.70)
+      ..lineTo(w * 0.67, h * 0.56)
+      ..lineTo(w * 0.58, h * 0.62)
+      ..close();
+    canvas.drawPath(pathLoop2, titaniumDark);
+  }
 
-    // Right column windows (2)
-    final double winXr = rx + (w * colW - winW) / 2;
-    for (double wy in [rTop + h * 0.08, rTop + h * 0.18]) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(winXr, wy, winW, winH),
-          Radius.circular(winR),
-        ),
-        windowPaint,
-      );
-    }
+  void _drawIsoCube(Canvas canvas, Offset top, double s, Paint pTop, Paint pLeft, Paint pRight) {
+    final half = s / 2;
+    final quarter = s / 4;
 
-    // ── Foundation Base Line ──
-    final basePaint = Paint()
-      ..color = markColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = w * 0.045
-      ..strokeCap = StrokeCap.round;
+    // Top face
+    final pathTop = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(top.dx + half, top.dy - quarter)
+      ..lineTo(top.dx + s, top.dy)
+      ..lineTo(top.dx + half, top.dy + quarter)
+      ..close();
+    canvas.drawPath(pathTop, pTop);
 
-    canvas.drawLine(
-      Offset(w * 0.16, h * 0.86),
-      Offset(w * 0.84, h * 0.86),
-      basePaint,
-    );
+    // Left face
+    final pathLeft = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(top.dx + half, top.dy + quarter)
+      ..lineTo(top.dx + half, top.dy + s)
+      ..lineTo(top.dx, top.dy + s - quarter)
+      ..close();
+    canvas.drawPath(pathLeft, pLeft);
+
+    // Right face
+    final pathRight = Path()
+      ..moveTo(top.dx + half, top.dy + quarter)
+      ..lineTo(top.dx + s, top.dy)
+      ..lineTo(top.dx + s, top.dy + s - quarter)
+      ..lineTo(top.dx + half, top.dy + s)
+      ..close();
+    canvas.drawPath(pathRight, pRight);
+  }
+
+  void _drawIsoPillar(Canvas canvas, Offset top, double s, double height, Paint pTop, Paint pLeft, Paint pRight) {
+    final half = s / 2;
+    final quarter = s / 4;
+
+    // Top face
+    final pathTop = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(top.dx + half, top.dy - quarter)
+      ..lineTo(top.dx + s, top.dy)
+      ..lineTo(top.dx + half, top.dy + quarter)
+      ..close();
+    canvas.drawPath(pathTop, pTop);
+
+    // Left face
+    final pathLeft = Path()
+      ..moveTo(top.dx, top.dy)
+      ..lineTo(top.dx + half, top.dy + quarter)
+      ..lineTo(top.dx + half, top.dy + height)
+      ..lineTo(top.dx, top.dy + height - quarter)
+      ..close();
+    canvas.drawPath(pathLeft, pLeft);
+
+    // Right face
+    final pathRight = Path()
+      ..moveTo(top.dx + half, top.dy + quarter)
+      ..lineTo(top.dx + s, top.dy)
+      ..lineTo(top.dx + s, top.dy + height - quarter)
+      ..lineTo(top.dx + half, top.dy + height)
+      ..close();
+    canvas.drawPath(pathRight, pRight);
   }
 
   @override
-  bool shouldRepaint(covariant _SkylineLogoPainter oldDelegate) {
-    return oldDelegate.markColor != markColor ||
-        oldDelegate.accentColor != accentColor;
-  }
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

@@ -7,7 +7,9 @@ class Subcontractor {
   final String? phone;
   final String? email;
   final String? address;
+  final String? projectId;
   final String? siteNameProp;
+  final String? scopeOfWork;
   final String? gstNumber;
   final double contractValue;
   final double paidAmount;
@@ -24,7 +26,9 @@ class Subcontractor {
     this.phone,
     this.email,
     this.address,
+    this.projectId,
     this.siteNameProp,
+    this.scopeOfWork,
     this.gstNumber,
     required this.contractValue,
     required this.paidAmount,
@@ -36,14 +40,17 @@ class Subcontractor {
   String get companyName => (companyNameProp != null && companyNameProp!.isNotEmpty) ? companyNameProp! : name;
   String get contactPerson => (contactPersonProp != null && contactPersonProp!.isNotEmpty) ? contactPersonProp! : name;
   String get tradeSpecialization => specialization ?? 'General Contracting';
-  String get siteName => siteNameProp ?? 'Active Construction Sites';
+  String get siteName => (siteNameProp != null && siteNameProp!.isNotEmpty) ? siteNameProp! : 'Unassigned';
   double get contractAmount => contractValue;
   double get retentionPending => contractValue > paidAmount ? (contractValue - paidAmount) : 0.0;
   double get outstandingAmount => contractValue > paidAmount ? (contractValue - paidAmount) : 0.0;
   bool get isOverpaid => paidAmount > contractValue && contractValue > 0;
+  double get paymentProgress => contractValue > 0 ? (paidAmount / contractValue).clamp(0.0, 1.0) : 0.0;
 
   factory Subcontractor.fromJson(Map<String, dynamic> json) {
     final rawName = json['name'] as String? ?? json['company_name'] as String? ?? '';
+    final pName = (json['projects'] as Map?)?['name'] as String? ?? json['site_name'] as String? ?? json['siteName'] as String?;
+
     return Subcontractor(
       id: json['id'] as String? ?? '',
       name: rawName,
@@ -53,7 +60,9 @@ class Subcontractor {
       phone: json['phone'] as String?,
       email: json['email'] as String?,
       address: json['address'] as String?,
-      siteNameProp: json['site_name'] as String? ?? json['siteName'] as String?,
+      projectId: json['project_id'] as String?,
+      siteNameProp: pName,
+      scopeOfWork: json['scope_of_work'] as String?,
       gstNumber: json['gst_number'] as String?,
       contractValue: (json['contract_value'] as num?)?.toDouble() ??
           (json['contractAmount'] as num?)?.toDouble() ??
@@ -74,9 +83,13 @@ class Subcontractor {
     final map = <String, dynamic>{
       'name': companyName,
       'specialization': tradeSpecialization,
+      'contact_person': contactPerson,
       'phone': phone,
       'email': email,
       'address': address,
+      'project_id': (projectId != null && projectId!.isNotEmpty) ? projectId : null,
+      'site_name': siteNameProp,
+      'scope_of_work': scopeOfWork,
       'gst_number': gstNumber,
       'contract_value': contractValue,
       'paid_amount': paidAmount,
@@ -100,7 +113,9 @@ class Subcontractor {
     String? phone,
     String? email,
     String? address,
+    String? projectId,
     String? siteNameProp,
+    String? scopeOfWork,
     String? gstNumber,
     double? contractValue,
     double? paidAmount,
@@ -117,7 +132,9 @@ class Subcontractor {
       phone: phone ?? this.phone,
       email: email ?? this.email,
       address: address ?? this.address,
+      projectId: projectId ?? this.projectId,
       siteNameProp: siteNameProp ?? this.siteNameProp,
+      scopeOfWork: scopeOfWork ?? this.scopeOfWork,
       gstNumber: gstNumber ?? this.gstNumber,
       contractValue: contractValue ?? this.contractValue,
       paidAmount: paidAmount ?? this.paidAmount,

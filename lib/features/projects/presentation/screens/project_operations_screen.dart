@@ -38,12 +38,13 @@ import '../../../expenses/presentation/controllers/expense_controller.dart';
 import '../../../expenses/presentation/screens/expense_form_screen.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../../../core/services/excel_generator_service.dart';
+import '../controllers/project_dashboard_controller.dart';
+import '../controllers/project_controller.dart';
 import '../../../../core/services/generic_pdf_table_generator.dart';
 import '../../../../core/utils/excel_download_helper.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../data/models/project_model.dart';
-import '../controllers/project_controller.dart';
 import 'project_dashboard_screen.dart';
 import 'project_form_screen.dart';
 
@@ -1354,16 +1355,23 @@ class _ProjectOperationsScreenState
 
     return subsAsync.when(
       data: (allSubs) {
-        final subs = allSubs.where((s) {
+        // Filter specifically for this project (by projectId or siteName match)
+        final projectSubs = allSubs.where((s) {
+          return (s.projectId != null && s.projectId == widget.projectId) ||
+              (s.siteName.toLowerCase() == widget.projectName.toLowerCase());
+        }).toList();
+
+        final subs = projectSubs.where((s) {
           if (_subcontractorSearch.isEmpty) return true;
           final q = _subcontractorSearch.toLowerCase();
           return s.name.toLowerCase().contains(q) ||
               (s.specialization?.toLowerCase().contains(q) ?? false) ||
+              (s.contactPerson.toLowerCase().contains(q)) ||
               (s.phone?.toLowerCase().contains(q) ?? false);
         }).toList();
 
-        final double totalContracts = allSubs.fold(0.0, (sum, s) => sum + s.contractValue);
-        final double totalPaid = allSubs.fold(0.0, (sum, s) => sum + s.paidAmount);
+        final double totalContracts = projectSubs.fold(0.0, (sum, s) => sum + s.contractValue);
+        final double totalPaid = projectSubs.fold(0.0, (sum, s) => sum + s.paidAmount);
         final double pendingBalance = totalContracts > totalPaid ? (totalContracts - totalPaid) : 0.0;
 
         return Column(
@@ -1385,7 +1393,7 @@ class _ProjectOperationsScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'Trade Partners & Subcontractors',
+                            'Project Trade Partners & Subcontractors',
                             style: TextStyle(
                               fontSize: 15,
                               fontWeight: FontWeight.bold,
@@ -1394,7 +1402,7 @@ class _ProjectOperationsScreenState
                           ),
                           const SizedBox(height: 2),
                           Text(
-                            'Contracts: ₹${totalContracts.toInt()} • Paid: ₹${totalPaid.toInt()} • Due: ₹${pendingBalance.toInt()}',
+                            'Assigned to ${widget.projectName} • ${projectSubs.length} Active Partners',
                             style: TextStyle(
                               fontSize: 11,
                               color: AppColors.mutedText(context),
@@ -1416,10 +1424,72 @@ class _ProjectOperationsScreenState
                     ],
                   ),
                   const SizedBox(height: 12),
+                  // Financial Summary Cards
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Total Committed', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text('₹${totalContracts.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF10B981).withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Paid / Disbursed', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text('₹${totalPaid.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF10B981))),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppColors.error.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: AppColors.error.withValues(alpha: 0.2)),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Pending Balance', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context), fontWeight: FontWeight.w600)),
+                              const SizedBox(height: 2),
+                              Text('₹${pendingBalance.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.error)),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
                   TextField(
                     controller: _subcontractorSearchController,
                     decoration: InputDecoration(
-                      hintText: 'Search trade contractors by name, specialization, phone...',
+                      hintText: 'Search contractors by name, specialization, contact, phone...',
                       prefixIcon: const Icon(Icons.search, size: 18),
                       suffixIcon: _subcontractorSearch.isNotEmpty
                           ? IconButton(
@@ -1454,7 +1524,7 @@ class _ProjectOperationsScreenState
                           Text(
                             _subcontractorSearch.isNotEmpty
                                 ? 'No trade partners match "$_subcontractorSearch"'
-                                : 'No trade partners registered',
+                                : 'No trade partners assigned to this project',
                             style: TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 15,
@@ -1463,14 +1533,14 @@ class _ProjectOperationsScreenState
                           ),
                           const SizedBox(height: 4),
                           Text(
-                            'Manage masonry, electrical, plumbing & fabrication contractors',
+                            'Assign masonry, electrical, plumbing & fabrication contractors to ${widget.projectName}',
                             style: TextStyle(color: AppColors.mutedText(context), fontSize: 12),
                           ),
                           const SizedBox(height: 16),
                           ElevatedButton.icon(
                             onPressed: _showAddSubcontractorDialog,
                             icon: const Icon(Icons.person_add_alt_1, size: 16),
-                            label: const Text('+ Add First Trade Partner'),
+                            label: const Text('+ Assign First Trade Partner'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: AppColors.primaryColor(context),
                               foregroundColor: Colors.white,
@@ -1485,9 +1555,7 @@ class _ProjectOperationsScreenState
                       itemBuilder: (context, i) {
                         final sub = subs[i];
                         final balance = sub.contractValue > sub.paidAmount ? (sub.contractValue - sub.paidAmount) : 0.0;
-                        final percent = sub.contractValue > 0
-                            ? (sub.paidAmount / sub.contractValue).clamp(0.0, 1.0)
-                            : 0.0;
+                        final percent = sub.paymentProgress;
 
                         return Card(
                           color: AppColors.cardBg(context),
@@ -1521,7 +1589,7 @@ class _ProjectOperationsScreenState
                                             ),
                                           ),
                                           Text(
-                                            'Trade: ${sub.specialization ?? 'General'} • ${sub.contactPerson}',
+                                            'Trade: ${sub.specialization ?? 'General'} • Contact: ${sub.contactPerson}',
                                             style: TextStyle(
                                               fontSize: 12,
                                               color: AppColors.mutedText(context),
@@ -1551,6 +1619,20 @@ class _ProjectOperationsScreenState
                                     ),
                                   ],
                                 ),
+                                if (sub.scopeOfWork != null && sub.scopeOfWork!.isNotEmpty) ...[
+                                  const SizedBox(height: 8),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.border(context).withValues(alpha: 0.25),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      'Scope: ${sub.scopeOfWork}',
+                                      style: TextStyle(fontSize: 11, color: AppColors.text(context), fontStyle: FontStyle.italic),
+                                    ),
+                                  ),
+                                ],
                                 const Divider(height: 20),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1579,48 +1661,71 @@ class _ProjectOperationsScreenState
                                   ],
                                 ),
                                 const SizedBox(height: 8),
-                                ClipRRect(
-                                  borderRadius: BorderRadius.circular(4),
-                                  child: LinearProgressIndicator(
-                                    value: percent,
-                                    backgroundColor: AppColors.border(context),
-                                    color: percent >= 1.0 ? const Color(0xFF10B981) : AppColors.primary,
-                                    minHeight: 5,
-                                  ),
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child: ClipRRect(
+                                        borderRadius: BorderRadius.circular(4),
+                                        child: LinearProgressIndicator(
+                                          value: percent,
+                                          backgroundColor: AppColors.border(context),
+                                          color: percent >= 1.0 ? const Color(0xFF10B981) : AppColors.primary,
+                                          minHeight: 6,
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      '${(percent * 100).toInt()}%',
+                                      style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.mutedText(context)),
+                                    ),
+                                  ],
                                 ),
-                                const SizedBox(height: 10),
+                                const SizedBox(height: 12),
                                 Row(
                                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    if (sub.phone != null && sub.phone!.isNotEmpty)
-                                      TextButton.icon(
-                                        onPressed: () {
-                                          WhatsAppHelper.shareMessage(
-                                            context: context,
-                                            message: 'Hello ${sub.name}, regarding works on project ${widget.projectName} (Contract: ₹${sub.contractValue.toInt()})...',
-                                            phoneNumber: sub.phone,
-                                            successNotice: 'Opening WhatsApp chat with ${sub.name}',
-                                          );
-                                        },
-                                        icon: const Icon(Icons.chat_bubble_outline, size: 14, color: Color(0xFF25D366)),
-                                        label: Text(
-                                          'WhatsApp (${sub.phone})',
-                                          style: const TextStyle(fontSize: 11, color: Color(0xFF25D366), fontWeight: FontWeight.bold),
-                                        ),
-                                      )
-                                    else
-                                      const SizedBox.shrink(),
+                                    // Quick action: Record Payment
+                                    ElevatedButton.icon(
+                                      onPressed: () => _showRecordSubcontractorPaymentDialog(sub),
+                                      icon: const Icon(Icons.payment_outlined, size: 14),
+                                      label: const Text('Record Payment', style: TextStyle(fontSize: 11)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.secondary,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                        visualDensity: VisualDensity.compact,
+                                      ),
+                                    ),
                                     Row(
                                       children: [
+                                        if (sub.phone != null && sub.phone!.isNotEmpty)
+                                          IconButton(
+                                            icon: const Icon(Icons.chat_bubble_outline, size: 18, color: Color(0xFF25D366)),
+                                            tooltip: 'WhatsApp Contractor',
+                                            onPressed: () {
+                                              WhatsAppHelper.shareMessage(
+                                                context: context,
+                                                message: 'Hello ${sub.name}, regarding works on project ${widget.projectName} (Contract: ₹${sub.contractValue.toInt()}, Paid: ₹${sub.paidAmount.toInt()}, Due: ₹${balance.toInt()})...',
+                                                phoneNumber: sub.phone,
+                                                successNotice: 'Opening WhatsApp chat with ${sub.name}',
+                                              );
+                                            },
+                                          ),
                                         IconButton(
-                                          icon: const Icon(Icons.delete_outline, size: 16, color: AppColors.error),
+                                          icon: Icon(Icons.edit_outlined, size: 18, color: AppColors.primaryColor(context)),
+                                          tooltip: 'Edit Trade Partner Details',
+                                          onPressed: () => _showEditSubcontractorDialog(sub),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.delete_outline, size: 18, color: AppColors.error),
                                           tooltip: 'Remove Trade Partner',
                                           onPressed: () async {
                                             final confirm = await showDialog<bool>(
                                               context: context,
                                               builder: (ctx) => AlertDialog(
                                                 title: const Text('Delete Subcontractor?'),
-                                                content: Text('Are you sure you want to remove "${sub.name}" from trade partners?'),
+                                                content: Text('Are you sure you want to remove "${sub.name}" from ${widget.projectName}?'),
                                                 actions: [
                                                   TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
                                                   ElevatedButton(
@@ -1656,113 +1761,381 @@ class _ProjectOperationsScreenState
     );
   }
 
+  void _showRecordSubcontractorPaymentDialog(Subcontractor sub) {
+    final amountCtrl = TextEditingController();
+    final refCtrl = TextEditingController();
+    final remarksCtrl = TextEditingController();
+    String paymentMode = 'Bank Transfer';
+    final balance = sub.contractValue > sub.paidAmount ? (sub.contractValue - sub.paidAmount) : 0.0;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: Text('Record Payment to ${sub.name}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardBg(context),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border(context)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Contract Value', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context))),
+                          Text('₹${sub.contractValue.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Paid to Date', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context))),
+                          Text('₹${sub.paidAmount.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: Color(0xFF10B981))),
+                        ],
+                      ),
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.end,
+                        children: [
+                          Text('Balance Due', style: TextStyle(fontSize: 10, color: AppColors.mutedText(context))),
+                          Text('₹${balance.toInt()}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12, color: AppColors.error)),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: amountCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Payment Amount (₹) *',
+                    hintText: 'e.g. 25000',
+                    prefixIcon: Icon(Icons.currency_rupee, size: 18),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: paymentMode,
+                  decoration: const InputDecoration(labelText: 'Payment Mode *'),
+                  items: ['Bank Transfer', 'Cheque', 'Cash', 'UPI', 'NEFT / RTGS']
+                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
+                      .toList(),
+                  onChanged: (v) => setDlgState(() => paymentMode = v ?? paymentMode),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: refCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Transaction Ref # / Cheque # / RA Bill #',
+                    hintText: 'e.g. RA-02 / UTR12345678',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: remarksCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Remarks / Milestone Covered',
+                    hintText: 'e.g. 2nd Floor slab casting completed',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                final amt = double.tryParse(amountCtrl.text.trim()) ?? 0.0;
+                if (amt <= 0) return;
+
+                final ok = await ref.read(subcontractorControllerProvider.notifier).recordPayment(
+                  sub: sub,
+                  amount: amt,
+                  paymentMode: paymentMode,
+                  referenceNumber: refCtrl.text.trim().isEmpty ? null : refCtrl.text.trim(),
+                  remarks: remarksCtrl.text.trim().isEmpty ? null : remarksCtrl.text.trim(),
+                );
+
+                // Invalidate providers to sync Project Spent & Subcontractors
+                ref.invalidate(projectSubcontractorsProvider);
+                ref.invalidate(projectExpensesProvider(widget.projectId));
+                ref.invalidate(projectDashboardProvider(widget.projectId));
+                ref.invalidate(projectDetailByIdProvider(widget.projectId));
+                ref.invalidate(projectControllerProvider);
+
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok
+                          ? 'Disbursed ₹${amt.toInt()} to ${sub.name} & synced to Project Expenses ✓'
+                          : 'Failed to record payment'),
+                      backgroundColor: ok ? const Color(0xFF10B981) : AppColors.error,
+                    ),
+                  );
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.secondary,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Disburse & Sync Expense'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showEditSubcontractorDialog(Subcontractor sub) {
+    final nameCtrl = TextEditingController(text: sub.name);
+    final contactCtrl = TextEditingController(text: sub.contactPerson);
+    final phoneCtrl = TextEditingController(text: sub.phone ?? '');
+    final contractCtrl = TextEditingController(text: sub.contractValue > 0 ? sub.contractValue.toStringAsFixed(0) : '');
+    final scopeCtrl = TextEditingController(text: sub.scopeOfWork ?? '');
+    String specialization = sub.specialization ?? 'Civil & RCC';
+    String status = sub.status;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: Text('Edit ${sub.name}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(labelText: 'Company / Contractor Name *'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: specialization,
+                  decoration: const InputDecoration(labelText: 'Trade / Specialization *'),
+                  items: [
+                    'Civil & RCC',
+                    'Masonry & Brickwork',
+                    'Electrical & Wiring',
+                    'Plumbing & Sanitary',
+                    'Fabrication & Steel',
+                    'Painting & Finishing',
+                    'Carpentry & Woodwork',
+                    'Flooring & Tiling',
+                    'Waterproofing',
+                    'HVAC',
+                    'Other',
+                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) => setDlgState(() => specialization = v ?? specialization),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: status,
+                  decoration: const InputDecoration(labelText: 'Contract Status *'),
+                  items: ['Active', 'Completed', 'Terminated']
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                      .toList(),
+                  onChanged: (v) => setDlgState(() => status = v ?? status),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contactCtrl,
+                  decoration: const InputDecoration(labelText: 'Contact Person Name'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(labelText: 'Phone / WhatsApp Number'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contractCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(labelText: 'Total Contract Value (₹) *'),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: scopeCtrl,
+                  decoration: const InputDecoration(labelText: 'Scope of Work / Description'),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+                final updated = sub.copyWith(
+                  name: nameCtrl.text.trim(),
+                  companyNameProp: nameCtrl.text.trim(),
+                  contactPersonProp: contactCtrl.text.trim().isEmpty ? null : contactCtrl.text.trim(),
+                  specialization: specialization,
+                  status: status,
+                  phone: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                  contractValue: double.tryParse(contractCtrl.text.trim()) ?? sub.contractValue,
+                  scopeOfWork: scopeCtrl.text.trim().isEmpty ? null : scopeCtrl.text.trim(),
+                );
+
+                await ref.read(subcontractorControllerProvider.notifier).updateSubcontractor(updated);
+                ref.invalidate(projectSubcontractorsProvider);
+                ref.invalidate(projectDashboardProvider(widget.projectId));
+                ref.invalidate(projectControllerProvider);
+
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Trade partner details updated successfully ✓'),
+                      backgroundColor: Color(0xFF10B981),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Save Changes'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showAddSubcontractorDialog() {
     final nameCtrl = TextEditingController();
     final contactCtrl = TextEditingController();
     final phoneCtrl = TextEditingController();
     final contractCtrl = TextEditingController();
+    final scopeCtrl = TextEditingController();
     String specialization = 'Civil & RCC';
 
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Add Trade Partner / Subcontractor'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: nameCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Company / Contractor Name *',
-                  hintText: 'e.g. Apex Electricals & Wiring',
-                ),
-              ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<String>(
-                initialValue: specialization,
-                decoration: const InputDecoration(labelText: 'Trade / Specialization *'),
-                items: [
-                  'Civil & RCC',
-                  'Masonry & Brickwork',
-                  'Electrical & Wiring',
-                  'Plumbing & Sanitary',
-                  'Fabrication & Steel',
-                  'Painting & Finishing',
-                  'Carpentry & Woodwork',
-                  'Flooring & Tiling',
-                  'Waterproofing',
-                  'HVAC',
-                  'Other',
-                ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
-                onChanged: (v) => specialization = v ?? specialization,
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contactCtrl,
-                decoration: const InputDecoration(
-                  labelText: 'Contact Person Name',
-                  hintText: 'e.g. Rajesh Kumar',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: phoneCtrl,
-                keyboardType: TextInputType.phone,
-                decoration: const InputDecoration(
-                  labelText: 'Phone / WhatsApp Number',
-                  hintText: 'e.g. 9876543210',
-                ),
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                controller: contractCtrl,
-                keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
-                  labelText: 'Total Contract Value (₹) *',
-                  hintText: 'e.g. 250000',
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (nameCtrl.text.trim().isEmpty) return;
-              final contractVal = double.tryParse(contractCtrl.text.trim()) ?? 0.0;
-              final sub = Subcontractor(
-                id: '',
-                name: nameCtrl.text.trim(),
-                contactPersonProp: contactCtrl.text.trim().isEmpty ? null : contactCtrl.text.trim(),
-                specialization: specialization,
-                phone: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
-                contractValue: contractVal,
-                paidAmount: 0.0,
-                status: 'Active',
-                createdAt: DateTime.now(),
-              );
-
-              final ok = await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(sub);
-              ref.invalidate(projectSubcontractorsProvider);
-
-              if (ctx.mounted) Navigator.pop(ctx);
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(ok ? 'Trade partner "${sub.name}" added successfully!' : 'Trade partner saved'),
-                    backgroundColor: const Color(0xFF10B981),
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setDlgState) => AlertDialog(
+          title: Text('Assign Trade Partner to ${widget.projectName}'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: nameCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Company / Contractor Name *',
+                    hintText: 'e.g. Apex Electricals & Wiring',
                   ),
-                );
-              }
-            },
-            child: const Text('Add Partner'),
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
+                  initialValue: specialization,
+                  decoration: const InputDecoration(labelText: 'Trade / Specialization *'),
+                  items: [
+                    'Civil & RCC',
+                    'Masonry & Brickwork',
+                    'Electrical & Wiring',
+                    'Plumbing & Sanitary',
+                    'Fabrication & Steel',
+                    'Painting & Finishing',
+                    'Carpentry & Woodwork',
+                    'Flooring & Tiling',
+                    'Waterproofing',
+                    'HVAC',
+                    'Other',
+                  ].map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                  onChanged: (v) => setDlgState(() => specialization = v ?? specialization),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contactCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Contact Person Name',
+                    hintText: 'e.g. Rajesh Kumar',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: phoneCtrl,
+                  keyboardType: TextInputType.phone,
+                  decoration: const InputDecoration(
+                    labelText: 'Phone / WhatsApp Number',
+                    hintText: 'e.g. 9876543210',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: contractCtrl,
+                  keyboardType: TextInputType.number,
+                  decoration: const InputDecoration(
+                    labelText: 'Total Contract Value (₹) *',
+                    hintText: 'e.g. 250000',
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: scopeCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Scope of Work',
+                    hintText: 'e.g. Complete electrical conduit & wiring for Block A',
+                  ),
+                ),
+              ],
+            ),
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+                final contractVal = double.tryParse(contractCtrl.text.trim()) ?? 0.0;
+                final sub = Subcontractor(
+                  id: '',
+                  name: nameCtrl.text.trim(),
+                  companyNameProp: nameCtrl.text.trim(),
+                  contactPersonProp: contactCtrl.text.trim().isEmpty ? null : contactCtrl.text.trim(),
+                  specialization: specialization,
+                  phone: phoneCtrl.text.trim().isEmpty ? null : phoneCtrl.text.trim(),
+                  projectId: widget.projectId,
+                  siteNameProp: widget.projectName,
+                  scopeOfWork: scopeCtrl.text.trim().isEmpty ? null : scopeCtrl.text.trim(),
+                  contractValue: contractVal,
+                  paidAmount: 0.0,
+                  status: 'Active',
+                  createdAt: DateTime.now(),
+                );
+
+                final ok = await ref.read(subcontractorControllerProvider.notifier).addSubcontractor(sub);
+                ref.invalidate(projectSubcontractorsProvider);
+                ref.invalidate(projectDashboardProvider(widget.projectId));
+                ref.invalidate(projectControllerProvider);
+
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(ok
+                          ? 'Trade partner "${sub.name}" assigned to ${widget.projectName}!'
+                          : 'Trade partner saved'),
+                      backgroundColor: const Color(0xFF10B981),
+                    ),
+                  );
+                }
+              },
+              child: const Text('Assign Partner'),
+            ),
+          ],
+        ),
       ),
     );
   }

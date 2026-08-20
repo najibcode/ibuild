@@ -7,6 +7,7 @@ import '../../features/employees/data/models/employee_model.dart';
 import '../../features/expenses/data/models/expense_model.dart';
 import '../../features/inventory/data/models/inventory_history_model.dart';
 import '../../features/inventory/data/models/inventory_item_model.dart';
+import '../../features/daily_progress/data/models/daily_progress_model.dart';
 import '../../features/payments/data/models/payment_ledger_model.dart';
 import '../../features/projects/data/models/project_model.dart';
 import '../../features/subcontractors/data/models/subcontractor_model.dart';
@@ -14,6 +15,8 @@ import '../../features/subcontractors/data/models/subcontractor_model.dart';
 /// Data bundle for building a consolidated, authoritative IBUILD ERP Excel Report
 class ConsolidatedReportData {
   final Project? project; // Specific project context or null for portfolio-wide
+  final List<Project> projects;
+  final List<DailyProgress> dailyProgress;
   final String projectName;
   final String siteName;
   final String clientName;
@@ -44,6 +47,8 @@ class ConsolidatedReportData {
 
   ConsolidatedReportData({
     this.project,
+    this.projects = const [],
+    this.dailyProgress = const [],
     required this.projectName,
     required this.siteName,
     required this.clientName,
@@ -197,23 +202,145 @@ class ExcelGeneratorService {
     // ── SHEET 1: Executive Summary ──
     _buildExecutiveSummarySheet(excel, data);
 
-    // ── SHEET 2: Attendance (if data exists or with clean placeholder) ──
+    // ── SHEET 2: Projects & Site Daily Progress ──
+    _buildProjectsSheet(excel, data);
+
+    // ── SHEET 3: Attendance Muster Roll ──
     _buildAttendanceSheet(excel, data);
 
-    // ── SHEET 3: Materials & Inventory Movements ──
+    // ── SHEET 4: Materials & Inventory Movements ──
     _buildMaterialsSheet(excel, data);
 
-    // ── SHEET 4: Subcontractors & Trade Partners ──
+    // ── SHEET 5: Subcontractors & Trade Partners ──
     _buildSubcontractorsSheet(excel, data);
 
-    // ── SHEET 5: Direct Site Expenses ──
+    // ── SHEET 6: Direct Site Expenses ──
     _buildExpensesSheet(excel, data);
 
-    // ── SHEET 6: Payment Ledger ──
+    // ── SHEET 7: Payment Ledger ──
     _buildPaymentsSheet(excel, data);
 
     final bytes = excel.encode();
     return Uint8List.fromList(bytes ?? []);
+  }
+
+  // ---------------------------------------------------------------------------
+  // SHEET: Projects & Progress
+  // ---------------------------------------------------------------------------
+  static void _buildProjectsSheet(Excel excel, ConsolidatedReportData data) {
+    const sheetName = 'Projects & Progress';
+    final sheet = excel[sheetName];
+
+    sheet.appendRow([TextCellValue('IBUILD ERP — PROJECT SITES & PROGRESS TRACKING')]);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0),
+      CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 0),
+    );
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 0)).cellStyle = reportTitleStyle;
+
+    sheet.appendRow([TextCellValue('Period: ${DateFormat('dd-MM-yyyy').format(data.startDate)} to ${DateFormat('dd-MM-yyyy').format(data.endDate)} | Scope: ${data.projectName}')]);
+    sheet.merge(
+      CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1),
+      CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: 1),
+    );
+    sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: 1)).cellStyle = reportSubTitleStyle;
+
+    sheet.appendRow([]);
+
+    final headers = [
+      'Project Name',
+      'Client Name',
+      'Site Location',
+      'Status',
+      'Physical Progress (%)',
+      'Total Budget (INR)',
+      'Total Spent (INR)',
+      'Remaining Balance (INR)',
+      'Financial Utilization (%)',
+    ];
+
+    sheet.appendRow(headers.map((h) => TextCellValue(h)).toList());
+    const headerRowIdx = 3;
+    for (int col = 0; col < headers.length; col++) {
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: headerRowIdx)).cellStyle = tableHeaderStyle;
+    }
+
+    final targetProjects = data.projects.isNotEmpty
+        ? data.projects
+        : (data.project != null ? [data.project!] : <Project>[]);
+
+    if (targetProjects.isEmpty) {
+      sheet.appendRow([
+        TextCellValue('No project records available.'),
+        TextCellValue(''),
+        TextCellValue(''),
+        TextCellValue(''),
+        TextCellValue(''),
+        TextCellValue(''),
+        TextCellValue(''),
+        TextCellValue(''),
+        TextCellValue(''),
+      ]);
+      final rowIdx = sheet.maxRows - 1;
+      sheet.merge(
+        CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIdx),
+        CellIndex.indexByColumnRow(columnIndex: 8, rowIndex: rowIdx),
+      );
+      sheet.cell(CellIndex.indexByColumnRow(columnIndex: 0, rowIndex: rowIdx)).cellStyle = positiveNoticeStyle;
+    } else {
+      double sumBudget = 0.0;
+      double sumSpent = 0.0;
+      double sumBal = 0.0;
+
+      for (int i = 0; i < targetProjects.length; i++) {
+        final p = targetProjects[i];
+        final double rem = p.budget > p.spent ? (p.budget - p.spent) : 0.0;
+        final double util = p.budget > 0 ? ((p.spent / p.budget) * 100).clamp(0.0, 100.0) : 0.0;
+        final double prog = (p.physicalProgress ?? (p.budget > 0 ? (p.spent / p.budget * 100) : 0.0)).clamp(0.0, 100.0);
+
+        sumBudget += p.budget;
+        sumSpent += p.spent;
+        sumBal += rem;
+
+        sheet.appendRow([
+          TextCellValue(p.name),
+          TextCellValue(p.clientName ?? p.customerName ?? '-'),
+          TextCellValue(p.address ?? '-'),
+          TextCellValue(p.status.toUpperCase()),
+          DoubleCellValue(prog),
+          DoubleCellValue(p.budget),
+          DoubleCellValue(p.spent),
+          DoubleCellValue(rem),
+          DoubleCellValue(util),
+        ]);
+
+        final rowIdx = sheet.maxRows - 1;
+        final rowStyle = (i % 2 == 0) ? dataRowRegularStyle : dataRowAltStyle;
+        for (int col = 0; col < headers.length; col++) {
+          sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: rowIdx)).cellStyle = rowStyle;
+        }
+      }
+
+      // Summary Row
+      final double overallUtil = sumBudget > 0 ? ((sumSpent / sumBudget) * 100).clamp(0.0, 100.0) : 0.0;
+      sheet.appendRow([
+        TextCellValue('PORTFOLIO TOTAL'),
+        TextCellValue(''),
+        TextCellValue('${targetProjects.length} Sites'),
+        TextCellValue(''),
+        TextCellValue(''),
+        DoubleCellValue(sumBudget),
+        DoubleCellValue(sumSpent),
+        DoubleCellValue(sumBal),
+        DoubleCellValue(overallUtil),
+      ]);
+      final sumRowIdx = sheet.maxRows - 1;
+      for (int col = 0; col < headers.length; col++) {
+        sheet.cell(CellIndex.indexByColumnRow(columnIndex: col, rowIndex: sumRowIdx)).cellStyle = summaryRowStyle;
+      }
+    }
+
+    _autoFitColumns(sheet, headers.length, minWidth: 14, maxWidth: 40);
   }
 
   // ---------------------------------------------------------------------------

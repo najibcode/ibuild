@@ -194,6 +194,8 @@ class _FullReportGeneratorScreenState
     final expenseState = ref.read(expenseControllerProvider);
     final attendanceState = ref.read(attendanceControllerProvider);
     final subcontractorState = ref.read(subcontractorControllerProvider);
+    final inventoryState = ref.read(inventoryControllerProvider);
+    final employees = ref.read(employeeListControllerProvider).valueOrNull ?? [];
 
     final projects = _selectedProjectId == null || _selectedProjectId == 'all'
         ? projectState.projects
@@ -204,7 +206,7 @@ class _FullReportGeneratorScreenState
     final projectName = projects.isEmpty
         ? 'All Enterprise Sites'
         : (projects.length == 1
-            ? projects.first.name
+            ? '${projects.first.name} (${projects.first.address ?? "Site Location"})'
             : '${projects.length} Selected Projects');
 
     // Filter expenses for this date range
@@ -234,97 +236,132 @@ class _FullReportGeneratorScreenState
 
     final double totalBudget = projects.fold(0.0, (sum, p) => sum + p.budget);
     final double totalSpent = projects.fold(0.0, (sum, p) => sum + p.spent);
+    final double remainingBal = totalBudget > totalSpent ? (totalBudget - totalSpent) : 0.0;
+    final double budgetUtil = totalBudget > 0 ? ((totalSpent / totalBudget) * 100).clamp(0.0, 100.0) : 0.0;
 
     final buffer = StringBuffer();
-    buffer.writeln("==================================================");
-    buffer.writeln("IBUILD ERP - AUDIT & OPERATIONAL REPORT");
-    buffer.writeln("Report Cadence: $_periodTitle");
-    buffer.writeln("Scope: $projectName");
-    buffer.writeln("Period: $_startDateStr to $_endDateStr");
-    buffer.writeln("Generated On: ${DateTime.now().toString().substring(0, 16)}");
-    buffer.writeln("==================================================\n");
+    buffer.writeln("================================================================================");
+    buffer.writeln("                    IBUILD CONSTRUCTION MANAGEMENT ERP                         ");
+    buffer.writeln("                   OFFICIAL AUDIT & OPERATIONAL REPORT                          ");
+    buffer.writeln("================================================================================");
+    buffer.writeln("Report Scope   : $projectName");
+    buffer.writeln("Report Cadence : $_periodTitle");
+    buffer.writeln("Date Interval  : $_startDateStr to $_endDateStr");
+    buffer.writeln("Generated On   : ${DateFormat('yyyy-MM-dd HH:mm:ss').format(DateTime.now())}");
+    buffer.writeln("================================================================================\n");
 
-    buffer.writeln("1. EXECUTIVE & FINANCIAL PERFORMANCE SUMMARY");
-    buffer.writeln("--------------------------------------------------");
-    buffer.writeln("• Period Outflows / Spent:  ₹${totalExpensesAmount.toStringAsFixed(2)} (${filteredExpenses.length} records)");
-    buffer.writeln("• Inventory Stock Movements: ${_loadedInventoryHistory.length} transactions recorded");
-    buffer.writeln("• Active Subcontractors:    ${subcontractorState.items.length} trade partners");
-    buffer.writeln("• Worker Attendance Logged: ${filteredAttendance.length} worker shifts");
-    buffer.writeln("• Total Enterprise Budget:  ₹${totalBudget.toStringAsFixed(2)}");
-    buffer.writeln("• Total Cumulative Spent:   ₹${totalSpent.toStringAsFixed(2)}\n");
+    buffer.writeln("1. EXECUTIVE FINANCIAL & OPERATIONAL TELEMETRY");
+    buffer.writeln("--------------------------------------------------------------------------------");
+    buffer.writeln("• Period Outflows / Spend    : ₹${totalExpensesAmount.toStringAsFixed(2)} (${filteredExpenses.length} vouchers logged)");
+    buffer.writeln("• Total Project Baseline     : ₹${totalBudget.toStringAsFixed(2)}");
+    buffer.writeln("• Total Cumulative Spend     : ₹${totalSpent.toStringAsFixed(2)}");
+    buffer.writeln("• Remaining Balance          : ₹${remainingBal.toStringAsFixed(2)}");
+    buffer.writeln("• Financial Utilization Rate : ${budgetUtil.toStringAsFixed(1)}%");
+    buffer.writeln("• Material Movements Logged  : ${_loadedInventoryHistory.length} transaction entries");
+    buffer.writeln("• Active Trade Partners      : ${subcontractorState.items.length} subcontractor firms");
+    buffer.writeln("• Labor Shifts Recorded      : ${filteredAttendance.length} worker shifts\n");
 
-    // 2. Changes in Projects
-    buffer.writeln("2. CHANGES & UPDATES MADE IN PROJECTS");
-    buffer.writeln("--------------------------------------------------");
+    // Category-wise Breakdown
+    if (filteredExpenses.isNotEmpty) {
+      buffer.writeln("2. PERIOD EXPENSE CATEGORY BREAKDOWN");
+      buffer.writeln("--------------------------------------------------------------------------------");
+      final Map<String, double> catTotals = {};
+      for (final e in filteredExpenses) {
+        final c = e.category.isEmpty ? 'General' : e.category;
+        catTotals[c] = (catTotals[c] ?? 0.0) + e.amount;
+      }
+      for (final entry in catTotals.entries) {
+        final pct = totalExpensesAmount > 0 ? (entry.value / totalExpensesAmount * 100) : 0.0;
+        buffer.writeln("• ${entry.key.padRight(20)}: ₹${entry.value.toStringAsFixed(2).padLeft(12)} (${pct.toStringAsFixed(1)}%)");
+      }
+      buffer.writeln();
+    }
+
+    // 3. Project Portfolio Status
+    buffer.writeln("3. PROJECT SITES & DAILY OPERATIONAL NOTES");
+    buffer.writeln("--------------------------------------------------------------------------------");
     if (projects.isEmpty) {
-      buffer.writeln("• No projects active in selected scope.\n");
+      buffer.writeln("• No active projects found in this scope.\n");
     } else {
       for (final p in projects) {
         final progressVal = ((p.physicalProgress ?? (p.budget > 0 ? (p.spent / p.budget * 100) : 0.0))).clamp(0.0, 100.0);
-        buffer.writeln("• ${p.name} [${p.status.toUpperCase()}]: ${progressVal.toStringAsFixed(0)}% Complete | Budget: ₹${p.budget.toStringAsFixed(0)} | Spent: ₹${p.spent.toStringAsFixed(0)}");
+        buffer.writeln("• Site: ${p.name} [Status: ${p.status.toUpperCase()}]");
+        buffer.writeln("  - Client: ${p.clientName ?? p.customerName ?? 'Direct Client'} | Location: ${p.address ?? '-'}");
+        buffer.writeln("  - Progress: ${progressVal.toStringAsFixed(0)}% | Budget: ₹${p.budget.toStringAsFixed(0)} | Spent: ₹${p.spent.toStringAsFixed(0)} | Balance: ₹${(p.budget - p.spent).toStringAsFixed(0)}");
       }
       if (_loadedDailyProgress.isNotEmpty) {
-        buffer.writeln("\n  Site Daily Progress Notes:");
+        buffer.writeln("\n  Site Execution Logs:");
         for (final dp in _loadedDailyProgress) {
-          final notes = dp.allNotes.isNotEmpty ? dp.allNotes.join(' | ') : 'Progress recorded';
-          buffer.writeln("  - [${dp.date}] Progress: ${dp.progressPercentage}% | Notes: $notes");
+          final notes = dp.allNotes.isNotEmpty ? dp.allNotes.join(' | ') : 'Operational progress recorded';
+          buffer.writeln("  - [${dp.date}] Milestone: ${dp.progressPercentage}% | Details: $notes");
         }
       }
       buffer.writeln();
     }
 
-    // 3. Changes in Inventory
-    buffer.writeln("3. CHANGES MADE IN INVENTORY (DELIVERIES & ISSUES)");
-    buffer.writeln("--------------------------------------------------");
-    if (_loadedInventoryHistory.isEmpty) {
-      buffer.writeln("• No stock movements recorded for this period.\n");
-    } else {
-      for (final h in _loadedInventoryHistory) {
-        final type = h.changeType == 'added' ? 'RECEIVED (+)' : 'ISSUED (-)';
-        buffer.writeln("• $type ${h.quantityChange.abs().toStringAsFixed(1)} units | Notes: ${h.notes ?? 'Stock Movement'}");
-      }
-      buffer.writeln();
-    }
-
-    // 4. Status of Subcontractors
-    buffer.writeln("4. STATUS OF SUBCONTRACTORS & TRADE PARTNERS");
-    buffer.writeln("--------------------------------------------------");
+    // 4. Subcontractors Ledger
+    buffer.writeln("4. TRADE PARTNERS & SUBCONTRACTORS LEDGER");
+    buffer.writeln("--------------------------------------------------------------------------------");
     if (subcontractorState.items.isEmpty) {
-      buffer.writeln("• No subcontractors registered in the system.\n");
+      buffer.writeln("• No subcontractor records registered.\n");
     } else {
       for (final s in subcontractorState.items) {
-        buffer.writeln("• ${s.companyName} [${s.tradeSpecialization}] - Status: ${s.status.toUpperCase()} | Contract: ₹${s.contractValue.toStringAsFixed(0)} | Paid: ₹${s.paidAmount.toStringAsFixed(0)} | Balance: ₹${s.outstandingAmount.toStringAsFixed(0)}");
+        buffer.writeln("• ${s.companyName} (${s.tradeSpecialization}) - Site: ${s.siteName}");
+        buffer.writeln("  - Contact: ${s.contactPerson} (${s.phone ?? '-'}) | Status: ${s.status.toUpperCase()}");
+        buffer.writeln("  - Contract: ₹${s.contractValue.toStringAsFixed(0)} | Paid: ₹${s.paidAmount.toStringAsFixed(0)} | Retention Due: ₹${s.outstandingAmount.toStringAsFixed(0)}");
       }
       buffer.writeln();
     }
 
-    // 5. Site Expenses
-    buffer.writeln("5. SITE EXPENSE OUTFLOW LOGS");
-    buffer.writeln("--------------------------------------------------");
-    if (filteredExpenses.isEmpty) {
-      buffer.writeln("• No expenses recorded for this period.\n");
+    // 5. Inventory Stock Movements & Health
+    buffer.writeln("5. INVENTORY STOCK MOVEMENTS & HEALTH AUDIT");
+    buffer.writeln("--------------------------------------------------------------------------------");
+    if (_loadedInventoryHistory.isEmpty) {
+      buffer.writeln("• No material movements logged for this period.");
     } else {
-      for (final e in filteredExpenses.take(30)) {
-        buffer.writeln("• ${e.expenseDate} | [${e.category.toUpperCase()}] ₹${e.amount.toStringAsFixed(2)} (${e.paymentMode.toUpperCase()}) - ${e.projectName ?? 'General'} : ${e.notes ?? ''}");
+      for (final h in _loadedInventoryHistory) {
+        final type = h.changeType == 'added' ? 'RECEIVED (GRN)' : (h.changeType == 'used' ? 'ISSUED (Site)' : h.changeType.toUpperCase());
+        buffer.writeln("• [${h.createdAt?.substring(0, 10) ?? _startDateStr}] $type: ${h.quantityChange.abs().toStringAsFixed(1)} units | Details: ${h.notes ?? '-'}");
       }
-      buffer.writeln();
     }
+    final lowStockItems = inventoryState.items.where((i) => i.isLowStock).toList();
+    if (lowStockItems.isNotEmpty) {
+      buffer.writeln("\n  Low Stock Reorder Alerts:");
+      for (final item in lowStockItems) {
+        buffer.writeln("  ! ${item.materialName}: ${item.availableStock} ${item.unit} available (below minimum ${item.minimumStock} ${item.unit})");
+      }
+    }
+    buffer.writeln();
 
-    // 6. Worker Attendance
-    buffer.writeln("6. WORKER ATTENDANCE LOG");
-    buffer.writeln("--------------------------------------------------");
+    // 6. Labor Attendance & Muster Roll
+    buffer.writeln("6. WORKER ATTENDANCE & MUSTER ROLL");
+    buffer.writeln("--------------------------------------------------------------------------------");
     if (filteredAttendance.isEmpty) {
-      buffer.writeln("• No attendance entries recorded for this period.\n");
+      buffer.writeln("• No attendance records logged for this period.\n");
     } else {
-      for (final a in filteredAttendance.take(30)) {
-        buffer.writeln("• ${a.date} | Worker: ${a.employeeName ?? 'Worker'} | Status: ${a.status.toUpperCase()} | Site: ${a.projectName ?? 'General'}");
+      final empMap = {for (final e in employees) e.id: e};
+      for (final a in filteredAttendance) {
+        final emp = empMap[a.employeeId];
+        buffer.writeln("• ${a.date} | ${a.employeeName ?? emp?.name ?? 'Worker'} (${emp?.role ?? 'Staff'}) | Shift: ${a.status.toUpperCase()} | Site: ${a.projectName ?? 'General Site'}");
       }
       buffer.writeln();
     }
 
-    buffer.writeln("==================================================");
-    buffer.writeln("END OF REPORT - CONFIDENTIAL IBUILD ERP AUDIT");
-    buffer.writeln("==================================================");
+    // 7. Individual Expense Outflows
+    buffer.writeln("7. LOGGED SITE EXPENSE VOUCHERS");
+    buffer.writeln("--------------------------------------------------------------------------------");
+    if (filteredExpenses.isEmpty) {
+      buffer.writeln("• No expense records for this period.\n");
+    } else {
+      for (final e in filteredExpenses) {
+        buffer.writeln("• ${e.expenseDate} | [${e.category.toUpperCase()}] ₹${e.amount.toStringAsFixed(2)} via ${e.paymentMode.toUpperCase()} | Recorded By: ${e.recordedBy ?? '-'} | Site: ${e.projectName ?? 'General'} | Ref: ${e.notes ?? '-'}");
+      }
+      buffer.writeln();
+    }
+
+    buffer.writeln("================================================================================");
+    buffer.writeln("                      END OF OFFICIAL AUDIT REPORT                              ");
+    buffer.writeln("================================================================================");
 
     return buffer.toString();
   }
@@ -339,6 +376,7 @@ class _FullReportGeneratorScreenState
     final expenseState = ref.read(expenseControllerProvider);
     final attendanceState = ref.read(attendanceControllerProvider);
     final subcontractorState = ref.read(subcontractorControllerProvider);
+    final inventoryState = ref.read(inventoryControllerProvider);
 
     final filteredExpenses = expenseState.expenses.where((e) {
       final matchesProject = _selectedProjectId == null ||
@@ -364,36 +402,59 @@ class _FullReportGeneratorScreenState
     }).toList();
 
     final buffer = StringBuffer();
-    buffer.writeln("*IBUILD SITE EXECUTIVE REPORT*");
-    buffer.writeln("*Project:* $projectName");
-    buffer.writeln("*Period:* $_periodTitle ($_startDateStr to $_endDateStr)");
+    buffer.writeln("🏗️ *IBUILD SITE EXECUTIVE REPORT*");
+    buffer.writeln("📍 *Scope:* $projectName");
+    buffer.writeln("📅 *Period:* $_periodTitle");
+    buffer.writeln("🗓️ *Dates:* $_startDateStr to $_endDateStr");
     buffer.writeln("----------------------------------------");
-    buffer.writeln("*EXECUTIVE SUMMARY*");
-    buffer.writeln("• *Period Outflow:* INR ${totalExpensesAmount.toStringAsFixed(0)}");
-    buffer.writeln("• *Material Shifts:* ${_loadedInventoryHistory.length} records");
-    buffer.writeln("• *Worker Attendance:* ${filteredAttendance.length} shifts");
+    buffer.writeln("📊 *EXECUTIVE SUMMARY*");
+    buffer.writeln("• *Period Outflow:* ₹${totalExpensesAmount.toStringAsFixed(0)} (${filteredExpenses.length} vouchers)");
+    buffer.writeln("• *Material Shifts:* ${_loadedInventoryHistory.length} txns");
+    buffer.writeln("• *Labor Attendance:* ${filteredAttendance.length} shifts recorded");
     buffer.writeln("• *Trade Partners:* ${subcontractorState.items.length} active");
     buffer.writeln("----------------------------------------");
 
     if (_loadedDailyProgress.isNotEmpty) {
-      buffer.writeln("*WORK PROGRESS & UPDATES*");
-      for (final dp in _loadedDailyProgress.take(3)) {
+      buffer.writeln("🚧 *SITE WORK PROGRESS*");
+      for (final dp in _loadedDailyProgress.take(4)) {
         final notes = dp.allNotes.isNotEmpty ? dp.allNotes.join(', ') : 'Daily site work executed';
         buffer.writeln("• *${dp.date}* (${dp.progressPercentage}%): $notes");
       }
       buffer.writeln("----------------------------------------");
     }
 
-    if (_loadedInventoryHistory.isNotEmpty) {
-      buffer.writeln("*INVENTORY STOCK DELIVERIES*");
-      for (final h in _loadedInventoryHistory.take(4)) {
-        final type = h.changeType == 'added' ? '[Received]' : '[Issued]';
-        buffer.writeln("• $type: ${h.quantityChange.abs().toStringAsFixed(0)} units (${h.notes ?? 'Stock Movement'})");
+    if (filteredExpenses.isNotEmpty) {
+      buffer.writeln("💰 *TOP EXPENSE BREAKDOWN*");
+      final Map<String, double> catTotals = {};
+      for (final e in filteredExpenses) {
+        final c = e.category.isEmpty ? 'General' : e.category;
+        catTotals[c] = (catTotals[c] ?? 0.0) + e.amount;
+      }
+      for (final entry in catTotals.entries.take(4)) {
+        buffer.writeln("• *${entry.key}:* ₹${entry.value.toStringAsFixed(0)}");
       }
       buffer.writeln("----------------------------------------");
     }
 
-    buffer.writeln("_Generated via IBUILD Construction ERP_");
+    if (_loadedInventoryHistory.isNotEmpty) {
+      buffer.writeln("📦 *INVENTORY STOCK DELIVERIES*");
+      for (final h in _loadedInventoryHistory.take(4)) {
+        final type = h.changeType == 'added' ? '📥 [Received]' : '📤 [Issued]';
+        buffer.writeln("• $type: ${h.quantityChange.abs().toStringAsFixed(1)} units (${h.notes ?? 'Movement'})");
+      }
+      buffer.writeln("----------------------------------------");
+    }
+
+    final lowStock = inventoryState.items.where((i) => i.isLowStock).toList();
+    if (lowStock.isNotEmpty) {
+      buffer.writeln("⚠️ *LOW STOCK WARNINGS*");
+      for (final item in lowStock.take(3)) {
+        buffer.writeln("• ${item.materialName}: ${item.availableStock} ${item.unit} (Min: ${item.minimumStock})");
+      }
+      buffer.writeln("----------------------------------------");
+    }
+
+    buffer.writeln("⚡ _Generated via IBUILD Construction ERP_");
     return buffer.toString();
   }
 
@@ -511,6 +572,7 @@ class _FullReportGeneratorScreenState
     final inventoryState = ref.read(inventoryControllerProvider);
     final attendanceState = ref.read(attendanceControllerProvider);
     final subcontractorState = ref.read(subcontractorControllerProvider);
+    final employees = ref.read(employeeListControllerProvider).valueOrNull ?? [];
 
     try {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -520,23 +582,55 @@ class _FullReportGeneratorScreenState
         ),
       );
 
+      final isSingleProject = _selectedProjectId != null && _selectedProjectId != 'all';
+      final filteredProjects = isSingleProject
+          ? projectState.projects.where((p) => p.id == _selectedProjectId).toList()
+          : projectState.projects;
+
       final filteredExpenses = expenseState.expenses.where((e) {
-        final matchesProject = _selectedProjectId == null ||
-            _selectedProjectId == 'all' ||
-            e.projectId == _selectedProjectId;
+        final matchesProject = !isSingleProject || e.projectId == _selectedProjectId;
         final inRange = e.expenseDate.compareTo(_startDateStr) >= 0 &&
             e.expenseDate.compareTo(_endDateStr) <= 0;
         return matchesProject && inRange;
       }).toList();
 
       final filteredAttendance = attendanceState.attendanceList.where((a) {
-        final matchesProject = _selectedProjectId == null ||
-            _selectedProjectId == 'all' ||
-            a.projectId == _selectedProjectId;
+        final matchesProject = !isSingleProject || a.projectId == _selectedProjectId;
         final inRange = a.date.compareTo(_startDateStr) >= 0 &&
             a.date.compareTo(_endDateStr) <= 0;
         return matchesProject && inRange;
       }).toList();
+
+      // Fetch payment ledger records
+      List<PaymentLedgerEntry> ledgerEntries = [];
+      try {
+        final ledgerRepo = SupabasePaymentLedgerRepository(Supabase.instance.client);
+        final allEntries = isSingleProject && _selectedProjectId != null
+            ? await ledgerRepo.fetchLedgerForProject(_selectedProjectId!)
+            : await ledgerRepo.fetchAllLedgerEntries();
+        ledgerEntries = allEntries.where((p) {
+          final pDateStr = DateFormat('yyyy-MM-dd').format(p.paymentDate);
+          return pDateStr.compareTo(_startDateStr) >= 0 && pDateStr.compareTo(_endDateStr) <= 0;
+        }).toList();
+      } catch (_) {}
+
+      // Compile attention required items
+      final List<String> attentionItems = [];
+      for (final p in filteredProjects) {
+        if (p.spent > p.budget && p.budget > 0) {
+          attentionItems.add('Budget alert: "${p.name}" spent ₹${p.spent.toStringAsFixed(0)} against budget ₹${p.budget.toStringAsFixed(0)}');
+        }
+      }
+      for (final item in inventoryState.items) {
+        if (item.isLowStock) {
+          attentionItems.add('Low inventory warning: ${item.materialName} has ${item.availableStock} ${item.unit} in stock (below minimum ${item.minimumStock})');
+        }
+      }
+      for (final s in subcontractorState.items) {
+        if (s.outstandingAmount > 0) {
+          attentionItems.add('Payment retention balance pending for trade partner ${s.companyName}: ₹${s.outstandingAmount.toStringAsFixed(0)}');
+        }
+      }
 
       final pdfBytes = await PdfReportGenerator.generateReport(
         reportType: _periodTitle,
@@ -548,6 +642,9 @@ class _FullReportGeneratorScreenState
         subcontractors: subcontractorState.items,
         dailyProgressList: _loadedDailyProgress,
         attendanceRecords: filteredAttendance,
+        employees: employees,
+        payments: ledgerEntries,
+        attentionItems: attentionItems,
         selectedProjectId: _selectedProjectId == 'all' ? null : _selectedProjectId,
       );
 
@@ -693,6 +790,8 @@ class _FullReportGeneratorScreenState
       // 4. Generate Multi-Sheet Consolidated Workbook
       final reportData = ConsolidatedReportData(
         project: targetProject,
+        projects: projects,
+        dailyProgress: _loadedDailyProgress,
         projectName: projectName,
         siteName: siteName,
         clientName: clientName,
