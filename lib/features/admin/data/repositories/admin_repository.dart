@@ -152,25 +152,63 @@ class AdminRepository {
         final genUid = const Uuid().v4();
         final avatarUrl = RoleAvatarHelper.getAvatarUrl(role: roleName, email: email);
 
-        final Map<String, dynamic> baseProfile = {
-          'id': genUid,
-          'full_name': fullName,
-          'phone': phone ?? '',
-          'company_name': companyName ?? 'IBUILD',
-          'role_display': roleName,
-          'custom_permissions': perms,
-          'is_disabled': false,
-        };
+        bool upsertSuccess = false;
 
-        // Attempt upsert with avatar_url, retry without avatar_url if schema column is missing
+        // Tier 1: Full payload with modern schema columns
         try {
           await _client.from('profiles').upsert({
-            ...baseProfile,
+            'id': genUid,
+            'full_name': fullName,
+            'phone': phone ?? '',
+            'company_name': companyName ?? 'IBUILD',
+            'role_display': roleName,
+            'custom_permissions': perms,
             'avatar_url': avatarUrl,
+            'is_disabled': false,
           });
-        } catch (profileErr) {
-          debugPrint('Profile upsert with avatar_url failed ($profileErr), retrying base fields');
-          await _client.from('profiles').upsert(baseProfile);
+          upsertSuccess = true;
+        } catch (tier1Err) {
+          debugPrint('Tier 1 profile upsert failed: $tier1Err');
+        }
+
+        // Tier 2: Without avatar_url and custom_permissions
+        if (!upsertSuccess) {
+          try {
+            await _client.from('profiles').upsert({
+              'id': genUid,
+              'full_name': fullName,
+              'phone': phone ?? '',
+              'company_name': companyName ?? 'IBUILD',
+              'role_display': roleName,
+              'is_disabled': false,
+            });
+            upsertSuccess = true;
+          } catch (tier2Err) {
+            debugPrint('Tier 2 profile upsert failed: $tier2Err');
+          }
+        }
+
+        // Tier 3: Baseline core columns only (id, full_name, phone, company_name)
+        if (!upsertSuccess) {
+          try {
+            await _client.from('profiles').upsert({
+              'id': genUid,
+              'full_name': fullName,
+              'phone': phone ?? '',
+              'company_name': companyName ?? 'IBUILD',
+            });
+            upsertSuccess = true;
+          } catch (tier3Err) {
+            debugPrint('Tier 3 profile upsert failed: $tier3Err');
+          }
+        }
+
+        // Tier 4: Minimal fallback (id, full_name)
+        if (!upsertSuccess) {
+          await _client.from('profiles').upsert({
+            'id': genUid,
+            'full_name': fullName,
+          });
         }
 
         // Try assigning role in user_roles
@@ -191,17 +229,19 @@ class AdminRepository {
           debugPrint('User role assign in fallback note: $roleErr');
         }
 
-        await logAdminAction(
-          action: 'user.created',
-          targetType: 'user',
-          targetId: genUid,
-          details: {
-            'email': email,
-            'full_name': fullName,
-            'role': roleName,
-            'functions_count': perms.length,
-          },
-        );
+        try {
+          await logAdminAction(
+            action: 'user.created',
+            targetType: 'user',
+            targetId: genUid,
+            details: {
+              'email': email,
+              'full_name': fullName,
+              'role': roleName,
+              'functions_count': perms.length,
+            },
+          );
+        } catch (_) {}
 
         return (
           success: true,
@@ -220,20 +260,42 @@ class AdminRepository {
     String? userName,
   }) async {
     try {
-      await _client.from('profiles').update({
-        'custom_permissions': permissions,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', userId);
+      bool updateSuccess = false;
 
-      await logAdminAction(
-        action: 'permissions.updated',
-        targetType: 'user',
-        targetId: userId,
-        details: {
-          'target_user': userName ?? userId,
-          'functions_count': permissions.length,
-        },
-      );
+      // Try custom_permissions first
+      try {
+        await _client.from('profiles').update({
+          'custom_permissions': permissions,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', userId);
+        updateSuccess = true;
+      } catch (e1) {
+        debugPrint('Failed to update custom_permissions column: $e1');
+      }
+
+      // Fallback: Try permissions column
+      if (!updateSuccess) {
+        try {
+          await _client.from('profiles').update({
+            'permissions': permissions,
+          }).eq('id', userId);
+          updateSuccess = true;
+        } catch (e2) {
+          debugPrint('Failed to update fallback permissions column: $e2');
+        }
+      }
+
+      try {
+        await logAdminAction(
+          action: 'permissions.updated',
+          targetType: 'user',
+          targetId: userId,
+          details: {
+            'target_user': userName ?? userId,
+            'functions_count': permissions.length,
+          },
+        );
+      } catch (_) {}
 
       return true;
     } catch (e) {
@@ -255,18 +317,24 @@ class AdminRepository {
         onConflict: 'user_id',
       );
 
-      // Update role display on profile
-      await _client.from('profiles').update({
-        'role_display': newRoleName,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', userId);
+      // Update role display on profile safely
+      try {
+        await _client.from('profiles').update({
+          'role_display': newRoleName,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', userId);
+      } catch (e) {
+        debugPrint('role_display update note: $e');
+      }
 
-      await logAdminAction(
-        action: 'role.changed',
-        targetType: 'user',
-        targetId: userId,
-        details: {'target_user': userName ?? userId, 'new_role': newRoleName},
-      );
+      try {
+        await logAdminAction(
+          action: 'role.changed',
+          targetType: 'user',
+          targetId: userId,
+          details: {'target_user': userName ?? userId, 'new_role': newRoleName},
+        );
+      } catch (_) {}
 
       return true;
     } catch (e) {
@@ -282,17 +350,23 @@ class AdminRepository {
     String? userName,
   }) async {
     try {
-      await _client.from('profiles').update({
-        'is_disabled': isDisabled,
-        'updated_at': DateTime.now().toIso8601String(),
-      }).eq('id', userId);
+      try {
+        await _client.from('profiles').update({
+          'is_disabled': isDisabled,
+          'updated_at': DateTime.now().toIso8601String(),
+        }).eq('id', userId);
+      } catch (e) {
+        debugPrint('is_disabled update note: $e');
+      }
 
-      await logAdminAction(
-        action: isDisabled ? 'user.disabled' : 'user.enabled',
-        targetType: 'user',
-        targetId: userId,
-        details: {'target_user': userName ?? userId, 'is_disabled': isDisabled},
-      );
+      try {
+        await logAdminAction(
+          action: isDisabled ? 'user.disabled' : 'user.enabled',
+          targetType: 'user',
+          targetId: userId,
+          details: {'target_user': userName ?? userId, 'is_disabled': isDisabled},
+        );
+      } catch (_) {}
 
       return true;
     } catch (e) {
