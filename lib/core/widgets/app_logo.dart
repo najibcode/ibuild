@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
-import '../theme/app_colors.dart';
 
-/// Ultra-modern, Godly.design inspired Logo & App Icon for IBUILD ERP.
+/// Clean, minimalistic & professional Logo for IBUILD Construction ERP.
 ///
-/// Features a futuristic 3D isometric interlocking "iB" architectural prism
-/// with glowing emerald crystal columns and frosted titanium bevels, paired
-/// with high-contrast luxury enterprise typography.
+/// Features a Swiss-style geometric construction monogram:
+/// - Left: Royal Cobalt structural column & Emerald safety beacon forming the "i".
+/// - Right: Clean architectural cantilever beam & rising building foundation forming the "B".
+/// - Wordmark: Prominently highlights **"IBU"** in bold Cobalt Blue, followed by
+///   high-contrast **"ILD"** and tracked **"CONSTRUCTION ERP"** subtitle.
 class AppLogo extends StatelessWidget {
   final double size;
   final bool showText;
@@ -26,74 +27,82 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final primaryCol = color ?? AppColors.primaryColor(context);
     final isDark = Theme.of(context).brightness == Brightness.dark || inverted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ── Godly 3D App Icon Tile ──
-        _GodlyAppIconMark(
+        // ── Minimalist Construction App Icon Mark ──
+        _MinimalConstructionMark(
           size: size,
-          primaryColor: primaryCol,
           inverted: inverted,
         ),
 
         if (showText) ...[
-          SizedBox(width: size * 0.32),
-          Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Wordmark (IBU + ILD with Cobalt-Emerald Brand Styling)
-              RichText(
-                text: TextSpan(
-                  children: [
-                    TextSpan(
-                      text: 'IBU',
-                      style: TextStyle(
-                        fontFamily: 'Roboto',
-                        fontSize: size * 0.54,
-                        fontWeight: FontWeight.w900,
-                        color: inverted
-                            ? Colors.white
-                            : (isDark ? Colors.white : const Color(0xFF0F172A)),
-                        letterSpacing: -0.5,
-                        height: 1.0,
+          SizedBox(width: size * 0.25),
+          Flexible(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Wordmark (Prominently Highlighting "IBU")
+                RichText(
+                  text: TextSpan(
+                    children: [
+                      TextSpan(
+                        text: 'IBU',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: size * 0.52,
+                          fontWeight: FontWeight.w900,
+                          color: inverted
+                              ? const Color(0xFF60A5FA)
+                              : (isDark
+                                  ? const Color(0xFF3B82F6)
+                                  : const Color(0xFF1D4ED8)),
+                          letterSpacing: -0.5,
+                          height: 1.0,
+                        ),
                       ),
-                    ),
-                    TextSpan(
-                      text: 'ILD',
-                      style: TextStyle(
-                        fontFamily: 'Roboto',
-                        fontSize: size * 0.54,
-                        fontWeight: FontWeight.w900,
-                        color: const Color(0xFF3B82F6),
-                        letterSpacing: -0.5,
-                        height: 1.0,
+                      TextSpan(
+                        text: 'ILD',
+                        style: TextStyle(
+                          fontFamily: 'Roboto',
+                          fontSize: size * 0.52,
+                          fontWeight: FontWeight.w900,
+                          color: inverted
+                              ? Colors.white
+                              : (isDark
+                                  ? Colors.white
+                                  : const Color(0xFF0F172A)),
+                          letterSpacing: -0.5,
+                          height: 1.0,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                (subtitle != null && subtitle!.isNotEmpty)
-                    ? subtitle!.toUpperCase()
-                    : 'CONSTRUCTION ERP',
-                style: TextStyle(
-                  fontFamily: 'Roboto',
-                  fontSize: (size * 0.20).clamp(8.0, 14.0),
-                  fontWeight: FontWeight.w700,
-                  color: isDark
-                      ? const Color(0xFF94A3B8)
-                      : const Color(0xFF64748B),
-                  letterSpacing: 2.2,
-                  height: 1.0,
+                const SizedBox(height: 2),
+                Text(
+                  (subtitle != null && subtitle!.isNotEmpty)
+                      ? subtitle!.toUpperCase()
+                      : 'CONSTRUCTION ERP',
+                  style: TextStyle(
+                    fontFamily: 'Roboto',
+                    fontSize: (size * 0.16).clamp(7.0, 11.0),
+                    fontWeight: FontWeight.w700,
+                    color: isDark
+                        ? const Color(0xFF94A3B8)
+                        : const Color(0xFF64748B),
+                    letterSpacing: 1.5,
+                    height: 1.0,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ],
       ],
@@ -101,21 +110,19 @@ class AppLogo extends StatelessWidget {
   }
 }
 
-/// Standalone Godly.design 3D Squircle App Icon Tile.
-class _GodlyAppIconMark extends StatelessWidget {
+/// Standalone Squircle App Icon Tile.
+class _MinimalConstructionMark extends StatelessWidget {
   final double size;
-  final Color primaryColor;
   final bool inverted;
 
-  const _GodlyAppIconMark({
+  const _MinimalConstructionMark({
     required this.size,
-    required this.primaryColor,
     this.inverted = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(size * 0.23);
+    final borderRadius = BorderRadius.circular(size * 0.24);
 
     return Container(
       width: size,
@@ -124,178 +131,115 @@ class _GodlyAppIconMark extends StatelessWidget {
         color: const Color(0xFF070B18),
         borderRadius: borderRadius,
         border: Border.all(
-          color: const Color(0xFF3B82F6).withValues(alpha: 0.45),
+          color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
           width: size > 48 ? 1.5 : 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E40AF).withValues(alpha: 0.35),
-            blurRadius: size * 0.35,
-            spreadRadius: -2,
-            offset: Offset(0, size * 0.12),
-          ),
-          BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.2),
-            blurRadius: size * 0.2,
+            color: const Color(0xFF1E40AF).withValues(alpha: 0.22),
+            blurRadius: size * 0.25,
+            spreadRadius: -1,
             offset: Offset(0, size * 0.08),
           ),
         ],
       ),
       child: ClipRRect(
         borderRadius: borderRadius,
-        child: Image.asset(
-          'assets/logo/ibuild_godly_app_icon.png',
-          width: size,
-          height: size,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            // High fidelity vector fallback
-            return CustomPaint(
-              size: Size(size, size),
-              painter: _GodlyIsometricPainter(),
-            );
-          },
+        child: CustomPaint(
+          size: Size(size, size),
+          painter: const _MinimalConstructionPainter(),
         ),
       ),
     );
   }
 }
 
-/// Vector-precise fallback painter for the 3D isometric interlocking "iB" mark.
-class _GodlyIsometricPainter extends CustomPainter {
+/// Clean & Minimalist vector CustomPainter for the Construction Monogram.
+class _MinimalConstructionPainter extends CustomPainter {
+  const _MinimalConstructionPainter();
+
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
-    // Ambient radial glow
-    final glowPaint = Paint()
-      ..shader = RadialGradient(
+    // Emerald Gradient for safety beacon and foundation base
+    final emeraldPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
         colors: [
-          const Color(0xFF3B82F6).withValues(alpha: 0.35),
-          const Color(0xFF10B981).withValues(alpha: 0.15),
-          Colors.transparent,
+          Color(0xFF34D399),
+          Color(0xFF10B981),
+          Color(0xFF059669),
         ],
-      ).createShader(Rect.fromCircle(center: Offset(w * 0.45, h * 0.45), radius: w * 0.5));
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), glowPaint);
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
 
-    final cobaltTop = Paint()..color = const Color(0xFF93C5FD);
-    final cobaltSide = Paint()..color = const Color(0xFF3B82F6);
-    final cobaltDark = Paint()..color = const Color(0xFF1E40AF);
+    // Royal Cobalt Gradient for structural columns and steel beams
+    final cobaltPaint = Paint()
+      ..shader = const LinearGradient(
+        begin: Alignment.topCenter,
+        end: Alignment.bottomCenter,
+        colors: [
+          Color(0xFF60A5FA),
+          Color(0xFF3B82F6),
+          Color(0xFF1D4ED8),
+        ],
+      ).createShader(Rect.fromLTWH(0, 0, w, h));
 
-    final titaniumTop = Paint()..color = const Color(0xFFE2E8F0);
-    final titaniumSide = Paint()..color = const Color(0xFF64748B);
-    final titaniumDark = Paint()..color = const Color(0xFF334155);
-    final emeraldAccent = Paint()..color = const Color(0xFF10B981);
+    // 1. Left 'i' Top Emerald Beacon / Apex
+    final beaconRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.18, h * 0.18, w * 0.15, h * 0.15),
+      Radius.circular(w * 0.04),
+    );
+    canvas.drawRRect(beaconRect, emeraldPaint);
 
-    // 1. Floating 'i' Dot Cube
-    _drawIsoCube(canvas, Offset(w * 0.34, h * 0.28), w * 0.12, cobaltTop, cobaltSide, cobaltDark);
+    // 2. Left 'i' Vertical Structural Column
+    final columnRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(w * 0.18, h * 0.38, w * 0.15, h * 0.44),
+      Radius.circular(w * 0.04),
+    );
+    canvas.drawRRect(columnRect, cobaltPaint);
 
-    // 2. 'i' Lower Column
-    _drawIsoPillar(canvas, Offset(w * 0.34, h * 0.46), w * 0.12, h * 0.26, cobaltTop, cobaltSide, cobaltDark);
+    // 3. Right 'B' Upper Cantilever Beam / Crane Jib
+    final upperBeamRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.39, h * 0.18, w * 0.43, h * 0.28),
+      topLeft: Radius.circular(w * 0.04),
+      bottomLeft: Radius.circular(w * 0.04),
+      topRight: Radius.circular(w * 0.14),
+      bottomRight: Radius.circular(w * 0.14),
+    );
+    canvas.drawRRect(upperBeamRect, cobaltPaint);
 
-    // 3. Central Spire
-    _drawIsoPillar(canvas, Offset(w * 0.50, h * 0.18), w * 0.14, h * 0.56, cobaltTop, cobaltSide, cobaltDark);
+    // Clean structural window cutout
+    final upperCutout = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.49, h * 0.25, w * 0.20, h * 0.14),
+      topLeft: Radius.circular(w * 0.02),
+      bottomLeft: Radius.circular(w * 0.02),
+      topRight: Radius.circular(w * 0.07),
+      bottomRight: Radius.circular(w * 0.07),
+    );
+    canvas.drawRRect(upperCutout, Paint()..color = const Color(0xFF070B18));
 
-    // 4. Titanium 'B' Loops
-    final pathTop = Path()
-      ..moveTo(w * 0.42, h * 0.34)
-      ..lineTo(w * 0.55, h * 0.27)
-      ..lineTo(w * 0.74, h * 0.39)
-      ..lineTo(w * 0.62, h * 0.46)
-      ..close();
-    canvas.drawPath(pathTop, titaniumTop);
+    // 4. Right 'B' Lower Foundation / Rising Structure
+    final lowerBuildingRect = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.39, h * 0.52, w * 0.43, h * 0.30),
+      topLeft: Radius.circular(w * 0.04),
+      bottomLeft: Radius.circular(w * 0.04),
+      topRight: Radius.circular(w * 0.15),
+      bottomRight: Radius.circular(w * 0.15),
+    );
+    canvas.drawRRect(lowerBuildingRect, emeraldPaint);
 
-    final pathSide = Path()
-      ..moveTo(w * 0.42, h * 0.34)
-      ..lineTo(w * 0.62, h * 0.46)
-      ..lineTo(w * 0.62, h * 0.56)
-      ..lineTo(w * 0.42, h * 0.44)
-      ..close();
-    canvas.drawPath(pathSide, titaniumSide);
-
-    // Emerald accent loop
-    final pathEmerald = Path()
-      ..moveTo(w * 0.63, h * 0.47)
-      ..lineTo(w * 0.73, h * 0.41)
-      ..lineTo(w * 0.73, h * 0.47)
-      ..lineTo(w * 0.63, h * 0.53)
-      ..close();
-    canvas.drawPath(pathEmerald, emeraldAccent);
-
-    final pathLoop2 = Path()
-      ..moveTo(w * 0.58, h * 0.50)
-      ..lineTo(w * 0.76, h * 0.39)
-      ..lineTo(w * 0.76, h * 0.64)
-      ..lineTo(w * 0.67, h * 0.70)
-      ..lineTo(w * 0.67, h * 0.56)
-      ..lineTo(w * 0.58, h * 0.62)
-      ..close();
-    canvas.drawPath(pathLoop2, titaniumDark);
-  }
-
-  void _drawIsoCube(Canvas canvas, Offset top, double s, Paint pTop, Paint pLeft, Paint pRight) {
-    final half = s / 2;
-    final quarter = s / 4;
-
-    // Top face
-    final pathTop = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(top.dx + half, top.dy - quarter)
-      ..lineTo(top.dx + s, top.dy)
-      ..lineTo(top.dx + half, top.dy + quarter)
-      ..close();
-    canvas.drawPath(pathTop, pTop);
-
-    // Left face
-    final pathLeft = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(top.dx + half, top.dy + quarter)
-      ..lineTo(top.dx + half, top.dy + s)
-      ..lineTo(top.dx, top.dy + s - quarter)
-      ..close();
-    canvas.drawPath(pathLeft, pLeft);
-
-    // Right face
-    final pathRight = Path()
-      ..moveTo(top.dx + half, top.dy + quarter)
-      ..lineTo(top.dx + s, top.dy)
-      ..lineTo(top.dx + s, top.dy + s - quarter)
-      ..lineTo(top.dx + half, top.dy + s)
-      ..close();
-    canvas.drawPath(pathRight, pRight);
-  }
-
-  void _drawIsoPillar(Canvas canvas, Offset top, double s, double height, Paint pTop, Paint pLeft, Paint pRight) {
-    final half = s / 2;
-    final quarter = s / 4;
-
-    // Top face
-    final pathTop = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(top.dx + half, top.dy - quarter)
-      ..lineTo(top.dx + s, top.dy)
-      ..lineTo(top.dx + half, top.dy + quarter)
-      ..close();
-    canvas.drawPath(pathTop, pTop);
-
-    // Left face
-    final pathLeft = Path()
-      ..moveTo(top.dx, top.dy)
-      ..lineTo(top.dx + half, top.dy + quarter)
-      ..lineTo(top.dx + half, top.dy + height)
-      ..lineTo(top.dx, top.dy + height - quarter)
-      ..close();
-    canvas.drawPath(pathLeft, pLeft);
-
-    // Right face
-    final pathRight = Path()
-      ..moveTo(top.dx + half, top.dy + quarter)
-      ..lineTo(top.dx + s, top.dy)
-      ..lineTo(top.dx + s, top.dy + height - quarter)
-      ..lineTo(top.dx + half, top.dy + height)
-      ..close();
-    canvas.drawPath(pathRight, pRight);
+    // Clean structural foundation cutout
+    final lowerCutout = RRect.fromRectAndCorners(
+      Rect.fromLTWH(w * 0.49, h * 0.59, w * 0.20, h * 0.16),
+      topLeft: Radius.circular(w * 0.02),
+      bottomLeft: Radius.circular(w * 0.02),
+      topRight: Radius.circular(w * 0.08),
+      bottomRight: Radius.circular(w * 0.08),
+    );
+    canvas.drawRRect(lowerCutout, Paint()..color = const Color(0xFF070B18));
   }
 
   @override

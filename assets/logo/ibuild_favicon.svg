@@ -1,43 +1,32 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
   <defs>
     <linearGradient id="favBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0B132B"/>
-      <stop offset="100%" stop-color="#030712"/>
+      <stop offset="0%" stop-color="#0F172A"/>
+      <stop offset="100%" stop-color="#070B18"/>
     </linearGradient>
     <linearGradient id="favCobalt" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#60A5FA"/>
       <stop offset="50%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#1D4ED8"/>
     </linearGradient>
-    <linearGradient id="favTi" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="100%" stop-color="#94A3B8"/>
+    <linearGradient id="favEmerald" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#34D399"/>
+      <stop offset="50%" stop-color="#10B981"/>
+      <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
   </defs>
 
-  <rect x="2" y="2" width="60" height="60" rx="14" ry="14" fill="url(#favBg)"/>
-  <rect x="2" y="2" width="60" height="60" rx="14" ry="14" fill="none" stroke="#3B82F6" stroke-width="1.2" stroke-opacity="0.6"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" ry="15" fill="url(#favBg)"/>
+  <rect x="2" y="2" width="60" height="60" rx="15" ry="15" fill="none" stroke="#3B82F6" stroke-width="1.2" stroke-opacity="0.4"/>
 
-  <!-- 'i' Dot -->
-  <polygon points="20,18 25,15 30,18 25,21" fill="#93C5FD"/>
-  <polygon points="20,18 25,21 25,26 20,23" fill="#3B82F6"/>
-  <polygon points="25,21 30,18 30,23 25,26" fill="#1D4ED8"/>
+  <!-- Left 'i' -->
+  <rect x="12" y="12" width="9" height="9" rx="2.5" fill="url(#favEmerald)"/>
+  <rect x="12" y="24.5" width="9" height="27.5" rx="2.5" fill="url(#favCobalt)"/>
 
-  <!-- 'i' Pillar -->
-  <polygon points="20,28 25,25 30,28 25,31" fill="#93C5FD"/>
-  <polygon points="20,28 25,31 25,48 20,45" fill="url(#favCobalt)"/>
-  <polygon points="25,31 30,28 30,45 25,48" fill="#1E40AF"/>
+  <!-- Right 'B' -->
+  <path d="M 25 12 L 41 12 A 9 9 0 0 1 50 21 A 9 9 0 0 1 41 30 L 25 30 Z" fill="url(#favCobalt)"/>
+  <path d="M 31 16.5 L 40 16.5 A 4.5 4.5 0 0 1 44.5 21 A 4.5 4.5 0 0 1 40 25.5 L 31 25.5 Z" fill="#070B18"/>
 
-  <!-- Central Sapphire Spire -->
-  <polygon points="30,12 35,9 40,12 35,15" fill="#BFDBFE"/>
-  <polygon points="30,12 35,15 35,52 30,49" fill="url(#favCobalt)"/>
-  <polygon points="35,15 40,12 40,49 35,52" fill="#172554"/>
-
-  <!-- 'B' Titanium Structure with Emerald Core -->
-  <polygon points="25,22 33,18 48,27 40,31" fill="url(#favTi)"/>
-  <polygon points="25,22 40,31 40,37 25,28" fill="#64748B"/>
-  <polygon points="41,28 46,25 46,30 41,33" fill="#10B981"/>
-  <polygon points="37,33 49,26 49,44 43,47 43,38 37,41" fill="#334155"/>
-  <polygon points="37,41 43,38 49,42 43,45" fill="url(#favTi)"/>
-  <polygon points="44,39 48,37 48,42 44,44" fill="#10B981"/>
+  <path d="M 25 33 L 41 33 A 9.5 9.5 0 0 1 50.5 42.5 A 9.5 9.5 0 0 1 41 52 L 25 52 Z" fill="url(#favEmerald)"/>
+  <path d="M 31 37.5 L 40 37.5 A 5 5 0 0 1 45 42.5 A 5 5 0 0 1 40 47.5 L 31 47.5 Z" fill="#070B18"/>
 </svg>

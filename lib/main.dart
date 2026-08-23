@@ -873,9 +873,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
               _refreshDataForWebTab(index);
             },
           ),
-          // ── Main Content Area ──
+          // ── Main Content Area (Isolated for 60/120 FPS performance) ──
           Expanded(
-            child: _buildWebContent(),
+            child: RepaintBoundary(
+              child: _buildWebContent(),
+            ),
           ),
         ],
       ),
