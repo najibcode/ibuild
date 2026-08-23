@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:ibuild/core/widgets/app_logo.dart';
 import 'package:ibuild/core/widgets/web_sidebar.dart';
 import 'package:ibuild/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:ibuild/features/rbac/presentation/providers/permission_provider.dart';
@@ -17,7 +18,7 @@ class MockAuthController extends StateNotifier<AuthState> implements AuthControl
 }
 
 void main() {
-  testWidgets('WebSidebar renders, expands, and collapses smoothly without errors', (tester) async {
+  testWidgets('WebSidebar renders, expands, and collapses cleanly without tooltips or overflows', (tester) async {
     tester.view.physicalSize = const Size(1280, 800);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -69,22 +70,22 @@ void main() {
     expect(find.text('Projects'), findsOneWidget);
     expect(find.text('Test Admin'), findsOneWidget);
 
-    // Tap collapse button
-    final collapseBtn = find.byTooltip('Collapse Sidebar');
+    // Tap collapse button (IconButton with chevron_left)
+    final collapseBtn = find.byIcon(Icons.chevron_left);
     expect(collapseBtn, findsOneWidget);
     await tester.tap(collapseBtn);
     await tester.pumpAndSettle();
 
-    // Verify collapsed state
-    final expandTooltip = find.byTooltip('Expand Sidebar');
-    expect(expandTooltip, findsOneWidget);
+    // Verify collapsed state - AppLogo is visible in header
+    final logoFinder = find.byType(AppLogo);
+    expect(logoFinder, findsOneWidget);
 
-    // Tap to expand
-    await tester.tap(expandTooltip);
+    // Tap logo in header to expand
+    await tester.tap(logoFinder);
     await tester.pumpAndSettle();
 
     // Verify expanded back
     expect(find.text('Dashboard'), findsOneWidget);
-    expect(find.byTooltip('Collapse Sidebar'), findsOneWidget);
+    expect(find.byIcon(Icons.chevron_left), findsOneWidget);
   });
 }
