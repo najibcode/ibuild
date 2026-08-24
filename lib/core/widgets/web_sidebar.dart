@@ -5,6 +5,7 @@ import 'package:ibuild/core/utils/avatar_helper.dart';
 import 'package:ibuild/features/auth/presentation/controllers/auth_controller.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 import 'app_logo.dart';
+import 'offline_sync_indicator.dart';
 
 /// Defines sidebar navigation items for the web layout.
 class WebSidebarItem {
@@ -356,6 +357,33 @@ class _WebSidebarState extends ConsumerState<WebSidebar>
                             isCompact: isCompact,
                           );
                         },
+                      ),
+                    ),
+
+                    const Divider(height: 1, color: Color(0xFF1E293B)),
+
+                    // ── Offline Sync Status Indicator ──
+                    Padding(
+                      padding: EdgeInsets.symmetric(
+                        horizontal: isCompact ? 8 : 14,
+                        vertical: 6,
+                      ),
+                      child: Row(
+                        mainAxisAlignment: isCompact
+                            ? MainAxisAlignment.center
+                            : MainAxisAlignment.spaceBetween,
+                        children: [
+                          OfflineSyncIndicator(isCompact: isCompact),
+                          if (!isCompact)
+                            const Text(
+                              'Auto-Sync Enabled',
+                              style: TextStyle(
+                                color: Color(0xFF64748B),
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                        ],
                       ),
                     ),
 

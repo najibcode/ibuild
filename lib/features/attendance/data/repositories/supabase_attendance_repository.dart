@@ -5,6 +5,8 @@ import '../models/attendance_model.dart';
 import '../../../employees/data/models/employee_model.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
+import 'package:ibuild/core/offline/offline_data_cache.dart';
+
 class SupabaseAttendanceRepository implements AttendanceRepository {
   final SupabaseClient _client;
   final SupabaseActivityRepository _activityRepo;
@@ -19,12 +21,27 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
           .select('*, employees(name)')
           .eq('date', date);
 
-      return (response as List).map((json) {
+      final list = (response as List).map((json) {
         final employeeName = (json['employees'] as Map?)?['name'] as String?;
         return Attendance.fromJson(json, employeeName: employeeName);
       }).toList();
+
+      // Cache records locally for offline access
+      OfflineDataCache().cacheAttendanceForDate(
+        date,
+        (response as List).map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+      );
+
+      return list;
     } catch (e) {
-      debugPrint('[Attendance] getAttendanceForDate failed: $e');
+      debugPrint('[Attendance] getAttendanceForDate failed ($e), loading from offline cache');
+      final cached = OfflineDataCache().getCachedAttendanceForDate(date);
+      if (cached != null && cached.isNotEmpty) {
+        return cached.map((json) {
+          final employeeName = (json['employees'] as Map?)?['name'] as String?;
+          return Attendance.fromJson(json, employeeName: employeeName);
+        }).toList();
+      }
       return [];
     }
   }
