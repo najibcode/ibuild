@@ -43,7 +43,7 @@ class OfflineDataCache {
 
   /// Clear entire cache
   void clear() {
-    _memoryStore.clear;
+    _memoryStore.clear();
     _lastUpdated.clear();
   }
 

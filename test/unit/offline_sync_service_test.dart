@@ -6,7 +6,7 @@ void main() {
     late OfflineSyncService syncService;
 
     setUp(() {
-      syncService = OfflineSyncService();
+      syncService = OfflineSyncService(null, false);
     });
 
     tearDown(() {

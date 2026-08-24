@@ -102,8 +102,10 @@ class OfflineSyncService extends StateNotifier<SyncState> {
   final List<SyncAction> _queue = [];
   Timer? _periodicSyncTimer;
 
-  OfflineSyncService([this._client]) : super(SyncState.initial()) {
-    _initPeriodicSync();
+  OfflineSyncService([this._client, bool autoPeriodicSync = true]) : super(SyncState.initial()) {
+    if (autoPeriodicSync) {
+      _initPeriodicSync();
+    }
   }
 
   void _initPeriodicSync() {
@@ -274,6 +276,9 @@ class OfflineSyncService extends StateNotifier<SyncState> {
 /// Global provider for offline sync service
 final offlineSyncProvider =
     StateNotifierProvider<OfflineSyncService, SyncState>((ref) {
-  final client = ref.watch(supabaseClientProvider);
+  SupabaseClient? client;
+  try {
+    client = ref.watch(supabaseClientProvider);
+  } catch (_) {}
   return OfflineSyncService(client);
 });

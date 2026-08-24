@@ -366,24 +366,10 @@ class _WebSidebarState extends ConsumerState<WebSidebar>
                     Padding(
                       padding: EdgeInsets.symmetric(
                         horizontal: isCompact ? 8 : 14,
-                        vertical: 6,
+                        vertical: 4,
                       ),
-                      child: Row(
-                        mainAxisAlignment: isCompact
-                            ? MainAxisAlignment.center
-                            : MainAxisAlignment.spaceBetween,
-                        children: [
-                          OfflineSyncIndicator(isCompact: isCompact),
-                          if (!isCompact)
-                            const Text(
-                              'Auto-Sync Enabled',
-                              style: TextStyle(
-                                color: Color(0xFF64748B),
-                                fontSize: 10,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                        ],
+                      child: Center(
+                        child: OfflineSyncIndicator(isCompact: isCompact),
                       ),
                     ),
 

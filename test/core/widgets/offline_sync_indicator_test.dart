@@ -7,8 +7,11 @@ import 'package:ibuild/core/widgets/offline_sync_indicator.dart';
 void main() {
   testWidgets('OfflineSyncIndicator renders Online state by default', (tester) async {
     await tester.pumpWidget(
-      const ProviderScope(
-        child: MaterialApp(
+      ProviderScope(
+        overrides: [
+          offlineSyncProvider.overrideWith((ref) => OfflineSyncService(null, false)),
+        ],
+        child: const MaterialApp(
           home: Scaffold(
             body: Center(
               child: OfflineSyncIndicator(),
@@ -25,18 +28,18 @@ void main() {
   });
 
   testWidgets('OfflineSyncIndicator renders Pending badge when actions queued', (tester) async {
-    final container = ProviderContainer();
-    final notifier = container.read(offlineSyncProvider.notifier);
-
-    notifier.setOnline(false);
-    notifier.enqueueAction(
+    final syncService = OfflineSyncService(null, false);
+    syncService.setOnline(false);
+    syncService.enqueueAction(
       type: SyncActionType.attendanceSave,
       payload: {'data': 'test'},
     );
 
     await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
+      ProviderScope(
+        overrides: [
+          offlineSyncProvider.overrideWith((ref) => syncService),
+        ],
         child: const MaterialApp(
           home: Scaffold(
             body: Center(
