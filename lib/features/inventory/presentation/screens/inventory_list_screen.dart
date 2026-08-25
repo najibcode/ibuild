@@ -122,7 +122,7 @@ class InventoryListScreen extends ConsumerWidget {
           ],
         ),
         content: SizedBox(
-          width: 480,
+          width: MediaQuery.of(context).size.width < 500 ? double.maxFinite : 480,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -298,7 +298,7 @@ class InventoryListScreen extends ConsumerWidget {
               ],
             ),
             content: SizedBox(
-              width: 500,
+              width: MediaQuery.of(context).size.width < 520 ? double.maxFinite : 500,
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -933,7 +933,7 @@ class _InventoryCard extends ConsumerWidget {
         ),
         content: SingleChildScrollView(
           child: SizedBox(
-            width: 440,
+            width: MediaQuery.of(context).size.width < 460 ? double.maxFinite : 440,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1159,7 +1159,7 @@ class _InventoryCard extends ConsumerWidget {
             ),
             content: SingleChildScrollView(
               child: SizedBox(
-                width: 440,
+                width: MediaQuery.of(context).size.width < 460 ? double.maxFinite : 440,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,

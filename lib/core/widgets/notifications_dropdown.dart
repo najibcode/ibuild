@@ -24,7 +24,7 @@ class _NotificationsDropdownState extends ConsumerState<NotificationsDropdown> {
       final notifications = await repo.getNotificationsForUser();
       setState(() => _notifications = notifications);
     } catch (e) {
-      print('Failed to load notifications: $e');
+      debugPrint('Failed to load notifications: $e');
     } finally {
       setState(() => _isLoading = false);
     }

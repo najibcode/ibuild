@@ -62,8 +62,8 @@ class _TicketThreadDialogState extends ConsumerState<TicketThreadDialog> {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.lg)),
       child: Container(
-        width: 550,
-        height: 600,
+        width: MediaQuery.of(context).size.width < 580 ? double.maxFinite : 550,
+        height: MediaQuery.of(context).size.height * 0.8,
         padding: const EdgeInsets.all(AppSpacing.cardPadding),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,

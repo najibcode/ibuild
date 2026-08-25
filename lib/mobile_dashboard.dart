@@ -7,6 +7,7 @@ import 'core/services/push_notification_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
 import 'core/widgets/notifications_dropdown.dart';
+import 'core/widgets/offline_sync_indicator.dart';
 
 import 'features/dashboard/presentation/widgets/dashboard_kpi_cards.dart';
 import 'features/dashboard/presentation/widgets/project_portfolio_performance_widget.dart';
@@ -58,17 +59,25 @@ class MobileDashboard extends ConsumerWidget {
         ),
         title: Row(
           children: [
-            Container(
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                border: Border.all(color: Colors.white, width: 2),
-                image: DecorationImage(
-                  image: NetworkImage(avatarUrl),
-                  fit: BoxFit.cover,
-                ),
-              ),
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+              backgroundImage: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
+                  ? NetworkImage(avatarUrl)
+                  : null,
+              onBackgroundImageError: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
+                  ? (exception, stackTrace) {}
+                  : null,
+              child: (avatarUrl.isEmpty || !avatarUrl.startsWith('http'))
+                  ? Text(
+                      displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                      style: const TextStyle(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    )
+                  : null,
             ),
             const SizedBox(width: AppSpacing.stackSm),
             Expanded(
@@ -97,6 +106,12 @@ class MobileDashboard extends ConsumerWidget {
           ],
         ),
         actions: [
+          const Padding(
+            padding: EdgeInsets.only(right: 6),
+            child: Center(
+              child: OfflineSyncIndicator(isCompact: true),
+            ),
+          ),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.containerMargin),
             child: Consumer(

@@ -6,6 +6,7 @@ import '../../../employees/data/models/employee_model.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
 
 import 'package:ibuild/core/offline/offline_data_cache.dart';
+import 'package:ibuild/core/offline/offline_sync_service.dart';
 
 class SupabaseAttendanceRepository implements AttendanceRepository {
   final SupabaseClient _client;
@@ -104,8 +105,24 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         debugPrint('[Attendance] saveAttendance INSERTED new record');
       }
     } catch (e) {
-      debugPrint('[Attendance] saveAttendance FAILED: $e');
-      rethrow; // Let controller surface the real error
+      debugPrint('[Attendance] saveAttendance FAILED: $e, saving to offline cache and queueing for sync');
+      
+      // Optimistically update local cache
+      final existingCached = OfflineDataCache().getCachedAttendanceForDate(attendance.date) ?? [];
+      final updatedList = List<Map<String, dynamic>>.from(existingCached);
+      final idx = updatedList.indexWhere((r) => r['employee_id'] == attendance.employeeId);
+      if (idx != -1) {
+        updatedList[idx] = attendance.toJson();
+      } else {
+        updatedList.add(attendance.toJson());
+      }
+      OfflineDataCache().cacheAttendanceForDate(attendance.date, updatedList);
+
+      // Queue for auto-sync
+      OfflineSyncService.instance.enqueueAction(
+        type: SyncActionType.attendanceSave,
+        payload: attendance.toJson(),
+      );
     }
 
     // Log activity (best-effort, never block on failure)

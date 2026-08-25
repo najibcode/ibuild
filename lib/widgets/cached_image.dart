@@ -150,7 +150,7 @@ class AppCachedImage extends StatelessWidget {
               child: Image.memory(
                 bytes,
                 fit: BoxFit.contain,
-                errorBuilder: (_, __, ___) => const Center(
+                errorBuilder: (context, error, stackTrace) => const Center(
                   child: Icon(
                     Icons.broken_image,
                     color: Colors.white,

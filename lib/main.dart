@@ -12,6 +12,8 @@ import 'core/services/push_notification_service.dart';
 import 'core/widgets/app_logo.dart';
 import 'core/widgets/responsive_layout.dart';
 import 'core/widgets/web_sidebar.dart';
+import 'core/widgets/offline_sync_indicator.dart';
+import 'core/offline/offline_sync_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/projects/presentation/controllers/project_controller.dart';
 
@@ -61,6 +63,12 @@ void main() async {
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
+
+  try {
+    OfflineSyncService.instance.setClient(Supabase.instance.client);
+  } catch (e) {
+    debugPrint('OfflineSyncService client initialization note: $e');
+  }
 
   runApp(const ProviderScope(child: MyApp()));
 }
@@ -531,29 +539,44 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
             child: body,
           ),
         ),
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: bottomBarIndex,
-          type: BottomNavigationBarType.fixed,
-          selectedItemColor: AppColors.primary,
-          unselectedItemColor: AppColors.textMuted,
-          showUnselectedLabels: true,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 11,
+        bottomNavigationBar: Container(
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(context),
+            border: Border(
+              top: BorderSide(color: AppColors.border(context), width: 1),
+            ),
           ),
-          unselectedLabelStyle: const TextStyle(fontSize: 11),
-          onTap: (index) {
-            if (index < navEntries.length) {
-              _setMobileTab(navEntries[index].screen);
-            }
-          },
-          items: navEntries
-              .map((e) => BottomNavigationBarItem(
-                    icon: Icon(e.icon),
-                    activeIcon: Icon(e.activeIcon),
-                    label: e.label,
-                  ))
-              .toList(),
+          child: SafeArea(
+            top: false,
+            child: BottomNavigationBar(
+              backgroundColor: AppColors.cardBg(context),
+              elevation: 0,
+              currentIndex: bottomBarIndex,
+              type: BottomNavigationBarType.fixed,
+              selectedItemColor: AppColors.primary,
+              unselectedItemColor: AppColors.textMuted,
+              showUnselectedLabels: true,
+              selectedFontSize: 11,
+              unselectedFontSize: 10,
+              selectedLabelStyle: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 11,
+              ),
+              unselectedLabelStyle: const TextStyle(fontSize: 10),
+              onTap: (index) {
+                if (index < navEntries.length) {
+                  _setMobileTab(navEntries[index].screen);
+                }
+              },
+              items: navEntries
+                  .map((e) => BottomNavigationBarItem(
+                        icon: Icon(e.icon),
+                        activeIcon: Icon(e.activeIcon),
+                        label: e.label,
+                      ))
+                  .toList(),
+            ),
+          ),
         ),
       ),
     );
@@ -578,52 +601,80 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       child: SafeArea(
         child: Column(
           children: [
-            // User Header
+            // Drawer Header with Brand Logo & User Profile
             Container(
-              padding: const EdgeInsets.all(18),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: AppColors.primary.withValues(alpha: 0.08),
+                color: AppColors.primary.withValues(alpha: 0.06),
                 border: Border(bottom: BorderSide(color: AppColors.border(context))),
               ),
-              child: Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  CircleAvatar(
-                    radius: 24,
-                    backgroundImage: NetworkImage(avatarUrl),
+                  const Row(
+                    children: [
+                      AppLogo(size: 26, showText: true),
+                    ],
                   ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          displayName,
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
-                          overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      CircleAvatar(
+                        radius: 22,
+                        backgroundColor: AppColors.primary.withValues(alpha: 0.15),
+                        backgroundImage: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
+                            ? NetworkImage(avatarUrl)
+                            : null,
+                        onBackgroundImageError: avatarUrl.isNotEmpty && avatarUrl.startsWith('http')
+                            ? (exception, stackTrace) {}
+                            : null,
+                        child: (avatarUrl.isEmpty || !avatarUrl.startsWith('http'))
+                            ? Text(
+                                displayName.isNotEmpty ? displayName[0].toUpperCase() : 'U',
+                                style: const TextStyle(
+                                  color: AppColors.primary,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
+                              )
+                            : null,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              displayName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            Text(
+                              email,
+                              style: TextStyle(color: AppColors.mutedText(context), fontSize: 11),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: AppColors.primary,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                formattedRole,
+                                style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
                         ),
-                        Text(
-                          email,
-                          style: TextStyle(color: AppColors.mutedText(context), fontSize: 11),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        const SizedBox(height: 4),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            formattedRole,
-                            style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
                 ],
               ),
             ),
+
             // Menu Items Organized By Categories (No duplicate primary tabs)
             Expanded(
               child: ListView(
@@ -706,23 +757,34 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                 ],
               ),
             ),
-            // Footer Logout
+
+            // Footer: Offline Sync & Logout
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 border: Border(top: BorderSide(color: AppColors.border(context))),
               ),
-              child: ListTile(
-                dense: true,
-                leading: const Icon(Icons.logout, color: Colors.redAccent),
-                title: const Text(
-                  'Sign Out',
-                  style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600),
-                ),
-                onTap: () async {
-                  Navigator.pop(context);
-                  await ref.read(authControllerProvider.notifier).signOut();
-                },
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4),
+                    child: OfflineSyncIndicator(isCompact: false),
+                  ),
+                  ListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    leading: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
+                    title: const Text(
+                      'Sign Out',
+                      style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.w600, fontSize: 13),
+                    ),
+                    onTap: () async {
+                      Navigator.pop(context);
+                      await ref.read(authControllerProvider.notifier).signOut();
+                    },
+                  ),
+                ],
               ),
             ),
           ],
@@ -754,6 +816,9 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   }) {
     return ListTile(
       dense: true,
+      selected: isSelected,
+      selectedTileColor: AppColors.primary.withValues(alpha: 0.08),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       leading: Icon(
         icon,
         color: isSelected ? AppColors.primary : AppColors.mutedText(context),
@@ -762,14 +827,11 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       title: Text(
         label,
         style: TextStyle(
-          color: isSelected ? AppColors.primary : AppColors.text(context),
-          fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
           fontSize: 13,
+          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+          color: isSelected ? AppColors.primary : AppColors.text(context),
         ),
       ),
-      selected: isSelected,
-      selectedTileColor: AppColors.primary.withValues(alpha: 0.1),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
       onTap: onTap,
     );

@@ -4,7 +4,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
 import '../supabase/supabase_client.provider.dart';
-import 'offline_data_cache.dart';
 
 /// Supported offline action types for IBUILD ERP
 enum SyncActionType {
@@ -98,14 +97,22 @@ class SyncState {
 
 /// Engine managing the offline queue, background retry, and FIFO sync
 class OfflineSyncService extends StateNotifier<SyncState> {
-  final SupabaseClient? _client;
+  static OfflineSyncService? _instance;
+  static OfflineSyncService get instance => _instance ??= OfflineSyncService(null, false);
+
+  SupabaseClient? _client;
   final List<SyncAction> _queue = [];
   Timer? _periodicSyncTimer;
 
   OfflineSyncService([this._client, bool autoPeriodicSync = true]) : super(SyncState.initial()) {
+    _instance = this;
     if (autoPeriodicSync) {
       _initPeriodicSync();
     }
+  }
+
+  void setClient(SupabaseClient client) {
+    _client = client;
   }
 
   void _initPeriodicSync() {

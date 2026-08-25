@@ -4129,7 +4129,7 @@ class _ProjectOperationsScreenState
               ],
             ),
             content: SizedBox(
-              width: 520,
+              width: MediaQuery.of(context).size.width < 540 ? double.maxFinite : 520,
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

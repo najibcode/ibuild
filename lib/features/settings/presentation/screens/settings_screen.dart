@@ -775,7 +775,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
           ],
         ),
         content: SizedBox(
-          width: 480,
+          width: MediaQuery.of(context).size.width < 500 ? double.maxFinite : 480,
           child: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,

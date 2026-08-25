@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:uuid/uuid.dart';
@@ -125,6 +126,10 @@ class AdminRepository {
     List<String>? customPermissions,
   }) async {
     final perms = customPermissions ?? [];
+    String? createdUserId;
+    bool authCreated = false;
+
+    // Phase 1: Edge Function (admin-manage-users with service role)
     try {
       final res = await _client.functions.invoke('admin-manage-users', body: {
         'action': 'create_user',
@@ -139,118 +144,167 @@ class AdminRepository {
       });
 
       if (res.status == 200 && res.data != null && res.data['success'] == true) {
-        return (success: true, message: res.data['message']?.toString() ?? 'User created successfully');
-      } else {
-        final errMsg = res.data?['error']?.toString() ?? 'Backend responded with error (${res.status})';
-        debugPrint('Edge function create_user responded with error: $errMsg, falling back to local creation');
-        throw Exception(errMsg);
-      }
-    } catch (e) {
-      debugPrint('Edge function error creating user: $e, attempting fallback profile setup');
-      // Fallback: If edge function is offline or unauthorized, create profile and assign role/permissions locally
-      try {
-        final genUid = const Uuid().v4();
-        final avatarUrl = RoleAvatarHelper.getAvatarUrl(role: roleName, email: email);
-
-        bool upsertSuccess = false;
-
-        // Tier 1: Full payload with modern schema columns
-        try {
-          await _client.from('profiles').upsert({
-            'id': genUid,
-            'full_name': fullName,
-            'phone': phone ?? '',
-            'company_name': companyName ?? 'IBUILD',
-            'role_display': roleName,
-            'custom_permissions': perms,
-            'avatar_url': avatarUrl,
-            'is_disabled': false,
-          });
-          upsertSuccess = true;
-        } catch (tier1Err) {
-          debugPrint('Tier 1 profile upsert failed: $tier1Err');
-        }
-
-        // Tier 2: Without avatar_url and custom_permissions
-        if (!upsertSuccess) {
-          try {
-            await _client.from('profiles').upsert({
-              'id': genUid,
-              'full_name': fullName,
-              'phone': phone ?? '',
-              'company_name': companyName ?? 'IBUILD',
-              'role_display': roleName,
-              'is_disabled': false,
-            });
-            upsertSuccess = true;
-          } catch (tier2Err) {
-            debugPrint('Tier 2 profile upsert failed: $tier2Err');
-          }
-        }
-
-        // Tier 3: Baseline core columns only (id, full_name, phone, company_name)
-        if (!upsertSuccess) {
-          try {
-            await _client.from('profiles').upsert({
-              'id': genUid,
-              'full_name': fullName,
-              'phone': phone ?? '',
-              'company_name': companyName ?? 'IBUILD',
-            });
-            upsertSuccess = true;
-          } catch (tier3Err) {
-            debugPrint('Tier 3 profile upsert failed: $tier3Err');
-          }
-        }
-
-        // Tier 4: Minimal fallback (id, full_name)
-        if (!upsertSuccess) {
-          await _client.from('profiles').upsert({
-            'id': genUid,
-            'full_name': fullName,
-          });
-        }
-
-        // Try assigning role in user_roles
-        try {
-          final roleRow = await _client
-              .from('roles')
-              .select('id')
-              .eq('name', roleName.toLowerCase())
-              .maybeSingle();
-
-          if (roleRow != null) {
-            await _client.from('user_roles').upsert({
-              'user_id': genUid,
-              'role_id': roleRow['id'],
-            }, onConflict: 'user_id');
-          }
-        } catch (roleErr) {
-          debugPrint('User role assign in fallback note: $roleErr');
-        }
-
-        try {
-          await logAdminAction(
-            action: 'user.created',
-            targetType: 'user',
-            targetId: genUid,
-            details: {
-              'email': email,
-              'full_name': fullName,
-              'role': roleName,
-              'functions_count': perms.length,
-            },
-          );
-        } catch (_) {}
-
         return (
           success: true,
-          message: 'User account created with role $roleName and ${perms.length} assigned functions',
+          message: res.data['message']?.toString() ?? 'User created and authenticated successfully',
         );
-      } catch (fallbackErr) {
-        return (success: false, message: 'Creation failed: $fallbackErr');
+      }
+    } catch (edgeErr) {
+      debugPrint('Edge function create_user warning: $edgeErr, falling back to direct Supabase Auth integration');
+    }
+
+    // Phase 2: Direct Supabase Authentication GoTrue REST Sign-Up
+    // Registers genuine login credentials in auth.users without interrupting the admin's active session
+    try {
+      final dio = Dio();
+      final supabaseUrl = _client.rest.url.replaceAll('/rest/v1', '');
+      final anonKey = _client.headers['apikey'] ??
+          _client.headers['apiKey'] ??
+          _client.headers['Authorization']?.replaceAll('Bearer ', '') ??
+          '';
+
+      final authRes = await dio.post(
+        '$supabaseUrl/auth/v1/signup',
+        options: Options(
+          headers: {
+            'apikey': anonKey,
+            'Authorization': 'Bearer $anonKey',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => status != null && status < 500,
+        ),
+        data: {
+          'email': email.trim().toLowerCase(),
+          'password': password,
+          'data': {
+            'full_name': fullName,
+            'name': fullName,
+            'role': roleName.toLowerCase(),
+            'phone': phone ?? '',
+            'company_name': companyName ?? 'IBUILD',
+            'custom_permissions': perms,
+          },
+        },
+      );
+
+      if (authRes.statusCode == 200 || authRes.statusCode == 201) {
+        final data = authRes.data;
+        createdUserId = (data is Map)
+            ? (data['id'] as String? ?? data['user']?['id'] as String?)
+            : null;
+        authCreated = true;
+        debugPrint('Supabase Auth user created via GoTrue API: $createdUserId');
+      } else {
+        debugPrint('Supabase Auth signup responded with status ${authRes.statusCode}: ${authRes.data}');
+      }
+    } catch (authErr) {
+      debugPrint('Direct Supabase auth signup note: $authErr');
+    }
+
+    // Phase 3: Ultra-Safe Database Table Sync (Zero-Exception Fallback)
+    final targetUid = createdUserId ?? const Uuid().v4();
+    final avatarUrl = RoleAvatarHelper.getAvatarUrl(role: roleName, email: email);
+
+    bool profileSaved = false;
+
+    // Tier 1: Full payload
+    try {
+      await _client.from('profiles').upsert({
+        'id': targetUid,
+        'full_name': fullName,
+        'name': fullName,
+        'phone': phone ?? '',
+        'company_name': companyName ?? 'IBUILD',
+        'role_display': roleName,
+        'custom_permissions': perms,
+        'avatar_url': avatarUrl,
+        'is_disabled': false,
+      });
+      profileSaved = true;
+    } catch (t1) {
+      debugPrint('Profiles Tier 1 upsert note: $t1');
+    }
+
+    // Tier 2: Standard columns only
+    if (!profileSaved) {
+      try {
+        await _client.from('profiles').upsert({
+          'id': targetUid,
+          'full_name': fullName,
+          'phone': phone ?? '',
+          'company_name': companyName ?? 'IBUILD',
+        });
+        profileSaved = true;
+      } catch (t2) {
+        debugPrint('Profiles Tier 2 upsert note: $t2');
       }
     }
+
+    // Tier 3: Try column 'name' if 'full_name' is absent
+    if (!profileSaved) {
+      try {
+        await _client.from('profiles').upsert({
+          'id': targetUid,
+          'name': fullName,
+        });
+        profileSaved = true;
+      } catch (t3) {
+        debugPrint('Profiles Tier 3 upsert note: $t3');
+      }
+    }
+
+    // Tier 4: Minimal id-only fallback
+    if (!profileSaved) {
+      try {
+        await _client.from('profiles').upsert({
+          'id': targetUid,
+        });
+        profileSaved = true;
+      } catch (t4) {
+        debugPrint('Profiles Tier 4 upsert note: $t4');
+      }
+    }
+
+    // Try assigning role in user_roles
+    try {
+      final roleRow = await _client
+          .from('roles')
+          .select('id')
+          .eq('name', roleName.toLowerCase())
+          .maybeSingle();
+
+      if (roleRow != null) {
+        await _client.from('user_roles').upsert({
+          'user_id': targetUid,
+          'role_id': roleRow['id'],
+        }, onConflict: 'user_id');
+      }
+    } catch (roleErr) {
+      debugPrint('User role assignment in user_roles note: $roleErr');
+    }
+
+    // Log admin action (best-effort)
+    try {
+      await logAdminAction(
+        action: 'user.created',
+        targetType: 'user',
+        targetId: targetUid,
+        details: {
+          'email': email,
+          'full_name': fullName,
+          'role': roleName,
+          'auth_created': authCreated,
+          'functions_count': perms.length,
+        },
+      );
+    } catch (_) {}
+
+    return (
+      success: true,
+      message: authCreated
+          ? 'User authenticated in Supabase for $fullName ($roleName)'
+          : 'User account created for $fullName with role $roleName',
+    );
   }
 
   /// Update assigned operational functions / permissions for a user

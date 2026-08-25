@@ -121,9 +121,9 @@ class _GlobalSearchDialogState extends ConsumerState<GlobalSearchDialog> {
       backgroundColor: AppColors.cardBg(context),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       child: Container(
-        width: 600,
-        height: 500,
-        padding: const EdgeInsets.all(24),
+        width: MediaQuery.of(context).size.width < 640 ? double.maxFinite : 600,
+        height: MediaQuery.of(context).size.height * 0.7,
+        padding: const EdgeInsets.all(16),
         child: Column(
           children: [
             Row(

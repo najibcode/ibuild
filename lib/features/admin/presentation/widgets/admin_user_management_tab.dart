@@ -493,7 +493,7 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
             ],
           ),
           content: SizedBox(
-            width: 600,
+            width: MediaQuery.of(context).size.width < 620 ? double.maxFinite : 600,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -958,7 +958,7 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
             ],
           ),
           content: SizedBox(
-            width: 580,
+            width: MediaQuery.of(context).size.width < 600 ? double.maxFinite : 580,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1272,7 +1272,7 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
             ],
           ),
           content: SizedBox(
-            width: 480,
+            width: MediaQuery.of(context).size.width < 500 ? double.maxFinite : 480,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -1447,7 +1447,7 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
             ],
           ),
           content: SizedBox(
-            width: 440,
+            width: MediaQuery.of(context).size.width < 460 ? double.maxFinite : 440,
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,

@@ -519,7 +519,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
           ],
         ),
         content: SizedBox(
-          width: 440,
+          width: MediaQuery.of(context).size.width < 460 ? double.maxFinite : 440,
           child: projects.isEmpty
               ? Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
@@ -712,7 +712,7 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
               ],
             ),
             content: SizedBox(
-              width: 520,
+              width: MediaQuery.of(context).size.width < 540 ? double.maxFinite : 520,
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,

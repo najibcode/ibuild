@@ -33,9 +33,9 @@ class OfflineSyncIndicator extends ConsumerWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration: BoxDecoration(
-          color: const Color(0xFF1E3A8A).withOpacity(0.4),
+          color: const Color(0xFF1E3A8A).withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFF3B82F6).withOpacity(0.5)),
+          border: Border.all(color: const Color(0xFF3B82F6).withValues(alpha: 0.5)),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -105,9 +105,9 @@ class OfflineSyncIndicator extends ConsumerWidget {
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
           decoration: BoxDecoration(
-            color: const Color(0xFF78350F).withOpacity(0.4),
+            color: const Color(0xFF78350F).withValues(alpha: 0.4),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: const Color(0xFFF59E0B).withOpacity(0.6)),
+            border: Border.all(color: const Color(0xFFF59E0B).withValues(alpha: 0.6)),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -153,9 +153,9 @@ class OfflineSyncIndicator extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFF064E3B).withOpacity(0.3),
+        color: const Color(0xFF064E3B).withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF10B981).withOpacity(0.3)),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.3)),
       ),
       child: const Row(
         mainAxisSize: MainAxisSize.min,

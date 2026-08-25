@@ -2752,25 +2752,18 @@ class _DashboardCard extends StatelessWidget {
   final String title;
   final String? subtitle;
   final Widget? action;
-  final VoidCallback? onTap;
   final Widget child;
 
   const _DashboardCard({
     required this.title,
     this.subtitle,
     this.action,
-    this.onTap,
     required this.child,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: Container(
+    return Container(
           width: double.infinity,
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
@@ -2824,9 +2817,7 @@ class _DashboardCard extends StatelessWidget {
               child,
             ],
           ),
-        ),
-      ),
-    );
+        );
   }
 }
 

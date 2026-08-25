@@ -494,7 +494,7 @@ class _FullReportGeneratorScreenState
           ],
         ),
         content: SizedBox(
-          width: 580,
+          width: MediaQuery.of(context).size.width < 600 ? double.maxFinite : 580,
           child: SingleChildScrollView(
             child: Container(
               padding: const EdgeInsets.all(14),
