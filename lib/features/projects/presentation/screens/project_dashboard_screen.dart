@@ -2848,7 +2848,7 @@ class _DashboardCard extends StatelessWidget {
                       ],
                     ),
                   ),
-                  if (action != null) action!,
+                  ?action,
                 ],
               ),
               const SizedBox(height: 16),

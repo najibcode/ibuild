@@ -392,7 +392,7 @@ class PortfolioPulseWidget extends StatelessWidget {
                             title: 'MATERIAL AVAILABILITY',
                             value: lowStockCount == 0
                                 ? '100%'
-                                : '${lowStockCount} Low',
+                                : '$lowStockCount Low',
                             badgeText: materialStatusLabel,
                             badgeColor: materialStatusColor,
                             progress: lowStockCount == 0 ? 1.0 : 0.4,
@@ -487,7 +487,7 @@ class PortfolioPulseWidget extends StatelessWidget {
                     context,
                     title: 'MATERIAL AVAILABILITY',
                     value:
-                        lowStockCount == 0 ? '100%' : '${lowStockCount} Low',
+                        lowStockCount == 0 ? '100%' : '$lowStockCount Low',
                     badgeText: materialStatusLabel,
                     badgeColor: materialStatusColor,
                     progress: lowStockCount == 0 ? 1.0 : 0.4,

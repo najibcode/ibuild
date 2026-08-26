@@ -6,7 +6,6 @@ import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
 import '../../../../core/utils/excel_download_helper.dart';
-import 'package:printing/printing.dart';
 import '../../../../core/utils/pdf_download_helper.dart';
 import '../../data/payment_ledger_pdf_generator.dart';
 import '../../data/models/payment_ledger_model.dart';

@@ -1,0 +1,3 @@
+# 2. Optimistic Offline Media Pipeline for Site Evidence and Drawings
+
+Due to frequent zero or intermittent network conditions on active civil and structural construction sites, synchronous cloud uploads for Photographic Evidence and Site Drawings lead to high abandonment rates and lost site compliance data. We decided to implement an optimistic local persistence model: media attachments are immediately compressed, stored in local cache (or encoded as Data URIs for offline display), and submitted alongside record metadata to the client-side Evidence Queue (`OfflineSyncService`). Binary files are synchronized to Supabase Storage in the background with automatic bucket failover when connectivity is confirmed.

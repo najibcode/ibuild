@@ -1,0 +1,3 @@
+# 1. Two-Tier Financial Variance Threshold for Project Risk Governance
+
+In construction execution, financial outflow frequently spikes ahead of physical milestones due to upfront bulk material procurement (e.g., steel reinforcement and cement deliveries) and subcontractor mobilization advances. We decided to establish a two-tier financial variance threshold ($\text{Budget Utilization \%} - \text{Physical Progress \%}$): variances up to $\pm 15\%$ are treated as normal operational buffers, variances $> +15\%$ trigger an orange attention alert, and variances $> +25\%$ or hard budget overruns trigger critical executive warnings. This prevents continuous false alarms while ensuring management intervention on genuine cost overruns.

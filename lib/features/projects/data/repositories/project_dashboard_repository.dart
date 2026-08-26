@@ -398,7 +398,7 @@ class ProjectDashboardRepository {
           final name = (groupName != null && groupName.isNotEmpty)
               ? groupName
               : ((r['item_text'] as String?) ?? 'Site Inspection Phase');
-          groups.putIfAbsent(name, () => []).add(r as Map<String, dynamic>);
+          groups.putIfAbsent(name, () => []).add(r);
         }
 
         final List<ProjectMilestoneStage> list = [];
