@@ -28,21 +28,34 @@
   <meta property="og:type" content="website">
 
   <!-- Favicons -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico?v=3"/>
-  <link rel="shortcut icon" type="image/x-icon" href="favicon.ico?v=3"/>
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=3"/>
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=3"/>
-  <link rel="icon" type="image/png" href="favicon.png?v=3"/>
+  <link rel="icon" type="image/svg+xml" href="favicon.svg?v=20260826_5"/>
+  <link rel="alternate icon" type="image/png" sizes="32x32" href="favicon-32x32.png?v=20260826_5"/>
+  <link rel="alternate icon" type="image/png" sizes="16x16" href="favicon-16x16.png?v=20260826_5"/>
+  <link rel="alternate icon" type="image/png" href="favicon.png?v=20260826_5"/>
+  <link rel="shortcut icon" href="favicon.ico?v=20260826_5"/>
 
   <!-- iOS meta tags & icons -->
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="IBUild ERP">
-  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png?v=3">
+  <link rel="apple-touch-icon" sizes="192x192" href="icons/Icon-192.png?v=20260826_5">
+
+  <script>
+    // Force immediate dynamic favicon cache bust
+    (function() {
+      try {
+        var link = document.createElement('link');
+        link.type = 'image/svg+xml';
+        link.rel = 'icon';
+        link.href = 'favicon.svg?v=' + Date.now();
+        document.head.appendChild(link);
+      } catch(e) {}
+    })();
+  </script>
 
   <title>IBUild ERP — Construction Management</title>
-  <link rel="manifest" href="manifest.json?v=3">
+  <link rel="manifest" href="manifest.json?v=20260826_5">
 </head>
 <body>
   <!--
