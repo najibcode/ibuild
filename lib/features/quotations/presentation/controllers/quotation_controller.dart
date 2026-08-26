@@ -72,7 +72,6 @@ class QuotationController extends StateNotifier<QuotationListState> {
     if (state.isLoading) return;
     final newOffset = reset ? 0 : state.offset;
     state = state.copyWith(isLoading: true, offset: newOffset, clearErrorMessage: true);
-    if (reset) state = state.copyWith(quotations: []);
 
     try {
       final results = await _repository.getQuotations(

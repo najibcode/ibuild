@@ -582,6 +582,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                       },
                       borderRadius: BorderRadius.circular(6),
                       child: Container(
+                        constraints: const BoxConstraints(maxWidth: 140),
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
                           color: AppColors.primaryColor(context).withValues(alpha: 0.12),
@@ -593,12 +594,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           children: [
                             Icon(Icons.location_on, size: 12, color: AppColors.primaryColor(context)),
                             const SizedBox(width: 4),
-                            Text(
-                              'Site: ${logged.projectName}',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryColor(context),
+                            Flexible(
+                              child: Text(
+                                'Site: ${logged.projectName}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.bold,
+                                  color: AppColors.primaryColor(context),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                             const SizedBox(width: 4),
@@ -611,7 +616,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               ),
               const SizedBox(height: 12),
 
-              // Status Toggle & Site Assignment Dropdown
+              // Status Toggle & Site Assignment Dropdown (Fixed single-line row)
               // Supervisors can only edit attendance for today
               if (_isSupervisor && !isToday)
                 Container(
@@ -634,11 +639,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                   ),
                 )
               else
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: 10,
-                  runSpacing: 8,
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
                     _buildStatusToggle(
                       context: context,
@@ -651,34 +654,37 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                         );
                       },
                     ),
-                    _buildSiteAssignmentDropdown(
-                      context: context,
-                      projects: projects,
-                      currentProjectId: logged.projectId,
-                      onProjectSelected: (projId) {
-                        if (projId == null) return;
-                        ref.read(attendanceControllerProvider.notifier).markAttendance(
-                          employeeId: employee.id,
-                          status: logged.status == 'Absent' ? 'Present' : logged.status,
-                          projectId: projId,
-                        );
-                        if (context.mounted) {
-                          final match = projects.where((p) => p.id == projId);
-                          final siteName = match.isNotEmpty ? match.first.name : 'Site';
-                          final salaryText = employee.salary > 0
-                              ? ' • ₹${employee.salary.toInt()} added to expenses'
-                              : '';
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('${employee.name} assigned to $siteName$salaryText ✓'),
-                              duration: const Duration(seconds: 2),
-                              behavior: SnackBarBehavior.floating,
-                              backgroundColor: AppColors.secondary,
-                            ),
+                    const SizedBox(width: 8),
+                    Flexible(
+                      child: _buildSiteAssignmentDropdown(
+                        context: context,
+                        projects: projects,
+                        currentProjectId: logged.projectId,
+                        onProjectSelected: (projId) {
+                          if (projId == null) return;
+                          ref.read(attendanceControllerProvider.notifier).markAttendance(
+                            employeeId: employee.id,
+                            status: logged.status == 'Absent' ? 'Present' : logged.status,
+                            projectId: projId,
                           );
-                        }
-                      },
+                          if (context.mounted) {
+                            final match = projects.where((p) => p.id == projId);
+                            final siteName = match.isNotEmpty ? match.first.name : 'Site';
+                            final salaryText = employee.salary > 0
+                                ? ' • ₹${employee.salary.toInt()} added to expenses'
+                                : '';
+                            ScaffoldMessenger.of(context).clearSnackBars();
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('${employee.name} assigned to $siteName$salaryText ✓'),
+                                duration: const Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                                backgroundColor: AppColors.secondary,
+                              ),
+                            );
+                          }
+                        },
+                      ),
                     ),
                   ],
                 ),
@@ -1007,7 +1013,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
       onTap: () => onSelected(status),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
         decoration: BoxDecoration(
           color: isActive ? activeColor : activeColor.withValues(alpha: 0.1),
           border: Border.all(color: isActive ? activeColor : activeColor.withValues(alpha: 0.3)),
@@ -1021,7 +1027,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
               size: 14,
               color: isActive ? Colors.white : activeColor,
             ),
-            const SizedBox(width: 6),
+            const SizedBox(width: 5),
             Text(
               label,
               style: TextStyle(
@@ -1043,7 +1049,7 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
     required Function(String? projectId) onProjectSelected,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(8),
@@ -1069,9 +1075,14 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
             items: projects
                 .map((p) => DropdownMenuItem<String>(
                       value: p.id,
-                      child: Text(
-                        p.name,
-                        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 110),
+                        child: Text(
+                          p.name,
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                          overflow: TextOverflow.ellipsis,
+                          maxLines: 1,
+                        ),
                       ),
                     ))
                 .toList(),

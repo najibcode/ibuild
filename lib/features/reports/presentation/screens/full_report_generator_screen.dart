@@ -1094,75 +1094,151 @@ class _FullReportGeneratorScreenState
                 ],
               ),
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 10,
-                runSpacing: 8,
-                children: [
-                  ElevatedButton.icon(
-                    onPressed: () => _exportPdf(context),
-                    icon: const Icon(Icons.picture_as_pdf, size: 16),
-                    label: const Text('Export PDF'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepOrange,
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+              if (isNarrow)
+                Column(
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _exportPdf(context),
+                            icon: const Icon(Icons.picture_as_pdf, size: 15),
+                            label: const Text('Export PDF', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.deepOrange,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _exportExcel(context),
+                            icon: const Icon(Icons.table_chart_outlined, size: 15),
+                            label: const Text('Export Excel', style: TextStyle(fontSize: 12)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF107C41),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ElevatedButton.icon(
+                            onPressed: () => _shareViaWhatsApp(context),
+                            icon: const Icon(Icons.send_rounded, size: 15),
+                            label: const Text('WhatsApp Dispatch', style: TextStyle(fontSize: 11.5)),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: const Color(0xFF25D366),
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: OutlinedButton.icon(
+                            onPressed: () => _showReportPreviewModal(context),
+                            icon: const Icon(Icons.remove_red_eye_outlined, size: 15),
+                            label: const Text('Preview & Copy', style: TextStyle(fontSize: 12)),
+                            style: OutlinedButton.styleFrom(
+                              foregroundColor: AppColors.text(context),
+                              padding: const EdgeInsets.symmetric(vertical: 10),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                )
+              else
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    ElevatedButton.icon(
+                      onPressed: () => _exportPdf(context),
+                      icon: const Icon(Icons.picture_as_pdf, size: 16),
+                      label: const Text('Export PDF'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.deepOrange,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _exportExcel(context),
-                    icon: const Icon(Icons.table_chart_outlined, size: 16),
-                    label: const Text('Export Excel'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF107C41),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                    ),
-                  ),
-                  ElevatedButton.icon(
-                    onPressed: () => _shareViaWhatsApp(context),
-                    icon: const Icon(Icons.send_rounded, size: 16),
-                    label: const Text('WhatsApp Dispatch'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF25D366),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    ElevatedButton.icon(
+                      onPressed: () => _exportExcel(context),
+                      icon: const Icon(Icons.table_chart_outlined, size: 16),
+                      label: const Text('Export Excel'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF107C41),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: () => _showReportPreviewModal(context),
-                    icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
-                    label: const Text('Preview & Copy'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppColors.text(context),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 14,
-                        vertical: 10,
-                      ),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(8),
+                    ElevatedButton.icon(
+                      onPressed: () => _shareViaWhatsApp(context),
+                      icon: const Icon(Icons.send_rounded, size: 16),
+                      label: const Text('WhatsApp Dispatch'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF25D366),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
                       ),
                     ),
-                  ),
-                ],
-              ),
+                    OutlinedButton.icon(
+                      onPressed: () => _showReportPreviewModal(context),
+                      icon: const Icon(Icons.remove_red_eye_outlined, size: 16),
+                      label: const Text('Preview & Copy'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.text(context),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 14,
+                          vertical: 10,
+                        ),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
             ],
           );
         },
@@ -1515,13 +1591,17 @@ class _FullReportGeneratorScreenState
             ? 2
             : (constraints.maxWidth < 950 ? 3 : 5);
 
+        final childAspectRatio = constraints.maxWidth < 400
+            ? 1.28
+            : (constraints.maxWidth < 600 ? 1.35 : 1.4);
+
         return GridView.count(
           crossAxisCount: crossCount,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           mainAxisSpacing: 10,
           crossAxisSpacing: 10,
-          childAspectRatio: constraints.maxWidth < 600 ? 1.6 : 1.4,
+          childAspectRatio: childAspectRatio,
           children: [
             _kpiCard(
               context,
@@ -1578,7 +1658,7 @@ class _FullReportGeneratorScreenState
     required Color color,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
         color: AppColors.cardBg(context),
         borderRadius: BorderRadius.circular(12),
@@ -1596,7 +1676,7 @@ class _FullReportGeneratorScreenState
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Icon(icon, size: 16, color: color),
+                child: Icon(icon, size: 15, color: color),
               ),
               const SizedBox(width: 6),
               Expanded(
@@ -1612,22 +1692,27 @@ class _FullReportGeneratorScreenState
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-              color: AppColors.text(context),
+          const SizedBox(height: 5),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: 15.5,
+                fontWeight: FontWeight.bold,
+                color: AppColors.text(context),
+              ),
             ),
           ),
           const SizedBox(height: 2),
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 10,
+              fontSize: 9.5,
               color: AppColors.mutedText(context),
             ),
+            maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
         ],

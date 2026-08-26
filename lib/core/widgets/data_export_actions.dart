@@ -35,13 +35,19 @@ class DataExportActions extends StatelessWidget {
         children: [
           IconButton(
             tooltip: 'Export as PDF',
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
             onPressed: () => _showDateRangeMenu(context, 'PDF'),
-            icon: const Icon(Icons.picture_as_pdf, color: Colors.deepOrange, size: 20),
+            icon: const Icon(Icons.picture_as_pdf, color: Colors.deepOrange, size: 19),
           ),
           IconButton(
             tooltip: 'Export as Excel (.xlsx)',
+            visualDensity: VisualDensity.compact,
+            padding: const EdgeInsets.all(4),
+            constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
             onPressed: () => _showDateRangeMenu(context, 'Excel'),
-            icon: const Icon(Icons.table_chart, color: Colors.green, size: 20),
+            icon: const Icon(Icons.table_chart, color: Colors.green, size: 19),
           ),
         ],
       );
@@ -160,10 +166,11 @@ class _DateRangePickerDialogState extends State<_DateRangePickerDialog> {
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 380),
-        child: Padding(
-          padding: const EdgeInsets.all(24),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,

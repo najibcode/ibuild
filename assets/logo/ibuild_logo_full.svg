@@ -1,43 +1,43 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" width="480" height="120">
   <defs>
     <linearGradient id="fullBg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0F172A"/>
-      <stop offset="100%" stop-color="#070B18"/>
-    </linearGradient>
-    <linearGradient id="cobaltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#60A5FA"/>
-      <stop offset="40%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#1D4ED8"/>
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0D2563"/>
     </linearGradient>
     <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#34D399"/>
-      <stop offset="50%" stop-color="#10B981"/>
       <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
   </defs>
 
-  <!-- Clean Squircle Tile -->
+  <!-- Clean Construction Icon Tile -->
   <g transform="translate(10, 10)">
-    <rect x="0" y="0" width="100" height="100" rx="24" ry="24" fill="url(#fullBg)"/>
-    <rect x="0" y="0" width="100" height="100" rx="24" ry="24" fill="none" stroke="#3B82F6" stroke-width="1.5" stroke-opacity="0.35"/>
+    <rect x="0" y="0" width="100" height="100" rx="22" ry="22" fill="url(#fullBg)"/>
+    <rect x="0" y="0" width="100" height="100" rx="22" ry="22" fill="none" stroke="#FFFFFF" stroke-width="1" stroke-opacity="0.15"/>
 
-    <!-- Left 'i' -->
-    <rect x="18" y="18" width="15" height="15" rx="4" fill="url(#emeraldGrad)"/>
-    <rect x="18" y="38" width="15" height="44" rx="4" fill="url(#cobaltGrad)"/>
+    <!-- Left Column -->
+    <rect x="20" y="46" width="18" height="34" rx="3" fill="#FFFFFF" fill-opacity="0.88"/>
+    <!-- Center Tallest Column -->
+    <rect x="41" y="24" width="18" height="56" rx="3" fill="#FFFFFF"/>
+    <!-- Center Apex Crown -->
+    <polygon points="50,17 62,25 38,25" fill="url(#emeraldGrad)"/>
+    <!-- Right Column -->
+    <rect x="62" y="36" width="18" height="44" rx="3" fill="#FFFFFF" fill-opacity="0.88"/>
 
-    <!-- Right 'B' -->
-    <path d="M 39 18 L 64 18 A 14 14 0 0 1 78 32 A 14 14 0 0 1 64 46 L 39 46 Z" fill="url(#cobaltGrad)"/>
-    <path d="M 49 25 L 63 25 A 7 7 0 0 1 70 32 A 7 7 0 0 1 63 39 L 49 39 Z" fill="#070B18"/>
+    <!-- Windows -->
+    <rect x="46" y="34" width="8" height="3.5" rx="1" fill="#1E40AF" fill-opacity="0.3"/>
+    <rect x="46" y="44" width="8" height="3.5" rx="1" fill="#1E40AF" fill-opacity="0.3"/>
+    <rect x="46" y="54" width="8" height="3.5" rx="1" fill="#1E40AF" fill-opacity="0.3"/>
 
-    <path d="M 39 52 L 64 52 A 15 15 0 0 1 79 67 A 15 15 0 0 1 64 82 L 39 82 Z" fill="url(#emeraldGrad)"/>
-    <path d="M 49 60 L 63 60 A 7 7 0 0 1 70 67 A 7 7 0 0 1 63 74 L 49 74 Z" fill="#070B18"/>
+    <!-- Base Line -->
+    <line x1="15" y1="85" x2="85" y2="85" stroke="#FFFFFF" stroke-width="5" stroke-linecap="round"/>
   </g>
 
   <!-- Wordmark Prominently Highlighting IBU -->
   <g transform="translate(130, 24)">
-    <text x="0" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif" font-size="46" font-weight="900" letter-spacing="-0.8">
-      <tspan fill="#3B82F6">IBU</tspan><tspan fill="#FFFFFF">ILD</tspan>
+    <text x="0" y="44" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif" font-size="46" font-weight="900" letter-spacing="0.2">
+      <tspan fill="#1D4ED8">IBU</tspan><tspan fill="#0F172A">ILD</tspan>
     </text>
-    <text x="0" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" letter-spacing="3.5" fill="#94A3B8">CONSTRUCTION ERP</text>
+    <text x="0" y="70" font-family="-apple-system, BlinkMacSystemFont, 'Inter', 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="700" letter-spacing="3.0" fill="#64748B">CONSTRUCTION ERP</text>
   </g>
 </svg>

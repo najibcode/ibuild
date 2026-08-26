@@ -6,6 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:printing/printing.dart';
 import '../../../../core/services/image_compression_service.dart';
 import '../../../../core/utils/whatsapp_helper.dart';
+import '../../../../core/utils/pdf_download_helper.dart';
 import '../../../sales_bills/data/sales_bill_pdf_generator.dart';
 import '../../../payments/data/payment_ledger_pdf_generator.dart';
 import '../../../../core/theme/app_colors.dart';
@@ -2981,17 +2982,16 @@ class _ProjectOperationsScreenState
                             ),
                           ),
                           IconButton(
-                            icon: const Icon(Icons.print_outlined, size: 18),
-                            tooltip: 'Print Payment Receipt PDF',
+                            icon: const Icon(Icons.file_download_outlined, size: 18),
+                            tooltip: 'Download Payment Receipt PDF',
                             onPressed: () async {
                               final pdfBytes =
                                   await PaymentLedgerPdfGenerator.generatePaymentReceipt(
                                     p,
                                   );
-                              await Printing.layoutPdf(
-                                onLayout: (_) async =>
-                                    Uint8List.fromList(pdfBytes),
-                                name: 'Payment_Receipt_${p.id}.pdf',
+                              await PdfDownloadHelper.downloadPdf(
+                                bytes: Uint8List.fromList(pdfBytes),
+                                filename: 'Payment_Receipt_${p.id}.pdf',
                               );
                             },
                           ),
@@ -4047,15 +4047,14 @@ class _ProjectOperationsScreenState
                             ],
                           ),
                           IconButton(
-                            icon: const Icon(Icons.print_outlined, size: 18),
-                            tooltip: 'Print Sales Invoice PDF',
+                            icon: const Icon(Icons.file_download_outlined, size: 18),
+                            tooltip: 'Download Sales Invoice PDF',
                             onPressed: () async {
                               final pdfBytes =
                                   await SalesBillPdfGenerator.generatePdf(b);
-                              await Printing.layoutPdf(
-                                onLayout: (_) async =>
-                                    Uint8List.fromList(pdfBytes),
-                                name: 'Sales_Invoice_${b.billNumber}.pdf',
+                              await PdfDownloadHelper.downloadPdf(
+                                bytes: Uint8List.fromList(pdfBytes),
+                                filename: 'Sales_Invoice_${b.billNumber}.pdf',
                               );
                             },
                           ),

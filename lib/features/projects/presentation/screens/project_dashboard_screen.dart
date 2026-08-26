@@ -357,142 +357,161 @@ class _DashboardBody extends StatelessWidget {
         ? stats.projectName
         : 'Project Overview';
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: isDark
-              ? [const Color(0xFF1A2744), const Color(0xFF0F1C33)]
-              : [
-                  AppColors.primary.withValues(alpha: 0.08),
-                  AppColors.secondary.withValues(alpha: 0.04),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border(context)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final isMobile = constraints.maxWidth < 600;
+
+        return Container(
+          width: double.infinity,
+          padding: EdgeInsets.all(isMobile ? 14 : 18),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: isDark
+                  ? [const Color(0xFF1A2744), const Color(0xFF0F1C33)]
+                  : [
+                      AppColors.primary.withValues(alpha: 0.08),
+                      AppColors.secondary.withValues(alpha: 0.04),
+                    ],
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.lg),
+            border: Border.all(color: AppColors.border(context)),
+          ),
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.primaryContainer],
-                  ),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Center(
-                  child: Text(
-                    displayName.isNotEmpty
-                        ? displayName.substring(0, 1).toUpperCase()
-                        : 'P',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Wrap(
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      spacing: 8,
-                      runSpacing: 4,
-                      children: [
-                        Text(
-                          displayName,
-                          style: TextStyle(
-                            fontSize: 19,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(context),
-                          ),
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 8,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: statusColor.withValues(alpha: 0.14),
-                            borderRadius: BorderRadius.circular(AppRadius.full),
-                          ),
-                          child: Text(
-                            stats.status.toUpperCase(),
-                            style: TextStyle(
-                              color: statusColor,
-                              fontSize: 10,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      stats.displayClient,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                        color: AppColors.mutedText(context),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Container(
+                    width: isMobile ? 44 : 52,
+                    height: isMobile ? 44 : 52,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AppColors.primary, AppColors.primaryContainer],
                       ),
-                      overflow: TextOverflow.ellipsis,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                    if (stats.address != null && stats.address!.isNotEmpty)
-                      Padding(
-                        padding: const EdgeInsets.only(top: 2),
-                        child: Row(
+                    child: Center(
+                      child: Text(
+                        displayName.isNotEmpty
+                            ? displayName.substring(0, 1).toUpperCase()
+                            : 'P',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: isMobile ? 18 : 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: 8,
+                          runSpacing: 4,
                           children: [
-                            Icon(
-                              Icons.location_on_outlined,
-                              size: 13,
-                              color: AppColors.mutedText(context),
+                            Text(
+                              displayName,
+                              style: TextStyle(
+                                fontSize: isMobile ? 16 : 19,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.text(context),
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            const SizedBox(width: 4),
-                            Flexible(
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
+                              decoration: BoxDecoration(
+                                color: statusColor.withValues(alpha: 0.14),
+                                borderRadius: BorderRadius.circular(AppRadius.full),
+                              ),
                               child: Text(
-                                stats.address!,
+                                stats.status.toUpperCase(),
                                 style: TextStyle(
-                                  fontSize: 11,
-                                  color: AppColors.mutedText(context),
+                                  color: statusColor,
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
                                 ),
-                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ],
                         ),
-                      ),
-                  ],
-                ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  if (stats.startDate != null)
-                    _dateChip(context, 'Start', stats.startDate!),
-                  if (stats.expectedCompletion != null) ...[
-                    const SizedBox(height: 4),
-                    _dateChip(context, 'Target Due', stats.expectedCompletion!),
-                  ],
+                        const SizedBox(height: 3),
+                        Text(
+                          stats.displayClient,
+                          style: TextStyle(
+                            fontSize: 12.5,
+                            fontWeight: FontWeight.w500,
+                            color: AppColors.mutedText(context),
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        if (stats.address != null && stats.address!.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  Icons.location_on_outlined,
+                                  size: 13,
+                                  color: AppColors.mutedText(context),
+                                ),
+                                const SizedBox(width: 4),
+                                Flexible(
+                                  child: Text(
+                                    stats.address!,
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: AppColors.mutedText(context),
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (!isMobile)
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (stats.startDate != null)
+                          _dateChip(context, 'Start', stats.startDate!),
+                        if (stats.expectedCompletion != null) ...[
+                          const SizedBox(height: 4),
+                          _dateChip(context, 'Target Due', stats.expectedCompletion!),
+                        ],
+                      ],
+                    ),
                 ],
               ),
-            ],
-          ),
-          const SizedBox(height: 16),
+              if (isMobile &&
+                  (stats.startDate != null || stats.expectedCompletion != null)) ...[
+                const SizedBox(height: 10),
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 4,
+                  children: [
+                    if (stats.startDate != null)
+                      _dateChip(context, 'Start', stats.startDate!),
+                    if (stats.expectedCompletion != null)
+                      _dateChip(context, 'Target Due', stats.expectedCompletion!),
+                  ],
+                ),
+              ],
+              const SizedBox(height: 14),
           Divider(height: 1, color: AppColors.border(context).withValues(alpha: 0.6)),
           const SizedBox(height: 12),
           // Quick Actions Row
@@ -591,6 +610,8 @@ class _DashboardBody extends StatelessWidget {
           ),
         ],
       ),
+    );
+      },
     );
   }
 
@@ -2093,14 +2114,7 @@ class _DashboardBody extends StatelessWidget {
   // ═══════════════════════════════════════════════════════════════════════════
 
   Widget _buildMilestonesTrackerCard(BuildContext context, bool isDark) {
-    final stages = [
-      {'name': 'Site Prep & Excavation', 'status': 'Completed', 'pct': 1.0, 'dates': 'Target: 10 Jan - 28 Jan'},
-      {'name': 'Substructure & Plinth Beam', 'status': 'Completed', 'pct': 1.0, 'dates': 'Target: 01 Feb - 25 Feb'},
-      {'name': 'RCC Structure & Slabs (1st to 4th Floor)', 'status': 'In Progress', 'pct': 0.65, 'dates': 'Target: 01 Mar - 30 May'},
-      {'name': 'Brickwork & Internal Masonry', 'status': 'In Progress', 'pct': 0.30, 'dates': 'Target: 15 Apr - 30 Jun'},
-      {'name': 'MEP, Electrical & Concealed Plumbing', 'status': 'Scheduled', 'pct': 0.10, 'dates': 'Target: 01 Jun - 15 Aug'},
-      {'name': 'Flooring, Painting & Final Handover', 'status': 'Upcoming', 'pct': 0.0, 'dates': 'Target: 01 Sep - 30 Oct'},
-    ];
+    final stages = stats.milestones;
 
     return _DashboardCard(
       title: 'Construction Stages & Milestone Tracking',
@@ -2120,85 +2134,98 @@ class _DashboardBody extends StatelessWidget {
           ),
         ),
       ),
-      child: Column(
-        children: stages.map((st) {
-          final isDone = st['status'] == 'Completed';
-          final isInProg = st['status'] == 'In Progress';
-          final double pct = st['pct'] as double;
-          final color = isDone
-              ? AppColors.secondary
-              : (isInProg
-                  ? AppColors.primaryColor(context)
-                  : AppColors.mutedText(context));
-
-          return Container(
-            margin: const EdgeInsets.only(bottom: 10),
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppColors.bg(context),
-              borderRadius: BorderRadius.circular(8),
-              border: Border.all(color: AppColors.border(context)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        st['name'] as String,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                          color: AppColors.text(context),
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        st['status'] as String,
-                        style: TextStyle(
-                          fontSize: 9.5,
-                          fontWeight: FontWeight.bold,
-                          color: color,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  st['dates'] as String,
+      child: stages.isEmpty
+          ? Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Text(
+                  'No milestone phases configured for this site yet.',
                   style: TextStyle(
-                    fontSize: 10.5,
+                    fontSize: 12,
                     color: AppColors.mutedText(context),
                   ),
                 ),
-                const SizedBox(height: 6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(4),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 6,
-                    backgroundColor: AppColors.border(context),
-                    valueColor: AlwaysStoppedAnimation<Color>(color),
+              ),
+            )
+          : Column(
+              children: stages.map((st) {
+                final isDone = st.status == 'Completed';
+                final isInProg = st.status == 'In Progress';
+                final double pct = st.pct;
+                final color = isDone
+                    ? AppColors.secondary
+                    : (isInProg
+                        ? AppColors.primaryColor(context)
+                        : AppColors.mutedText(context));
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColors.bg(context),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border(context)),
                   ),
-                ),
-              ],
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Expanded(
+                            child: Text(
+                              st.name,
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                                color: AppColors.text(context),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 6,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: color.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              st.status,
+                              style: TextStyle(
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.bold,
+                                color: color,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        st.dates,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          color: AppColors.mutedText(context),
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: LinearProgressIndicator(
+                          value: pct.clamp(0.0, 1.0),
+                          minHeight: 6,
+                          backgroundColor: AppColors.border(context),
+                          valueColor: AlwaysStoppedAnimation<Color>(color),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              }).toList(),
             ),
-          );
-        }).toList(),
-      ),
     );
   }
 
@@ -2210,7 +2237,10 @@ class _DashboardBody extends StatelessWidget {
     final double budget = stats.budget;
     final double spent = stats.spent;
     final double remainingBudget = (budget - spent).clamp(0.0, double.infinity);
-    final double estimatedReceivable = budget * 0.45;
+    final double estimatedReceivable = stats.pendingPayments > 0
+        ? stats.pendingPayments
+        : (budget - stats.totalPayments).clamp(0.0, budget);
+    final bool isRunwayPositive = remainingBudget >= 0;
 
     return _DashboardCard(
       title: 'Project Cashflow & Runway Forecast',
@@ -2255,7 +2285,9 @@ class _DashboardBody extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Client Billing Stages',
+                        stats.pendingPayments > 0
+                            ? 'Pending Invoices'
+                            : 'Unbilled Contract Balance',
                         style: TextStyle(
                           fontSize: 9.5,
                           color: AppColors.mutedText(context),
@@ -2320,14 +2352,20 @@ class _DashboardBody extends StatelessWidget {
             child: Row(
               children: [
                 Icon(
-                  Icons.shield_outlined,
+                  isRunwayPositive
+                      ? Icons.shield_outlined
+                      : Icons.warning_amber_rounded,
                   size: 16,
-                  color: AppColors.primaryColor(context),
+                  color: isRunwayPositive
+                      ? AppColors.primaryColor(context)
+                      : AppColors.warning,
                 ),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    'Cashflow Runway Status: Healthy. Inward milestone billing is projected to cover site outflows through the structural phase.',
+                    isRunwayPositive
+                        ? 'Cashflow Runway Status: Healthy. Inward milestone billing is projected to cover site outflows through the execution phase.'
+                        : 'Cashflow Runway Alert: Outflows exceed initial allocated budget. Review change orders or client variation claims.',
                     style: TextStyle(fontSize: 11, color: AppColors.text(context)),
                   ),
                 ),

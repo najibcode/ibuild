@@ -239,20 +239,19 @@ class _PaymentLedgerScreenState extends ConsumerState<PaymentLedgerScreen> {
                                   children: [
                                     IconButton(
                                       icon: const Icon(
-                                        Icons.print_outlined,
+                                        Icons.file_download_outlined,
                                         size: 18,
                                         color: AppColors.primary,
                                       ),
-                                      tooltip: 'Print Receipt PDF',
+                                      tooltip: 'Download Receipt PDF',
                                       onPressed: () async {
                                         final pdfBytes =
                                             await PaymentLedgerPdfGenerator.generateLedgerReport(
                                               [e],
                                             );
-                                        await Printing.layoutPdf(
-                                          onLayout: (_) async =>
-                                              Uint8List.fromList(pdfBytes),
-                                          name: 'Receipt_${e.id}.pdf',
+                                        await PdfDownloadHelper.downloadPdf(
+                                          bytes: Uint8List.fromList(pdfBytes),
+                                          filename: 'Receipt_${e.id}.pdf',
                                         );
                                       },
                                     ),

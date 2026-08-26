@@ -18,6 +18,7 @@ class ProjectDashboardRepository {
     double? physProg;
     int materialsCount = 0;
     int snagsCount = 0;
+    List<ProjectMilestoneStage> milestones = [];
 
     try {
       // 1. Fetch core project details
@@ -57,6 +58,19 @@ class ProjectDashboardRepository {
       physProg = futures[6] as double?;
       materialsCount = futures[7] as int;
       snagsCount = futures[8] as int;
+
+      final overallProgress = physProg ??
+          ((project?['status'] as String?)?.toLowerCase() == 'completed'
+              ? 100.0
+              : ((project?['budget'] as num?)?.toDouble() ?? 0.0) > 0
+                  ? (expenses.total /
+                          ((project?['budget'] as num?)?.toDouble() ?? 1.0) *
+                          100)
+                      .clamp(0.0, 100.0)
+                  : 0.0);
+
+      milestones = await _fetchMilestones(projectId, project, overallProgress)
+          .catchError((_) => <ProjectMilestoneStage>[]);
     } catch (_) {
       // Gracefully continue with any available data
     }
@@ -92,6 +106,7 @@ class ProjectDashboardRepository {
       physicalProgress: physProg,
       materialsCount: materialsCount,
       openIssuesCount: snagsCount,
+      milestones: milestones,
     );
   }
 
@@ -362,6 +377,95 @@ class ProjectDashboardRepository {
     } catch (_) {
       return 0;
     }
+  }
+
+  Future<List<ProjectMilestoneStage>> _fetchMilestones(
+    String projectId,
+    Map<String, dynamic>? project,
+    double overallProgress,
+  ) async {
+    try {
+      final rows = await _client
+          .from('project_checklists')
+          .select('phase_group, item_text, is_completed, due_date')
+          .eq('project_id', projectId)
+          .timeout(const Duration(seconds: 4));
+
+      if ((rows as List).isNotEmpty) {
+        final Map<String, List<Map<String, dynamic>>> groups = {};
+        for (final r in rows) {
+          final groupName = (r['phase_group'] as String?)?.trim();
+          final name = (groupName != null && groupName.isNotEmpty)
+              ? groupName
+              : ((r['item_text'] as String?) ?? 'Site Inspection Phase');
+          groups.putIfAbsent(name, () => []).add(r as Map<String, dynamic>);
+        }
+
+        final List<ProjectMilestoneStage> list = [];
+        for (final entry in groups.entries) {
+          final items = entry.value;
+          final total = items.length;
+          final done = items.where((i) => i['is_completed'] == true).length;
+          final pct = total > 0 ? (done / total) : 0.0;
+          final status = pct >= 1.0
+              ? 'Completed'
+              : (pct > 0.0 ? 'In Progress' : 'Scheduled');
+
+          String dates = 'Target: Active Schedule';
+          final dueDates = items
+              .map((i) => i['due_date'] as String?)
+              .where((d) => d != null && d.isNotEmpty)
+              .toList();
+          if (dueDates.isNotEmpty) {
+            dates = 'Due: ${dueDates.first}';
+          }
+
+          list.add(
+            ProjectMilestoneStage(
+              name: entry.key,
+              status: status,
+              pct: pct,
+              dates: dates,
+            ),
+          );
+        }
+        if (list.isNotEmpty) {
+          return list;
+        }
+      }
+    } catch (_) {}
+
+    // Dynamic milestone projection derived strictly from actual project properties
+    final startDate = project?['start_date'] as String? ?? 'Site Inception';
+    final targetDate = project?['expected_completion'] as String? ?? 'Handover';
+    final p = overallProgress.clamp(0.0, 100.0);
+
+    return [
+      ProjectMilestoneStage(
+        name: 'Site Prep, Survey & Excavation',
+        status: p >= 25 ? 'Completed' : (p > 0 ? 'In Progress' : 'Scheduled'),
+        pct: p >= 25 ? 1.0 : (p / 25).clamp(0.0, 1.0),
+        dates: 'Start: $startDate',
+      ),
+      ProjectMilestoneStage(
+        name: 'Substructure & Structural Works',
+        status: p >= 50 ? 'Completed' : (p > 25 ? 'In Progress' : 'Scheduled'),
+        pct: p >= 50 ? 1.0 : (p > 25 ? (p - 25) / 25 : 0.0).clamp(0.0, 1.0),
+        dates: 'Phase Execution',
+      ),
+      ProjectMilestoneStage(
+        name: 'Masonry, MEP & Core Infrastructure',
+        status: p >= 75 ? 'Completed' : (p > 50 ? 'In Progress' : 'Scheduled'),
+        pct: p >= 75 ? 1.0 : (p > 50 ? (p - 50) / 25 : 0.0).clamp(0.0, 1.0),
+        dates: 'Services & Enclosure',
+      ),
+      ProjectMilestoneStage(
+        name: 'Finishing, Testing & Client Handover',
+        status: p >= 100 ? 'Completed' : (p > 75 ? 'In Progress' : 'Upcoming'),
+        pct: p >= 100 ? 1.0 : (p > 75 ? (p - 75) / 25 : 0.0).clamp(0.0, 1.0),
+        dates: 'Target: $targetDate',
+      ),
+    ];
   }
 
   String _actionVerb(String actionType) {

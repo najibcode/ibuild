@@ -1,17 +1,24 @@
 import 'dart:typed_data';
-import 'package:printing/printing.dart';
+import 'pdf_download_stub.dart'
+    if (dart.library.html) 'pdf_download_web.dart'
+    if (dart.library.io) 'pdf_download_mobile.dart';
 
-/// Utility class for downloading PDF files directly without opening print settings.
+/// Cross-platform utility for downloading and immediately viewing PDF documents.
+/// On Web: triggers browser download manager.
+/// On Mobile / Desktop: directly saves to device storage (Downloads folder) and opens
+/// in native viewer (Adobe / Drive / Office), allowing viewing and native sharing.
 class PdfDownloadHelper {
-  /// Direct download PDF file on web or trigger native save prompt on mobile.
-  static Future<void> downloadPdf({
+  /// Direct download PDF file on web or save to device storage and open on mobile.
+  static Future<String?> downloadPdf({
     required Uint8List bytes,
     required String filename,
+    bool openAfterDownload = true,
   }) async {
     final sanitizedFilename = filename.endsWith('.pdf') ? filename : '$filename.pdf';
-    await Printing.sharePdf(
+    return await saveAndOpenPdf(
       bytes: bytes,
       filename: sanitizedFilename,
+      openAfterDownload: openAfterDownload,
     );
   }
 }

@@ -72,7 +72,6 @@ class BillingController extends StateNotifier<BillingListState> {
     if (state.isLoading) return;
     final newOffset = reset ? 0 : state.offset;
     state = state.copyWith(isLoading: true, offset: newOffset);
-    if (reset) state = state.copyWith(bills: []);
 
     try {
       final results = await _repository.getBills(

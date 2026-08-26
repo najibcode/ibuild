@@ -24,6 +24,20 @@ class ProjectDashboardActivity {
   });
 }
 
+class ProjectMilestoneStage {
+  final String name;
+  final String status;
+  final double pct;
+  final String dates;
+
+  ProjectMilestoneStage({
+    required this.name,
+    required this.status,
+    required this.pct,
+    required this.dates,
+  });
+}
+
 class ProjectDashboardStats {
   // ── Core Project Info ──
   final String projectId;
@@ -69,6 +83,9 @@ class ProjectDashboardStats {
   final int materialsCount;
   final int openIssuesCount;
 
+  // ── Real Backend Milestone Stages ──
+  final List<ProjectMilestoneStage> milestones;
+
   ProjectDashboardStats({
     required this.projectId,
     required this.projectName,
@@ -96,6 +113,7 @@ class ProjectDashboardStats {
     this.physicalProgress,
     this.materialsCount = 0,
     this.openIssuesCount = 0,
+    this.milestones = const [],
   });
 
   // ── Computed getters ──
@@ -137,6 +155,7 @@ class ProjectDashboardStats {
       pendingPayments: 0,
       weeklyProgressCounts: List.filled(7, 0),
       recentActivities: [],
+      milestones: [],
     );
   }
 }

@@ -163,9 +163,9 @@ class _SalesBillBuilderScreenState
               );
 
               final pdfBytes = await SalesBillPdfGenerator.generatePdf(bill);
-              await Printing.layoutPdf(
-                onLayout: (_) async => Uint8List.fromList(pdfBytes),
-                name: 'Sales_Invoice_${bill.billNumber}.pdf',
+              await PdfDownloadHelper.downloadPdf(
+                bytes: Uint8List.fromList(pdfBytes),
+                filename: 'Sales_Invoice_${bill.billNumber}.pdf',
               );
             },
           ),

@@ -247,7 +247,6 @@ class AttendanceController extends StateNotifier<AttendanceState> {
         debugPrint('[AttendanceCtrl] syncEmployeeSalaryExpense completed for ${emp.name}');
         try {
           _ref.read(expenseControllerProvider.notifier).loadExpenses();
-          _ref.read(projectControllerProvider.notifier).loadProjects();
           _ref.invalidate(dashboardStatsProvider);
         } catch (_) {}
       }).catchError((e) {

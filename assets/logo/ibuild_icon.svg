@@ -1,36 +1,42 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0F172A"/>
-      <stop offset="100%" stop-color="#070B18"/>
-    </linearGradient>
-    <linearGradient id="cobaltGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#60A5FA"/>
-      <stop offset="40%" stop-color="#3B82F6"/>
-      <stop offset="100%" stop-color="#1D4ED8"/>
+    <linearGradient id="iconBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1E40AF"/>
+      <stop offset="100%" stop-color="#0D2563"/>
     </linearGradient>
     <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
       <stop offset="0%" stop-color="#34D399"/>
-      <stop offset="50%" stop-color="#10B981"/>
       <stop offset="100%" stop-color="#059669"/>
     </linearGradient>
   </defs>
 
-  <rect x="24" y="24" width="464" height="464" rx="116" ry="116" fill="url(#bgGrad)"/>
-  <rect x="24" y="24" width="464" height="464" rx="116" ry="116" fill="none" stroke="#3B82F6" stroke-width="2" stroke-opacity="0.35"/>
+  <!-- Squircle Container Tile -->
+  <rect x="24" y="24" width="464" height="464" rx="105" ry="105" fill="url(#iconBg)"/>
+  <rect x="24" y="24" width="464" height="464" rx="105" ry="105" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-opacity="0.15"/>
 
-  <!-- Left 'i' Elements -->
-  <!-- Emerald Safety Beacon -->
-  <rect x="92" y="92" width="76" height="76" rx="20" fill="url(#emeraldGrad)"/>
-  <!-- Cobalt Structural Pillar -->
-  <rect x="92" y="196" width="76" height="224" rx="20" fill="url(#cobaltGrad)"/>
+  <!-- Left Column -->
+  <rect x="102" y="235" width="92" height="174" rx="14" fill="#FFFFFF" fill-opacity="0.88"/>
+  <!-- Left Windows -->
+  <rect x="127" y="275" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
+  <rect x="127" y="325" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
 
-  <!-- Right 'B' Elements -->
-  <!-- Upper Cantilever Beam -->
-  <path d="M 200 92 L 320 92 A 72 72 0 0 1 392 164 A 72 72 0 0 1 320 236 L 200 236 Z" fill="url(#cobaltGrad)"/>
-  <path d="M 252 128 L 316 128 A 36 36 0 0 1 352 164 A 36 36 0 0 1 316 200 L 252 200 Z" fill="#070B18"/>
+  <!-- Center Tallest Column -->
+  <rect x="210" y="122" width="92" height="287" rx="14" fill="#FFFFFF"/>
+  <!-- Center Apex Crown -->
+  <polygon points="256,86 316,128 196,128" fill="url(#emeraldGrad)"/>
+  <!-- Center Windows -->
+  <rect x="235" y="172" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
+  <rect x="235" y="222" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
+  <rect x="235" y="272" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
+  <rect x="235" y="322" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
 
-  <!-- Lower Foundation Structure -->
-  <path d="M 200 264 L 324 264 A 78 78 0 0 1 402 342 A 78 78 0 0 1 324 420 L 200 420 Z" fill="url(#emeraldGrad)"/>
-  <path d="M 252 302 L 320 302 A 40 40 0 0 1 360 342 A 40 40 0 0 1 320 382 L 252 382 Z" fill="#070B18"/>
+  <!-- Right Column -->
+  <rect x="318" y="184" width="92" height="225" rx="14" fill="#FFFFFF" fill-opacity="0.88"/>
+  <!-- Right Windows -->
+  <rect x="343" y="225" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
+  <rect x="343" y="275" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
+  <rect x="343" y="325" width="42" height="18" rx="5" fill="#1E40AF" fill-opacity="0.3"/>
+
+  <!-- Solid Foundation Base Line -->
+  <line x1="76" y1="435" x2="436" y2="435" stroke="#FFFFFF" stroke-width="24" stroke-linecap="round"/>
 </svg>

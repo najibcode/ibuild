@@ -83,7 +83,6 @@ class ProjectController extends StateNotifier<ProjectListState> {
       offset: newOffset,
       clearError: true,
     );
-    if (reset) state = state.copyWith(projects: []);
 
     try {
       final results = await _repository.getProjects(

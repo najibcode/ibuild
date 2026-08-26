@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'package:open_filex/open_filex.dart';
 import 'package:path_provider/path_provider.dart';
 
-Future<String?> saveAndOpenExcel({
+Future<String?> saveAndOpenPdf({
   required Uint8List bytes,
   required String filename,
   bool openAfterDownload = true,

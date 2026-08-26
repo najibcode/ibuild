@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
+import '../theme/app_colors.dart';
 
-/// Clean, minimalistic & professional Logo for IBUILD Construction ERP.
+/// Clean, neat, and minimalistic logo for IBUILD Construction ERP.
 ///
-/// Features a Swiss-style geometric construction monogram:
-/// - Left: Royal Cobalt structural column & Emerald safety beacon forming the "i".
-/// - Right: Clean architectural cantilever beam & rising building foundation forming the "B".
-/// - Wordmark: Prominently highlights **"IBU"** in bold Cobalt Blue, followed by
-///   high-contrast **"ILD"** and tracked **"CONSTRUCTION ERP"** subtitle.
+/// Features classic architectural construction skyline columns with an emerald apex
+/// and solid foundation base beam, unmistakably representing a construction company.
 class AppLogo extends StatelessWidget {
   final double size;
   final bool showText;
   final String? subtitle;
   final Color? color;
 
-  /// When true the mark and wordmark render with light/white tones for dark backgrounds.
+  /// When true, renders with light/white tones for dark backgrounds.
   final bool inverted;
 
   const AppLogo({
@@ -27,26 +25,29 @@ class AppLogo extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final primaryCol = color ?? AppColors.primaryColor(context);
     final isDark = Theme.of(context).brightness == Brightness.dark || inverted;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        // ── Minimalist Construction App Icon Mark ──
-        _MinimalConstructionMark(
+        // ── Clean Construction Icon Tile ──
+        _ConstructionLogoMark(
           size: size,
+          primaryColor: primaryCol,
+          accentColor: const Color(0xFF10B981), // Emerald Safety Accent
           inverted: inverted,
         ),
 
         if (showText) ...[
-          SizedBox(width: size * 0.25),
+          SizedBox(width: size * 0.28),
           Flexible(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Wordmark (Prominently Highlighting "IBU")
+                // Wordmark: Highlighting IBU
                 RichText(
                   text: TextSpan(
                     children: [
@@ -61,7 +62,7 @@ class AppLogo extends StatelessWidget {
                               : (isDark
                                   ? const Color(0xFF3B82F6)
                                   : const Color(0xFF1D4ED8)),
-                          letterSpacing: -0.5,
+                          letterSpacing: 0.2,
                           height: 1.0,
                         ),
                       ),
@@ -76,7 +77,7 @@ class AppLogo extends StatelessWidget {
                               : (isDark
                                   ? Colors.white
                                   : const Color(0xFF0F172A)),
-                          letterSpacing: -0.5,
+                          letterSpacing: 0.2,
                           height: 1.0,
                         ),
                       ),
@@ -110,35 +111,45 @@ class AppLogo extends StatelessWidget {
   }
 }
 
-/// Standalone Squircle App Icon Tile.
-class _MinimalConstructionMark extends StatelessWidget {
+/// Standalone construction company logo mark tile.
+class _ConstructionLogoMark extends StatelessWidget {
   final double size;
+  final Color primaryColor;
+  final Color accentColor;
   final bool inverted;
 
-  const _MinimalConstructionMark({
+  const _ConstructionLogoMark({
     required this.size,
+    required this.primaryColor,
+    required this.accentColor,
     this.inverted = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final borderRadius = BorderRadius.circular(size * 0.24);
+    final borderRadius = BorderRadius.circular(size * 0.22);
 
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: const Color(0xFF070B18),
+        gradient: LinearGradient(
+          colors: [
+            primaryColor,
+            Color.lerp(primaryColor, const Color(0xFF0D2563), 0.35)!,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: borderRadius,
         border: Border.all(
-          color: const Color(0xFF3B82F6).withValues(alpha: 0.35),
-          width: size > 48 ? 1.5 : 1.0,
+          color: Colors.white.withValues(alpha: 0.15),
+          width: 1.0,
         ),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF1E40AF).withValues(alpha: 0.22),
-            blurRadius: size * 0.25,
-            spreadRadius: -1,
+            color: primaryColor.withValues(alpha: 0.30),
+            blurRadius: size * 0.28,
             offset: Offset(0, size * 0.08),
           ),
         ],
@@ -147,101 +158,153 @@ class _MinimalConstructionMark extends StatelessWidget {
         borderRadius: borderRadius,
         child: CustomPaint(
           size: Size(size, size),
-          painter: const _MinimalConstructionPainter(),
+          painter: _SkylineConstructionPainter(
+            markColor: Colors.white,
+            accentColor: accentColor,
+          ),
         ),
       ),
     );
   }
 }
 
-/// Clean & Minimalist vector CustomPainter for the Construction Monogram.
-class _MinimalConstructionPainter extends CustomPainter {
-  const _MinimalConstructionPainter();
+/// Clean, neat vector CustomPainter for 3 ascending architectural construction columns
+/// with solid foundation base beam and emerald apex roof crown.
+class _SkylineConstructionPainter extends CustomPainter {
+  final Color markColor;
+  final Color accentColor;
+
+  const _SkylineConstructionPainter({
+    required this.markColor,
+    required this.accentColor,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
 
-    // Emerald Gradient for safety beacon and foundation base
-    final emeraldPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topLeft,
-        end: Alignment.bottomRight,
-        colors: [
-          Color(0xFF34D399),
-          Color(0xFF10B981),
-          Color(0xFF059669),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    // Paints
+    final mainPaint = Paint()
+      ..color = markColor
+      ..style = PaintingStyle.fill;
 
-    // Royal Cobalt Gradient for structural columns and steel beams
-    final cobaltPaint = Paint()
-      ..shader = const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [
-          Color(0xFF60A5FA),
-          Color(0xFF3B82F6),
-          Color(0xFF1D4ED8),
-        ],
-      ).createShader(Rect.fromLTWH(0, 0, w, h));
+    final sidePaint = Paint()
+      ..color = markColor.withValues(alpha: 0.88)
+      ..style = PaintingStyle.fill;
 
-    // 1. Left 'i' Top Emerald Beacon / Apex
-    final beaconRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.18, h * 0.18, w * 0.15, h * 0.15),
-      Radius.circular(w * 0.04),
+    final accentPaint = Paint()
+      ..color = accentColor
+      ..style = PaintingStyle.fill;
+
+    // Column metrics
+    const double gap = 0.04;
+    const double colW = 0.18;
+
+    // 1. Left Column (Foundation tower 1)
+    final double lx = w * 0.20;
+    final double lTop = h * 0.46;
+    final double lBot = h * 0.80;
+    final leftCol = RRect.fromRectAndRadius(
+      Rect.fromLTRB(lx, lTop, lx + w * colW, lBot),
+      Radius.circular(w * 0.03),
     );
-    canvas.drawRRect(beaconRect, emeraldPaint);
+    canvas.drawRRect(leftCol, sidePaint);
 
-    // 2. Left 'i' Vertical Structural Column
-    final columnRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(w * 0.18, h * 0.38, w * 0.15, h * 0.44),
-      Radius.circular(w * 0.04),
+    // 2. Center Column (Tallest main structure)
+    final double cx = lx + w * colW + w * gap;
+    final double cTop = h * 0.24;
+    final double cBot = h * 0.80;
+    final centerCol = RRect.fromRectAndRadius(
+      Rect.fromLTRB(cx, cTop, cx + w * colW, cBot),
+      Radius.circular(w * 0.03),
     );
-    canvas.drawRRect(columnRect, cobaltPaint);
+    canvas.drawRRect(centerCol, mainPaint);
 
-    // 3. Right 'B' Upper Cantilever Beam / Crane Jib
-    final upperBeamRect = RRect.fromRectAndCorners(
-      Rect.fromLTWH(w * 0.39, h * 0.18, w * 0.43, h * 0.28),
-      topLeft: Radius.circular(w * 0.04),
-      bottomLeft: Radius.circular(w * 0.04),
-      topRight: Radius.circular(w * 0.14),
-      bottomRight: Radius.circular(w * 0.14),
+    // 3. Right Column (Tower 2)
+    final double rx = cx + w * colW + w * gap;
+    final double rTop = h * 0.36;
+    final double rBot = h * 0.80;
+    final rightCol = RRect.fromRectAndRadius(
+      Rect.fromLTRB(rx, rTop, rx + w * colW, rBot),
+      Radius.circular(w * 0.03),
     );
-    canvas.drawRRect(upperBeamRect, cobaltPaint);
+    canvas.drawRRect(rightCol, sidePaint);
 
-    // Clean structural window cutout
-    final upperCutout = RRect.fromRectAndCorners(
-      Rect.fromLTWH(w * 0.49, h * 0.25, w * 0.20, h * 0.14),
-      topLeft: Radius.circular(w * 0.02),
-      bottomLeft: Radius.circular(w * 0.02),
-      topRight: Radius.circular(w * 0.07),
-      bottomRight: Radius.circular(w * 0.07),
-    );
-    canvas.drawRRect(upperCutout, Paint()..color = const Color(0xFF070B18));
+    // 4. Emerald Safety Apex / Chevron Crown atop center tower
+    final double chevCenterX = cx + (w * colW) / 2;
+    final double chevTop = cTop - h * 0.07;
+    final double chevBase = cTop + h * 0.01;
+    final double chevHalfW = w * colW * 0.65;
 
-    // 4. Right 'B' Lower Foundation / Rising Structure
-    final lowerBuildingRect = RRect.fromRectAndCorners(
-      Rect.fromLTWH(w * 0.39, h * 0.52, w * 0.43, h * 0.30),
-      topLeft: Radius.circular(w * 0.04),
-      bottomLeft: Radius.circular(w * 0.04),
-      topRight: Radius.circular(w * 0.15),
-      bottomRight: Radius.circular(w * 0.15),
-    );
-    canvas.drawRRect(lowerBuildingRect, emeraldPaint);
+    final chevron = Path()
+      ..moveTo(chevCenterX, chevTop)
+      ..lineTo(chevCenterX + chevHalfW, chevBase)
+      ..lineTo(chevCenterX - chevHalfW, chevBase)
+      ..close();
+    canvas.drawPath(chevron, accentPaint);
 
-    // Clean structural foundation cutout
-    final lowerCutout = RRect.fromRectAndCorners(
-      Rect.fromLTWH(w * 0.49, h * 0.59, w * 0.20, h * 0.16),
-      topLeft: Radius.circular(w * 0.02),
-      bottomLeft: Radius.circular(w * 0.02),
-      topRight: Radius.circular(w * 0.08),
-      bottomRight: Radius.circular(w * 0.08),
+    // 5. Clean Architectural Window Accents
+    final windowPaint = Paint()
+      ..color = markColor.withValues(alpha: 0.22)
+      ..style = PaintingStyle.fill;
+
+    final double winW = w * 0.08;
+    final double winH = h * 0.035;
+    final double winR = w * 0.01;
+
+    // Center column windows (3 levels)
+    final double winXc = cx + (w * colW - winW) / 2;
+    for (double wy in [cTop + h * 0.10, cTop + h * 0.20, cTop + h * 0.30, cTop + h * 0.40]) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(winXc, wy, winW, winH),
+          Radius.circular(winR),
+        ),
+        windowPaint,
+      );
+    }
+
+    // Left column windows (2 levels)
+    final double winXl = lx + (w * colW - winW) / 2;
+    for (double wy in [lTop + h * 0.08, lTop + h * 0.18]) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(winXl, wy, winW, winH),
+          Radius.circular(winR),
+        ),
+        windowPaint,
+      );
+    }
+
+    // Right column windows (2 levels)
+    final double winXr = rx + (w * colW - winW) / 2;
+    for (double wy in [rTop + h * 0.08, rTop + h * 0.18]) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(winXr, wy, winW, winH),
+          Radius.circular(winR),
+        ),
+        windowPaint,
+      );
+    }
+
+    // 6. Solid Foundation Ground Beam Line
+    final basePaint = Paint()
+      ..color = markColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.05
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawLine(
+      Offset(w * 0.15, h * 0.85),
+      Offset(w * 0.85, h * 0.85),
+      basePaint,
     );
-    canvas.drawRRect(lowerCutout, Paint()..color = const Color(0xFF070B18));
   }
 
   @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+  bool shouldRepaint(covariant _SkylineConstructionPainter oldDelegate) {
+    return oldDelegate.markColor != markColor || oldDelegate.accentColor != accentColor;
+  }
 }

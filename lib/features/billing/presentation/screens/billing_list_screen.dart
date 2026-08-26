@@ -1069,13 +1069,13 @@ Generated via IBUILD Construction ERP
                 onPressed: () => _showRecordClientPaymentDialog(context, b),
               ),
             IconButton(
-              icon: const Icon(Icons.print_outlined, size: 18),
-              tooltip: 'Print Invoice PDF',
+              icon: const Icon(Icons.file_download_outlined, size: 18),
+              tooltip: 'Download Invoice PDF',
               onPressed: () async {
                 final pdfBytes = await SalesBillPdfGenerator.generatePdf(b);
-                await Printing.layoutPdf(
-                  onLayout: (_) async => Uint8List.fromList(pdfBytes),
-                  name: 'Sales_Invoice_${b.billNumber}.pdf',
+                await PdfDownloadHelper.downloadPdf(
+                  bytes: Uint8List.fromList(pdfBytes),
+                  filename: 'Sales_Invoice_${b.billNumber}.pdf',
                 );
               },
             ),
