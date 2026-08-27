@@ -14,6 +14,7 @@ import 'core/widgets/responsive_layout.dart';
 import 'core/widgets/web_sidebar.dart';
 import 'core/widgets/offline_sync_indicator.dart';
 import 'core/offline/offline_sync_service.dart';
+import 'core/offline/offline_data_cache.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/projects/presentation/controllers/project_controller.dart';
 
@@ -63,6 +64,13 @@ void main() async {
     url: supabaseUrl,
     anonKey: supabaseAnonKey,
   );
+
+  // Initialize offline persistent cache (survives page refresh & restarts)
+  try {
+    await OfflineDataCache().init();
+  } catch (e) {
+    debugPrint('OfflineDataCache init note: $e');
+  }
 
   try {
     OfflineSyncService.instance.setClient(Supabase.instance.client);
@@ -169,38 +177,56 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
-            table: 'system_settings',
-            callback: (payload) => _onTableChanged('system_settings'),
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
             table: 'daily_progress',
             callback: (payload) => _onTableChanged('daily_progress'),
           )
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
+            table: 'employees',
+            callback: (payload) => _onTableChanged('employees'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'inventory',
+            callback: (payload) => _onTableChanged('inventory'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'equipment',
+            callback: (payload) => _onTableChanged('equipment'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'bills',
+            callback: (payload) => _onTableChanged('bills'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'payment_ledger',
+            callback: (payload) => _onTableChanged('payment_ledger'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'snags',
+            callback: (payload) => _onTableChanged('snags'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'profiles',
+            callback: (payload) => _onTableChanged('profiles'),
+          )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
             table: 'checklist_items',
             callback: (payload) => _onTableChanged('checklist_items'),
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'payments',
-            callback: (payload) => _onTableChanged('payments'),
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'material_stock',
-            callback: (payload) => _onTableChanged('material_stock'),
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
-            table: 'vendor_bills',
-            callback: (payload) => _onTableChanged('vendor_bills'),
           )
           .subscribe();
     } catch (_) {}
@@ -210,12 +236,17 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   void _onTableChanged(String table) {
     if (!mounted) return;
     try {
-      // Always refresh dashboard stats (lightweight)
+      // Always refresh dashboard stats
       ref.invalidate(dashboardStatsProvider);
 
       switch (table) {
         case 'projects':
+        case 'daily_progress':
+        case 'checklist_items':
           ref.read(projectControllerProvider.notifier).loadProjects();
+          break;
+        case 'employees':
+          ref.read(employeeListControllerProvider.notifier).loadEmployees();
           break;
         case 'attendance':
           final selDate = ref.read(attendanceControllerProvider).selectedDate;
@@ -225,18 +256,15 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           break;
         case 'expenses':
           ref.read(expenseControllerProvider.notifier).loadExpenses();
-          break;
-        case 'material_stock':
-          // Inventory list will auto-refresh via its own provider watch
-          break;
-        case 'vendor_bills':
-        case 'payments':
-          // Billing/payments screens will refresh via their own provider watch
-          break;
-        case 'daily_progress':
-        case 'checklist_items':
-          // Refresh projects to update progress data
           ref.read(projectControllerProvider.notifier).loadProjects();
+          break;
+        case 'inventory':
+        case 'equipment':
+        case 'bills':
+        case 'payment_ledger':
+        case 'snags':
+        case 'profiles':
+          // Invalidating dashboardStatsProvider updates portfolio and financial metrics
           break;
         default:
           break;
@@ -846,6 +874,9 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
     final role = ref.read(currentRoleProvider);
 
     final visibleItems = WebSidebar.allItems.where((item) {
+      if (item.label == 'User Management & Logins') {
+        return role == 'admin';
+      }
       if (item.requiredPermission == null) return true;
       if (role == 'owner' || role == 'admin' || permissions.isEmpty) return true;
       return permissions.contains(item.requiredPermission);
@@ -955,6 +986,9 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
     // Build the same filtered list that WebSidebar uses
     final visibleItems = WebSidebar.allItems.where((item) {
+      if (item.label == 'User Management & Logins') {
+        return role == 'admin';
+      }
       if (item.requiredPermission == null) return true;
       if (role == 'owner' || role == 'admin' || permissions.isEmpty) return true;
       return permissions.contains(item.requiredPermission);

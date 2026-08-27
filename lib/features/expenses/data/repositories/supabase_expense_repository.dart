@@ -58,11 +58,6 @@ class SupabaseExpenseRepository implements ExpenseRepository {
 
     await _client.from('expenses').insert(expense.toJson());
 
-    // Auto-update project spent if linked to a project
-    if (expense.projectId != null && expense.projectId!.isNotEmpty) {
-      await _incrementProjectSpent(expense.projectId!, expense.amount);
-    }
-
     // Log activity
     await _activityRepo.logActivity(
       actionType: 'created_expense',
@@ -94,23 +89,7 @@ class SupabaseExpenseRepository implements ExpenseRepository {
 
   @override
   Future<void> deleteExpense(String id) async {
-    // Fetch expense before deleting to get project_id and amount for rollback
-    final existing = await _client
-        .from('expenses')
-        .select('project_id, amount')
-        .eq('id', id)
-        .maybeSingle();
-
     await _client.from('expenses').delete().eq('id', id);
-
-    // Auto-decrement project spent if linked
-    if (existing != null) {
-      final projectId = existing['project_id'] as String?;
-      final amount = (existing['amount'] as num?)?.toDouble() ?? 0.0;
-      if (projectId != null && projectId.isNotEmpty && amount > 0) {
-        await _decrementProjectSpent(projectId, amount);
-      }
-    }
 
     // Log activity
     await _activityRepo.logActivity(
@@ -118,47 +97,6 @@ class SupabaseExpenseRepository implements ExpenseRepository {
       entityType: 'Expense',
       entityId: id,
     );
-  }
-
-  // ── Helpers: auto-sync project spent ──────────────────────────────────────
-
-  Future<void> _incrementProjectSpent(String projectId, double amount) async {
-    try {
-      final row = await _client
-          .from('projects')
-          .select('spent')
-          .eq('id', projectId)
-          .maybeSingle();
-      if (row != null) {
-        final currentSpent = (row['spent'] as num?)?.toDouble() ?? 0.0;
-        await _client
-            .from('projects')
-            .update({'spent': currentSpent + amount})
-            .eq('id', projectId);
-      }
-    } catch (_) {
-      // Fail silently — don't break the expense creation
-    }
-  }
-
-  Future<void> _decrementProjectSpent(String projectId, double amount) async {
-    try {
-      final row = await _client
-          .from('projects')
-          .select('spent')
-          .eq('id', projectId)
-          .maybeSingle();
-      if (row != null) {
-        final currentSpent = (row['spent'] as num?)?.toDouble() ?? 0.0;
-        final newSpent = (currentSpent - amount).clamp(0.0, double.infinity);
-        await _client
-            .from('projects')
-            .update({'spent': newSpent})
-            .eq('id', projectId);
-      }
-    } catch (_) {
-      // Fail silently
-    }
   }
 
   @override

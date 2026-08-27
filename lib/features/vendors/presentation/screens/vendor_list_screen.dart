@@ -612,7 +612,6 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
 
                                       ref.invalidate(projectDashboardProvider(p.id));
                                       ref.invalidate(projectControllerProvider);
-                                      ref.invalidate(subcontractorControllerProvider);
 
                                       if (context.mounted) {
                                         ScaffoldMessenger.of(context).showSnackBar(
@@ -641,7 +640,6 @@ class _VendorListScreenState extends ConsumerState<VendorListScreen> {
 
                               ref.invalidate(projectDashboardProvider(p.id));
                               ref.invalidate(projectControllerProvider);
-                              ref.invalidate(subcontractorControllerProvider);
 
                               if (context.mounted) {
                                 ScaffoldMessenger.of(context).showSnackBar(

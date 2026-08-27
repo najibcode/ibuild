@@ -105,7 +105,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           SnackBar(
             content: Text(
               widget.employee == null
-                  ? 'Employee added with ImageKit profile photo ✓'
+                  ? 'Employee added with profile photo ✓'
                   : 'Employee updated successfully ✓',
             ),
             backgroundColor: AppColors.secondary,
@@ -139,7 +139,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              // Profile Photo Card (ImageKit Integration)
+              // Profile Photo Card
               const Text(
                 'PROFILE PICTURE',
                 style: TextStyle(
@@ -152,7 +152,7 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
               const SizedBox(height: 8),
               ImageUploadCard(
                 existingUrl: _photoUrl,
-                label: 'Tap to upload staff profile picture to ImageKit',
+                label: 'Tap to upload staff profile picture',
                 isUploading: _isUploadingPhoto,
                 onImagePicked: (bytes, ext) {
                   _pendingPhotoBytes = bytes;

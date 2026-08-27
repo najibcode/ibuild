@@ -141,4 +141,20 @@ class AdminUserEntry {
       lastSignInAt: lastSignInAt,
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': userId,
+      'email': email,
+      'full_name': fullName,
+      'phone': phone,
+      'company_name': companyName,
+      'avatar_url': avatarUrl,
+      'role_display': roleName,
+      'is_disabled': isDisabled,
+      'custom_permissions': customPermissions,
+      'created_at': createdAt?.toIso8601String(),
+      'last_sign_in_at': lastSignInAt?.toIso8601String(),
+    };
+  }
 }

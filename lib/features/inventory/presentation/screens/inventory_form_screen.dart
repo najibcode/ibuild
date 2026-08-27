@@ -125,7 +125,7 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(widget.item == null ? 'Material item added with ImageKit photo ✓' : 'Material updated ✓'),
+          content: Text(widget.item == null ? 'Material item added with photo ✓' : 'Material updated ✓'),
           backgroundColor: AppColors.secondary,
         ),
       );
@@ -164,7 +164,7 @@ class _InventoryFormScreenState extends ConsumerState<InventoryFormScreen> {
                 ),
                 const SizedBox(height: 8),
                 ImageUploadCard(
-                  label: 'Tap to attach material / delivery photo to ImageKit',
+                  label: 'Tap to attach material / delivery photo',
                   isUploading: _isUploadingPhoto,
                   onImagePicked: (bytes, ext) {
                     _pendingPhotoBytes = bytes;

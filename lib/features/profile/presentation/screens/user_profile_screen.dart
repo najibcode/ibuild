@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import '../../../../core/offline/offline_sync_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/navigation/mobile_nav_helper.dart';
+import '../../../../core/services/image_compression_service.dart';
 import '../../../../core/utils/avatar_helper.dart';
 import '../../../../core/widgets/image_upload_card.dart';
 import '../../../../core/widgets/logout_dialog.dart';
@@ -13,6 +15,60 @@ import '../../../../features/auth/presentation/controllers/auth_controller.dart'
 import '../../../../features/rbac/presentation/providers/permission_provider.dart';
 import '../../../../models/image_model.dart';
 import '../../../../providers/image_provider.dart';
+
+/// Curated construction role persona avatar presets.
+class _AvatarPreset {
+  final String label;
+  final String subtitle;
+  final String url;
+  final IconData icon;
+
+  const _AvatarPreset({
+    required this.label,
+    required this.subtitle,
+    required this.url,
+    required this.icon,
+  });
+}
+
+const List<_AvatarPreset> _kAvatarPresets = [
+  _AvatarPreset(
+    label: 'Managing Director',
+    subtitle: 'Executive Leadership',
+    url: 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80',
+    icon: Icons.business_center,
+  ),
+  _AvatarPreset(
+    label: 'Lead Architect',
+    subtitle: 'Design & Planning',
+    url: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400&auto=format&fit=crop&q=80',
+    icon: Icons.architecture,
+  ),
+  _AvatarPreset(
+    label: 'Site Engineer',
+    subtitle: 'Civil & Execution',
+    url: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?w=400&auto=format&fit=crop&q=80',
+    icon: Icons.engineering,
+  ),
+  _AvatarPreset(
+    label: 'Project Manager',
+    subtitle: 'Operations & SCM',
+    url: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?w=400&auto=format&fit=crop&q=80',
+    icon: Icons.assignment_ind,
+  ),
+  _AvatarPreset(
+    label: 'Safety Officer',
+    subtitle: 'Quality & Compliance',
+    url: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=400&auto=format&fit=crop&q=80',
+    icon: Icons.health_and_safety,
+  ),
+  _AvatarPreset(
+    label: 'Field Supervisor',
+    subtitle: 'Workforce & Muster',
+    url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=400&auto=format&fit=crop&q=80',
+    icon: Icons.construction,
+  ),
+];
 
 class UserProfileScreen extends ConsumerStatefulWidget {
   final VoidCallback? onBackPressed;
@@ -40,6 +96,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
   bool _isUploadingAvatar = false;
   String _devicePermissionStatus = 'default';
   bool _isSendingResetEmail = false;
+  bool _isManualSyncing = false;
 
   @override
   void initState() {
@@ -62,7 +119,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
       text: profile?['phone'] as String? ?? '+91 9876543210',
     );
     _companyController = TextEditingController(
-      text: profile?['company_name'] as String? ?? 'IBUILD Construction & Infrastructure',
+      text: profile?['company_name'] as String? ??
+          'IBUILD Construction & Infrastructure',
     );
     final initialAvatar = RoleAvatarHelper.getAvatarUrl(
       customAvatarUrl: profile?['avatar_url'] as String?,
@@ -71,14 +129,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     );
     _avatarUrlController = TextEditingController(text: initialAvatar);
     _siteHubController = TextEditingController(
-      text: profile?['assigned_hub'] as String? ?? 'Central Headquarters & Project Sites',
+      text: profile?['assigned_hub'] as String? ??
+          'Central Headquarters & Regional Project Sites',
     );
 
     _avatarUrlController.addListener(() => setState(() {}));
   }
 
   Future<void> _checkDevicePermission() async {
-    final status = await ref.read(pushNotificationServiceProvider).getDevicePermissionStatus();
+    final status = await ref
+        .read(pushNotificationServiceProvider)
+        .getDevicePermissionStatus();
     if (mounted) {
       setState(() => _devicePermissionStatus = status);
     }
@@ -95,25 +156,83 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     super.dispose();
   }
 
-  void _onAvatarPicked(Uint8List bytes, String ext) async {
+  /// Uploads picked photo bytes to ImageKit CDN and persists to the user profile
+  Future<void> _uploadAvatarBytes(Uint8List bytes, String ext) async {
     setState(() => _isUploadingAvatar = true);
     final imageNotifier = ref.read(imageNotifierProvider.notifier);
 
-    final uploadedUrl = await imageNotifier.uploadImage(
-      bytes: bytes,
-      fileExtension: ext,
-      folder: ImageFolder.settings,
-    );
+    try {
+      final uploadedUrl = await imageNotifier.uploadImage(
+        bytes: bytes,
+        fileExtension: ext,
+        folder: ImageFolder.userProfile,
+      );
 
-    if (uploadedUrl != null) {
-      _avatarUrlController.text = uploadedUrl;
+      if (uploadedUrl != null) {
+        _avatarUrlController.text = uploadedUrl;
+
+        // Auto-save to Supabase profile
+        await ref.read(authControllerProvider.notifier).updateUserProfile(
+              fullName: _nameController.text.trim(),
+              phone: _phoneController.text.trim(),
+              companyName: _companyController.text.trim(),
+              avatarUrl: uploadedUrl,
+            );
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile photo uploaded and saved successfully ✓'),
+              backgroundColor: Color(0xFF10B981),
+              duration: Duration(seconds: 3),
+              behavior: SnackBarBehavior.floating,
+            ),
+          );
+        }
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Photo upload failed. Please try again.'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error uploading photo: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isUploadingAvatar = false);
+      }
     }
-    setState(() => _isUploadingAvatar = false);
+  }
+
+  Future<void> _pickFromCamera() async {
+    final picked = await ImageCompressionService.pickFromCamera();
+    if (picked != null) {
+      await _uploadAvatarBytes(picked.bytes, picked.extension);
+    }
+  }
+
+  Future<void> _pickFromGallery() async {
+    final picked = await ImageCompressionService.pickFromGallery();
+    if (picked != null) {
+      await _uploadAvatarBytes(picked.bytes, picked.extension);
+    }
   }
 
   void _onSave() async {
     if (_formKey.currentState!.validate()) {
-      final success = await ref.read(authControllerProvider.notifier).updateUserProfile(
+      HapticFeedback.mediumImpact();
+      final success = await ref
+          .read(authControllerProvider.notifier)
+          .updateUserProfile(
             fullName: _nameController.text.trim(),
             phone: _phoneController.text.trim(),
             companyName: _companyController.text.trim(),
@@ -132,12 +251,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                 ),
                 const SizedBox(width: 10),
                 Text(
-                  success ? 'Profile updated successfully ✓' : 'Failed to update profile',
+                  success
+                      ? 'Profile updated successfully ✓'
+                      : 'Failed to update profile',
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
               ],
             ),
-            backgroundColor: success ? const Color(0xFF10B981) : AppColors.error,
+            backgroundColor:
+                success ? const Color(0xFF10B981) : AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
         );
@@ -147,7 +269,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
 
   void _handlePasswordReset(String email) async {
     setState(() => _isSendingResetEmail = true);
-    final success = await ref.read(authControllerProvider.notifier).sendPasswordReset(email);
+    final success = await ref
+        .read(authControllerProvider.notifier)
+        .sendPasswordReset(email);
     setState(() => _isSendingResetEmail = false);
 
     if (mounted) {
@@ -165,15 +289,241 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     }
   }
 
+  void _handleManualSync() async {
+    setState(() => _isManualSyncing = true);
+    try {
+      await ref.read(offlineSyncProvider.notifier).syncAll();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Offline queue synchronized with cloud database ✓'),
+            backgroundColor: Color(0xFF10B981),
+            duration: Duration(seconds: 2),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Sync error: $e'),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isManualSyncing = false);
+    }
+  }
+
+  void _showAvatarPickerModal(String currentAvatarUrl) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: AppColors.cardBg(context),
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+          border: Border.all(color: AppColors.border(context)),
+        ),
+        child: SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Upload or Choose Profile Photo',
+                    style: TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.text(context),
+                    ),
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.close, size: 20),
+                    onPressed: () => Navigator.pop(ctx),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'Upload a photo to ImageKit CDN or select a construction persona preset:',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: AppColors.mutedText(context),
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Direct Camera & Gallery Upload Actions
+              Row(
+                children: [
+                  if (ImageCompressionService.isCameraAvailable) ...[
+                    Expanded(
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          Navigator.pop(ctx);
+                          _pickFromCamera();
+                        },
+                        icon: const Icon(Icons.camera_alt, size: 18),
+                        label: const Text('Take Photo', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primaryColor(context),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ],
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        _pickFromGallery();
+                      },
+                      icon: const Icon(Icons.photo_library_outlined, size: 18),
+                      label: const Text('From Gallery', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Divider(),
+              const SizedBox(height: 8),
+
+              Text(
+                'OR CHOOSE A PERSONA PRESET',
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.6,
+                  color: AppColors.mutedText(context),
+                ),
+              ),
+              const SizedBox(height: 10),
+
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: _kAvatarPresets.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 10,
+                  mainAxisSpacing: 10,
+                  childAspectRatio: 0.85,
+                ),
+                itemBuilder: (context, idx) {
+                  final p = _kAvatarPresets[idx];
+                  final isSelected = currentAvatarUrl == p.url;
+
+                  return InkWell(
+                    onTap: () {
+                      _avatarUrlController.text = p.url;
+                      Navigator.pop(ctx);
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: isSelected
+                            ? AppColors.primaryColor(context).withValues(alpha: 0.1)
+                            : AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: isSelected
+                              ? AppColors.primaryColor(context)
+                              : AppColors.border(context),
+                          width: isSelected ? 2 : 1,
+                        ),
+                      ),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Stack(
+                            alignment: Alignment.topRight,
+                            children: [
+                              CircleAvatar(
+                                radius: 24,
+                                backgroundImage: NetworkImage(p.url),
+                              ),
+                              if (isSelected)
+                                Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primaryColor(context),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.check,
+                                    size: 10,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                            ],
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            p.label,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: isSelected ? FontWeight.bold : FontWeight.w600,
+                              color: AppColors.text(context),
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            p.subtitle,
+                            style: TextStyle(
+                              fontSize: 9,
+                              color: AppColors.mutedText(context),
+                            ),
+                            textAlign: TextAlign.center,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final roleName = ref.watch(currentRoleProvider);
     final authState = ref.watch(authControllerProvider);
     final notifPrefs = ref.watch(notificationPreferencesProvider);
+    final syncState = ref.watch(offlineSyncProvider);
     final userEmail = authState.user?.email ?? 'user@ibuild.in';
-    final userId = authState.user?.id ?? 'usr-${userEmail.hashCode.abs().toString().padLeft(8, '0')}';
+    final userId = authState.user?.id ??
+        'usr-${userEmail.hashCode.abs().toString().padLeft(8, '0')}';
     final userCreatedAt = authState.user?.createdAt != null
-        ? DateFormat('dd MMM yyyy').format(DateTime.parse(authState.user!.createdAt))
+        ? DateFormat('dd MMM yyyy')
+            .format(DateTime.parse(authState.user!.createdAt))
         : 'Active Member';
 
     String roleDisplay;
@@ -231,7 +581,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
               ),
         titleSpacing: 0,
         title: const Text(
-          'My Profile & Settings',
+          'Executive Profile & Settings',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         actions: [
@@ -247,11 +597,21 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
           unselectedLabelColor: AppColors.mutedText(context),
           indicatorColor: AppColors.primaryColor(context),
           indicatorWeight: 3,
-          labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+          labelStyle:
+              const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
           tabs: const [
-            Tab(icon: Icon(Icons.badge_outlined, size: 18), text: 'Identity & Info'),
-            Tab(icon: Icon(Icons.notifications_active_outlined, size: 18), text: 'Alert Preferences'),
-            Tab(icon: Icon(Icons.security_outlined, size: 18), text: 'Security & Access'),
+            Tab(
+              icon: Icon(Icons.badge_outlined, size: 18),
+              text: 'Identity & Info',
+            ),
+            Tab(
+              icon: Icon(Icons.notifications_active_outlined, size: 18),
+              text: 'Alert Preferences',
+            ),
+            Tab(
+              icon: Icon(Icons.security_outlined, size: 18),
+              text: 'Security & Access',
+            ),
           ],
         ),
       ),
@@ -273,6 +633,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                 userId,
                 userCreatedAt,
                 authState.isLoading,
+                syncState,
               ),
 
               // ── TAB 2: ALERT PREFERENCES ─────────────────────────────────────────
@@ -291,6 +652,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                 userEmail,
                 userId,
                 userCreatedAt,
+                syncState,
               ),
             ],
           ),
@@ -313,6 +675,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     String userId,
     String userCreatedAt,
     bool isLoading,
+    SyncState syncState,
   ) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.containerMargin),
@@ -327,6 +690,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                 color: AppColors.cardBg(context),
                 borderRadius: BorderRadius.circular(AppRadius.lg),
                 border: Border.all(color: AppColors.border(context)),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
               ),
               child: Column(
                 children: [
@@ -335,23 +705,31 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                     height: 100,
                     width: double.infinity,
                     decoration: BoxDecoration(
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+                      borderRadius: const BorderRadius.vertical(
+                        top: Radius.circular(AppRadius.lg),
+                      ),
                       gradient: LinearGradient(
                         colors: [
-                          roleColor.withValues(alpha: 0.85),
+                          roleColor.withValues(alpha: 0.90),
                           AppColors.primary.withValues(alpha: 0.95),
                         ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
                     ),
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 12,
+                    ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.black.withValues(alpha: 0.25),
                             borderRadius: BorderRadius.circular(6),
@@ -373,13 +751,16 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                           ),
                         ),
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white.withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
-                            'Joined: $userCreatedAt',
+                            'Member Since $userCreatedAt',
                             style: const TextStyle(
                               color: Colors.white,
                               fontSize: 10,
@@ -400,45 +781,74 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                           child: Stack(
                             alignment: Alignment.bottomRight,
                             children: [
-                              Container(
-                                width: 90,
-                                height: 90,
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: AppColors.cardBg(context),
-                                    width: 4,
+                              GestureDetector(
+                                onTap: () => _showAvatarPickerModal(avatarUrl),
+                                child: Container(
+                                  width: 92,
+                                  height: 92,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: AppColors.cardBg(context),
+                                      width: 4,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.15),
+                                        blurRadius: 10,
+                                        offset: const Offset(0, 4),
+                                      ),
+                                    ],
                                   ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withValues(alpha: 0.15),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 4),
-                                    ),
-                                  ],
-                                ),
-                                child: ClipOval(
-                                  child: Image.network(
-                                    avatarUrl,
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stackTrace) => Container(
-                                      color: roleColor.withValues(alpha: 0.2),
-                                      child: Icon(roleIcon, size: 40, color: roleColor),
-                                    ),
+                                  child: ClipOval(
+                                    child: _isUploadingAvatar
+                                        ? const Center(
+                                            child: SizedBox(
+                                              width: 28,
+                                              height: 28,
+                                              child: CircularProgressIndicator(strokeWidth: 2.5),
+                                            ),
+                                          )
+                                        : Image.network(
+                                            avatarUrl,
+                                            fit: BoxFit.cover,
+                                            errorBuilder:
+                                                (context, error, stackTrace) =>
+                                                    Container(
+                                              color:
+                                                  roleColor.withValues(alpha: 0.2),
+                                              child: Icon(
+                                                roleIcon,
+                                                size: 40,
+                                                color: roleColor,
+                                              ),
+                                            ),
+                                          ),
                                   ),
                                 ),
                               ),
-                              // Online Status Dot
+                              // Edit / Upload Icon Button Badge
                               Positioned(
-                                right: 4,
-                                bottom: 4,
-                                child: Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF10B981),
-                                    shape: BoxShape.circle,
-                                    border: Border.all(color: Colors.white, width: 2),
+                                right: 0,
+                                bottom: 0,
+                                child: GestureDetector(
+                                  onTap: () => _showAvatarPickerModal(avatarUrl),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(5),
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primaryColor(context),
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2,
+                                      ),
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt,
+                                      size: 14,
+                                      color: Colors.white,
+                                    ),
                                   ),
                                 ),
                               ),
@@ -447,7 +857,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          _nameController.text.isNotEmpty ? _nameController.text : 'User Profile',
+                          _nameController.text.isNotEmpty
+                              ? _nameController.text
+                              : 'Executive Member',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -464,22 +876,154 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                         ),
                         const SizedBox(height: 10),
 
-                        // ImageKit Avatar Upload Trigger
+                        // Action Chips: Upload Photo & Choose Persona
                         Padding(
-                          padding: const EdgeInsets.symmetric(horizontal: 20),
-                          child: ImageUploadCard(
-                            existingUrl: avatarUrl,
-                            label: 'Tap to update profile avatar via ImageKit',
-                            isUploading: _isUploadingAvatar,
-                            onImagePicked: _onAvatarPicked,
-                            onDeleteRequested: () {
-                              _avatarUrlController.text =
-                                  RoleAvatarHelper.getDefaultAvatarForRole(roleName);
-                            },
+                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                          child: Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: [
+                              ActionChip(
+                                avatar: const Icon(
+                                  Icons.cloud_upload_outlined,
+                                  size: 14,
+                                  color: AppColors.secondary,
+                                ),
+                                label: const Text(
+                                  'Upload Profile Picture',
+                                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                ),
+                                onPressed: () => _showAvatarPickerModal(avatarUrl),
+                                backgroundColor: AppColors.secondary.withValues(alpha: 0.08),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: AppColors.secondary.withValues(alpha: 0.3),
+                                  ),
+                                ),
+                              ),
+                              ActionChip(
+                                avatar: const Icon(
+                                  Icons.palette_outlined,
+                                  size: 14,
+                                  color: AppColors.primary,
+                                ),
+                                label: const Text(
+                                  'Select Persona',
+                                  style: TextStyle(fontSize: 11),
+                                ),
+                                onPressed: () => _showAvatarPickerModal(avatarUrl),
+                                backgroundColor: AppColors.bg(context),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                  side: BorderSide(
+                                    color: AppColors.border(context),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       ],
                     ),
+                  ),
+
+                  // ── EXECUTIVE QUICK KPI TILES ──────────────────────────────
+                  Padding(
+                    padding:
+                        const EdgeInsets.only(left: 16, right: 16, bottom: 16),
+                    child: Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: AppColors.border(context)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        children: [
+                          _buildQuickKpi(
+                            context,
+                            icon: Icons.hub_outlined,
+                            label: 'Site Hub',
+                            value: 'Active',
+                            color: AppColors.primary,
+                          ),
+                          Container(
+                            height: 28,
+                            width: 1,
+                            color: AppColors.border(context),
+                          ),
+                          _buildQuickKpi(
+                            context,
+                            icon: Icons.sync,
+                            label: 'Sync Status',
+                            value: syncState.pendingCount == 0
+                                ? 'Cloud Synced'
+                                : '${syncState.pendingCount} Pending',
+                            color: syncState.pendingCount == 0
+                                ? const Color(0xFF10B981)
+                                : Colors.orange,
+                          ),
+                          Container(
+                            height: 28,
+                            width: 1,
+                            color: AppColors.border(context),
+                          ),
+                          _buildQuickKpi(
+                            context,
+                            icon: Icons.shield_outlined,
+                            label: 'Security Tier',
+                            value: 'Enterprise',
+                            color: const Color(0xFF6366F1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
+
+            // ── PROFILE PHOTO & IMAGEKIT INTEGRATION CARD ──────────────────────
+            Container(
+              padding: const EdgeInsets.all(AppSpacing.cardPadding),
+              decoration: BoxDecoration(
+                color: AppColors.cardBg(context),
+                borderRadius: BorderRadius.circular(AppRadius.lg),
+                border: Border.all(color: AppColors.border(context)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.add_a_photo_outlined,
+                          size: 20, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      Text(
+                        'PROFILE PICTURE & IMAGEKIT CDN',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 0.6,
+                          color: AppColors.mutedText(context),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ImageUploadCard(
+                    existingUrl: avatarUrl,
+                    label: 'Tap to upload new profile photo to ImageKit',
+                    isUploading: _isUploadingAvatar,
+                    onImagePicked: (bytes, ext) => _uploadAvatarBytes(bytes, ext),
+                    onDeleteRequested: () {
+                      _avatarUrlController.text =
+                          RoleAvatarHelper.getDefaultAvatarForRole(roleName);
+                    },
                   ),
                 ],
               ),
@@ -499,7 +1043,8 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.edit_note, size: 20, color: AppColors.primary),
+                      const Icon(Icons.edit_note,
+                          size: 20, color: AppColors.primary),
                       const SizedBox(width: 8),
                       Text(
                         'PERSONAL & ENTERPRISE DETAILS',
@@ -518,11 +1063,13 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   TextFormField(
                     controller: _nameController,
                     decoration: const InputDecoration(
-                      labelText: 'Full Name',
-                      hintText: 'Enter your name',
+                      labelText: 'Full Name *',
+                      hintText: 'Enter your full name',
                       prefixIcon: Icon(Icons.person_outline, size: 20),
                     ),
-                    validator: (v) => v == null || v.isEmpty ? 'Please enter full name' : null,
+                    validator: (v) => v == null || v.isEmpty
+                        ? 'Please enter full name'
+                        : null,
                   ),
                   const SizedBox(height: 14),
 
@@ -564,10 +1111,24 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   TextFormField(
                     controller: _avatarUrlController,
                     decoration: const InputDecoration(
-                      labelText: 'Avatar Image URL (ImageKit / CDN)',
-                      hintText: 'https://ik.imagekit.io/...',
+                      labelText: 'Avatar Image URL (Cloud / CDN)',
+                      hintText: 'https://...',
                       prefixIcon: Icon(Icons.link_outlined, size: 20),
                     ),
+                    validator: (val) {
+                      final url = val?.trim() ?? '';
+                      if (url.isEmpty) return null;
+                      if (!url.startsWith('https://')) {
+                        return 'Avatar URL must start with https://';
+                      }
+                      if (url.startsWith('data:') || url.startsWith('blob:')) {
+                        return 'Data URIs and blob URLs are not permitted.';
+                      }
+                      if (url.length > 2048) {
+                        return 'URL must be less than 2,048 characters.';
+                      }
+                      return null;
+                    },
                   ),
                   const SizedBox(height: 24),
 
@@ -586,11 +1147,17 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                         ? const SizedBox(
                             width: 20,
                             height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
                           )
                         : const Text(
                             'Save Profile Changes',
-                            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                   ),
                 ],
@@ -599,6 +1166,38 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildQuickKpi(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Column(
+      children: [
+        Icon(icon, size: 16, color: color),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 10,
+            color: AppColors.mutedText(context),
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+            color: AppColors.text(context),
+          ),
+        ),
+      ],
     );
   }
 
@@ -625,7 +1224,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   : const Color(0xFFF59E0B).withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(AppRadius.lg),
               border: Border.all(
-                color: isGranted ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                color: isGranted
+                    ? const Color(0xFF10B981)
+                    : const Color(0xFFF59E0B),
                 width: 1.2,
               ),
             ),
@@ -633,7 +1234,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
               children: [
                 Icon(
                   isGranted ? Icons.check_circle : Icons.warning_amber_rounded,
-                  color: isGranted ? const Color(0xFF10B981) : const Color(0xFFF59E0B),
+                  color: isGranted
+                      ? const Color(0xFF10B981)
+                      : const Color(0xFFF59E0B),
                   size: 28,
                 ),
                 const SizedBox(width: 14),
@@ -648,7 +1251,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
-                          color: isGranted ? const Color(0xFF047857) : const Color(0xFFB45309),
+                          color: isGranted
+                              ? const Color(0xFF047857)
+                              : const Color(0xFFB45309),
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -694,10 +1299,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   ),
                   subtitle: Text(
                     'Master switch for all mobile push notifications & in-app alerts',
-                    style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                    style: TextStyle(
+                      fontSize: 11,
+                      color: AppColors.mutedText(context),
+                    ),
                   ),
                   onChanged: (val) {
-                    ref.read(notificationPreferencesProvider.notifier).toggleMasterPush(val);
+                    ref
+                        .read(notificationPreferencesProvider.notifier)
+                        .toggleMasterPush(val);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -716,11 +1326,15 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                     ),
                     DropdownMenuItem(
                       value: 'financial',
-                      child: Text('Financial & High Priority Only (Bills, Payments)'),
+                      child: Text(
+                        'Financial & High Priority Only (Bills, Payments)',
+                      ),
                     ),
                     DropdownMenuItem(
                       value: 'site',
-                      child: Text('Site Operations Only (Muster, Snags, Drawings)'),
+                      child: Text(
+                        'Site Operations Only (Muster, Snags, Drawings)',
+                      ),
                     ),
                     DropdownMenuItem(
                       value: 'muted',
@@ -729,7 +1343,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   ],
                   onChanged: (v) {
                     if (v != null) {
-                      ref.read(notificationPreferencesProvider.notifier).setScope(v);
+                      ref
+                          .read(notificationPreferencesProvider.notifier)
+                          .setScope(v);
                     }
                   },
                 ),
@@ -759,7 +1375,6 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   ),
                 ),
                 const SizedBox(height: 12),
-
                 SwitchListTile(
                   value: notifPrefs.attendanceAlerts,
                   dense: true,
@@ -773,7 +1388,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                     style: TextStyle(fontSize: 11),
                   ),
                   onChanged: notifPrefs.masterPushEnabled
-                      ? (v) => ref.read(notificationPreferencesProvider.notifier).toggleAttendance(v)
+                      ? (v) => ref
+                          .read(notificationPreferencesProvider.notifier)
+                          .toggleAttendance(v)
                       : null,
                 ),
                 const Divider(height: 1),
@@ -790,7 +1407,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                     style: TextStyle(fontSize: 11),
                   ),
                   onChanged: notifPrefs.masterPushEnabled
-                      ? (v) => ref.read(notificationPreferencesProvider.notifier).toggleInventory(v)
+                      ? (v) => ref
+                          .read(notificationPreferencesProvider.notifier)
+                          .toggleInventory(v)
                       : null,
                 ),
                 const Divider(height: 1),
@@ -807,7 +1426,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                     style: TextStyle(fontSize: 11),
                   ),
                   onChanged: notifPrefs.masterPushEnabled
-                      ? (v) => ref.read(notificationPreferencesProvider.notifier).togglePayment(v)
+                      ? (v) => ref
+                          .read(notificationPreferencesProvider.notifier)
+                          .togglePayment(v)
                       : null,
                 ),
                 const Divider(height: 1),
@@ -824,7 +1445,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                     style: TextStyle(fontSize: 11),
                   ),
                   onChanged: notifPrefs.masterPushEnabled
-                      ? (v) => ref.read(notificationPreferencesProvider.notifier).toggleSnagQuality(v)
+                      ? (v) => ref
+                          .read(notificationPreferencesProvider.notifier)
+                          .toggleSnagQuality(v)
                       : null,
                 ),
               ],
@@ -838,10 +1461,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
               Expanded(
                 child: OutlinedButton.icon(
                   onPressed: () async {
-                    final granted =
-                        await ref.read(pushNotificationServiceProvider).requestDevicePermission();
-                    final status =
-                        await ref.read(pushNotificationServiceProvider).getDevicePermissionStatus();
+                    final granted = await ref
+                        .read(pushNotificationServiceProvider)
+                        .requestDevicePermission();
+                    final status = await ref
+                        .read(pushNotificationServiceProvider)
+                        .getDevicePermissionStatus();
                     if (context.mounted) {
                       setState(() => _devicePermissionStatus = status);
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -849,14 +1474,19 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                           content: Text(granted
                               ? 'Device push notifications enabled ✓'
                               : 'Permission prompt finished ($status)'),
-                          backgroundColor:
-                              granted ? const Color(0xFF10B981) : AppColors.primary,
+                          backgroundColor: granted
+                              ? const Color(0xFF10B981)
+                              : AppColors.primary,
                         ),
                       );
                     }
                   },
-                  icon: const Icon(Icons.security_update_good_outlined, size: 16),
-                  label: const Text('Enable Device Push', style: TextStyle(fontSize: 12)),
+                  icon:
+                      const Icon(Icons.security_update_good_outlined, size: 16),
+                  label: const Text(
+                    'Enable Device Push',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 12),
                   ),
@@ -866,7 +1496,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
               Expanded(
                 child: ElevatedButton.icon(
                   onPressed: () async {
-                    await ref.read(pushNotificationServiceProvider).sendTestNotification(
+                    await ref
+                        .read(pushNotificationServiceProvider)
+                        .sendTestNotification(
                           context: context,
                           testTitle: 'iBuild Push Alert Test',
                           testMessage:
@@ -874,7 +1506,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                         );
                   },
                   icon: const Icon(Icons.send_outlined, size: 16),
-                  label: const Text('Send Test Alert', style: TextStyle(fontSize: 12)),
+                  label: const Text(
+                    'Send Test Alert',
+                    style: TextStyle(fontSize: 12),
+                  ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.secondary,
                     foregroundColor: Colors.white,
@@ -890,7 +1525,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
   }
 
   // ══════════════════════════════════════════════════════════════════════════
-  // ── TAB 3: SECURITY, RBAC & SESSION ──────────────────────────────────────
+  // ── TAB 3: SECURITY, RBAC & SYSTEM TELEMETRY ─────────────────────────────
   // ══════════════════════════════════════════════════════════════════════════
   Widget _buildSecurityAndAccessTab(
     BuildContext context,
@@ -901,6 +1536,7 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
     String userEmail,
     String userId,
     String userCreatedAt,
+    SyncState syncState,
   ) {
     final permissionsAsync = ref.watch(userPermissionsProvider);
     final permissions = permissionsAsync.valueOrNull ?? {};
@@ -940,7 +1576,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                       ],
                     ),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
                       decoration: BoxDecoration(
                         color: roleColor.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
@@ -959,7 +1598,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                 const SizedBox(height: 14),
                 Text(
                   'Assigned Permissions for your account:',
-                  style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.mutedText(context),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Wrap(
@@ -969,18 +1611,29 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                       ? permissions.map((p) {
                           return Chip(
                             visualDensity: VisualDensity.compact,
-                            labelPadding: const EdgeInsets.symmetric(horizontal: 4),
-                            avatar: const Icon(Icons.check, size: 12, color: Color(0xFF10B981)),
+                            labelPadding:
+                                const EdgeInsets.symmetric(horizontal: 4),
+                            avatar: const Icon(
+                              Icons.check,
+                              size: 12,
+                              color: Color(0xFF10B981),
+                            ),
                             label: Text(
                               p,
-                              style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                              style: const TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                             backgroundColor: AppColors.bg(context),
                           );
                         }).toList()
                       : [
                           const Chip(
-                            label: Text('Full System Access (Admin)', style: TextStyle(fontSize: 10)),
+                            label: Text(
+                              'Full System Access (Admin)',
+                              style: TextStyle(fontSize: 10),
+                            ),
                           ),
                         ],
                 ),
@@ -989,7 +1642,97 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
           ),
           const SizedBox(height: 16),
 
-          // ── SECURITY & SESSION METADATA ──────────────────────────────────
+          // ── SYSTEM & OFFLINE CACHE TELEMETRY CARD ────────────────────────
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.cardPadding),
+            decoration: BoxDecoration(
+              color: AppColors.cardBg(context),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.border(context)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(
+                          Icons.cloud_sync_outlined,
+                          size: 20,
+                          color: AppColors.secondary,
+                        ),
+                        const SizedBox(width: 8),
+                        Text(
+                          'SYSTEM & OFFLINE SYNC',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 0.6,
+                            color: AppColors.mutedText(context),
+                          ),
+                        ),
+                      ],
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 3,
+                      ),
+                      decoration: BoxDecoration(
+                        color: syncState.pendingCount == 0
+                            ? const Color(0xFF10B981).withValues(alpha: 0.15)
+                            : Colors.orange.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        syncState.pendingCount == 0
+                            ? 'ONLINE & SYNCED'
+                            : '${syncState.pendingCount} QUEUED',
+                        style: TextStyle(
+                          fontSize: 9.5,
+                          fontWeight: FontWeight.bold,
+                          color: syncState.pendingCount == 0
+                              ? const Color(0xFF10B981)
+                              : Colors.orange,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'iBuild ERP stores site entries, attendance logs, and snag reports in a local offline buffer if the field connection drops, and auto-syncs when online.',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.mutedText(context),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton.icon(
+                  onPressed: _isManualSyncing ? null : _handleManualSync,
+                  icon: _isManualSyncing
+                      ? const SizedBox(
+                          width: 14,
+                          height: 14,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                      : const Icon(Icons.refresh, size: 16),
+                  label: Text(
+                    _isManualSyncing ? 'Synchronizing...' : 'Force Sync Offline Queue',
+                    style: const TextStyle(fontSize: 12),
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: const Size(double.infinity, 42),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          // ── SECURITY & CREDENTIALS ──────────────────────────────────────
           Container(
             padding: const EdgeInsets.all(AppSpacing.cardPadding),
             decoration: BoxDecoration(
@@ -1002,7 +1745,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
               children: [
                 Row(
                   children: [
-                    const Icon(Icons.lock_outline, size: 20, color: AppColors.primary),
+                    const Icon(
+                      Icons.lock_outline,
+                      size: 20,
+                      color: AppColors.primary,
+                    ),
                     const SizedBox(width: 8),
                     Text(
                       'CREDENTIALS & SECURITY',
@@ -1027,7 +1774,11 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.fingerprint, size: 18, color: AppColors.mutedText(context)),
+                      Icon(
+                        Icons.fingerprint,
+                        size: 18,
+                        color: AppColors.mutedText(context),
+                      ),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Column(
@@ -1072,7 +1823,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
 
                 // Password Reset Button
                 OutlinedButton.icon(
-                  onPressed: _isSendingResetEmail ? null : () => _handlePasswordReset(userEmail),
+                  onPressed: _isSendingResetEmail
+                      ? null
+                      : () => _handlePasswordReset(userEmail),
                   icon: _isSendingResetEmail
                       ? const SizedBox(
                           width: 14,
@@ -1081,7 +1834,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                         )
                       : const Icon(Icons.mail_outline, size: 16),
                   label: Text(
-                    _isSendingResetEmail ? 'Sending Reset Email...' : 'Send Password Reset Email',
+                    _isSendingResetEmail
+                        ? 'Sending Reset Email...'
+                        : 'Send Password Reset Email',
                     style: const TextStyle(fontSize: 12),
                   ),
                   style: OutlinedButton.styleFrom(
@@ -1099,7 +1854,9 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
             decoration: BoxDecoration(
               color: Colors.redAccent.withValues(alpha: 0.05),
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+              border: Border.all(
+                color: Colors.redAccent.withValues(alpha: 0.3),
+              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1116,7 +1873,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                 const SizedBox(height: 6),
                 Text(
                   'Sign out of your active ERP session on this device.',
-                  style: TextStyle(fontSize: 11, color: AppColors.mutedText(context)),
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: AppColors.mutedText(context),
+                  ),
                 ),
                 const SizedBox(height: 14),
                 ElevatedButton.icon(
@@ -1124,7 +1884,10 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                   icon: const Icon(Icons.logout, size: 18),
                   label: const Text(
                     'Logout / Sign Out',
-                    style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.redAccent,

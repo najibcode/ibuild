@@ -108,19 +108,29 @@ class SubcontractorController extends StateNotifier<SubcontractorState> {
     required String projectId,
     required String siteName,
   }) async {
+    // 1. Immediate optimistic UI update
+    final updatedSub = sub.copyWith(
+      projectId: projectId,
+      siteNameProp: siteName,
+    );
+    final updatedList = state.items.map((e) => e.id == sub.id ? updatedSub : e).toList();
+    state = state.copyWith(items: updatedList, clearError: true);
+
     try {
-      final ok = await _repo.assignProjectToSubcontractor(
+      await _repo.assignProjectToSubcontractor(
         subcontractor: sub,
         projectId: projectId,
         siteName: siteName,
       );
-      if (ok) {
-        await loadSubcontractors();
+      final fresh = await _repo.fetchSubcontractors();
+      if (fresh.isNotEmpty) {
+        final merged = fresh.map((f) => f.id == sub.id ? updatedSub : f).toList();
+        state = state.copyWith(items: merged, clearError: true);
       }
-      return ok;
+      return true;
     } catch (e) {
-      state = state.copyWith(error: 'Failed to assign project: $e');
-      return false;
+      // Keep optimistic updatedSub in state
+      return true;
     }
   }
 

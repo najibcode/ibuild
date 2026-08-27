@@ -13,7 +13,11 @@ abstract class AuthRepository {
     required String phone,
     required String companyName,
     String? avatarUrl,
+    String? tagline,
+    String? gstin,
+    String? address,
+    String? upiId,
+    String? logoUrl,
   });
   Future<UserResponse> updatePassword({required String newPassword});
 }
-

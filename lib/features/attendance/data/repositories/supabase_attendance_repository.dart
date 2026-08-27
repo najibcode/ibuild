@@ -53,57 +53,21 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     debugPrint('[Attendance] saveAttendance payload: $payload');
 
     try {
-      // Step 1: Check if a record already exists for this employee + date
-      final response = await _client
-          .from('attendance')
-          .select('id')
-          .eq('employee_id', attendance.employeeId)
-          .eq('date', attendance.date);
-
-      final existingList = response as List;
-
-      if (existingList.isNotEmpty) {
-        // UPDATE the existing record
-        final existingId = existingList.first['id'] as String;
-        final updateData = attendance.toUpdateJson();
-
-        try {
-          await _client
-              .from('attendance')
-              .update(updateData)
-              .eq('id', existingId);
-        } catch (updateError) {
-          debugPrint('[Attendance] update with project_id failed: $updateError. Trying without project_id.');
-          final fallbackData = Map<String, dynamic>.from(updateData)..remove('project_id');
-          await _client
-              .from('attendance')
-              .update(fallbackData)
-              .eq('id', existingId);
-        }
-
-        debugPrint('[Attendance] saveAttendance UPDATED record id=$existingId');
-
-        // Clean up any duplicate records
-        if (existingList.length > 1) {
-          for (int i = 1; i < existingList.length; i++) {
-            final dupId = existingList[i]['id'] as String;
-            try {
-              await _client.from('attendance').delete().eq('id', dupId);
-              debugPrint('[Attendance] Cleaned duplicate id=$dupId');
-            } catch (_) {}
-          }
-        }
-      } else {
-        // INSERT new record
-        try {
-          await _client.from('attendance').insert(payload);
-        } catch (insertError) {
-          debugPrint('[Attendance] insert with project_id failed: $insertError. Trying without project_id.');
-          final fallbackPayload = Map<String, dynamic>.from(payload)..remove('project_id');
-          await _client.from('attendance').insert(fallbackPayload);
-        }
-        debugPrint('[Attendance] saveAttendance INSERTED new record');
+      // Conflict-safe database upsert on unique (employee_id, date) constraint
+      try {
+        await _client.from('attendance').upsert(
+          payload,
+          onConflict: 'employee_id, date',
+        );
+      } catch (upsertErr) {
+        debugPrint('[Attendance] upsert with project_id note: $upsertErr. Retrying with basic fields.');
+        final fallbackPayload = Map<String, dynamic>.from(payload)..remove('project_id');
+        await _client.from('attendance').upsert(
+          fallbackPayload,
+          onConflict: 'employee_id, date',
+        );
       }
+      debugPrint('[Attendance] saveAttendance successfully synced via conflict-safe upsert ✓');
     } catch (e) {
       debugPrint('[Attendance] saveAttendance FAILED: $e, saving to offline cache and queueing for sync');
       

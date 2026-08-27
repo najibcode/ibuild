@@ -28,6 +28,7 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
   Widget build(BuildContext context) {
     final filteredUsers = ref.watch(filteredAdminUsersProvider);
     final usersAsync = ref.watch(adminUsersProvider);
+    final allUsers = usersAsync.valueOrNull ?? [];
 
     final cardBg = AppColors.cardBg(context);
     final borderCol = AppColors.border(context);
@@ -71,7 +72,7 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
               ElevatedButton.icon(
                 onPressed: () => _showAddUserDialog(context),
                 icon: const Icon(Icons.person_add_alt_1, size: 18),
-                label: const Text('Add New User'),
+                label: const Text('Create Login Credentials'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primary,
                   foregroundColor: Colors.white,
@@ -84,20 +85,20 @@ class _AdminUserManagementTabState extends ConsumerState<AdminUserManagementTab>
 
           const SizedBox(height: 14),
 
-          // ── Role Filter Chips ──
+          // ── Role Filter Chips with Live Counts ──
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _filterChip('all', 'All Users (${usersAsync.valueOrNull?.length ?? 0})'),
+                _filterChip('all', 'All Members (${allUsers.length})'),
                 const SizedBox(width: 8),
-                _filterChip('admin', 'Admins'),
+                _filterChip('admin', 'Admins (${allUsers.where((u) => u.roleName.toLowerCase() == 'admin').length})'),
                 const SizedBox(width: 8),
-                _filterChip('owner', 'Business Owners'),
+                _filterChip('owner', 'Business Owners (${allUsers.where((u) => u.roleName.toLowerCase() == 'owner').length})'),
                 const SizedBox(width: 8),
-                _filterChip('supervisor', 'Supervisors'),
+                _filterChip('supervisor', 'Supervisors (${allUsers.where((u) => u.roleName.toLowerCase() == 'supervisor').length})'),
                 const SizedBox(width: 8),
-                _filterChip('employee', 'Employees'),
+                _filterChip('employee', 'Employees & Staff (${allUsers.where((u) => u.roleName.toLowerCase() == 'employee').length})'),
               ],
             ),
           ),

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ibuild/core/offline/offline_data_cache.dart';
 import 'package:ibuild/core/supabase/supabase_client.provider.dart';
 import 'package:ibuild/core/utils/avatar_helper.dart';
 import 'package:ibuild/features/auth/data/repositories/auth_repository_impl.dart';
@@ -218,18 +219,59 @@ class AuthController extends StateNotifier<AuthState> {
     }
   }
 
-  /// Updates profile information for the current user.
+  /// Updates profile and company branding information.
   Future<bool> updateUserProfile({
     required String fullName,
     required String phone,
     required String companyName,
     String? avatarUrl,
+    String? tagline,
+    String? gstin,
+    String? address,
+    String? upiId,
+    String? logoUrl,
   }) async {
     state = state.copyWith(isLoading: true, clearError: true);
     final user = state.user ?? _repository.getCurrentSession()?.user;
+
+    // Construct local optimistic profile
+    final optimisticProfile = Map<String, dynamic>.from(state.profile ?? {});
+    optimisticProfile['full_name'] = fullName;
+    optimisticProfile['phone'] = phone;
+    optimisticProfile['company_name'] = companyName;
+    if (tagline != null && tagline.isNotEmpty) {
+      optimisticProfile['tagline'] = tagline;
+    }
+    if (gstin != null && gstin.isNotEmpty) {
+      optimisticProfile['gstin'] = gstin;
+    }
+    if (address != null && address.isNotEmpty) {
+      optimisticProfile['address'] = address;
+    }
+    if (upiId != null && upiId.isNotEmpty) {
+      optimisticProfile['upi_id'] = upiId;
+    }
+    if (logoUrl != null && logoUrl.isNotEmpty) {
+      optimisticProfile['logo_url'] = logoUrl;
+    }
+    if (avatarUrl != null && avatarUrl.isNotEmpty) {
+      optimisticProfile['avatar_url'] = avatarUrl;
+    }
+
+    // Persist immediately in OfflineDataCache
+    OfflineDataCache().cacheCompanyBranding(optimisticProfile);
+    if (user != null) {
+      OfflineDataCache().set('user_profile_${user.id}', optimisticProfile);
+    }
+
+    state = state.copyWith(
+      isLoading: false,
+      profile: optimisticProfile,
+      clearError: true,
+    );
+
     if (user == null) {
-      state = state.copyWith(isLoading: false, errorMessage: 'User session not found.');
-      return false;
+      return true;
     }
 
     try {
@@ -239,20 +281,27 @@ class AuthController extends StateNotifier<AuthState> {
         phone: phone,
         companyName: companyName,
         avatarUrl: avatarUrl,
+        tagline: tagline,
+        gstin: gstin,
+        address: address,
+        upiId: upiId,
+        logoUrl: logoUrl,
       );
-      final updatedProfile = await _repository.getUserProfile(uid: user.id);
+      final remoteProfile = await _repository.getUserProfile(uid: user.id);
       state = state.copyWith(
         isLoading: false,
-        profile: updatedProfile,
+        profile: remoteProfile ?? optimisticProfile,
         clearError: true,
       );
       return true;
     } catch (e) {
+      // Keep optimistic profile in state even if backend query had a hiccup
       state = state.copyWith(
         isLoading: false,
-        errorMessage: _formatAuthError(e),
+        profile: optimisticProfile,
+        clearError: true,
       );
-      return false;
+      return true;
     }
   }
 

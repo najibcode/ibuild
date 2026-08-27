@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ibuild/core/offline/offline_data_cache.dart';
 import '../../domain/repositories/dashboard_repository.dart';
 import '../models/dashboard_stats_model.dart';
 
@@ -10,19 +12,22 @@ class SupabaseDashboardRepository implements DashboardRepository {
   @override
   Future<DashboardStats> getDashboardStats() async {
     try {
-      // Run all queries concurrently for maximum speed.
+      // Run all queries concurrently with individual safe fallbacks
       final results = await Future.wait([
-        _fetchProjects(),           // 0
-        _fetchAttendance(),         // 1
-        _fetchEmployees(),          // 2
-        _fetchExpenses(),           // 3
-        _fetchBills(),              // 4
-        _fetchInventoryData(),      // 5
-        _fetchWeeklyProgress(),     // 6
-        _fetchRecentActivity(),     // 7
-        _fetchLatestProject(),      // 8
-        _fetchTotalSpentAllTime(),  // 9
-        _fetchMonthlyTrends(),      // 10
+        _fetchProjects().catchError((e) {
+          debugPrint('Dashboard _fetchProjects error: $e');
+          return _fallbackProjects();
+        }), // 0
+        _fetchAttendance().catchError((e) => _AttendanceData(present: 0)), // 1
+        _fetchEmployees().catchError((e) => _fallbackEmployeeCount()), // 2
+        _fetchExpenses().catchError((e) => 0.0), // 3
+        _fetchBills().catchError((e) => 0.0), // 4
+        _fetchInventoryData().catchError((e) => _InventoryData(lowStockCount: 0, alerts: [])), // 5
+        _fetchWeeklyProgress().catchError((e) => [0, 0, 0, 0, 0, 0, 0]), // 6
+        _fetchRecentActivity().catchError((e) => <RecentActivity>[]), // 7
+        _fetchLatestProject().catchError((e) => null), // 8
+        _fetchTotalSpentAllTime().catchError((e) => 0.0), // 9
+        _fetchMonthlyTrends().catchError((e) => <MonthlyProgressTrendPoint>[]), // 10
       ]);
 
       final projectData = results[0] as _ProjectData;
@@ -39,7 +44,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
 
       final effectiveTotalSpent = totalSpentAllTime > 0
           ? totalSpentAllTime
-          : projectData.totalSpent;
+          : (expenseTotal > 0 ? expenseTotal : projectData.totalSpent);
 
       // Build Attention Alerts
       final List<AttentionAlert> attentionAlerts = [];
@@ -99,20 +104,6 @@ class SupabaseDashboardRepository implements DashboardRepository {
         }
       }
 
-      if (inventoryData.lowStockCount > 0) {
-        attentionAlerts.add(
-          AttentionAlert(
-            projectId: '',
-            projectName: 'Supply Chain',
-            title: 'Inventory Threshold Warning',
-            message:
-                '${inventoryData.lowStockCount} critical material(s) below minimum stock level.',
-            severity: 'warning',
-            alertType: 'inventory',
-          ),
-        );
-      }
-
       return DashboardStats(
         totalProjects: projectData.total,
         activeProjects: projectData.active,
@@ -124,28 +115,78 @@ class SupabaseDashboardRepository implements DashboardRepository {
         totalSpent: effectiveTotalSpent,
         employeesPresent: attendanceData.present,
         totalEmployees: employeeCount,
-        monthlyExpense: expenseTotal,
+        monthlyExpense: expenseTotal > 0 ? expenseTotal : effectiveTotalSpent,
         pendingBills: pendingBillsTotal,
         lowStockItems: inventoryData.lowStockCount,
         weeklyProgressCounts: weeklyCounts,
         recentActivities: recentActivities,
-        latestProject: latestProject,
+        latestProject: latestProject ??
+            (projectData.portfolioProjects.isNotEmpty
+                ? QuickAccessProject(
+                    id: projectData.portfolioProjects.first.id,
+                    name: projectData.portfolioProjects.first.name,
+                    status: projectData.portfolioProjects.first.status,
+                    budget: projectData.portfolioProjects.first.budget,
+                    spent: projectData.portfolioProjects.first.spent,
+                  )
+                : null),
         inventoryAlerts: inventoryData.alerts,
         portfolioProjects: projectData.portfolioProjects,
         progressTrends: monthlyTrends,
         attentionAlerts: attentionAlerts,
       );
     } catch (e) {
-      return DashboardStats.empty();
+      debugPrint('Dashboard stats top-level error: $e');
+      final fallbackProj = _fallbackProjects();
+      return DashboardStats(
+        totalProjects: fallbackProj.total,
+        activeProjects: fallbackProj.active,
+        completedProjects: fallbackProj.completed,
+        delayedProjects: fallbackProj.delayed,
+        planningProjects: fallbackProj.planning,
+        atRiskCount: fallbackProj.atRiskCount,
+        totalBudget: fallbackProj.totalBudget,
+        totalSpent: fallbackProj.totalSpent,
+        employeesPresent: 0,
+        totalEmployees: _fallbackEmployeeCount(),
+        monthlyExpense: fallbackProj.totalSpent,
+        pendingBills: 0.0,
+        lowStockItems: 0,
+        weeklyProgressCounts: const [0, 0, 0, 0, 0, 0, 0],
+        recentActivities: const [],
+        latestProject: null,
+        inventoryAlerts: const [],
+        portfolioProjects: fallbackProj.portfolioProjects,
+        progressTrends: const [],
+        attentionAlerts: const [],
+      );
     }
   }
 
   // ── Projects ──────────────────────────────────────────────────────────────
 
   Future<_ProjectData> _fetchProjects() async {
-    final rows = await _client
-        .from('projects')
-        .select('id, name, status, budget, spent, is_archived');
+    final cache = OfflineDataCache();
+    final cached = cache.getCachedProjects() ?? [];
+    List<Map<String, dynamic>> rows = List<Map<String, dynamic>>.from(cached);
+
+    try {
+      final remoteRows = await _client
+          .from('projects')
+          .select('id, name, status, budget, spent, is_archived');
+      if (remoteRows is List && remoteRows.isNotEmpty) {
+        final Map<String, Map<String, dynamic>> map = {for (var r in rows) r['id']?.toString() ?? '': r};
+        for (var r in remoteRows) {
+          if (r is Map) {
+            map[r['id']?.toString() ?? ''] = Map<String, dynamic>.from(r);
+          }
+        }
+        rows = map.values.toList();
+        cache.cacheProjects(rows);
+      }
+    } catch (e) {
+      debugPrint('Supabase projects query note: $e');
+    }
 
     // Fetch latest daily progress entries to compute physical progress %
     final Map<String, ({double pct, DateTime date})> latestProgressByProject = {};
@@ -175,9 +216,9 @@ class SupabaseDashboardRepository implements DashboardRepository {
       if (isArchived) continue;
 
       total++;
-      final id = p['id'] as String;
-      final name = p['name'] as String? ?? 'Untitled Project';
-      final status = (p['status'] as String? ?? 'planning').toLowerCase().trim();
+      final id = p['id']?.toString() ?? '';
+      final name = p['name'] as String? ?? 'Site Project';
+      final status = (p['status'] as String? ?? 'active').toLowerCase().trim();
       final budget = (p['budget'] as num? ?? 0).toDouble();
       final spent = (p['spent'] as num? ?? 0).toDouble();
 
@@ -195,7 +236,6 @@ class SupabaseDashboardRepository implements DashboardRepository {
       if (status == 'completed') {
         physicalProgress = 100.0;
       } else if (latestPr == null && status == 'active') {
-        // Fall back to budget utilization if no progress log exists
         physicalProgress = budget > 0 ? (spent / budget * 100).clamp(0.0, 100.0) : 0.0;
       }
 
@@ -216,7 +256,6 @@ class SupabaseDashboardRepository implements DashboardRepository {
       }
     }
 
-    // Sort projects: At Risk/Delayed first → lowest physical progress → remaining
     portfolioProjects.sort((a, b) {
       if (a.isAtRisk != b.isAtRisk) {
         return a.isAtRisk ? -1 : 1;
@@ -237,48 +276,114 @@ class SupabaseDashboardRepository implements DashboardRepository {
     );
   }
 
+  _ProjectData _fallbackProjects() {
+    final cached = OfflineDataCache().getCachedProjects() ?? [];
+    int total = 0, active = 0, completed = 0, delayed = 0, planning = 0, atRiskCount = 0;
+    double totalBudget = 0.0, totalSpent = 0.0;
+    final List<PortfolioProjectItem> portfolioProjects = [];
+
+    for (final p in cached) {
+      if (p['is_archived'] == true) continue;
+      total++;
+      final id = p['id']?.toString() ?? '';
+      final name = p['name'] as String? ?? 'Site Project';
+      final status = (p['status'] as String? ?? 'active').toLowerCase().trim();
+      final budget = (p['budget'] as num? ?? 0).toDouble();
+      final spent = (p['spent'] as num? ?? 0).toDouble();
+
+      if (status == 'active') active++;
+      if (status == 'completed') completed++;
+      if (status == 'delayed') delayed++;
+      if (status == 'planning') planning++;
+
+      totalBudget += budget;
+      totalSpent += spent;
+
+      portfolioProjects.add(PortfolioProjectItem(
+        id: id,
+        name: name,
+        status: status,
+        budget: budget,
+        spent: spent,
+        physicalProgress: budget > 0 ? (spent / budget * 100).clamp(0.0, 100.0) : 0.0,
+      ));
+    }
+
+    return _ProjectData(
+      total: total,
+      active: active,
+      completed: completed,
+      delayed: delayed,
+      planning: planning,
+      atRiskCount: atRiskCount,
+      totalBudget: totalBudget,
+      totalSpent: totalSpent,
+      portfolioProjects: portfolioProjects,
+    );
+  }
+
   // ── Attendance (today) ────────────────────────────────────────────────────
 
   Future<_AttendanceData> _fetchAttendance() async {
     final todayStr = DateTime.now().toIso8601String().substring(0, 10);
-    final rows = await _client
-        .from('attendance')
-        .select('morning_status')
-        .eq('date', todayStr);
+    try {
+      final rows = await _client
+          .from('attendance')
+          .select('morning_status')
+          .eq('date', todayStr);
 
-    int present = 0;
-    for (final a in rows) {
-      if (a['morning_status'] == 'present') present++;
+      int present = 0;
+      for (final a in rows) {
+        if (a['morning_status'] == 'present') present++;
+      }
+
+      return _AttendanceData(present: present);
+    } catch (_) {
+      final cached = OfflineDataCache().getCachedAttendanceForDate(todayStr);
+      if (cached != null) {
+        int present = cached.where((a) => a['morning_status'] == 'present').length;
+        return _AttendanceData(present: present);
+      }
+      return _AttendanceData(present: 0);
     }
-
-    return _AttendanceData(present: present);
   }
 
   // ── Employees count ───────────────────────────────────────────────────────
 
   Future<int> _fetchEmployees() async {
-    final rows = await _client
-        .from('employees')
-        .select('id')
-        .eq('status', 'active');
-    return rows.length;
+    try {
+      final rows = await _client.from('employees').select('id');
+      if (rows is List && rows.isNotEmpty) {
+        return rows.length;
+      }
+    } catch (_) {}
+    return _fallbackEmployeeCount();
+  }
+
+  int _fallbackEmployeeCount() {
+    final cached = OfflineDataCache().getCachedEmployees();
+    return cached?.length ?? 0;
   }
 
   // ── Expenses ──────────────────────────────────────────────────────────────
 
   Future<double> _fetchExpenses() async {
-    final now = DateTime.now();
-    final monthStart = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
-    final rows = await _client
-        .from('expenses')
-        .select('amount')
-        .gte('expense_date', monthStart);
+    try {
+      final now = DateTime.now();
+      final monthStart = '${now.year}-${now.month.toString().padLeft(2, '0')}-01';
+      final rows = await _client
+          .from('expenses')
+          .select('amount')
+          .gte('expense_date', monthStart);
 
-    double total = 0.0;
-    for (final e in rows) {
-      total += (e['amount'] as num? ?? 0).toDouble();
+      double total = 0.0;
+      for (final e in rows) {
+        total += (e['amount'] as num? ?? 0).toDouble();
+      }
+      return total;
+    } catch (_) {
+      return 0.0;
     }
-    return total;
   }
 
   Future<double> _fetchTotalSpentAllTime() async {
@@ -297,16 +402,20 @@ class SupabaseDashboardRepository implements DashboardRepository {
   // ── Pending bills ─────────────────────────────────────────────────────────
 
   Future<double> _fetchBills() async {
-    final rows = await _client
-        .from('bills')
-        .select('amount')
-        .eq('status', 'pending');
+    try {
+      final rows = await _client
+          .from('bills')
+          .select('amount')
+          .eq('status', 'pending');
 
-    double total = 0.0;
-    for (final b in rows) {
-      total += (b['amount'] as num? ?? 0).toDouble();
+      double total = 0.0;
+      for (final b in rows) {
+        total += (b['amount'] as num? ?? 0).toDouble();
+      }
+      return total;
+    } catch (_) {
+      return 0.0;
     }
-    return total;
   }
 
   // ── Inventory Data ────────────────────────────────────────────────────────
@@ -337,36 +446,57 @@ class SupabaseDashboardRepository implements DashboardRepository {
         alerts: alerts,
       );
     } catch (_) {
-      return _InventoryData(lowStockCount: 0, alerts: []);
+      final cached = OfflineDataCache().getCachedInventory() ?? [];
+      final List<DashboardInventoryAlert> alerts = [];
+      for (final r in cached) {
+        final current = (r['current_quantity'] as num? ?? 0).toDouble();
+        final minQty = (r['minimum_threshold'] as num? ?? 0).toDouble();
+        if (current <= minQty && minQty > 0) {
+          alerts.add(
+            DashboardInventoryAlert(
+              id: r['id']?.toString() ?? '',
+              itemName: r['item_name'] as String? ?? 'Item',
+              currentQuantity: current,
+              minQuantity: minQty,
+              unit: r['unit'] as String? ?? 'units',
+            ),
+          );
+        }
+      }
+      return _InventoryData(lowStockCount: alerts.length, alerts: alerts);
     }
   }
 
   // ── Weekly progress (last 7 days) ─────────────────────────────────────────
 
   Future<List<int>> _fetchWeeklyProgress() async {
-    final now = DateTime.now();
-    final weekAgo = now.subtract(const Duration(days: 6));
-    final weekAgoStr = weekAgo.toIso8601String().substring(0, 10);
+    try {
+      final now = DateTime.now();
+      final weekAgo = now.subtract(const Duration(days: 6));
+      final weekAgoStr = weekAgo.toIso8601String().substring(0, 10);
 
-    final rows = await _client
-        .from('daily_progress')
-        .select('date')
-        .gte('date', weekAgoStr)
-        .order('date', ascending: true);
+      final rows = await _client
+          .from('daily_progress')
+          .select('date')
+          .gte('date', weekAgoStr)
+          .order('date', ascending: true);
 
-    final Map<String, int> countsByDate = {};
-    for (final r in rows) {
-      final d = r['date'] as String;
-      countsByDate[d] = (countsByDate[d] ?? 0) + 1;
+      final Map<String, int> countsByDate = {};
+      for (final r in rows) {
+        final d = r['date'] as String;
+        countsByDate[d] = (countsByDate[d] ?? 0) + 1;
+      }
+
+      final List<int> result = [];
+      for (int i = 0; i < 7; i++) {
+        final day = weekAgo.add(Duration(days: i));
+        final dayStr = day.toIso8601String().substring(0, 10);
+        result.add(countsByDate[dayStr] ?? 0);
+      }
+      return result;
+    } catch (_) {
+      return [0, 0, 0, 0, 0, 0, 0];
     }
-
-    final List<int> result = [];
-    for (int i = 0; i < 7; i++) {
-      final day = weekAgo.add(Duration(days: i));
-      final dayStr = day.toIso8601String().substring(0, 10);
-      result.add(countsByDate[dayStr] ?? 0);
-    }
-    return result;
   }
 
   // ── Monthly Progress Trends (Last 6 Months) ───────────────────────────────
@@ -503,6 +633,17 @@ class SupabaseDashboardRepository implements DashboardRepository {
         spent: (p['spent'] as num? ?? 0).toDouble(),
       );
     } catch (_) {
+      final cached = OfflineDataCache().getCachedProjects() ?? [];
+      if (cached.isNotEmpty) {
+        final p = cached.first;
+        return QuickAccessProject(
+          id: p['id']?.toString() ?? '',
+          name: p['name'] as String? ?? 'Site Project',
+          status: p['status'] as String? ?? 'active',
+          budget: (p['budget'] as num? ?? 0).toDouble(),
+          spent: (p['spent'] as num? ?? 0).toDouble(),
+        );
+      }
       return null;
     }
   }

@@ -7,6 +7,7 @@ import '../../../../core/theme/theme_provider.dart';
 import '../../../../core/widgets/logout_dialog.dart';
 import '../../../../features/auth/presentation/controllers/auth_controller.dart';
 import '../../../../features/rbac/presentation/providers/permission_provider.dart';
+import 'package:ibuild/core/offline/offline_data_cache.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 import 'package:ibuild/features/admin/presentation/widgets/admin_overview_tab.dart';
 import 'package:ibuild/features/admin/presentation/widgets/admin_user_management_tab.dart';
@@ -204,8 +205,24 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
   Widget _buildSettingsSections(BuildContext context, {required bool showRoleSimulator}) {
     final authState = ref.watch(authControllerProvider);
     final profile = authState.profile;
-    final companyName = profile?['company_name'] as String? ?? 'IBUILD User';
-    final gstin = profile?['gstin'] as String? ?? 'Not provided';
+    final cachedBranding = OfflineDataCache().getCachedCompanyBranding();
+
+    final companyName = profile?['company_name'] as String? ??
+        cachedBranding?['company_name'] as String? ??
+        'IBUILD Construction Corp';
+    final gstin = profile?['gstin'] as String? ??
+        cachedBranding?['gstin'] as String? ??
+        '27AAAAA0000A1Z5';
+    final tagline = profile?['tagline'] as String? ??
+        cachedBranding?['tagline'] as String? ??
+        'Premier Construction & Civil Engineering';
+    final address = profile?['address'] as String? ??
+        cachedBranding?['address'] as String? ??
+        'Bengaluru, Karnataka, India';
+    final upiId = profile?['upi_id'] as String? ??
+        cachedBranding?['upi_id'] as String? ??
+        'ibuild@icici';
+
     final userEmail = authState.user?.email ?? 'Unknown';
     final roleName = ref.watch(currentRoleProvider);
 
@@ -289,9 +306,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                 ref,
                 currentName: companyName,
                 currentGstin: gstin,
-                currentTagline: profile?['tagline'] as String? ?? 'Premier Construction & Civil Engineering',
-                currentAddress: profile?['address'] as String? ?? 'Bengaluru, Karnataka, India',
-                currentUpi: profile?['upi_id'] as String? ?? 'ibuild@icici',
+                currentTagline: tagline,
+                currentAddress: address,
+                currentUpi: upiId,
               ),
               icon: const Icon(Icons.edit_note, size: 16),
               label: const Text('Edit Branding', style: TextStyle(fontSize: 12)),
@@ -323,6 +340,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
               ),
               Divider(height: 1, color: borderCol, indent: 52),
               ListTile(
+                leading: const Icon(Icons.short_text, color: Color(0xFF0284C7)),
+                title: Text(
+                  'Tagline / Slogan',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: AppColors.text(context),
+                  ),
+                ),
+                subtitle: Text(tagline, style: TextStyle(color: mutedText)),
+              ),
+              Divider(height: 1, color: borderCol, indent: 52),
+              ListTile(
                 leading: const Icon(
                   Icons.receipt_long_outlined,
                   color: AppColors.secondary,
@@ -350,7 +379,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   ),
                 ),
                 subtitle: Text(
-                  profile?['address'] as String? ?? 'Bengaluru, Karnataka, India',
+                  address,
                   style: TextStyle(color: mutedText),
                 ),
               ),
@@ -368,7 +397,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                   ),
                 ),
                 subtitle: Text(
-                  profile?['upi_id'] as String? ?? 'ibuild@icici',
+                  upiId,
                   style: TextStyle(color: mutedText),
                 ),
               ),
@@ -842,21 +871,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
           ElevatedButton.icon(
             onPressed: () async {
               final newName = nameCtrl.text.trim().isEmpty ? 'IBUILD Construction Corp' : nameCtrl.text.trim();
-              final newPhone = ref.read(authControllerProvider).profile?['phone'] as String? ?? '';
-              final fullName = ref.read(authControllerProvider).profile?['full_name'] as String? ?? 'Admin';
+              final newTagline = taglineCtrl.text.trim().isEmpty ? 'Premier Construction & Civil Engineering' : taglineCtrl.text.trim();
+              final newGstin = gstinCtrl.text.trim().isEmpty ? '27AAAAA0000A1Z5' : gstinCtrl.text.trim();
+              final newAddress = addressCtrl.text.trim().isEmpty ? 'Bengaluru, Karnataka, India' : addressCtrl.text.trim();
+              final newUpi = upiCtrl.text.trim().isEmpty ? 'ibuild@icici' : upiCtrl.text.trim();
+
+              final currentProfile = ref.read(authControllerProvider).profile ?? {};
+              final newPhone = currentProfile['phone'] as String? ?? '';
+              final fullName = currentProfile['full_name'] as String? ?? 'Admin';
+              final avatarUrl = currentProfile['avatar_url'] as String?;
 
               await ref.read(authControllerProvider.notifier).updateUserProfile(
                 fullName: fullName,
                 phone: newPhone,
                 companyName: newName,
+                tagline: newTagline,
+                gstin: newGstin,
+                address: newAddress,
+                upiId: newUpi,
+                avatarUrl: avatarUrl,
               );
 
               if (context.mounted) {
                 Navigator.of(dialogCtx).pop();
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
-                    content: Text('Company Branding & Letterhead updated across all ERP invoices!'),
-                    backgroundColor: AppColors.secondary,
+                    content: Text('Company Branding & Letterhead saved successfully across all invoices and reports!'),
+                    backgroundColor: Color(0xFF10B981),
                   ),
                 );
               }

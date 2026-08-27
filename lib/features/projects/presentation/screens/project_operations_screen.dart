@@ -180,7 +180,7 @@ class _ProjectOperationsScreenState
     5: 'Checklist Inspection',
     6: 'Drawings, Plans & Mapping',
     7: 'Sales Bills & Client Invoices',
-    8: 'Daily Progress & Site Updates',
+    8: 'Site Snaps & Work Evidence',
     9: 'About Site Specifications',
     10: 'Full Site Reports & Export',
   };

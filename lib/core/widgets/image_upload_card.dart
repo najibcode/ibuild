@@ -176,7 +176,9 @@ class _ImageUploadCardState extends State<ImageUploadCard> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        'Uploading to ImageKit... ${(widget.uploadProgress * 100).toInt()}%',
+                        widget.uploadProgress > 0
+                            ? 'Uploading... ${(widget.uploadProgress * 100).toInt()}%'
+                            : 'Uploading...',
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,

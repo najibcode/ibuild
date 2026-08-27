@@ -63,6 +63,7 @@ class AppImage {
 /// Enumeration of all system ImageKit folder paths
 enum ImageFolder {
   employeesProfile('employees/profile'),
+  userProfile('users/profile'),
   projectsSiteProgress('projects/site-progress'),
   projectsDocuments('projects/documents'),
   projectsBefore('projects/before'),

@@ -533,7 +533,7 @@ class _DashboardBody extends StatelessWidget {
                 const SizedBox(width: 8),
                 _quickActionButton(
                   context,
-                  label: '+ Daily Progress',
+                  label: '+ Site Snaps & Evidence',
                   icon: Icons.camera_alt_outlined,
                   color: AppColors.secondary,
                   onTap: () => Navigator.of(context).push(

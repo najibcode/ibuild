@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/offline/offline_data_cache.dart';
+import '../../../../core/offline/offline_sync_service.dart';
+import '../../../../core/supabase/supabase_client.provider.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/navigation/mobile_nav_helper.dart';
 import '../../../../core/widgets/data_export_actions.dart';
@@ -41,6 +44,42 @@ class SnagItem {
     required this.createdAt,
     this.resolvedAt,
   });
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'title': title,
+      'description': description,
+      'location': location,
+      'trade_category': tradeCategory,
+      'severity': severity,
+      'status': status,
+      'assigned_subcontractor': assignedSubcontractor,
+      'project_id': projectId,
+      'project_name': projectName,
+      'rectification_notes': rectificationNotes,
+      'created_at': createdAt.toIso8601String(),
+      'resolved_at': resolvedAt?.toIso8601String(),
+    };
+  }
+
+  factory SnagItem.fromMap(Map<String, dynamic> map) {
+    return SnagItem(
+      id: map['id']?.toString() ?? 'SNAG-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
+      title: map['title']?.toString() ?? map['name']?.toString() ?? 'Site Inspection Item',
+      description: map['description']?.toString() ?? 'Inspection defect flagged on site.',
+      location: map['location']?.toString() ?? 'Site Ground',
+      tradeCategory: map['trade_category']?.toString() ?? map['category']?.toString() ?? 'General Construction',
+      severity: map['severity']?.toString() ?? 'Medium',
+      status: map['status']?.toString() ?? 'Open',
+      assignedSubcontractor: map['assigned_subcontractor']?.toString() ?? map['contractor']?.toString(),
+      projectId: map['project_id']?.toString(),
+      projectName: map['project_name']?.toString(),
+      rectificationNotes: map['rectification_notes']?.toString(),
+      createdAt: map['created_at'] != null ? DateTime.tryParse(map['created_at'].toString()) ?? DateTime.now() : DateTime.now(),
+      resolvedAt: map['resolved_at'] != null ? DateTime.tryParse(map['resolved_at'].toString()) : null,
+    );
+  }
 
   SnagItem copyWith({
     String? id,
@@ -92,60 +131,110 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
   String _filterSeverity = 'All'; // All, Critical, High, Medium, Low
   String? _filterProject;
   String _searchQuery = '';
+  List<SnagItem> _snags = [];
+  bool _isLoading = true;
 
-  final List<SnagItem> _snags = [
-    SnagItem(
-      id: 'SNAG-101',
-      title: 'Plaster Crack & Uneven Wall Surface',
-      description: 'Hairline cracks visible on east wall. Needs re-grouting and putty touch-up before primer coat.',
-      location: 'Block A - Flat 302 (Living Room)',
-      tradeCategory: 'Plastering & Masonry',
-      severity: 'High',
-      status: 'Open',
-      assignedSubcontractor: 'Granite Giriraj',
-      projectName: 'TigerFalls Resort',
-      createdAt: DateTime.now().subtract(const Duration(days: 2)),
-    ),
-    SnagItem(
-      id: 'SNAG-102',
-      title: 'Exposed Rebar on Column Base',
-      description: 'Cover block slipped during concreting. Rebar exposed at base. Needs epoxy bonding and micro-concrete patching.',
-      location: 'Podium 1 - Pillar C-14',
-      tradeCategory: 'RCC & Structure',
-      severity: 'Critical',
-      status: 'In Progress',
-      assignedSubcontractor: 'Apex Structural Contractors',
-      projectName: 'TigerFalls Resort',
-      rectificationNotes: 'Shuttering removed; epoxy coat applied, awaiting inspection.',
-      createdAt: DateTime.now().subtract(const Duration(days: 3)),
-    ),
-    SnagItem(
-      id: 'SNAG-103',
-      title: 'Plumbing Waste Trap Misalignment',
-      description: 'Waste pipe slope inadequate. Causes slow drainage in master bath floor trap.',
-      location: 'Villa 12 - Master Bathroom',
-      tradeCategory: 'Plumbing & Drainage',
-      severity: 'Medium',
-      status: 'Open',
-      assignedSubcontractor: 'AquaFlow Services',
-      projectName: 'Lakeview Luxury Villa',
-      createdAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-    SnagItem(
-      id: 'SNAG-104',
-      title: 'Safety Helmet & Harness Non-Compliance',
-      description: 'Workers on 4th floor scaffolding without double-lanyard safety harness.',
-      location: 'Tower B - 4th Floor Slab',
-      tradeCategory: 'Safety Compliance',
-      severity: 'Critical',
-      status: 'Resolved',
-      assignedSubcontractor: 'Granite Giriraj',
-      projectName: 'TigerFalls Resort',
-      rectificationNotes: 'Work halted; full PPE kits issued & safety briefing conducted.',
-      createdAt: DateTime.now().subtract(const Duration(days: 5)),
-      resolvedAt: DateTime.now().subtract(const Duration(days: 1)),
-    ),
-  ];
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadSnags();
+    });
+  }
+
+  Future<void> _loadSnags() async {
+    final cache = OfflineDataCache();
+    final cached = cache.getCachedSnags();
+
+    if (cached != null && cached.isNotEmpty) {
+      if (mounted) {
+        setState(() {
+          _snags = cached.map((m) => SnagItem.fromMap(m)).toList();
+          _isLoading = false;
+        });
+      }
+    }
+
+    // Try fetching real snags from Supabase
+    try {
+      final client = ref.read(supabaseClientProvider);
+      final response = await client.from('snags').select().order('created_at', ascending: false);
+      if ((response as List).isNotEmpty) {
+        final loaded = response.map((m) => SnagItem.fromMap(Map<String, dynamic>.from(m))).toList();
+        cache.cacheSnags(loaded.map((s) => s.toMap()).toList());
+        if (mounted) {
+          setState(() {
+            _snags = loaded;
+            _isLoading = false;
+          });
+        }
+        return;
+      }
+    } catch (_) {
+      // Offline fallback
+    }
+
+    if (mounted) {
+      setState(() => _isLoading = false);
+    }
+  }
+
+  void _persistSnagsToCacheAndSync() {
+    OfflineDataCache().cacheSnags(_snags.map((s) => s.toMap()).toList());
+  }
+
+  Future<void> _saveSnag(SnagItem newSnag) async {
+    setState(() {
+      _snags.insert(0, newSnag);
+    });
+    _persistSnagsToCacheAndSync();
+
+    // Enqueue to offline sync engine
+    OfflineSyncService.instance.enqueueAction(
+      type: SyncActionType.snagCreate,
+      payload: newSnag.toMap(),
+    );
+
+    // Direct Supabase insert attempt if online
+    try {
+      final client = ref.read(supabaseClientProvider);
+      await client.from('snags').insert(newSnag.toMap());
+    } catch (_) {}
+  }
+
+  Future<void> _updateSnag(SnagItem updatedSnag) async {
+    setState(() {
+      final index = _snags.indexWhere((s) => s.id == updatedSnag.id);
+      if (index != -1) {
+        _snags[index] = updatedSnag;
+      }
+    });
+    _persistSnagsToCacheAndSync();
+
+    // Enqueue to offline sync engine
+    OfflineSyncService.instance.enqueueAction(
+      type: SyncActionType.snagUpdate,
+      payload: updatedSnag.toMap(),
+    );
+
+    // Direct Supabase update attempt if online
+    try {
+      final client = ref.read(supabaseClientProvider);
+      await client.from('snags').update(updatedSnag.toMap()).eq('id', updatedSnag.id);
+    } catch (_) {}
+  }
+
+  Future<void> _deleteSnag(String snagId) async {
+    setState(() {
+      _snags.removeWhere((s) => s.id == snagId);
+    });
+    _persistSnagsToCacheAndSync();
+
+    try {
+      final client = ref.read(supabaseClientProvider);
+      await client.from('snags').delete().eq('id', snagId);
+    } catch (_) {}
+  }
 
   void _shareSnagWhatsApp(SnagItem snag) {
     final dateStr = snag.createdAt.toIso8601String().split('T').first;
@@ -349,16 +438,12 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
   }
 
   void _updateSnagStatus(SnagItem snag, String newStatus, [String? notes]) {
-    setState(() {
-      final index = _snags.indexWhere((s) => s.id == snag.id);
-      if (index != -1) {
-        _snags[index] = snag.copyWith(
-          status: newStatus,
-          rectificationNotes: notes ?? snag.rectificationNotes,
-          resolvedAt: (newStatus == 'Resolved' || newStatus == 'Closed') ? DateTime.now() : null,
-        );
-      }
-    });
+    final updated = snag.copyWith(
+      status: newStatus,
+      rectificationNotes: notes ?? snag.rectificationNotes,
+      resolvedAt: (newStatus == 'Resolved' || newStatus == 'Closed') ? DateTime.now() : null,
+    );
+    _updateSnag(updated);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -583,7 +668,7 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
                 if (titleCtrl.text.trim().isEmpty) return;
 
                 final newSnag = SnagItem(
-                  id: 'SNAG-${DateTime.now().millisecondsSinceEpoch.toString().substring(8)}',
+                  id: 'SNAG-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}',
                   title: titleCtrl.text.trim(),
                   description: descCtrl.text.trim().isEmpty ? 'Inspection defect flagged on site.' : descCtrl.text.trim(),
                   location: locCtrl.text.trim().isEmpty ? 'General Site Area' : locCtrl.text.trim(),
@@ -595,9 +680,7 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
                   createdAt: DateTime.now(),
                 );
 
-                setState(() {
-                  _snags.insert(0, newSnag);
-                });
+                _saveSnag(newSnag);
 
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -795,9 +878,7 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
                         onPressed: () {
                           Navigator.pop(confirmCtx);
                           Navigator.pop(ctx);
-                          setState(() {
-                            _snags.removeWhere((s) => s.id == snag.id);
-                          });
+                          _deleteSnag(snag.id);
                         },
                         style: ElevatedButton.styleFrom(backgroundColor: AppColors.error, foregroundColor: Colors.white),
                         child: const Text('Delete'),
@@ -816,23 +897,19 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
             ),
             ElevatedButton(
               onPressed: () {
-                setState(() {
-                  final index = _snags.indexWhere((s) => s.id == snag.id);
-                  if (index != -1) {
-                    _snags[index] = snag.copyWith(
-                      title: titleCtrl.text.trim(),
-                      description: descCtrl.text.trim(),
-                      location: locCtrl.text.trim(),
-                      severity: severity,
-                      status: status,
-                      tradeCategory: category,
-                      projectName: selectedProject,
-                      assignedSubcontractor: selectedSubcontractor,
-                      rectificationNotes: notesCtrl.text.trim(),
-                      resolvedAt: (status == 'Resolved' || status == 'Closed') ? DateTime.now() : null,
-                    );
-                  }
-                });
+                final updated = snag.copyWith(
+                  title: titleCtrl.text.trim(),
+                  description: descCtrl.text.trim(),
+                  location: locCtrl.text.trim(),
+                  severity: severity,
+                  status: status,
+                  tradeCategory: category,
+                  projectName: selectedProject,
+                  assignedSubcontractor: selectedSubcontractor,
+                  rectificationNotes: notesCtrl.text.trim(),
+                  resolvedAt: (status == 'Resolved' || status == 'Closed') ? DateTime.now() : null,
+                );
+                _updateSnag(updated);
                 Navigator.pop(ctx);
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Snag ticket updated ✓'), backgroundColor: AppColors.secondary),
@@ -1099,15 +1176,23 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(color: AppColors.border(context)),
                   ),
-                  child: DropdownButton<String>(
-                    value: _filterProject ?? 'All Sites',
-                    underline: const SizedBox(),
-                    icon: const Icon(Icons.filter_list, size: 18),
-                    items: [
-                      const DropdownMenuItem(value: 'All Sites', child: Text('All Sites', style: TextStyle(fontSize: 12))),
-                      ...projects.map((p) => DropdownMenuItem(value: p.name, child: Text(p.name, style: const TextStyle(fontSize: 12)))),
-                    ],
-                    onChanged: (v) => setState(() => _filterProject = v),
+                  child: Builder(
+                    builder: (context) {
+                      final projectOptions = ['All Sites', ...projects.map((p) => p.name)];
+                      final currentVal = projectOptions.contains(_filterProject) ? _filterProject : 'All Sites';
+                      return DropdownButton<String>(
+                        value: currentVal,
+                        underline: const SizedBox(),
+                        icon: const Icon(Icons.filter_list, size: 18),
+                        items: projectOptions
+                            .map((name) => DropdownMenuItem(
+                                  value: name,
+                                  child: Text(name, style: const TextStyle(fontSize: 12)),
+                                ))
+                            .toList(),
+                        onChanged: (v) => setState(() => _filterProject = v == 'All Sites' ? null : v),
+                      );
+                    },
                   ),
                 ),
               ],
@@ -1159,29 +1244,39 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
 
           // ── Snag Cards List ──
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.task_alt, size: 54, color: AppColors.mutedText(context).withValues(alpha: 0.5)),
-                        const SizedBox(height: 12),
-                        Text(
-                          'No site defects found for this filter.',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
-                        ),
-                        const SizedBox(height: 4),
-                        Text('Click "+ Log Snag / Defect" to register site inspections.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
-                      ],
-                    ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                    itemCount: filtered.length,
-                    itemBuilder: (ctx, i) {
-                      final snag = filtered[i];
-                      return _buildSnagCard(context, snag);
-                    },
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : RefreshIndicator(
+                    onRefresh: _loadSnags,
+                    child: filtered.isEmpty
+                        ? ListView(
+                            children: [
+                              SizedBox(height: MediaQuery.of(context).size.height * 0.15),
+                              Center(
+                                child: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Icon(Icons.task_alt, size: 54, color: AppColors.mutedText(context).withValues(alpha: 0.5)),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'No site defects found for this filter.',
+                                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text('Click "+ Log Snag / Defect" to register site inspections.', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                            itemCount: filtered.length,
+                            itemBuilder: (ctx, i) {
+                              final snag = filtered[i];
+                              return _buildSnagCard(context, snag);
+                            },
+                          ),
                   ),
           ),
         ],

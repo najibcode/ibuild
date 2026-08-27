@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../../../widgets/cached_image.dart';
+import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/data_export_actions.dart';
 import '../../../../core/services/excel_generator_service.dart';
@@ -13,6 +14,8 @@ import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../../../core/utils/whatsapp_helper.dart';
 import '../../data/models/daily_progress_model.dart';
 import '../controllers/daily_progress_controller.dart';
+import '../../../projects/presentation/controllers/project_dashboard_controller.dart';
+import '../../../projects/data/models/project_dashboard_model.dart';
 import 'daily_progress_form_screen.dart';
 
 class DailyProgressScreen extends ConsumerStatefulWidget {
@@ -88,10 +91,341 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
     ref.invalidate(dailyProgressListProvider(widget.projectId));
   }
 
+  Widget _buildProgressPieChartCard(
+    BuildContext context,
+    ProjectDashboardStats? stats,
+    List<DailyProgress> entries,
+  ) {
+    final double computedProgress = stats?.computedProgress ??
+        (entries.isNotEmpty ? entries.first.progressPercentage.toDouble() : 0.0);
+    final milestones = stats?.milestones ?? [];
+
+    // Build Pie Chart Sections
+    final List<PieChartSectionData> pieSections = [];
+
+    if (milestones.isNotEmpty) {
+      for (int i = 0; i < milestones.length; i++) {
+        final m = milestones[i];
+        final color = m.status == 'Completed'
+            ? AppColors.secondary
+            : (m.status == 'In Progress'
+                ? AppColors.primaryColor(context)
+                : AppColors.border(context));
+        final weight = m.pct > 0 ? m.pct : 0.2;
+
+        pieSections.add(
+          PieChartSectionData(
+            color: color,
+            value: weight,
+            title: '',
+            radius: 18,
+          ),
+        );
+      }
+    } else {
+      final double done = computedProgress.clamp(0.0, 100.0);
+      final double remaining = (100.0 - done).clamp(0.0, 100.0);
+
+      pieSections.add(
+        PieChartSectionData(
+          color: AppColors.secondary,
+          value: done > 0 ? done : 0.1,
+          title: '',
+          radius: 18,
+        ),
+      );
+      if (remaining > 0) {
+        pieSections.add(
+          PieChartSectionData(
+            color: AppColors.border(context),
+            value: remaining,
+            title: '',
+            radius: 18,
+          ),
+        );
+      }
+    }
+
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.cardBg(context),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.border(context)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Site Execution & Progress Breakdown',
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.text(context),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      'Dynamic Milestone & Quality Progress',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: AppColors.mutedText(context),
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Wrap(
+                spacing: 6,
+                children: [
+                  IconButton(
+                    onPressed: () => _shareDailySummary(context, entries),
+                    icon: const Icon(Icons.share_outlined, size: 20),
+                    color: AppColors.primaryColor(context),
+                    tooltip: 'Share Daily Progress Report',
+                  ),
+                  ElevatedButton.icon(
+                    onPressed: () => _openForm(context, null),
+                    icon: const Icon(Icons.add_a_photo, size: 16),
+                    label: const Text('Log Evidence'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 10,
+                        vertical: 6,
+                      ),
+                      textStyle: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+
+          // Donut / Pie Chart & Breakdown
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final isNarrow = constraints.maxWidth < 420;
+
+              final chartWidget = SizedBox(
+                height: 140,
+                width: 140,
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    PieChart(
+                      PieChartData(
+                        sectionsSpace: 2.5,
+                        centerSpaceRadius: 44,
+                        startDegreeOffset: -90,
+                        sections: pieSections,
+                      ),
+                    ),
+                    Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${computedProgress.toInt()}%',
+                          style: TextStyle(
+                            fontSize: 20,
+                            fontWeight: FontWeight.w900,
+                            color: AppColors.text(context),
+                            height: 1.0,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        const Text(
+                          'COMPLETE',
+                          style: TextStyle(
+                            fontSize: 8.5,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+
+              final milestoneListWidget = Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (milestones.isNotEmpty) ...[
+                    ...milestones.take(4).map((m) {
+                      final isDone = m.status == 'Completed';
+                      final isInProg = m.status == 'In Progress';
+                      final color = isDone
+                          ? AppColors.secondary
+                          : (isInProg
+                              ? AppColors.primaryColor(context)
+                              : AppColors.mutedText(context));
+
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 6.0),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 8,
+                              height: 8,
+                              decoration: BoxDecoration(
+                                color: color,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                m.name,
+                                style: TextStyle(
+                                  fontSize: 11.5,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.text(context),
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: color.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text(
+                                m.status,
+                                style: TextStyle(
+                                  fontSize: 9.5,
+                                  fontWeight: FontWeight.bold,
+                                  color: color,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    }),
+                  ] else ...[
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: const BoxDecoration(
+                            color: AppColors.secondary,
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Executed Site Progress: ${computedProgress.toInt()}%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    Row(
+                      children: [
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: AppColors.border(context),
+                            shape: BoxShape.circle,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'Remaining Handover Target: ${(100 - computedProgress).clamp(0, 100).toInt()}%',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText(context),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ],
+              );
+
+              if (isNarrow) {
+                return Column(
+                  children: [
+                    Center(child: chartWidget),
+                    const SizedBox(height: 16),
+                    milestoneListWidget,
+                  ],
+                );
+              }
+
+              return Row(
+                children: [
+                  chartWidget,
+                  const SizedBox(width: 16),
+                  Expanded(child: milestoneListWidget),
+                ],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          Text(
+            'Daily Site Progress History: ${entries.length} Record${entries.length == 1 ? '' : 's'} Logged',
+            style: TextStyle(
+              fontSize: 11,
+              color: AppColors.mutedText(context),
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final progressAsync = ref.watch(
       dailyProgressListProvider(widget.projectId),
+    );
+    final dashboardAsync = ref.watch(
+      projectDashboardProvider(widget.projectId),
     );
 
     final Widget bodyContent = progressAsync.when(
@@ -106,115 +440,12 @@ class _DailyProgressScreenState extends ConsumerState<DailyProgressScreen> {
           return dateMatch || notesMatch;
         }).toList();
 
-        final int totalEntries = entries.length;
-        final int latestPercentage = entries.isNotEmpty
-            ? entries.first.progressPercentage
-            : 0;
+        final stats = dashboardAsync.valueOrNull;
 
         return Column(
           children: [
-            // Summary Banner Card
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.all(16),
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: AppColors.cardBg(context),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border(context)),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.03),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              'Overall Site Completion',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.mutedText(context),
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '$latestPercentage%',
-                              style: TextStyle(
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                                color: AppColors.primaryColor(context),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      Flexible(
-                        child: Wrap(
-                          spacing: 6,
-                          runSpacing: 4,
-                          children: [
-                            IconButton(
-                              onPressed: () =>
-                                  _shareDailySummary(context, entries),
-                              icon: const Icon(Icons.share_outlined, size: 20),
-                              color: AppColors.primaryColor(context),
-                              tooltip: 'Share Daily Progress Report',
-                            ),
-                            ElevatedButton.icon(
-                              onPressed: () => _openForm(context, null),
-                              icon: const Icon(Icons.add_a_photo, size: 16),
-                              label: const Text('Log Progress'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.secondary,
-                                foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                                textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(4),
-                    child: LinearProgressIndicator(
-                      value: latestPercentage / 100,
-                      backgroundColor: AppColors.border(context),
-                      valueColor: const AlwaysStoppedAnimation(
-                        AppColors.secondary,
-                      ),
-                      minHeight: 8,
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Daily Site Progress History: $totalEntries Record${totalEntries == 1 ? '' : 's'} Logged',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: AppColors.mutedText(context),
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            // Interactive Pie / Donut Chart Progress Card
+            _buildProgressPieChartCard(context, stats, entries),
 
             // Search Bar
             if (entries.isNotEmpty)

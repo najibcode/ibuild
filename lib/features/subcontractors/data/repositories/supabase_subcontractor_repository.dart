@@ -9,6 +9,18 @@ class SupabaseSubcontractorRepository {
 
   /// Fetch subcontractors, optionally filtered by project ID
   Future<List<Subcontractor>> fetchSubcontractors({String? projectId}) async {
+    Map<String, String> projectNames = {};
+    try {
+      final pResp = await _client.from('projects').select('id, name');
+      for (final p in (pResp as List)) {
+        final pid = p['id']?.toString();
+        final pname = p['name']?.toString();
+        if (pid != null && pname != null) {
+          projectNames[pid] = pname;
+        }
+      }
+    } catch (_) {}
+
     try {
       var query = _client.from('subcontractors').select('*, projects(name)');
 
@@ -17,7 +29,14 @@ class SupabaseSubcontractorRepository {
       }
 
       final response = await query.order('name', ascending: true);
-      return (response as List).map((json) => Subcontractor.fromJson(Map<String, dynamic>.from(json))).toList();
+      return (response as List).map((json) {
+        final map = Map<String, dynamic>.from(json);
+        final pId = map['project_id']?.toString();
+        if (pId != null && projectNames.containsKey(pId) && (map['site_name'] == null || map['site_name'] == 'Unassigned')) {
+          map['site_name'] = projectNames[pId];
+        }
+        return Subcontractor.fromJson(map);
+      }).toList();
     } catch (e) {
       debugPrint('Error fetching with project join, trying plain select: $e');
       var query = _client.from('subcontractors').select();
@@ -27,7 +46,14 @@ class SupabaseSubcontractorRepository {
         } catch (_) {}
       }
       final response = await query.order('name', ascending: true);
-      return (response as List).map((json) => Subcontractor.fromJson(Map<String, dynamic>.from(json))).toList();
+      return (response as List).map((json) {
+        final map = Map<String, dynamic>.from(json);
+        final pId = map['project_id']?.toString();
+        if (pId != null && projectNames.containsKey(pId) && (map['site_name'] == null || map['site_name'] == 'Unassigned')) {
+          map['site_name'] = projectNames[pId];
+        }
+        return Subcontractor.fromJson(map);
+      }).toList();
     }
   }
 
@@ -45,26 +71,45 @@ class SupabaseSubcontractorRepository {
       );
     } catch (e) {
       debugPrint('Insert failed with extended columns ($e), attempting legacy fallback payload');
-      // Legacy fallback: strip project_id, site_name, scope_of_work, contact_person if column error
-      final legacyPayload = <String, dynamic>{
+      final fallbackPayload = <String, dynamic>{
         'name': sub.companyName,
         'specialization': sub.tradeSpecialization,
         'phone': sub.phone,
         'email': sub.email,
         'address': sub.address,
+        'project_id': (sub.projectId != null && sub.projectId!.isNotEmpty) ? sub.projectId : null,
         'gst_number': sub.gstNumber,
         'contract_value': sub.contractValue,
         'paid_amount': sub.paidAmount,
         'status': sub.status,
         'is_archived': sub.isArchived,
       };
-      final response = await _client.from('subcontractors').insert(legacyPayload).select().single();
-      created = Subcontractor.fromJson(Map<String, dynamic>.from(response)).copyWith(
-        companyNameProp: sub.companyNameProp,
-        contactPersonProp: sub.contactPersonProp,
-        siteNameProp: sub.siteNameProp,
-        projectId: sub.projectId,
-      );
+      try {
+        final response = await _client.from('subcontractors').insert(fallbackPayload).select().single();
+        created = Subcontractor.fromJson(Map<String, dynamic>.from(response)).copyWith(
+          companyNameProp: sub.companyNameProp,
+          contactPersonProp: sub.contactPersonProp,
+          siteNameProp: sub.siteNameProp,
+          projectId: sub.projectId,
+        );
+      } catch (_) {
+        final minPayload = <String, dynamic>{
+          'name': sub.companyName,
+          'specialization': sub.tradeSpecialization,
+          'phone': sub.phone,
+          'email': sub.email,
+          'contract_value': sub.contractValue,
+          'paid_amount': sub.paidAmount,
+          'status': sub.status,
+        };
+        final response = await _client.from('subcontractors').insert(minPayload).select().single();
+        created = Subcontractor.fromJson(Map<String, dynamic>.from(response)).copyWith(
+          companyNameProp: sub.companyNameProp,
+          contactPersonProp: sub.contactPersonProp,
+          siteNameProp: sub.siteNameProp,
+          projectId: sub.projectId,
+        );
+      }
     }
 
     // If initial paidAmount > 0 and assigned to a project, sync to Project Expenses & Spent
@@ -166,20 +211,34 @@ class SupabaseSubcontractorRepository {
     try {
       await _client.from('subcontractors').update(payload).eq('id', sub.id);
     } catch (e) {
-      debugPrint('Update failed with extended columns ($e), attempting legacy fallback update');
-      final legacyPayload = <String, dynamic>{
+      debugPrint('Update failed with extended columns ($e), attempting fallback update');
+      final fallbackPayload = <String, dynamic>{
         'name': sub.companyName,
         'specialization': sub.tradeSpecialization,
         'phone': sub.phone,
         'email': sub.email,
         'address': sub.address,
+        'project_id': (sub.projectId != null && sub.projectId!.isNotEmpty) ? sub.projectId : null,
         'gst_number': sub.gstNumber,
         'contract_value': sub.contractValue,
         'paid_amount': sub.paidAmount,
         'status': sub.status,
         'is_archived': sub.isArchived,
       };
-      await _client.from('subcontractors').update(legacyPayload).eq('id', sub.id);
+      try {
+        await _client.from('subcontractors').update(fallbackPayload).eq('id', sub.id);
+      } catch (e2) {
+        final minPayload = <String, dynamic>{
+          'name': sub.companyName,
+          'specialization': sub.tradeSpecialization,
+          'phone': sub.phone,
+          'email': sub.email,
+          'contract_value': sub.contractValue,
+          'paid_amount': sub.paidAmount,
+          'status': sub.status,
+        };
+        await _client.from('subcontractors').update(minPayload).eq('id', sub.id);
+      }
     }
   }
 

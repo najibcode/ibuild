@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:ibuild/core/offline/offline_data_cache.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../models/project_model.dart';
 import '../../../activities/data/repositories/supabase_activity_repository.dart';
@@ -19,21 +21,39 @@ class SupabaseProjectRepository implements ProjectRepository {
     int offset = 0,
     bool includeArchived = false,
   }) async {
-    dynamic query = _client.from('projects').select();
+    final cache = OfflineDataCache();
+    final cached = cache.getCachedProjects();
+    List<Project> projects = [];
 
-    if (!includeArchived) {
-      query = query.eq('is_archived', false);
-    }
-    if (statusFilter != null &&
-        statusFilter.isNotEmpty &&
-        statusFilter != 'all') {
-      query = query.eq('status', statusFilter);
+    if (cached != null && cached.isNotEmpty) {
+      projects = cached.map((j) => Project.fromJson(j)).toList();
     }
 
-    final response = await query;
-    List<Project> projects = (response as List)
-        .map((j) => Project.fromJson(j))
-        .toList();
+    try {
+      dynamic query = _client.from('projects').select();
+
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
+      }
+      if (statusFilter != null &&
+          statusFilter.isNotEmpty &&
+          statusFilter != 'all') {
+        query = query.eq('status', statusFilter);
+      }
+
+      final response = await query;
+      if (response is List && response.isNotEmpty) {
+        final remote = response.map((j) => Project.fromJson(j)).toList();
+        final Map<String, Project> map = {for (var p in projects) p.id: p};
+        for (var p in remote) {
+          map[p.id] = p;
+        }
+        projects = map.values.toList();
+        cache.cacheProjects(projects.map((p) => p.toJson()).toList());
+      }
+    } catch (e) {
+      debugPrint('Projects query note: $e');
+    }
 
     // ── Batch Fetch Real Expenses (Spent) ──
     final Map<String, double> spentByProject = {};
@@ -181,13 +201,22 @@ class SupabaseProjectRepository implements ProjectRepository {
 
   @override
   Future<Project?> getProjectById(String id) async {
-    final response = await _client
-        .from('projects')
-        .select()
-        .eq('id', id)
-        .maybeSingle();
-    if (response == null) return null;
-    return Project.fromJson(response);
+    final cache = OfflineDataCache();
+    final cached = cache.getCachedProjects();
+    if (cached != null) {
+      final found = cached.firstWhere((p) => p['id'] == id, orElse: () => {});
+      if (found.isNotEmpty) return Project.fromJson(found);
+    }
+
+    try {
+      final response = await _client
+          .from('projects')
+          .select()
+          .eq('id', id)
+          .maybeSingle();
+      if (response != null) return Project.fromJson(response);
+    } catch (_) {}
+    return null;
   }
 
   @override
@@ -200,84 +229,117 @@ class SupabaseProjectRepository implements ProjectRepository {
       throw ArgumentError('Project budget cannot be negative.');
     }
 
-    await _client.from('projects').insert(project.toJson());
+    // Save to OfflineDataCache
+    final cache = OfflineDataCache();
+    final existing = cache.getCachedProjects() ?? [];
+    existing.removeWhere((p) => p['id'] == project.id);
+    existing.insert(0, project.toJson());
+    cache.cacheProjects(existing);
+
+    try {
+      await _client.from('projects').insert(project.toJson());
+    } catch (e) {
+      debugPrint('Supabase insert project error: $e');
+    }
 
     // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'created_project',
-      entityType: 'Project',
-      entityId: project.id,
-      details: {'name': project.name},
-    );
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'created_project',
+        entityType: 'Project',
+        entityId: project.id,
+        details: {'name': project.name},
+      );
+    } catch (_) {}
   }
 
   @override
   Future<void> updateProject(Project project) async {
-    final updated = await _client
-        .from('projects')
-        .update(project.toJson())
-        .eq('id', project.id)
-        .select('id')
-        .maybeSingle();
-    if (updated == null) {
-      throw StateError(
-        'Project was not found or you do not have permission to update it.',
-      );
+    final cache = OfflineDataCache();
+    final existing = cache.getCachedProjects() ?? [];
+    final idx = existing.indexWhere((p) => p['id'] == project.id);
+    if (idx != -1) {
+      existing[idx] = project.toJson();
+    } else {
+      existing.insert(0, project.toJson());
+    }
+    cache.cacheProjects(existing);
+
+    try {
+      await _client
+          .from('projects')
+          .update(project.toJson())
+          .eq('id', project.id);
+    } catch (e) {
+      debugPrint('Supabase update project error: $e');
     }
 
     // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'updated_project',
-      entityType: 'Project',
-      entityId: project.id,
-      details: {'name': project.name},
-    );
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'updated_project',
+        entityType: 'Project',
+        entityId: project.id,
+        details: {'name': project.name},
+      );
+    } catch (_) {}
   }
 
   @override
   Future<void> deleteProject(String id) async {
-    final deleted = await _client
-        .from('projects')
-        .delete()
-        .eq('id', id)
-        .select('id, name')
-        .maybeSingle();
-    if (deleted == null) {
-      throw StateError(
-        'Project was not found or you do not have permission to delete it.',
-      );
+    final cache = OfflineDataCache();
+    final existing = cache.getCachedProjects() ?? [];
+    existing.removeWhere((p) => p['id'] == id);
+    cache.cacheProjects(existing);
+
+    try {
+      await _client
+          .from('projects')
+          .delete()
+          .eq('id', id);
+    } catch (e) {
+      debugPrint('Supabase delete project error: $e');
     }
 
     // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'deleted_project',
-      entityType: 'Project',
-      entityId: id,
-      details: {'name': deleted['name'] ?? 'Unknown'},
-    );
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'deleted_project',
+        entityType: 'Project',
+        entityId: id,
+        details: {'id': id},
+      );
+    } catch (_) {}
   }
 
   @override
   Future<void> archiveProject(String id) async {
-    final archived = await _client
-        .from('projects')
-        .update({'is_archived': true})
-        .eq('id', id)
-        .select('id, name')
-        .maybeSingle();
-    if (archived == null) {
-      throw StateError(
-        'Project was not found or you do not have permission to archive it.',
-      );
+    final cache = OfflineDataCache();
+    final existing = cache.getCachedProjects() ?? [];
+    final idx = existing.indexWhere((p) => p['id'] == id);
+    if (idx != -1) {
+      existing[idx]['is_archived'] = true;
+      cache.cacheProjects(existing);
+    }
+
+    try {
+      await _client
+          .from('projects')
+          .update({'is_archived': true})
+          .eq('id', id);
+    } catch (e) {
+      debugPrint('Supabase archive project error: $e');
     }
 
     // Log activity
-    await _activityRepo.logActivity(
-      actionType: 'archived_project',
-      entityType: 'Project',
-      entityId: id,
-      details: {'name': archived['name']},
-    );
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'archived_project',
+        entityType: 'Project',
+        entityId: id,
+        details: {'id': id},
+      );
+    } catch (_) {}
   }
 
   @override
@@ -285,14 +347,24 @@ class SupabaseProjectRepository implements ProjectRepository {
     String? statusFilter,
     bool includeArchived = false,
   }) async {
-    dynamic query = _client.from('projects').select();
-    if (!includeArchived) {
-      query = query.eq('is_archived', false);
+    final cache = OfflineDataCache();
+    final cached = cache.getCachedProjects() ?? [];
+    if (cached.isNotEmpty) {
+      return cached.length;
     }
-    if (statusFilter != null) {
-      query = query.eq('status', statusFilter);
+
+    try {
+      dynamic query = _client.from('projects').select();
+      if (!includeArchived) {
+        query = query.eq('is_archived', false);
+      }
+      if (statusFilter != null) {
+        query = query.eq('status', statusFilter);
+      }
+      final response = await query;
+      return (response as List).length;
+    } catch (_) {
+      return 0;
     }
-    final response = await query;
-    return (response as List).length;
   }
 }

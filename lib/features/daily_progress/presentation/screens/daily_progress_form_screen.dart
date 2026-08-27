@@ -189,38 +189,53 @@ class _DailyProgressFormScreenState extends ConsumerState<DailyProgressFormScree
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Overall Site Completion Percentage Card
+            // Site Execution & Work Evidence Banner
             Container(
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.cardBg(context),
+                color: AppColors.primaryColor(context).withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.border(context)),
+                border: Border.all(
+                  color: AppColors.primaryColor(context).withValues(alpha: 0.25),
+                ),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Site Completion Progress',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: AppColors.text(context)),
-                      ),
-                      Text(
-                        '$_progress%',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: AppColors.primaryColor(context)),
-                      ),
-                    ],
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryColor(context).withValues(alpha: 0.15),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.camera_alt_outlined,
+                      color: AppColors.primaryColor(context),
+                      size: 24,
+                    ),
                   ),
-                  const SizedBox(height: 8),
-                  Slider(
-                    value: _progress.toDouble(),
-                    min: 0,
-                    max: 100,
-                    divisions: 20,
-                    activeColor: AppColors.primaryColor(context),
-                    onChanged: (v) => setState(() => _progress = v.round()),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Daily Work & Site Evidence Entry',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14.5,
+                            color: AppColors.text(context),
+                          ),
+                        ),
+                        const SizedBox(height: 3),
+                        Text(
+                          'Attach Before & After photos and work notes for this site shift. Project progress is tracked dynamically by milestone.',
+                          style: TextStyle(
+                            fontSize: 11.5,
+                            color: AppColors.mutedText(context),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ],
               ),

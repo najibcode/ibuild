@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -390,61 +391,63 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                         ),
                         const SizedBox(height: 24),
 
-                        // ── Quick Enterprise Role Access ──
-                        Row(
-                          children: [
-                            Expanded(child: Divider(color: AppColors.border(context))),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 12),
-                              child: Text(
-                                'QUICK ENTERPRISE ROLE LOGIN',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 0.8,
-                                  color: AppColors.mutedText(context),
+                        // ── Quick Enterprise Role Access (Development / Local Staging Only) ──
+                        if (kDebugMode || const bool.fromEnvironment('ENABLE_DEV_LOGIN', defaultValue: false)) ...[
+                          Row(
+                            children: [
+                              Expanded(child: Divider(color: AppColors.border(context))),
+                              Padding(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                child: Text(
+                                  'DEV ROLE QUICK-ACCESS (DEV ONLY)',
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 0.8,
+                                    color: AppColors.mutedText(context),
+                                  ),
                                 ),
                               ),
-                            ),
-                            Expanded(child: Divider(color: AppColors.border(context))),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
+                              Expanded(child: Divider(color: AppColors.border(context))),
+                            ],
+                          ),
+                          const SizedBox(height: 14),
 
-                        Row(
-                          children: [
-                            _buildRoleButton(
-                              title: 'Owner',
-                              roleSubtitle: 'Full Business',
-                              email: 'owner@ibuild.in',
-                              password: 'owner@123',
-                              icon: Icons.business_center_outlined,
-                              color: const Color(0xFF2196F3),
-                              isLoading: isLoading,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildRoleButton(
-                              title: 'Supervisor',
-                              roleSubtitle: 'Site & Logs',
-                              email: 'supervisor@ibuild.in',
-                              password: 'supervisor@123',
-                              icon: Icons.engineering_outlined,
-                              color: const Color(0xFF4CAF50),
-                              isLoading: isLoading,
-                            ),
-                            const SizedBox(width: 8),
-                            _buildRoleButton(
-                              title: 'Admin',
-                              roleSubtitle: 'Full System',
-                              email: 'admin@ibuild.in',
-                              password: 'admin@123',
-                              icon: Icons.admin_panel_settings_outlined,
-                              color: const Color(0xFFE91E63),
-                              isLoading: isLoading,
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              _buildRoleButton(
+                                title: 'Owner',
+                                roleSubtitle: 'Full Business',
+                                email: 'owner@ibuild.in',
+                                password: 'owner@123',
+                                icon: Icons.business_center_outlined,
+                                color: const Color(0xFF2196F3),
+                                isLoading: isLoading,
+                              ),
+                              const SizedBox(width: 8),
+                              _buildRoleButton(
+                                title: 'Supervisor',
+                                roleSubtitle: 'Site & Logs',
+                                email: 'supervisor@ibuild.in',
+                                password: 'supervisor@123',
+                                icon: Icons.engineering_outlined,
+                                color: const Color(0xFF4CAF50),
+                                isLoading: isLoading,
+                              ),
+                              const SizedBox(width: 8),
+                              _buildRoleButton(
+                                title: 'Admin',
+                                roleSubtitle: 'Full System',
+                                email: 'admin@ibuild.in',
+                                password: 'admin@123',
+                                icon: Icons.admin_panel_settings_outlined,
+                                color: const Color(0xFFE91E63),
+                                isLoading: isLoading,
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 20),
+                        ],
 
                         // ── Enterprise Notice Footer ──
                         Container(
