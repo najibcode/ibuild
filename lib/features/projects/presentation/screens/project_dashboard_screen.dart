@@ -6,6 +6,9 @@ import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../data/models/project_dashboard_model.dart';
 import '../controllers/project_dashboard_controller.dart';
+import '../../../rbac/presentation/providers/permission_provider.dart';
+import '../widgets/delete_project_dialog.dart';
+import '../controllers/project_controller.dart';
 import 'project_operations_screen.dart';
 import 'project_form_screen.dart';
 import 'project_detail_screen.dart';
@@ -84,6 +87,34 @@ class _ProjectDashboardScreenState
               }
             },
           ),
+          if (ref.watch(isAdminProvider))
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.error,
+              ),
+              tooltip: 'Delete Project (Admin)',
+              onPressed: () async {
+                final confirmed = await showDeleteProjectConfirmationDialog(
+                  context,
+                  effectiveName,
+                );
+                if (confirmed) {
+                  await ref
+                      .read(projectControllerProvider.notifier)
+                      .removeProject(widget.projectId);
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Project "$effectiveName" deleted successfully ✓'),
+                        backgroundColor: AppColors.secondary,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
           const SizedBox(width: 8),
         ],
       ),

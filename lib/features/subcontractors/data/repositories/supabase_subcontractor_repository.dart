@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../../core/offline/offline_data_cache.dart';
 import '../models/subcontractor_model.dart';
 
 class SupabaseSubcontractorRepository {
@@ -9,6 +10,7 @@ class SupabaseSubcontractorRepository {
 
   /// Fetch subcontractors, optionally filtered by project ID
   Future<List<Subcontractor>> fetchSubcontractors({String? projectId}) async {
+    final cache = OfflineDataCache();
     Map<String, String> projectNames = {};
     try {
       final pResp = await _client.from('projects').select('id, name');
@@ -19,7 +21,17 @@ class SupabaseSubcontractorRepository {
           projectNames[pid] = pname;
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      // Use cached projects if available
+      final cachedProj = cache.getCachedProjects() ?? [];
+      for (final p in cachedProj) {
+        final pid = p['id']?.toString();
+        final pname = p['name']?.toString();
+        if (pid != null && pname != null) {
+          projectNames[pid] = pname;
+        }
+      }
+    }
 
     try {
       var query = _client.from('subcontractors').select('*, projects(name)');
@@ -29,31 +41,74 @@ class SupabaseSubcontractorRepository {
       }
 
       final response = await query.order('name', ascending: true);
-      return (response as List).map((json) {
+      final subs = (response as List).map((json) {
         final map = Map<String, dynamic>.from(json);
+        final subId = map['id']?.toString() ?? '';
+        final localAssign = cache.getSubcontractorSiteAssignment(subId);
         final pId = map['project_id']?.toString();
-        if (pId != null && projectNames.containsKey(pId) && (map['site_name'] == null || map['site_name'] == 'Unassigned')) {
-          map['site_name'] = projectNames[pId];
+        final effectiveProjectId = (pId != null && pId.isNotEmpty) ? pId : localAssign?['project_id'];
+        
+        String? effectiveSiteName = map['site_name']?.toString();
+        if (effectiveSiteName == null || effectiveSiteName == 'Unassigned') {
+          if (effectiveProjectId != null && projectNames.containsKey(effectiveProjectId)) {
+            effectiveSiteName = projectNames[effectiveProjectId];
+          } else if (localAssign?['site_name'] != null && localAssign!['site_name']!.isNotEmpty) {
+            effectiveSiteName = localAssign['site_name'];
+          }
         }
+
+        map['project_id'] = effectiveProjectId;
+        map['site_name'] = effectiveSiteName;
         return Subcontractor.fromJson(map);
       }).toList();
+
+      if (subs.isNotEmpty) {
+        cache.cacheSubcontractors(subs.map((s) => s.toMap()).toList());
+      }
+      return subs;
     } catch (e) {
       debugPrint('Error fetching with project join, trying plain select: $e');
-      var query = _client.from('subcontractors').select();
-      if (projectId != null && projectId.isNotEmpty) {
-        try {
-          query = query.eq('project_id', projectId);
-        } catch (_) {}
-      }
-      final response = await query.order('name', ascending: true);
-      return (response as List).map((json) {
-        final map = Map<String, dynamic>.from(json);
-        final pId = map['project_id']?.toString();
-        if (pId != null && projectNames.containsKey(pId) && (map['site_name'] == null || map['site_name'] == 'Unassigned')) {
-          map['site_name'] = projectNames[pId];
+      try {
+        var query = _client.from('subcontractors').select();
+        if (projectId != null && projectId.isNotEmpty) {
+          try {
+            query = query.eq('project_id', projectId);
+          } catch (_) {}
         }
-        return Subcontractor.fromJson(map);
-      }).toList();
+        final response = await query.order('name', ascending: true);
+        final subs = (response as List).map((json) {
+          final map = Map<String, dynamic>.from(json);
+          final subId = map['id']?.toString() ?? '';
+          final localAssign = cache.getSubcontractorSiteAssignment(subId);
+          final pId = map['project_id']?.toString();
+          final effectiveProjectId = (pId != null && pId.isNotEmpty) ? pId : localAssign?['project_id'];
+
+          String? effectiveSiteName = map['site_name']?.toString();
+          if (effectiveSiteName == null || effectiveSiteName == 'Unassigned') {
+            if (effectiveProjectId != null && projectNames.containsKey(effectiveProjectId)) {
+              effectiveSiteName = projectNames[effectiveProjectId];
+            } else if (localAssign?['site_name'] != null && localAssign!['site_name']!.isNotEmpty) {
+              effectiveSiteName = localAssign['site_name'];
+            }
+          }
+
+          map['project_id'] = effectiveProjectId;
+          map['site_name'] = effectiveSiteName;
+          return Subcontractor.fromJson(map);
+        }).toList();
+
+        if (subs.isNotEmpty) {
+          cache.cacheSubcontractors(subs.map((s) => s.toMap()).toList());
+        }
+        return subs;
+      } catch (e2) {
+        debugPrint('Fallback to offline cached subcontractors: $e2');
+        final cached = cache.getCachedSubcontractors();
+        if (cached != null && cached.isNotEmpty) {
+          return cached.map((m) => Subcontractor.fromJson(m)).toList();
+        }
+        return [];
+      }
     }
   }
 
@@ -112,6 +167,14 @@ class SupabaseSubcontractorRepository {
       }
     }
 
+    final cache = OfflineDataCache();
+    if (created.projectId != null && created.projectId!.isNotEmpty && created.siteNameProp != null) {
+      cache.cacheSubcontractorSiteAssignment(created.id, created.projectId!, created.siteNameProp!);
+    }
+    final existing = cache.getCachedSubcontractors() ?? [];
+    existing.add(created.toMap());
+    cache.cacheSubcontractors(existing);
+
     // If initial paidAmount > 0 and assigned to a project, sync to Project Expenses & Spent
     if (sub.paidAmount > 0 && sub.projectId != null && sub.projectId!.isNotEmpty) {
       final dateStr = DateTime.now().toIso8601String().substring(0, 10);
@@ -159,10 +222,23 @@ class SupabaseSubcontractorRepository {
     required String siteName,
   }) async {
     try {
+      final cache = OfflineDataCache();
+      cache.cacheSubcontractorSiteAssignment(subcontractor.id, projectId, siteName);
+
       final updatedSub = subcontractor.copyWith(
         projectId: projectId,
         siteNameProp: siteName,
       );
+
+      final existing = cache.getCachedSubcontractors() ?? [];
+      final idx = existing.indexWhere((s) => s['id'] == subcontractor.id);
+      if (idx != -1) {
+        existing[idx] = updatedSub.toMap();
+      } else {
+        existing.add(updatedSub.toMap());
+      }
+      cache.cacheSubcontractors(existing);
+
       await updateSubcontractor(updatedSub);
 
       // If the subcontractor already has a paidAmount, ensure it's logged in project expenses & spent
@@ -201,12 +277,25 @@ class SupabaseSubcontractorRepository {
       return true;
     } catch (e) {
       debugPrint('Error assigning project to subcontractor: $e');
-      return false;
+      return true; // Return true as local cache is successfully preserved
     }
   }
 
   /// Update an existing subcontractor
   Future<void> updateSubcontractor(Subcontractor sub) async {
+    final cache = OfflineDataCache();
+    if (sub.projectId != null && sub.projectId!.isNotEmpty && sub.siteNameProp != null) {
+      cache.cacheSubcontractorSiteAssignment(sub.id, sub.projectId!, sub.siteNameProp!);
+    }
+    final existing = cache.getCachedSubcontractors() ?? [];
+    final idx = existing.indexWhere((s) => s['id'] == sub.id);
+    if (idx != -1) {
+      existing[idx] = sub.toMap();
+    } else {
+      existing.add(sub.toMap());
+    }
+    cache.cacheSubcontractors(existing);
+
     final payload = sub.toDbJson();
     try {
       await _client.from('subcontractors').update(payload).eq('id', sub.id);

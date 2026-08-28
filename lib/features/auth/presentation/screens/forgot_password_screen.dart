@@ -174,7 +174,8 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
             controller: _emailController,
             keyboardType: TextInputType.emailAddress,
             textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.email],
+            autocorrect: false,
+            enableSuggestions: false,
             enabled: !isLoading,
             onFieldSubmitted: (_) => _onReset(),
             decoration: InputDecoration(

@@ -3,10 +3,11 @@ import { crypto } from "https://deno.land/std@0.177.0/crypto/mod.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 function getCorsHeaders(req: Request) {
-  const origin = req.headers.get("Origin") || "*";
+  const origin = req.headers.get("Origin") || "";
   const allowedOrigins = [
     "https://ibuild.najibcode.workers.dev",
     "https://ibuild.pages.dev",
+    "https://ibuild.vercel.app",
     "http://localhost:3000",
     "http://localhost:8080",
     "http://localhost:5000",
@@ -14,27 +15,31 @@ function getCorsHeaders(req: Request) {
     "http://127.0.0.1:8080",
   ];
   const isAllowed = allowedOrigins.includes(origin) || origin.startsWith("http://localhost:") || origin.startsWith("http://127.0.0.1:");
-  return {
-    "Access-Control-Allow-Origin": isAllowed ? origin : "https://ibuild.najibcode.workers.dev",
+  const headers: Record<string, string> = {
     "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
     "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
     "Access-Control-Max-Age": "86400",
   };
+  if (isAllowed && origin) {
+    headers["Access-Control-Allow-Origin"] = origin;
+  }
+  return headers;
 }
 
 serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  // Handle CORS preflight
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
-  }
-
-  if (req.method === "TRACE" || req.method === "CONNECT") {
+  // Reject unsupported / dangerous HTTP methods
+  if (req.method === "TRACE" || req.method === "CONNECT" || !["GET", "POST", "OPTIONS"].includes(req.method)) {
     return new Response(JSON.stringify({ error: "Method Not Allowed" }), {
       status: 405,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
+  }
+
+  // Handle CORS preflight
+  if (req.method === "OPTIONS") {
+    return new Response("ok", { headers: corsHeaders });
   }
 
   try {

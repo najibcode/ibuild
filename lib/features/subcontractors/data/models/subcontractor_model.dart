@@ -104,6 +104,29 @@ class Subcontractor {
 
   Map<String, dynamic> toJson() => toDbJson();
 
+  /// Produce full serializable map for OfflineDataCache
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'name': name,
+      'company_name': companyNameProp ?? name,
+      'contact_person': contactPersonProp ?? name,
+      'specialization': specialization,
+      'phone': phone,
+      'email': email,
+      'address': address,
+      'project_id': projectId,
+      'site_name': siteNameProp,
+      'scope_of_work': scopeOfWork,
+      'gst_number': gstNumber,
+      'contract_value': contractValue,
+      'paid_amount': paidAmount,
+      'status': status,
+      'is_archived': isArchived,
+      'created_at': createdAt.toIso8601String(),
+    };
+  }
+
   Subcontractor copyWith({
     String? id,
     String? name,

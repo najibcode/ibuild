@@ -15,4 +15,39 @@ class MobileNavHelper {
   static void closeDrawer() {
     scaffoldKey.currentState?.closeDrawer();
   }
+
+  /// Returns a responsive leading widget for AppBars:
+  /// - Back button if [hasBack] is true
+  /// - Hamburger menu ONLY on narrow mobile screens (width < 800)
+  /// - Null on desktop/web (width >= 800) to eliminate dummy hamburger symbols
+  static Widget? buildLeading(
+    BuildContext context, {
+    bool hasBack = false,
+    VoidCallback? onBackPressed,
+  }) {
+    if (hasBack) {
+      return IconButton(
+        icon: const Icon(Icons.arrow_back),
+        tooltip: 'Go back',
+        onPressed: () {
+          if (onBackPressed != null) {
+            onBackPressed();
+          } else {
+            Navigator.maybePop(context);
+          }
+        },
+      );
+    }
+    // On web/desktop with sidebar (width >= 800), return null to hide hamburger
+    if (MediaQuery.of(context).size.width >= 800) {
+      return null;
+    }
+    // Mobile navigation hamburger
+    return IconButton(
+      icon: const Icon(Icons.menu),
+      tooltip: 'Open navigation menu',
+      onPressed: openDrawer,
+    );
+  }
 }
+

@@ -18,12 +18,9 @@ class SupervisorDashboard extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: AppColors.primary),
-          tooltip: 'Open Menu',
-          onPressed: MobileNavHelper.openDrawer,
-        ),
+        automaticallyImplyLeading: false,
+        leading: MobileNavHelper.buildLeading(context),
+        titleSpacing: MediaQuery.of(context).size.width < 800 ? 0 : 16,
         title: const Text(
           'Supervisor Dashboard',
           style: TextStyle(fontWeight: FontWeight.bold),

@@ -1,11 +1,18 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/widgets/app_logo.dart';
 import '../controllers/auth_controller.dart';
+
+// Build-time environment switches for local development / test staging
+const _kEnableDevLogin = bool.fromEnvironment('ENABLE_DEV_LOGIN', defaultValue: false);
+const _kDevOwnerEmail = String.fromEnvironment('DEV_OWNER_EMAIL', defaultValue: '');
+const _kDevOwnerPassword = String.fromEnvironment('DEV_OWNER_PASSWORD', defaultValue: '');
+const _kDevSupervisorEmail = String.fromEnvironment('DEV_SUPERVISOR_EMAIL', defaultValue: '');
+const _kDevSupervisorPassword = String.fromEnvironment('DEV_SUPERVISOR_PASSWORD', defaultValue: '');
+const _kDevAdminEmail = String.fromEnvironment('DEV_ADMIN_EMAIL', defaultValue: '');
+const _kDevAdminPassword = String.fromEnvironment('DEV_ADMIN_PASSWORD', defaultValue: '');
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -51,6 +58,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
     _animController.forward();
     _emailController.addListener(() => setState(() {}));
+    _passwordController.addListener(() => setState(() {}));
   }
 
   @override
@@ -80,8 +88,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
       setState(() => _isSubmitting = false);
 
       if (success) {
-        // Complete autofill context
-        TextInput.finishAutofillContext();
         context.go('/dashboard');
       } else {
         final error = ref.read(authControllerProvider).errorMessage ??
@@ -143,256 +149,272 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
                     ),
                   ],
                 ),
-                child: AutofillGroup(
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        // ── App Brand Logo ──
-                        const Center(
-                          child: AppLogo(
-                            size: 48,
-                            subtitle: 'ERP MANAGEMENT PORTAL',
-                          ),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // ── App Brand Logo ──
+                      const Center(
+                        child: AppLogo(
+                          size: 48,
+                          subtitle: 'ERP MANAGEMENT PORTAL',
                         ),
-                        const SizedBox(height: 28),
+                      ),
+                      const SizedBox(height: 28),
 
-                        // ── Portal Header ──
-                        Text(
-                          'Sign In',
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.text(context),
-                          ),
+                      // ── Portal Header ──
+                      Text(
+                        'Sign In',
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.text(context),
                         ),
-                        const SizedBox(height: 4),
-                        Text(
-                          'Enter your enterprise credentials to access your workspace.',
-                          style: TextStyle(
-                            fontSize: 13,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Enter your enterprise credentials to access your workspace.',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.mutedText(context),
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Email Field ──
+                      Text(
+                        'Email Address',
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.text(context),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      TextFormField(
+                        controller: _emailController,
+                        keyboardType: TextInputType.emailAddress,
+                        textInputAction: TextInputAction.next,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        enabled: !isLoading,
+                        onFieldSubmitted: (_) {
+                          FocusScope.of(context).requestFocus(_passwordFocusNode);
+                        },
+                        decoration: InputDecoration(
+                          hintText: 'name@company.com',
+                          hintStyle: TextStyle(
                             color: AppColors.mutedText(context),
+                            fontSize: 14,
                           ),
+                          prefixIcon: const Icon(
+                            Icons.email_outlined,
+                            color: AppColors.outline,
+                            size: 20,
+                          ),
+                          suffixIcon: _emailController.text.isNotEmpty && !isLoading
+                              ? IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  tooltip: 'Clear email',
+                                  onPressed: () {
+                                    _emailController.clear();
+                                    setState(() {});
+                                  },
+                                )
+                              : null,
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                            borderSide: const BorderSide(color: AppColors.borderSubtle),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                            borderSide: const BorderSide(color: AppColors.borderSubtle),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                         ),
-                        const SizedBox(height: 24),
+                        validator: (value) {
+                          final text = value?.trim() ?? '';
+                          if (text.isEmpty) {
+                            return 'Please enter your email address.';
+                          }
+                          if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(text)) {
+                            return 'Please enter a valid email address.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 20),
 
-                        // ── Email Field ──
-                        Text(
-                          'Email Address',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.text(context),
+                      // ── Password Field Header ──
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Password',
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.text(context),
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          textInputAction: TextInputAction.next,
-                          autofillHints: const [
-                            AutofillHints.username,
-                            AutofillHints.email,
-                          ],
-                          enabled: !isLoading,
-                          onFieldSubmitted: (_) {
-                            FocusScope.of(context).requestFocus(_passwordFocusNode);
-                          },
-                          decoration: InputDecoration(
-                            hintText: 'name@company.com',
-                            hintStyle: TextStyle(
-                              color: AppColors.mutedText(context),
-                              fontSize: 14,
+                          TextButton(
+                            onPressed: isLoading
+                                ? null
+                                : () => context.push('/forgot-password'),
+                            style: TextButton.styleFrom(
+                              minimumSize: Size.zero,
+                              padding: EdgeInsets.zero,
+                              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                             ),
-                            prefixIcon: const Icon(
-                              Icons.email_outlined,
-                              color: AppColors.outline,
-                              size: 20,
-                            ),
-                            suffixIcon: _emailController.text.isNotEmpty && !isLoading
-                                ? IconButton(
-                                    icon: const Icon(Icons.clear, size: 16),
-                                    tooltip: 'Clear email',
-                                    onPressed: () {
-                                      _emailController.clear();
-                                      setState(() {});
-                                    },
-                                  )
-                                : null,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                              borderSide: const BorderSide(color: AppColors.borderSubtle),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                              borderSide: const BorderSide(color: AppColors.borderSubtle),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                          ),
-                          validator: (value) {
-                            final text = value?.trim() ?? '';
-                            if (text.isEmpty) {
-                              return 'Please enter your email address.';
-                            }
-                            if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(text)) {
-                              return 'Please enter a valid email address.';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 20),
-
-                        // ── Password Field Header ──
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text(
-                              'Password',
+                            child: const Text(
+                              'Forgot password?',
                               style: TextStyle(
-                                fontSize: 13,
+                                color: AppColors.primary,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w600,
-                                color: AppColors.text(context),
                               ),
                             ),
-                            TextButton(
-                              onPressed: isLoading
-                                  ? null
-                                  : () => context.push('/forgot-password'),
-                              style: TextButton.styleFrom(
-                                minimumSize: Size.zero,
-                                padding: EdgeInsets.zero,
-                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                              ),
-                              child: const Text(
-                                'Forgot password?',
-                                style: TextStyle(
-                                  color: AppColors.primary,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
 
-                        // ── Password Field ──
-                        TextFormField(
-                          controller: _passwordController,
-                          focusNode: _passwordFocusNode,
-                          obscureText: _obscurePassword,
-                          textInputAction: TextInputAction.done,
-                          autofillHints: const [AutofillHints.password],
-                          enabled: !isLoading,
-                          onFieldSubmitted: (_) => _onLogin(),
-                          decoration: InputDecoration(
-                            hintText: 'Enter your password',
-                            hintStyle: TextStyle(
-                              color: AppColors.mutedText(context),
-                              fontSize: 14,
-                            ),
-                            prefixIcon: const Icon(
-                              Icons.lock_outline,
-                              color: AppColors.outline,
-                              size: 20,
-                            ),
-                            suffixIcon: Semantics(
-                              label: _obscurePassword
-                                  ? 'Show password'
-                                  : 'Hide password',
-                              child: IconButton(
-                                icon: Icon(
-                                  _obscurePassword
-                                      ? Icons.visibility_off_outlined
-                                      : Icons.visibility_outlined,
-                                  color: AppColors.outline,
-                                  size: 20,
+                      // ── Password Field ──
+                      TextFormField(
+                        controller: _passwordController,
+                        focusNode: _passwordFocusNode,
+                        obscureText: _obscurePassword,
+                        keyboardType: TextInputType.visiblePassword,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        textInputAction: TextInputAction.done,
+                        enabled: !isLoading,
+                        onFieldSubmitted: (_) => _onLogin(),
+                        decoration: InputDecoration(
+                          hintText: 'Enter your password',
+                          hintStyle: TextStyle(
+                            color: AppColors.mutedText(context),
+                            fontSize: 14,
+                          ),
+                          prefixIcon: const Icon(
+                            Icons.lock_outline,
+                            color: AppColors.outline,
+                            size: 20,
+                          ),
+                          suffixIcon: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_passwordController.text.isNotEmpty && !isLoading)
+                                IconButton(
+                                  icon: const Icon(Icons.clear, size: 16),
+                                  tooltip: 'Clear password',
+                                  onPressed: () {
+                                    _passwordController.clear();
+                                    setState(() {});
+                                  },
                                 ),
-                                tooltip: _obscurePassword
+                              Semantics(
+                                label: _obscurePassword
                                     ? 'Show password'
                                     : 'Hide password',
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePassword = !_obscurePassword;
-                                  });
-                                },
-                              ),
-                            ),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                              borderSide: const BorderSide(color: AppColors.borderSubtle),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                              borderSide: const BorderSide(color: AppColors.borderSubtle),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                              borderSide: const BorderSide(color: AppColors.primary, width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your password.';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 28),
-
-                        // ── Sign In Action Button ──
-                        ElevatedButton(
-                          onPressed: isLoading ? null : _onLogin,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.primary,
-                            foregroundColor: Colors.white,
-                            minimumSize: const Size(double.infinity, 48),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppRadius.defaultValue),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: isLoading
-                              ? const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    SizedBox(
-                                      width: 18,
-                                      height: 18,
-                                      child: CircularProgressIndicator(
-                                        strokeWidth: 2,
-                                        valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                                      ),
-                                    ),
-                                    SizedBox(width: 12),
-                                    Text(
-                                      'Signing In...',
-                                      style: TextStyle(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                              : const Text(
-                                  'Sign In',
-                                  style: TextStyle(
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
+                                child: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    color: AppColors.outline,
+                                    size: 20,
                                   ),
+                                  tooltip: _obscurePassword
+                                      ? 'Show password'
+                                      : 'Hide password',
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
                                 ),
+                              ),
+                            ],
+                          ),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                            borderSide: const BorderSide(color: AppColors.borderSubtle),
+                          ),
+                          enabledBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                            borderSide: const BorderSide(color: AppColors.borderSubtle),
+                          ),
+                          focusedBorder: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                            borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                          ),
+                          contentPadding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
                         ),
-                        const SizedBox(height: 24),
+                        validator: (value) {
+                          if (value == null || value.isEmpty) {
+                            return 'Please enter your password.';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: 28),
 
-                        // ── Quick Enterprise Role Access (Development / Local Staging Only) ──
-                        if (kDebugMode || const bool.fromEnvironment('ENABLE_DEV_LOGIN', defaultValue: false)) ...[
+                      // ── Sign In Action Button ──
+                      ElevatedButton(
+                        onPressed: isLoading ? null : _onLogin,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          minimumSize: const Size(double.infinity, 48),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(AppRadius.defaultValue),
+                          ),
+                          elevation: 0,
+                        ),
+                        child: isLoading
+                            ? const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                                    ),
+                                  ),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Signing In...',
+                                    style: TextStyle(
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
+                              )
+                            : const Text(
+                                'Sign In',
+                                style: TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                      ),
+                      const SizedBox(height: 24),
+
+                      // ── Quick Enterprise Role Access (Staging / Dev with build flag only) ──
+                      if (_kEnableDevLogin &&
+                          ((_kDevOwnerEmail.isNotEmpty && _kDevOwnerPassword.isNotEmpty) ||
+                             (_kDevSupervisorEmail.isNotEmpty && _kDevSupervisorPassword.isNotEmpty) ||
+                             (_kDevAdminEmail.isNotEmpty && _kDevAdminPassword.isNotEmpty))) ...[
                           Row(
                             children: [
                               Expanded(child: Divider(color: AppColors.border(context))),
@@ -415,35 +437,42 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
 
                           Row(
                             children: [
-                              _buildRoleButton(
-                                title: 'Owner',
-                                roleSubtitle: 'Full Business',
-                                email: 'owner@ibuild.in',
-                                password: 'owner@123',
-                                icon: Icons.business_center_outlined,
-                                color: const Color(0xFF2196F3),
-                                isLoading: isLoading,
-                              ),
-                              const SizedBox(width: 8),
-                              _buildRoleButton(
-                                title: 'Supervisor',
-                                roleSubtitle: 'Site & Logs',
-                                email: 'supervisor@ibuild.in',
-                                password: 'supervisor@123',
-                                icon: Icons.engineering_outlined,
-                                color: const Color(0xFF4CAF50),
-                                isLoading: isLoading,
-                              ),
-                              const SizedBox(width: 8),
-                              _buildRoleButton(
-                                title: 'Admin',
-                                roleSubtitle: 'Full System',
-                                email: 'admin@ibuild.in',
-                                password: 'admin@123',
-                                icon: Icons.admin_panel_settings_outlined,
-                                color: const Color(0xFFE91E63),
-                                isLoading: isLoading,
-                              ),
+                              if (_kDevOwnerEmail.isNotEmpty && _kDevOwnerPassword.isNotEmpty)
+                                _buildRoleButton(
+                                  title: 'Owner',
+                                  roleSubtitle: 'Full Business',
+                                  email: _kDevOwnerEmail,
+                                  password: _kDevOwnerPassword,
+                                  icon: Icons.business_center_outlined,
+                                  color: const Color(0xFF2196F3),
+                                  isLoading: isLoading,
+                                ),
+                              if (_kDevSupervisorEmail.isNotEmpty && _kDevSupervisorPassword.isNotEmpty) ...[
+                                if (_kDevOwnerEmail.isNotEmpty && _kDevOwnerPassword.isNotEmpty) const SizedBox(width: 8),
+                                _buildRoleButton(
+                                  title: 'Supervisor',
+                                  roleSubtitle: 'Site & Logs',
+                                  email: _kDevSupervisorEmail,
+                                  password: _kDevSupervisorPassword,
+                                  icon: Icons.engineering_outlined,
+                                  color: const Color(0xFF4CAF50),
+                                  isLoading: isLoading,
+                                ),
+                              ],
+                              if (_kDevAdminEmail.isNotEmpty && _kDevAdminPassword.isNotEmpty) ...[
+                                if ((_kDevOwnerEmail.isNotEmpty && _kDevOwnerPassword.isNotEmpty) ||
+                                    (_kDevSupervisorEmail.isNotEmpty && _kDevSupervisorPassword.isNotEmpty))
+                                  const SizedBox(width: 8),
+                                _buildRoleButton(
+                                  title: 'Admin',
+                                  roleSubtitle: 'Full System',
+                                  email: _kDevAdminEmail,
+                                  password: _kDevAdminPassword,
+                                  icon: Icons.admin_panel_settings_outlined,
+                                  color: const Color(0xFFE91E63),
+                                  isLoading: isLoading,
+                                ),
+                              ],
                             ],
                           ),
                           const SizedBox(height: 20),
@@ -486,8 +515,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen>
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildRoleButton({

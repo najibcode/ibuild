@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 /// In-memory and persistent key-value cache layer for storing master data offline.
 /// Preserves real user projects (PPR shop, RVS Shop), employees (Soori, Abdul), and attendance records.
@@ -15,8 +16,8 @@ class OfflineDataCache {
   bool _isInitialized = false;
 
   /// Initialize persistent storage and load cached keys into memory
-  Future<void> init() async {
-    if (_isInitialized) return;
+  Future<void> init({bool forceReload = false}) async {
+    if (_isInitialized && !forceReload) return;
     try {
       _prefs = await SharedPreferences.getInstance();
       final keys = _prefs?.getKeys() ?? {};
@@ -41,17 +42,28 @@ class OfflineDataCache {
     _isInitialized = true;
   }
 
-  void _ensureUserRealData() {
-    // ── 1. Authentic Projects (PPR shop, RVS Shop, etc.) ──
-    final existingProjects = getCachedProjects() ?? [];
-    final bool hasPprShop = existingProjects.any((p) =>
-        (p['name']?.toString().toLowerCase().contains('ppr') ?? false) ||
-        (p['name']?.toString().toLowerCase().contains('rvs') ?? false));
+  /// Reload all cached data from persistent storage (simulates cold app restart or page refresh)
+  Future<void> reloadFromStorage() async {
+    _memoryStore.clear();
+    _lastUpdated.clear();
+    _isInitialized = false;
+    await init(forceReload: true);
+  }
 
-    if (existingProjects.isEmpty || !hasPprShop) {
-      final userProjects = [
+  static final _uuidPattern = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
+  static Map<String, dynamic> _safeMap(dynamic m) {
+    if (m is! Map) return <String, dynamic>{};
+    return m.map((k, v) => MapEntry(k?.toString() ?? '', v));
+  }
+
+  void _ensureUserRealData() {
+    // ── 1. Clean & Migrate Existing Projects ──
+    final rawProjects = getCachedProjects() ?? [];
+    if (rawProjects.isEmpty) {
+      final initialProjects = [
         {
-          'id': 'proj_ppr_shop',
+          'id': '11111111-1111-4111-8111-111111111111',
           'name': 'PPR shop',
           'client_name': 'PPR Retail & Commercial Group',
           'project_code': 'PRJ-PPR-01',
@@ -70,7 +82,7 @@ class OfflineDataCache {
           'created_at': DateTime.now().subtract(const Duration(days: 45)).toIso8601String(),
         },
         {
-          'id': 'proj_rvs_shop',
+          'id': '22222222-2222-4222-8222-222222222222',
           'name': 'RVS Shop',
           'client_name': 'RVS Enterprises',
           'project_code': 'PRJ-RVS-02',
@@ -89,67 +101,90 @@ class OfflineDataCache {
           'created_at': DateTime.now().subtract(const Duration(days: 30)).toIso8601String(),
         },
       ];
-
-      // Merge with any other user-created projects
-      final Map<String, Map<String, dynamic>> projectMap = {
-        for (var p in existingProjects) p['id']?.toString() ?? '': p
-      };
-      for (var p in userProjects) {
-        projectMap[p['id'] as String] = p;
-      }
-      final merged = projectMap.values.toList();
-      _memoryStore['projects_master'] = merged;
+      _memoryStore['projects_master'] = initialProjects;
       _lastUpdated['projects_master'] = DateTime.now();
-      _persistKey('projects_master', merged);
+      _persistKey('projects_master', initialProjects);
+    } else {
+      // Preserve all existing projects while normalizing legacy IDs to valid UUIDs
+      final cleanedProjects = rawProjects.map((p) {
+        final map = _safeMap(p);
+        final id = map['id']?.toString() ?? '';
+        if (id == 'proj_ppr_shop') {
+          map['id'] = '11111111-1111-4111-8111-111111111111';
+        } else if (id == 'proj_rvs_shop') {
+          map['id'] = '22222222-2222-4222-8222-222222222222';
+        } else if (id.isEmpty || !_uuidPattern.hasMatch(id)) {
+          // If project has no valid UUID, preserve or assign a deterministic UUID
+          if (id.isEmpty) {
+            map['id'] = const Uuid().v4();
+          }
+        }
+        return map;
+      }).toList();
+
+      _memoryStore['projects_master'] = cleanedProjects;
+      _lastUpdated['projects_master'] = DateTime.now();
+      _persistKey('projects_master', cleanedProjects);
     }
 
-    // ── 2. Authentic Employees (Soori, Abdul, etc.) ──
-    final existingEmployees = getCachedEmployees() ?? [];
-    final bool hasSooriAbdul = existingEmployees.any((e) =>
-        (e['name']?.toString().toLowerCase().contains('soori') ?? false) ||
-        (e['name']?.toString().toLowerCase().contains('abdul') ?? false));
-
-    if (existingEmployees.isEmpty || !hasSooriAbdul) {
-      final userEmployees = [
+    // ── 2. Clean & Migrate Existing Employees ──
+    final rawEmployees = getCachedEmployees() ?? [];
+    if (rawEmployees.isEmpty) {
+      final initialEmployees = [
         {
-          'id': 'emp_soori_01',
+          'id': '33333333-3333-4333-8333-333333333333',
           'name': 'Soori',
           'role': 'Site Supervisor / Lead Mason',
           'designation': 'Site Supervisor',
           'phone': '+91 98765 11223',
           'email': 'soori@ibuild.in',
-          'salary': 32000.0,
+          'salary': 1200.0,
           'daily_rate': 1200.0,
           'tea_snack_allowance': 50.0,
           'status': 'active',
           'created_at': DateTime.now().subtract(const Duration(days: 60)).toIso8601String(),
         },
         {
-          'id': 'emp_abdul_02',
+          'id': '44444444-4444-4444-8444-444444444444',
           'name': 'Abdul',
           'role': 'Structural Fabricator / Site Foreman',
           'designation': 'Site Foreman',
           'phone': '+91 98765 44556',
           'email': 'abdul@ibuild.in',
-          'salary': 30000.0,
+          'salary': 1100.0,
           'daily_rate': 1100.0,
           'tea_snack_allowance': 50.0,
           'status': 'active',
           'created_at': DateTime.now().subtract(const Duration(days: 55)).toIso8601String(),
         },
       ];
-
-      // Merge with any other user-created employees
-      final Map<String, Map<String, dynamic>> empMap = {
-        for (var e in existingEmployees) e['id']?.toString() ?? '': e
-      };
-      for (var e in userEmployees) {
-        empMap[e['id'] as String] = e;
-      }
-      final merged = empMap.values.toList();
-      _memoryStore['employees_master'] = merged;
+      _memoryStore['employees_master'] = initialEmployees;
       _lastUpdated['employees_master'] = DateTime.now();
-      _persistKey('employees_master', merged);
+      _persistKey('employees_master', initialEmployees);
+    } else {
+      // Preserve all user employee modifications while normalizing legacy IDs
+      final cleanedEmployees = rawEmployees.map((e) {
+        final map = _safeMap(e);
+        final id = map['id']?.toString() ?? '';
+        if (id == 'emp_soori_01') {
+          map['id'] = '33333333-3333-4333-8333-333333333333';
+        } else if (id == 'emp_abdul_02') {
+          map['id'] = '44444444-4444-4444-8444-444444444444';
+        } else if (id.isEmpty) {
+          map['id'] = const Uuid().v4();
+        }
+        // Ensure salary is normalized
+        final sal = (map['salary'] as num?)?.toDouble() ??
+            (map['daily_rate'] as num?)?.toDouble() ??
+            0.0;
+        map['salary'] = sal;
+        map['daily_rate'] = sal;
+        return map;
+      }).toList();
+
+      _memoryStore['employees_master'] = cleanedEmployees;
+      _lastUpdated['employees_master'] = DateTime.now();
+      _persistKey('employees_master', cleanedEmployees);
     }
   }
 
@@ -200,6 +235,7 @@ class OfflineDataCache {
   void clear() {
     _memoryStore.clear();
     _lastUpdated.clear();
+    _isInitialized = false;
     try {
       final keys = _prefs?.getKeys() ?? {};
       for (final k in keys) {
@@ -216,14 +252,14 @@ class OfflineDataCache {
   void cacheProjects(List<Map<String, dynamic>> projects) => set('projects_master', projects);
   List<Map<String, dynamic>>? getCachedProjects() {
     final raw = get<List>('projects_master');
-    return raw?.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return raw?.map((e) => _safeMap(e)).toList();
   }
 
   // Employees
   void cacheEmployees(List<Map<String, dynamic>> employees) => set('employees_master', employees);
   List<Map<String, dynamic>>? getCachedEmployees() {
     final raw = get<List>('employees_master');
-    return raw?.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return raw?.map((e) => _safeMap(e)).toList();
   }
 
   // Attendance by Date
@@ -233,27 +269,50 @@ class OfflineDataCache {
 
   List<Map<String, dynamic>>? getCachedAttendanceForDate(String date) {
     final raw = get<List>('attendance_$date');
-    return raw?.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return raw?.map((e) => _safeMap(e)).toList();
   }
 
   // Snags / Punch List
   void cacheSnags(List<Map<String, dynamic>> snags) => set('snags_master', snags);
   List<Map<String, dynamic>>? getCachedSnags() {
     final raw = get<List>('snags_master');
-    return raw?.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return raw?.map((e) => _safeMap(e)).toList();
   }
 
   // Inventory Catalog
   void cacheInventory(List<Map<String, dynamic>> inventory) => set('inventory_master', inventory);
   List<Map<String, dynamic>>? getCachedInventory() {
     final raw = get<List>('inventory_master');
-    return raw?.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+    return raw?.map((e) => _safeMap(e)).toList();
   }
 
   // Company Branding & Letterhead
   void cacheCompanyBranding(Map<String, dynamic> branding) => set('company_branding', branding);
   Map<String, dynamic>? getCachedCompanyBranding() {
     final raw = get<Map>('company_branding');
-    return raw != null ? Map<String, dynamic>.from(raw) : null;
+    return raw != null ? _safeMap(raw) : null;
+  }
+
+  // Subcontractors / Trade Partners
+  void cacheSubcontractors(List<Map<String, dynamic>> subcontractors) => set('subcontractors_master', subcontractors);
+  List<Map<String, dynamic>>? getCachedSubcontractors() {
+    final raw = get<List>('subcontractors_master');
+    return raw?.map((e) => _safeMap(e)).toList();
+  }
+
+  void cacheSubcontractorSiteAssignment(String subId, String projectId, String siteName) {
+    set('sub_site_$subId', {
+      'project_id': projectId,
+      'site_name': siteName,
+    });
+  }
+
+  Map<String, String>? getSubcontractorSiteAssignment(String subId) {
+    final raw = get<Map>('sub_site_$subId');
+    if (raw == null) return null;
+    return {
+      'project_id': raw['project_id']?.toString() ?? '',
+      'site_name': raw['site_name']?.toString() ?? '',
+    };
   }
 }

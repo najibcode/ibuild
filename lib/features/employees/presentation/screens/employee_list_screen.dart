@@ -37,24 +37,13 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        leading: hasBack
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: 'Go back',
-                onPressed: () {
-                  if (widget.onBackPressed != null) {
-                    widget.onBackPressed!();
-                  } else {
-                    Navigator.maybePop(context);
-                  }
-                },
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                tooltip: 'Open navigation menu',
-                onPressed: MobileNavHelper.openDrawer,
-              ),
-        titleSpacing: 0,
+        automaticallyImplyLeading: false,
+        leading: MobileNavHelper.buildLeading(
+          context,
+          hasBack: hasBack,
+          onBackPressed: widget.onBackPressed,
+        ),
+        titleSpacing: (hasBack || MediaQuery.of(context).size.width < 800) ? 0 : 16,
         title: Text(
           'Employees',
           style: TextStyle(

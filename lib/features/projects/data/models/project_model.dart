@@ -67,41 +67,58 @@ class Project {
     this.lastUpdatedBy,
   });
 
-  factory Project.fromJson(Map<String, dynamic> json) {
+  factory Project.fromJson(dynamic rawJson) {
+    final Map<dynamic, dynamic> json =
+        rawJson is Map ? rawJson : <dynamic, dynamic>{};
+
+    double parseDouble(dynamic val) {
+      if (val == null) return 0.0;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString()) ?? 0.0;
+    }
+
+    double? parseDoubleNullable(dynamic val) {
+      if (val == null) return null;
+      if (val is num) return val.toDouble();
+      return double.tryParse(val.toString());
+    }
+
     return Project(
-      id: json['id'] as String,
-      name: json['name'] as String,
-      clientName: json['client_name'] as String?,
-      projectCode: json['project_code'] as String?,
-      address: json['address'] as String?,
-      budget: (json['budget'] as num?)?.toDouble() ?? 0.0,
-      estimatedCost: (json['estimated_cost'] as num?)?.toDouble() ?? 0.0,
-      currentCost: (json['current_cost'] as num?)?.toDouble() ?? 0.0,
-      spent: (json['spent'] as num?)?.toDouble() ?? 0.0,
-      status: json['status'] as String? ?? 'planning',
-      startDate: json['start_date'] as String?,
-      expectedCompletion: json['expected_completion'] as String?,
-      supervisorId: json['supervisor_id'] as String?,
-      notes: json['notes'] as String?,
-      description: json['description'] as String?,
-      isArchived: json['is_archived'] as bool? ?? false,
-      deadline: json['deadline'] as String?,
-      createdAt: json['created_at'] as String?,
-      builtUpArea: (json['built_up_area'] as num?)?.toDouble() ?? 0.0,
-      flatArea: (json['flat_area'] as num?)?.toDouble() ?? 0.0,
-      duration: json['duration'] as String?,
-      customerName: json['customer_name'] as String?,
-      customerMobile: json['customer_mobile'] as String?,
-      customerEmail: json['customer_email'] as String?,
-      customerDob: json['customer_dob'] as String?,
-      customerAddress: json['customer_address'] as String?,
-      imageUrl: json['image_url'] as String?,
-      physicalProgress: (json['physical_progress'] as num?)?.toDouble(),
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Unnamed Project',
+      clientName: json['client_name']?.toString() ?? json['customer_name']?.toString(),
+      projectCode: json['project_code']?.toString(),
+      address: json['address']?.toString(),
+      budget: parseDouble(json['budget']),
+      estimatedCost: parseDouble(json['estimated_cost']),
+      currentCost: parseDouble(json['current_cost']),
+      spent: parseDouble(json['spent']),
+      status: json['status']?.toString() ?? 'planning',
+      startDate: json['start_date']?.toString(),
+      expectedCompletion: json['expected_completion']?.toString(),
+      supervisorId: json['supervisor_id']?.toString(),
+      notes: json['notes']?.toString(),
+      description: json['description']?.toString(),
+      isArchived: json['is_archived'] == true,
+      deadline: json['deadline']?.toString(),
+      createdAt: json['created_at']?.toString(),
+      builtUpArea: parseDouble(json['built_up_area']),
+      flatArea: parseDouble(json['flat_area']),
+      duration: json['duration']?.toString(),
+      customerName: json['customer_name']?.toString(),
+      customerMobile: json['customer_mobile']?.toString(),
+      customerEmail: json['customer_email']?.toString(),
+      customerDob: json['customer_dob']?.toString(),
+      customerAddress: json['customer_address']?.toString(),
+      imageUrl: json['image_url']?.toString(),
+      physicalProgress: parseDoubleNullable(json['physical_progress']),
       lastUpdatedDate: json['updated_at'] != null
-          ? DateTime.tryParse(json['updated_at'] as String)
-          : null,
+          ? DateTime.tryParse(json['updated_at'].toString())
+          : (json['created_at'] != null
+              ? DateTime.tryParse(json['created_at'].toString())
+              : null),
       lastUpdatedBy:
-          json['updated_by_name'] as String? ?? json['updated_by'] as String?,
+          json['updated_by_name']?.toString() ?? json['updated_by']?.toString(),
     );
   }
 
@@ -133,6 +150,14 @@ class Project {
       'customer_address': customerAddress,
       'image_url': imageUrl,
     };
+  }
+
+  Map<String, dynamic> toMap() {
+    final map = toJson();
+    if (id.isNotEmpty) {
+      map['id'] = id;
+    }
+    return map;
   }
 
   Project copyWith({

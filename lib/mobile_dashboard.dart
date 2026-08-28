@@ -51,12 +51,12 @@ class MobileDashboard extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        titleSpacing: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.menu, color: AppColors.primary, size: 24),
-          tooltip: 'Open Menu',
-          onPressed: onMenuPressed ?? MobileNavHelper.openDrawer,
+        automaticallyImplyLeading: false,
+        leading: MobileNavHelper.buildLeading(
+          context,
+          onBackPressed: null,
         ),
+        titleSpacing: MediaQuery.of(context).size.width < 800 ? 0 : 16,
         title: Row(
           children: [
             CircleAvatar(

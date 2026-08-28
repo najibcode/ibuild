@@ -6,6 +6,8 @@ class Attendance {
   final String? projectId; // UI-only: kept in memory for site assignment display
   final String? employeeName;
   final String? projectName;
+  final double? wageRate; // Historical daily wage rate snapshot at the time of attendance
+  final double? teaAllowance; // Historical daily tea allowance snapshot
 
   Attendance({
     required this.id,
@@ -15,6 +17,8 @@ class Attendance {
     this.projectId,
     this.employeeName,
     this.projectName,
+    this.wageRate,
+    this.teaAllowance,
   });
 
   // Backward compatibility getters
@@ -29,6 +33,13 @@ class Attendance {
     final normalizedStatus = (rawStatus.toLowerCase() == 'present') ? 'Present' : 'Absent';
     final pName = projectName ?? (json['projects'] as Map?)?['name'] as String? ?? json['project_name'] as String?;
 
+    final wage = (json['wage_rate'] as num?)?.toDouble()
+        ?? (json['daily_rate'] as num?)?.toDouble()
+        ?? (json['salary'] as num?)?.toDouble();
+
+    final tea = (json['tea_allowance'] as num?)?.toDouble()
+        ?? (json['tea_snack_allowance'] as num?)?.toDouble();
+
     return Attendance(
       id: json['id'] as String? ?? '',
       employeeId: json['employee_id'] as String? ?? '',
@@ -37,29 +48,45 @@ class Attendance {
       projectId: json['project_id'] as String?,
       employeeName: employeeName ?? json['employee_name'] as String?,
       projectName: pName,
+      wageRate: wage,
+      teaAllowance: tea,
     );
   }
 
   /// Produce the JSON payload for Supabase insert/update.
   Map<String, dynamic> toJson() {
     final lowerStatus = status.toLowerCase() == 'present' ? 'present' : 'absent';
-    return <String, dynamic>{
+    final map = <String, dynamic>{
       'employee_id': employeeId,
       'date': date,
       'morning_status': lowerStatus,   // Must be lowercase to pass PostgreSQL check constraint
       'evening_status': lowerStatus,   // Must be lowercase to pass PostgreSQL check constraint
       'project_id': (projectId != null && projectId!.isNotEmpty) ? projectId : null,
     };
+    if (wageRate != null) {
+      map['wage_rate'] = wageRate;
+    }
+    if (teaAllowance != null) {
+      map['tea_allowance'] = teaAllowance;
+    }
+    return map;
   }
 
   /// Minimal update payload (fields that change on attendance toggle or site assignment)
   Map<String, dynamic> toUpdateJson() {
     final lowerStatus = status.toLowerCase() == 'present' ? 'present' : 'absent';
-    return <String, dynamic>{
+    final map = <String, dynamic>{
       'morning_status': lowerStatus,
       'evening_status': lowerStatus,
       'project_id': (projectId != null && projectId!.isNotEmpty) ? projectId : null,
     };
+    if (wageRate != null) {
+      map['wage_rate'] = wageRate;
+    }
+    if (teaAllowance != null) {
+      map['tea_allowance'] = teaAllowance;
+    }
+    return map;
   }
 
   Attendance copyWith({
@@ -70,6 +97,8 @@ class Attendance {
     String? projectId,
     String? employeeName,
     String? projectName,
+    double? wageRate,
+    double? teaAllowance,
   }) {
     return Attendance(
       id: id ?? this.id,
@@ -79,6 +108,8 @@ class Attendance {
       projectId: projectId ?? this.projectId,
       employeeName: employeeName ?? this.employeeName,
       projectName: projectName ?? this.projectName,
+      wageRate: wageRate ?? this.wageRate,
+      teaAllowance: teaAllowance ?? this.teaAllowance,
     );
   }
 }

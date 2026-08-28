@@ -71,24 +71,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        leading: hasBack
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: 'Go back',
-                onPressed: () {
-                  if (widget.onBackPressed != null) {
-                    widget.onBackPressed!();
-                  } else {
-                    Navigator.maybePop(context);
-                  }
-                },
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                tooltip: 'Open navigation menu',
-                onPressed: MobileNavHelper.openDrawer,
-              ),
-        titleSpacing: 0,
+        automaticallyImplyLeading: false,
+        leading: MobileNavHelper.buildLeading(
+          context,
+          hasBack: hasBack,
+          onBackPressed: widget.onBackPressed,
+        ),
+        titleSpacing: (hasBack || MediaQuery.of(context).size.width < 800) ? 0 : 16,
         title: Row(
           children: [
             const Icon(Icons.admin_panel_settings, color: Colors.blueAccent, size: 24),
@@ -166,24 +155,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        leading: hasBack
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: 'Go back',
-                onPressed: () {
-                  if (widget.onBackPressed != null) {
-                    widget.onBackPressed!();
-                  } else {
-                    Navigator.maybePop(context);
-                  }
-                },
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                tooltip: 'Open navigation menu',
-                onPressed: MobileNavHelper.openDrawer,
-              ),
-        titleSpacing: 0,
+        automaticallyImplyLeading: false,
+        leading: MobileNavHelper.buildLeading(
+          context,
+          hasBack: hasBack,
+          onBackPressed: widget.onBackPressed,
+        ),
+        titleSpacing: (hasBack || MediaQuery.of(context).size.width < 800) ? 0 : 16,
         title: Text(
           'Settings',
           style: TextStyle(

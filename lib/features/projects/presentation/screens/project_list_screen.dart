@@ -13,6 +13,8 @@ import '../../../../core/utils/date_range_filter_helper.dart';
 import '../../../../core/utils/currency_formatter.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
+import '../../../rbac/presentation/providers/permission_provider.dart';
+import '../widgets/delete_project_dialog.dart';
 import 'project_form_screen.dart';
 import 'project_dashboard_screen.dart';
 
@@ -32,24 +34,13 @@ class ProjectListScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: AppColors.bg(context),
       appBar: AppBar(
-        leading: hasBack
-            ? IconButton(
-                icon: const Icon(Icons.arrow_back),
-                tooltip: 'Go back',
-                onPressed: () {
-                  if (onBackPressed != null) {
-                    onBackPressed!();
-                  } else {
-                    Navigator.maybePop(context);
-                  }
-                },
-              )
-            : IconButton(
-                icon: const Icon(Icons.menu),
-                tooltip: 'Open navigation menu',
-                onPressed: MobileNavHelper.openDrawer,
-              ),
-        titleSpacing: 0,
+        automaticallyImplyLeading: false,
+        leading: MobileNavHelper.buildLeading(
+          context,
+          hasBack: hasBack,
+          onBackPressed: onBackPressed,
+        ),
+        titleSpacing: (hasBack || MediaQuery.of(context).size.width < 800) ? 0 : 16,
         title: Text(
           'Projects',
           style: TextStyle(
@@ -76,9 +67,9 @@ class ProjectListScreen extends ConsumerWidget {
                   'Project Name',
                   'Client',
                   'Status',
-                  'Budget',
-                  'Spent',
-                  'Progress',
+                  'Budget (INR)',
+                  'Spent (INR)',
+                  'Progress %',
                   'Due Date',
                 ],
                 data: projects
@@ -157,8 +148,11 @@ class ProjectListScreen extends ConsumerWidget {
         ).push(MaterialPageRoute(builder: (_) => const ProjectFormScreen())),
         backgroundColor: AppColors.primaryColor(context),
         foregroundColor: Colors.white,
-        icon: const Icon(Icons.add),
-        label: const Text('New Project'),
+        icon: const Icon(Icons.add, color: Colors.white),
+        label: const Text(
+          'New Project',
+          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+        ),
       ),
       body: Column(
         children: [
@@ -239,7 +233,7 @@ class ProjectListScreen extends ConsumerWidget {
   }
 }
 
-class _ProjectCard extends StatelessWidget {
+class _ProjectCard extends ConsumerWidget {
   final Project project;
   final VoidCallback onTap;
 
@@ -265,7 +259,7 @@ class _ProjectCard extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bool isAtRisk = project.isAtRisk;
     final statusCol = _statusColor(project.status, isAtRisk);
     final utilizationPct = project.budget > 0
@@ -297,7 +291,7 @@ class _ProjectCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Header: Title & Status Badge ──
+              // ── Header: Title & Status Badge & Admin Actions ──
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -367,6 +361,39 @@ class _ProjectCard extends StatelessWidget {
                       ],
                     ),
                   ),
+                  if (ref.watch(isAdminProvider)) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      icon: const Icon(
+                        Icons.delete_outline_rounded,
+                        color: AppColors.error,
+                        size: 20,
+                      ),
+                      tooltip: 'Delete Project (Admin)',
+                      visualDensity: VisualDensity.compact,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
+                      onPressed: () async {
+                        final confirmed = await showDeleteProjectConfirmationDialog(
+                          context,
+                          project.name,
+                        );
+                        if (confirmed) {
+                          await ref
+                              .read(projectControllerProvider.notifier)
+                              .removeProject(project.id);
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text('Project "${project.name}" deleted successfully ✓'),
+                                backgroundColor: AppColors.secondary,
+                              ),
+                            );
+                          }
+                        }
+                      },
+                    ),
+                  ],
                 ],
               ),
               const SizedBox(height: 14),

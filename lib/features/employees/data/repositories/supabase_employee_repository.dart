@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:ibuild/core/offline/offline_data_cache.dart';
 import '../../domain/repositories/employee_repository.dart';
 import '../models/employee_model.dart';
@@ -23,14 +24,24 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
 
     try {
       final response = await _client.from('employees').select();
-      if (response is List && response.isNotEmpty) {
+      if (response.isNotEmpty) {
         final remote = response.map((json) => Employee.fromJson(json)).toList();
         final Map<String, Employee> map = {for (var e in employees) e.id: e};
-        for (var e in remote) {
-          map[e.id] = e;
+        for (var r in remote) {
+          final local = map[r.id];
+          if (local != null) {
+            // Keep non-zero local values if remote has null/zero fallback values
+            map[r.id] = r.copyWith(
+              salary: r.salary > 0 ? r.salary : local.salary,
+              teaSnackAllowance: r.teaSnackAllowance > 0 ? r.teaSnackAllowance : local.teaSnackAllowance,
+              photoUrl: r.photoUrl ?? local.photoUrl,
+            );
+          } else {
+            map[r.id] = r;
+          }
         }
         employees = map.values.toList();
-        cache.cacheEmployees(employees.map((e) => e.toJson()).toList());
+        cache.cacheEmployees(employees.map((e) => e.toMap()).toList());
       }
     } catch (e) {
       debugPrint('Employees query note: $e');
@@ -75,17 +86,48 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
       throw ArgumentError('Tea and snacks allowance cannot be negative.');
     }
 
-    // Save to OfflineDataCache
+    // Assign valid UUID upfront if not present
+    final assignedId = employee.id.isNotEmpty ? employee.id : const Uuid().v4();
+    final empToSave = employee.copyWith(id: assignedId);
+
+    // Save to OfflineDataCache immediately
     final cache = OfflineDataCache();
     final existing = cache.getCachedEmployees() ?? [];
-    existing.removeWhere((e) => e['id'] == employee.id);
-    existing.insert(0, employee.toJson());
+    existing.removeWhere((e) => e['id'] == assignedId || e['id'] == employee.id);
+    existing.insert(0, empToSave.toMap());
     cache.cacheEmployees(existing);
 
+    String entityId = assignedId;
+
     try {
-      await _client.from('employees').insert(employee.toJson());
+      final insertMap = Map<String, dynamic>.from(empToSave.toMap());
+      final response = await _client.from('employees').insert(insertMap).select().maybeSingle();
+      if (response != null) {
+        final createdEmp = Employee.fromJson(response);
+        entityId = createdEmp.id;
+
+        // Update cache with server UUID
+        final updatedList = cache.getCachedEmployees() ?? [];
+        updatedList.removeWhere((e) => e['id'] == assignedId || e['id'] == createdEmp.id);
+        updatedList.insert(0, createdEmp.toMap());
+        cache.cacheEmployees(updatedList);
+      }
     } catch (e) {
-      debugPrint('Supabase insert employee error: $e');
+      debugPrint('Supabase insert employee error: $e. Retrying with basic fields.');
+      try {
+        final basicMap = {
+          'id': assignedId,
+          'name': empToSave.name,
+          'phone': empToSave.phone,
+          'role': empToSave.role,
+          'salary': empToSave.salary,
+          'daily_rate': empToSave.salary,
+          'status': empToSave.status,
+        };
+        await _client.from('employees').insert(basicMap);
+      } catch (e2) {
+        debugPrint('Supabase insert employee fallback error: $e2');
+      }
     }
     
     // Log activity
@@ -93,8 +135,8 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
       await _activityRepo.logActivity(
         actionType: 'added_employee',
         entityType: 'Employee',
-        entityId: employee.id,
-        details: {'name': employee.name, 'role': employee.role},
+        entityId: entityId,
+        details: {'name': empToSave.name, 'role': empToSave.role},
       );
     } catch (_) {}
   }
@@ -105,24 +147,43 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
       throw ArgumentError('Tea and snacks allowance cannot be negative.');
     }
 
-    // Update in OfflineDataCache
+    // 1. Update in OfflineDataCache immediately
     final cache = OfflineDataCache();
     final existing = cache.getCachedEmployees() ?? [];
     final idx = existing.indexWhere((e) => e['id'] == employee.id);
     if (idx != -1) {
-      existing[idx] = employee.toJson();
+      existing[idx] = employee.toMap();
     } else {
-      existing.insert(0, employee.toJson());
+      existing.insert(0, employee.toMap());
     }
     cache.cacheEmployees(existing);
 
+    // 2. Update in Supabase with resilient fallbacks
     try {
       await _client
           .from('employees')
           .update(employee.toJson())
           .eq('id', employee.id);
     } catch (e) {
-      debugPrint('Supabase update employee error: $e');
+      debugPrint('Supabase update employee error: $e. Retrying with basic fields.');
+      try {
+        final fallbackMap = {
+          'name': employee.name,
+          'phone': employee.phone,
+          'role': employee.role,
+          'salary': employee.salary,
+          'daily_rate': employee.salary,
+          'status': employee.status,
+        };
+        await _client.from('employees').update(fallbackMap).eq('id', employee.id);
+      } catch (e2) {
+        try {
+          await _client.from('employees').update({
+            'salary': employee.salary,
+            'name': employee.name,
+          }).eq('id', employee.id);
+        } catch (_) {}
+      }
     }
 
     // Log activity
@@ -131,7 +192,7 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
         actionType: 'updated_employee',
         entityType: 'Employee',
         entityId: employee.id,
-        details: {'name': employee.name},
+        details: {'name': employee.name, 'salary': employee.salary},
       );
     } catch (_) {}
   }

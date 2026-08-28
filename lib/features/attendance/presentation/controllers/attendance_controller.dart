@@ -198,14 +198,27 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       }
     }
 
+    Employee? targetEmployee;
+    for (final e in state.activeEmployees) {
+      if (e.id == employeeId) {
+        targetEmployee = e;
+        break;
+      }
+    }
+
+    final wageSnapshot = targetEmployee?.salary ?? currentRecord?.wageRate;
+    final teaSnapshot = targetEmployee?.teaSnackAllowance ?? currentRecord?.teaAllowance;
+
     final newRecord = Attendance(
       id: currentRecord?.id ?? '',
       employeeId: employeeId,
       date: dateStr,
       status: normalizedStatus,
       projectId: assignedProjId,
-      employeeName: currentRecord?.employeeName,
+      employeeName: targetEmployee?.name ?? currentRecord?.employeeName,
       projectName: projName,
+      wageRate: wageSnapshot,
+      teaAllowance: teaSnapshot,
     );
 
     if (existingIdx >= 0) {
@@ -252,14 +265,6 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       }).catchError((e) {
         debugPrint('[AttendanceCtrl] syncEmployeeSalaryExpense error: $e');
       });
-    }
-
-    Employee? targetEmployee;
-    for (final e in state.activeEmployees) {
-      if (e.id == employeeId) {
-        targetEmployee = e;
-        break;
-      }
     }
 
     if (targetEmployee != null) {

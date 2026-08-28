@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import '../../../rbac/presentation/providers/permission_provider.dart';
+import '../widgets/delete_project_dialog.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../data/models/project_model.dart';
 import '../controllers/project_controller.dart';
@@ -170,7 +172,40 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
-      appBar: AppBar(title: Text(isEditing ? 'Edit Project' : 'New Project')),
+      appBar: AppBar(
+        title: Text(isEditing ? 'Edit Project' : 'New Project'),
+        actions: [
+          if (isEditing && ref.watch(isAdminProvider))
+            IconButton(
+              icon: const Icon(
+                Icons.delete_outline_rounded,
+                color: AppColors.error,
+              ),
+              tooltip: 'Delete Project (Admin)',
+              onPressed: () async {
+                final confirmed = await showDeleteProjectConfirmationDialog(
+                  context,
+                  widget.project!.name,
+                );
+                if (confirmed) {
+                  await ref
+                      .read(projectControllerProvider.notifier)
+                      .removeProject(widget.project!.id);
+                  if (mounted) {
+                    Navigator.of(context).pop();
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Project "${widget.project!.name}" deleted successfully ✓'),
+                        backgroundColor: AppColors.secondary,
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(AppSpacing.containerMargin),
         child: Form(

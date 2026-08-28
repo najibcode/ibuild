@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:uuid/uuid.dart';
 import 'package:ibuild/core/offline/offline_data_cache.dart';
 import '../../domain/repositories/project_repository.dart';
 import '../models/project_model.dart';
@@ -22,11 +23,19 @@ class SupabaseProjectRepository implements ProjectRepository {
     bool includeArchived = false,
   }) async {
     final cache = OfflineDataCache();
-    final cached = cache.getCachedProjects();
     List<Project> projects = [];
 
-    if (cached != null && cached.isNotEmpty) {
-      projects = cached.map((j) => Project.fromJson(j)).toList();
+    try {
+      final cached = cache.getCachedProjects();
+      if (cached != null && cached.isNotEmpty) {
+        for (final j in cached) {
+          try {
+            projects.add(Project.fromJson(j));
+          } catch (_) {}
+        }
+      }
+    } catch (e) {
+      debugPrint('Cache read note: $e');
     }
 
     try {
@@ -43,13 +52,20 @@ class SupabaseProjectRepository implements ProjectRepository {
 
       final response = await query;
       if (response is List && response.isNotEmpty) {
-        final remote = response.map((j) => Project.fromJson(j)).toList();
+        final List<Project> remote = [];
+        for (final j in response) {
+          try {
+            remote.add(Project.fromJson(j));
+          } catch (err) {
+            debugPrint('Error mapping project: $err');
+          }
+        }
         final Map<String, Project> map = {for (var p in projects) p.id: p};
         for (var p in remote) {
           map[p.id] = p;
         }
         projects = map.values.toList();
-        cache.cacheProjects(projects.map((p) => p.toJson()).toList());
+        cache.cacheProjects(projects.map((p) => p.toMap()).toList());
       }
     } catch (e) {
       debugPrint('Projects query note: $e');
@@ -61,10 +77,10 @@ class SupabaseProjectRepository implements ProjectRepository {
       final expRows = await _client
           .from('expenses')
           .select('project_id, amount');
-      for (final r in expRows) {
-        final pid = r['project_id'] as String?;
+      for (final r in (expRows as List)) {
+        final pid = r['project_id']?.toString();
         final amt = (r['amount'] as num? ?? 0).toDouble();
-        if (pid != null) {
+        if (pid != null && pid.isNotEmpty) {
           spentByProject[pid] = (spentByProject[pid] ?? 0.0) + amt;
         }
       }
@@ -81,14 +97,14 @@ class SupabaseProjectRepository implements ProjectRepository {
           )
           .order('created_at', ascending: false);
 
-      for (final pr in progRows) {
-        final pid = pr['project_id'] as String?;
-        if (pid != null && !progressByProject.containsKey(pid)) {
+      for (final pr in (progRows as List)) {
+        final pid = pr['project_id']?.toString();
+        if (pid != null && pid.isNotEmpty && !progressByProject.containsKey(pid)) {
           final pct = (pr['progress_percentage'] as num? ?? 0).toDouble();
           final dtStr =
-              (pr['created_at'] as String?) ?? (pr['date'] as String?);
+              pr['created_at']?.toString() ?? pr['date']?.toString();
           final dt = DateTime.tryParse(dtStr ?? '') ?? DateTime.now();
-          final uName = pr['user_name'] as String?;
+          final uName = pr['user_name']?.toString();
           progressByProject[pid] = (pct: pct, date: dt, userName: uName);
         }
       }
@@ -103,11 +119,12 @@ class SupabaseProjectRepository implements ProjectRepository {
           .select('project_id, created_at, user_name, details')
           .order('created_at', ascending: false);
 
-      for (final ar in actRows) {
-        final pid = ar['project_id'] as String?;
-        final uName = ar['user_name'] as String?;
-        final dt = DateTime.tryParse(ar['created_at'] as String? ?? '');
+      for (final ar in (actRows as List)) {
+        final pid = ar['project_id']?.toString();
+        final uName = ar['user_name']?.toString();
+        final dt = DateTime.tryParse(ar['created_at']?.toString() ?? '');
         if (pid != null &&
+            pid.isNotEmpty &&
             uName != null &&
             dt != null &&
             !activityByProject.containsKey(pid)) {
@@ -229,17 +246,43 @@ class SupabaseProjectRepository implements ProjectRepository {
       throw ArgumentError('Project budget cannot be negative.');
     }
 
+    final assignedId = project.id.isNotEmpty ? project.id : const Uuid().v4();
+    final projToSave = project.copyWith(id: assignedId);
+
     // Save to OfflineDataCache
     final cache = OfflineDataCache();
     final existing = cache.getCachedProjects() ?? [];
-    existing.removeWhere((p) => p['id'] == project.id);
-    existing.insert(0, project.toJson());
+    existing.removeWhere((p) => p['id'] == assignedId || p['id'] == project.id);
+    existing.insert(0, projToSave.toMap());
     cache.cacheProjects(existing);
 
+    String entityId = assignedId;
+
     try {
-      await _client.from('projects').insert(project.toJson());
+      final insertMap = Map<String, dynamic>.from(projToSave.toMap());
+      final response = await _client.from('projects').insert(insertMap).select().maybeSingle();
+      if (response != null) {
+        final createdProject = Project.fromJson(response);
+        entityId = createdProject.id;
+
+        // Update cache with server UUID
+        final updatedList = cache.getCachedProjects() ?? [];
+        updatedList.removeWhere((p) => p['id'] == assignedId || p['id'] == createdProject.id);
+        updatedList.insert(0, createdProject.toMap());
+        cache.cacheProjects(updatedList);
+      }
     } catch (e) {
-      debugPrint('Supabase insert project error: $e');
+      debugPrint('Supabase insert project error: $e. Retrying with basic fields.');
+      try {
+        final basicMap = {
+          'id': assignedId,
+          'name': projToSave.name,
+          'client_name': projToSave.clientName,
+          'budget': projToSave.budget,
+          'status': projToSave.status,
+        };
+        await _client.from('projects').insert(basicMap);
+      } catch (_) {}
     }
 
     // Log activity
@@ -247,8 +290,8 @@ class SupabaseProjectRepository implements ProjectRepository {
       await _activityRepo.logActivity(
         actionType: 'created_project',
         entityType: 'Project',
-        entityId: project.id,
-        details: {'name': project.name},
+        entityId: entityId,
+        details: {'name': projToSave.name},
       );
     } catch (_) {}
   }
@@ -259,9 +302,9 @@ class SupabaseProjectRepository implements ProjectRepository {
     final existing = cache.getCachedProjects() ?? [];
     final idx = existing.indexWhere((p) => p['id'] == project.id);
     if (idx != -1) {
-      existing[idx] = project.toJson();
+      existing[idx] = project.toMap();
     } else {
-      existing.insert(0, project.toJson());
+      existing.insert(0, project.toMap());
     }
     cache.cacheProjects(existing);
 
@@ -271,7 +314,16 @@ class SupabaseProjectRepository implements ProjectRepository {
           .update(project.toJson())
           .eq('id', project.id);
     } catch (e) {
-      debugPrint('Supabase update project error: $e');
+      debugPrint('Supabase update project error: $e. Retrying with basic fields.');
+      try {
+        final fallbackMap = {
+          'name': project.name,
+          'client_name': project.clientName,
+          'budget': project.budget,
+          'status': project.status,
+        };
+        await _client.from('projects').update(fallbackMap).eq('id', project.id);
+      } catch (_) {}
     }
 
     // Log activity

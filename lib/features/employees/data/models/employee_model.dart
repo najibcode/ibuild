@@ -43,13 +43,23 @@ class Employee {
   double calculateTotalEmployerCost(int daysPresent) => daysPresent * totalDailyCost;
 
   factory Employee.fromJson(Map<String, dynamic> json) {
+    final rawSalary = json['salary'] ??
+        json['daily_rate'] ??
+        json['daily_wage'] ??
+        json['wage'] ??
+        json['rate'];
+    final rawTea = json['tea_snack_allowance'] ??
+        json['tea_allowance'] ??
+        json['tea_snacks'] ??
+        json['allowance'];
+
     return Employee(
       id: json['id'] as String? ?? '',
       name: json['name'] as String? ?? '',
       phone: json['phone'] as String? ?? '',
-      role: json['role'] as String? ?? 'Labor',
-      salary: (json['salary'] as num?)?.toDouble() ?? 0.0,
-      teaSnackAllowance: (json['tea_snack_allowance'] as num?)?.toDouble() ?? 20.0,
+      role: json['role'] as String? ?? json['designation'] as String? ?? 'Labor',
+      salary: (rawSalary as num?)?.toDouble() ?? 0.0,
+      teaSnackAllowance: (rawTea as num?)?.toDouble() ?? 20.0,
       status: json['status'] as String? ?? 'active',
       photoUrl: json['photo_url'] as String?,
     );
@@ -61,10 +71,19 @@ class Employee {
       'phone': phone,
       'role': role,
       'salary': salary,
+      'daily_rate': salary,
       'tea_snack_allowance': teaSnackAllowance,
       'status': status,
       'photo_url': photoUrl,
     };
+  }
+
+  Map<String, dynamic> toMap() {
+    final map = toJson();
+    if (id.isNotEmpty) {
+      map['id'] = id;
+    }
+    return map;
   }
 
   Employee copyWith({

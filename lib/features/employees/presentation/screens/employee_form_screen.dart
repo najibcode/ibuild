@@ -37,7 +37,13 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
     _nameController = TextEditingController(text: widget.employee?.name ?? '');
     _phoneController = TextEditingController(text: widget.employee?.phone ?? '');
     _roleController = TextEditingController(text: widget.employee?.role ?? '');
-    _salaryController = TextEditingController(text: widget.employee?.salary.toString() ?? '');
+    final initialSalary = widget.employee?.salary;
+    final salaryText = (initialSalary != null && initialSalary > 0)
+        ? (initialSalary == initialSalary.roundToDouble()
+            ? initialSalary.toInt().toString()
+            : initialSalary.toString())
+        : '';
+    _salaryController = TextEditingController(text: salaryText);
     _teaSnackController = TextEditingController(
       text: (widget.employee?.teaSnackAllowance ?? 20.0).toStringAsFixed(0),
     );
@@ -87,8 +93,8 @@ class _EmployeeFormScreenState extends ConsumerState<EmployeeFormScreen> {
         name: _nameController.text.trim(),
         phone: _phoneController.text.trim(),
         role: _roleController.text.trim(),
-        salary: double.tryParse(_salaryController.text) ?? 0.0,
-        teaSnackAllowance: double.tryParse(_teaSnackController.text) ?? 20.0,
+        salary: double.tryParse(_salaryController.text.trim()) ?? 0.0,
+        teaSnackAllowance: double.tryParse(_teaSnackController.text.trim()) ?? 20.0,
         status: _status,
         photoUrl: _photoUrl,
       );

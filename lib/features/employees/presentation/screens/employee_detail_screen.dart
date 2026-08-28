@@ -52,7 +52,16 @@ class EmployeeDetailScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final attendanceHistoryAsync = ref.watch(employeeAttendanceHistoryProvider(employee.id));
+    final employeesListAsync = ref.watch(employeeListControllerProvider);
+    final currentEmployee = employeesListAsync.maybeWhen(
+      data: (list) => list.firstWhere(
+        (e) => e.id == employee.id,
+        orElse: () => employee,
+      ),
+      orElse: () => employee,
+    );
+
+    final attendanceHistoryAsync = ref.watch(employeeAttendanceHistoryProvider(currentEmployee.id));
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -63,7 +72,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
             icon: Icon(Icons.edit, color: AppColors.primaryColor(context)),
             onPressed: () => Navigator.of(context).push(
               MaterialPageRoute(
-                builder: (context) => EmployeeFormScreen(employee: employee),
+                builder: (context) => EmployeeFormScreen(employee: currentEmployee),
               ),
             ),
           ),
@@ -90,18 +99,18 @@ class EmployeeDetailScreen extends ConsumerWidget {
               child: Column(
                 children: [
                   CircleAvatar(
-                    backgroundImage: employee.photoUrl != null && employee.photoUrl!.isNotEmpty
-                        ? NetworkImage(employee.photoUrl!)
+                    backgroundImage: currentEmployee.photoUrl != null && currentEmployee.photoUrl!.isNotEmpty
+                        ? NetworkImage(currentEmployee.photoUrl!)
                         : null,
                     radius: 45,
                     backgroundColor: AppColors.primaryContainer,
-                    child: employee.photoUrl == null || employee.photoUrl!.isEmpty
+                    child: currentEmployee.photoUrl == null || currentEmployee.photoUrl!.isEmpty
                         ? const Icon(Icons.person, size: 45, color: Colors.white)
                         : null,
                   ),
                   const SizedBox(height: 12),
                   Text(
-                    employee.name,
+                    currentEmployee.name,
                     style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.text(context)),
                   ),
                   const SizedBox(height: 4),
@@ -115,21 +124,21 @@ class EmployeeDetailScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(6),
                         ),
                         child: Text(
-                          employee.shortId,
+                          currentEmployee.shortId,
                           style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: AppColors.mutedText(context)),
                         ),
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        employee.role.toUpperCase(),
+                        currentEmployee.role.toUpperCase(),
                         style: TextStyle(fontSize: 12, color: AppColors.mutedText(context), fontWeight: FontWeight.bold, letterSpacing: 1),
                       ),
                     ],
                   ),
                   const SizedBox(height: 12),
                   Chip(
-                    label: Text(employee.status.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.white)),
-                    backgroundColor: employee.status == 'active' ? AppColors.secondary : AppColors.outline,
+                    label: Text(currentEmployee.status.toUpperCase(), style: const TextStyle(fontSize: 10, color: Colors.white)),
+                    backgroundColor: currentEmployee.status == 'active' ? AppColors.secondary : AppColors.outline,
                   ),
                 ],
               ),
@@ -160,7 +169,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
                             Text('Base Salary (Worker Pay)', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
                             const SizedBox(height: 2),
                             Text(
-                              '₹${employee.salary.toInt()} / day',
+                              '₹${currentEmployee.salary.toInt()} / day',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
                             ),
                           ],
@@ -173,7 +182,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
                             Text('Tea & Snacks Budget', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
                             const SizedBox(height: 2),
                             Text(
-                              '₹${employee.teaSnackAllowance.toInt()} / day',
+                              '₹${currentEmployee.teaSnackAllowance.toInt()} / day',
                               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
                             ),
                           ],
@@ -187,7 +196,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
                     children: [
                       Text('Total Employer Daily Cost:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: AppColors.text(context))),
                       Text(
-                        '₹${employee.totalDailyCost.toInt()} / day',
+                        '₹${currentEmployee.totalDailyCost.toInt()} / day',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.primaryColor(context)),
                       ),
                     ],
@@ -195,7 +204,7 @@ class EmployeeDetailScreen extends ConsumerWidget {
                   const SizedBox(height: 4),
                   Align(
                     alignment: Alignment.centerLeft,
-                    child: Text('Mobile Phone: ${employee.phone}', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                    child: Text('Mobile Phone: ${currentEmployee.phone}', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
                   ),
                 ],
               ),
@@ -223,9 +232,15 @@ class EmployeeDetailScreen extends ConsumerWidget {
                 }
 
                 int presentDays = logs.where((l) => l.status == 'Present').length;
-                double baseEarned = employee.calculateBaseEarnings(presentDays);
-                double teaCost = employee.calculateTeaSnackCost(presentDays);
-                double totalEmployerCost = employee.calculateTotalEmployerCost(presentDays);
+                double baseEarned = 0.0;
+                double teaCost = 0.0;
+                for (final l in logs) {
+                  if (l.status == 'Present') {
+                    baseEarned += (l.wageRate ?? currentEmployee.salary);
+                    teaCost += (l.teaAllowance ?? currentEmployee.teaSnackAllowance);
+                  }
+                }
+                double totalEmployerCost = baseEarned + teaCost;
 
                 return Column(
                   children: [
@@ -271,8 +286,8 @@ class EmployeeDetailScreen extends ConsumerWidget {
                       itemBuilder: (context, i) {
                         final log = logs[i];
                         final isPresent = log.status == 'Present';
-                        final earnedToday = isPresent ? employee.salary : 0.0;
-                        final teaToday = isPresent ? employee.teaSnackAllowance : 0.0;
+                        final earnedToday = isPresent ? (log.wageRate ?? currentEmployee.salary) : 0.0;
+                        final teaToday = isPresent ? (log.teaAllowance ?? currentEmployee.teaSnackAllowance) : 0.0;
 
                         return Card(
                           color: AppColors.cardBg(context),

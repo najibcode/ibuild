@@ -49,7 +49,7 @@ class WebHeader extends ConsumerWidget {
       ),
       child: Row(
         children: [
-          if (onMenuPressed != null) ...[
+          if (onMenuPressed != null && MediaQuery.of(context).size.width < 800) ...[
             IconButton(icon: const Icon(Icons.menu), onPressed: onMenuPressed),
             const SizedBox(width: AppSpacing.gutter),
           ],

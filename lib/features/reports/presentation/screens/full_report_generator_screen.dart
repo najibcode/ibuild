@@ -892,24 +892,13 @@ class _FullReportGeneratorScreenState
       backgroundColor: AppColors.bg(context),
       appBar: widget.showAppBar
           ? AppBar(
-              leading: hasBack
-                  ? IconButton(
-                      icon: const Icon(Icons.arrow_back),
-                      tooltip: 'Go back',
-                      onPressed: () {
-                        if (widget.onBackPressed != null) {
-                          widget.onBackPressed!();
-                        } else {
-                          Navigator.maybePop(context);
-                        }
-                      },
-                    )
-                  : IconButton(
-                      icon: const Icon(Icons.menu),
-                      tooltip: 'Open navigation menu',
-                      onPressed: MobileNavHelper.openDrawer,
-                    ),
-              titleSpacing: 0,
+              automaticallyImplyLeading: false,
+              leading: MobileNavHelper.buildLeading(
+                context,
+                hasBack: hasBack,
+                onBackPressed: widget.onBackPressed,
+              ),
+              titleSpacing: (hasBack || MediaQuery.of(context).size.width < 800) ? 0 : 16,
               title: const Text(
                 'Reports & Operational Audits',
                 style: TextStyle(fontWeight: FontWeight.bold),

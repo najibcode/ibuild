@@ -60,12 +60,25 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
           onConflict: 'employee_id, date',
         );
       } catch (upsertErr) {
-        debugPrint('[Attendance] upsert with project_id note: $upsertErr. Retrying with basic fields.');
-        final fallbackPayload = Map<String, dynamic>.from(payload)..remove('project_id');
-        await _client.from('attendance').upsert(
-          fallbackPayload,
-          onConflict: 'employee_id, date',
-        );
+        debugPrint('[Attendance] upsert with all fields note: $upsertErr. Retrying with standard fields.');
+        try {
+          final standardPayload = Map<String, dynamic>.from(payload)
+            ..remove('wage_rate')
+            ..remove('tea_allowance');
+          await _client.from('attendance').upsert(
+            standardPayload,
+            onConflict: 'employee_id, date',
+          );
+        } catch (_) {
+          final basicPayload = Map<String, dynamic>.from(payload)
+            ..remove('project_id')
+            ..remove('wage_rate')
+            ..remove('tea_allowance');
+          await _client.from('attendance').upsert(
+            basicPayload,
+            onConflict: 'employee_id, date',
+          );
+        }
       }
       debugPrint('[Attendance] saveAttendance successfully synced via conflict-safe upsert ✓');
     } catch (e) {
@@ -104,25 +117,43 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     } catch (_) {}
   }
 
+  static final _uuidPattern = RegExp(r'^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$');
+
   @override
   Future<List<Attendance>> getAttendanceHistory(String employeeId) async {
+    if (employeeId.isEmpty || !_uuidPattern.hasMatch(employeeId)) {
+      return [];
+    }
     try {
       final response = await _client
           .from('attendance')
-          .select('*, employees(name)')
+          .select('*, employees(name, salary, tea_snack_allowance)')
           .eq('employee_id', employeeId)
           .order('date', ascending: false);
       return (response as List).map((json) {
-        final employeeName = (json['employees'] as Map?)?['name'] as String?;
-        return Attendance.fromJson(json, employeeName: employeeName);
+        final empMap = json['employees'] as Map?;
+        final employeeName = empMap?['name'] as String?;
+        final fallbackSalary = (empMap?['salary'] as num?)?.toDouble();
+        final fallbackTea = (empMap?['tea_snack_allowance'] as num?)?.toDouble();
+
+        final parsed = Attendance.fromJson(json, employeeName: employeeName);
+        return parsed.copyWith(
+          wageRate: parsed.wageRate ?? fallbackSalary,
+          teaAllowance: parsed.teaAllowance ?? fallbackTea,
+        );
       }).toList();
     } catch (_) {
-      final response = await _client
-          .from('attendance')
-          .select()
-          .eq('employee_id', employeeId)
-          .order('date', ascending: false);
-      return (response as List).map((json) => Attendance.fromJson(json)).toList();
+      try {
+        final response = await _client
+            .from('attendance')
+            .select()
+            .eq('employee_id', employeeId)
+            .order('date', ascending: false);
+        return (response as List).map((json) => Attendance.fromJson(json)).toList();
+      } catch (e) {
+        debugPrint('[Attendance] getAttendanceHistory fallback failed: $e');
+        return [];
+      }
     }
   }
 
@@ -183,7 +214,7 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
 
       final existingList = (existingRows as List);
 
-      if (!isPresent || projectId == null || projectId.isEmpty || salary <= 0) {
+      if (!isPresent || projectId == null || projectId.isEmpty || !_uuidPattern.hasMatch(projectId) || salary <= 0) {
         // Employee is absent or unassigned or has zero salary: Remove any existing auto-wage expense(s)
         for (final row in existingList) {
           final expId = row['id'] as String;
