@@ -234,7 +234,6 @@ class AdminDashboard extends ConsumerWidget {
 // ── Role Summary Section ───────────────────────────────────────────────────
 final _roleCountsProvider = FutureProvider.autoDispose<Map<String, int>>((ref) async {
   final supabase = ref.watch(supabaseClientProvider);
-  if (supabase == null) return {'admins': 1, 'owners': 1, 'supervisors': 2, 'employees': 8};
 
   try {
     final response = await supabase.from('profiles').select('role_display');
@@ -308,7 +307,7 @@ class _RoleSummarySection extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-            error: (_, __) => Text(
+            error: (_, _) => Text(
               'Could not load role counts',
               style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
             ),
@@ -424,7 +423,7 @@ class _RecentActivitySection extends ConsumerWidget {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: activities.length,
-                separatorBuilder: (_, __) => Divider(height: 1, color: AppColors.border(context)),
+                separatorBuilder: (_, _) => Divider(height: 1, color: AppColors.border(context)),
                 itemBuilder: (context, i) {
                   final act = activities[i];
                   final title = act.details['title']?.toString() ??
@@ -466,7 +465,7 @@ class _RecentActivitySection extends ConsumerWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
             ),
-            error: (_, __) => Text(
+            error: (_, _) => Text(
               'Could not load activity logs',
               style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
             ),

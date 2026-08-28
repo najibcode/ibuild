@@ -60,12 +60,12 @@ class MockAuthRepository implements AuthRepository {
       'full_name': fullName,
       'phone': phone,
       'company_name': companyName,
-      if (avatarUrl != null) 'avatar_url': avatarUrl,
-      if (tagline != null) 'tagline': tagline,
-      if (gstin != null) 'gstin': gstin,
-      if (address != null) 'address': address,
-      if (upiId != null) 'upi_id': upiId,
-      if (logoUrl != null) 'logo_url': logoUrl,
+      ?'avatar_url': avatarUrl,
+      ?'tagline': tagline,
+      ?'gstin': gstin,
+      ?'address': address,
+      ?'upi_id': upiId,
+      ?'logo_url': logoUrl,
     };
   }
 

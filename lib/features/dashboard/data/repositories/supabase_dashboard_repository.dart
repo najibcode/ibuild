@@ -174,12 +174,10 @@ class SupabaseDashboardRepository implements DashboardRepository {
       final remoteRows = await _client
           .from('projects')
           .select('id, name, status, budget, spent, is_archived');
-      if (remoteRows is List && remoteRows.isNotEmpty) {
+      if (remoteRows.isNotEmpty) {
         final Map<String, Map<String, dynamic>> map = {for (var r in rows) r['id']?.toString() ?? '': r};
         for (var r in remoteRows) {
-          if (r is Map) {
-            map[r['id']?.toString() ?? ''] = Map<String, dynamic>.from(r);
-          }
+          map[r['id']?.toString() ?? ''] = Map<String, dynamic>.from(r);
         }
         rows = map.values.toList();
         cache.cacheProjects(rows);
@@ -353,7 +351,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
   Future<int> _fetchEmployees() async {
     try {
       final rows = await _client.from('employees').select('id');
-      if (rows is List && rows.isNotEmpty) {
+      if (rows.isNotEmpty) {
         return rows.length;
       }
     } catch (_) {}
