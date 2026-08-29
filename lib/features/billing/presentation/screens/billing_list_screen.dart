@@ -199,14 +199,16 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
                 ref.invalidate(allPaymentLedgerProvider);
                 if (ctx.mounted) Navigator.pop(ctx);
 
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'Payment ledger transaction recorded successfully',
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text(
+                        'Payment ledger transaction recorded successfully',
+                      ),
+                      backgroundColor: AppColors.secondary,
                     ),
-                    backgroundColor: AppColors.secondary,
-                  ),
-                );
+                  );
+                }
               },
               child: const Text('Save Record'),
             ),
@@ -408,7 +410,7 @@ class _BillingListScreenState extends ConsumerState<BillingListScreen> {
       filename: 'IBUILD_GSTR1_Tax_Audit_${DateTime.now().millisecondsSinceEpoch}.xlsx',
     );
 
-    if (mounted) {
+    if (context.mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Multi-Sheet GSTR-1 Tax & Audit Excel workbook downloaded ✓'),
