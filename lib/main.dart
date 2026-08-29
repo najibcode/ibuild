@@ -228,6 +228,12 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
             table: 'checklist_items',
             callback: (payload) => _onTableChanged('checklist_items'),
           )
+          .onPostgresChanges(
+            event: PostgresChangeEvent.all,
+            schema: 'public',
+            table: 'project_checklists',
+            callback: (payload) => _onTableChanged('project_checklists'),
+          )
           .subscribe();
     } catch (_) {}
   }
@@ -243,6 +249,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         case 'projects':
         case 'daily_progress':
         case 'checklist_items':
+        case 'project_checklists':
           ref.read(projectControllerProvider.notifier).loadProjects();
           break;
         case 'employees':

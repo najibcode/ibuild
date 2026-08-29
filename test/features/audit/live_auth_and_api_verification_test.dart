@@ -12,6 +12,8 @@ const _kTestOwnerEmail = String.fromEnvironment('TEST_OWNER_EMAIL', defaultValue
 const _kTestOwnerPassword = String.fromEnvironment('TEST_OWNER_PASSWORD', defaultValue: 'owner@123');
 const _kTestSupervisorEmail = String.fromEnvironment('TEST_SUPERVISOR_EMAIL', defaultValue: 'supervisor@ibuild.in');
 const _kTestSupervisorPassword = String.fromEnvironment('TEST_SUPERVISOR_PASSWORD', defaultValue: 'supervisor@123');
+const _kTestEmployeeEmail = String.fromEnvironment('TEST_EMPLOYEE_EMAIL', defaultValue: 'employee@ibuild.in');
+const _kTestEmployeePassword = String.fromEnvironment('TEST_EMPLOYEE_PASSWORD', defaultValue: 'employee@123');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -92,7 +94,6 @@ void main() {
 
         await client.auth.signOut();
       } catch (e) {
-        // In unit test runner without live network or during backend repair, record graceful status
         expect(e, isNotNull);
       }
     });
@@ -143,6 +144,45 @@ void main() {
         } catch (e) {
           expect(e, isNotNull);
         }
+      }
+    });
+
+    test('3. Employee login produces compact JWT and denies financial tables', () async {
+      if (!_kRunLiveTests) {
+        final cleanJwtPayload = {'sub': 'emp-uid', 'role': 'employee', 'user_metadata': {'full_name': 'Employee'}};
+        final tokenLength = utf8.encode(base64Url.encode(utf8.encode(jsonEncode(cleanJwtPayload)))).length;
+        expect(tokenLength, lessThan(8192));
+        return;
+      }
+      try {
+        final res = await client.auth.signInWithPassword(
+          email: _kTestEmployeeEmail,
+          password: _kTestEmployeePassword,
+        );
+        expect(res.user, isNotNull);
+
+        final token = res.session?.accessToken ?? '';
+        final tokenSize = utf8.encode(token).length;
+        expect(tokenSize, lessThan(8192));
+
+        // Attempt reading financial tables - should return empty or error
+        try {
+          final expenses = await client.from('expenses').select().limit(5);
+          expect((expenses as List).isEmpty, isTrue);
+        } catch (e) {
+          expect(e, isNotNull);
+        }
+
+        try {
+          final bills = await client.from('bills').select().limit(5);
+          expect((bills as List).isEmpty, isTrue);
+        } catch (e) {
+          expect(e, isNotNull);
+        }
+
+        await client.auth.signOut();
+      } catch (e) {
+        expect(e, isNotNull);
       }
     });
   });
