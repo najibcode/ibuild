@@ -2,8 +2,11 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ibuild",
   "compatibility_date": "2026-08-17",
-  "pages_build_output_dir": "build/web",
   "observability": {
     "enabled": true
+  },
+  "assets": {
+    "directory": "build/web",
+    "not_found_handling": "single-page-application"
   }
 }
