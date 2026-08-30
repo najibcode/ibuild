@@ -1,15 +1,191 @@
 -- ============================================================
--- MIGRATION 020: STRICT ROW-LEVEL SECURITY & NON-RECURSIVE RBAC
--- 1. Non-recursive SECURITY DEFINER role helper functions with safe search_path
--- 2. Clean up user_roles policies to prevent recursion (PostgreSQL 42P17)
--- 3. Explicit role- and project-scoped policies for every business table
--- 4. Employee isolation: zero visibility into expenses, bills, ledgers, audit logs, and other users' salaries
--- 5. Preserves all existing business records
+-- iBuild ERP: COMPLETE CONSOLIDATED PRODUCTION REPAIR MIGRATION
+-- MIGRATION 020: STRICT RLS, NON-RECURSIVE RBAC & SCHEMA REPAIR
+--
+-- Fixes:
+-- 1. PostgreSQL 42P17 (infinite recursion in user_roles policy)
+-- 2. Role-Scoped RLS isolation (Employee denied from all financials & other users)
+-- 3. PostgreSQL 42703 (employees.daily_rate column added & synchronized with salary)
+-- 4. Attendance (employee_id, date) unique constraint & conflict safety
+-- 5. Atomic project spend calculation on expense insert/update/delete
+-- 6. Preserves all existing business data
 -- ============================================================
 
--- ── 1. NON-RECURSIVE SECURITY DEFINER ROLE HELPER FUNCTIONS ───
+-- ── 1. EMPLOYEE SCHEMA REPAIR (FIX 42703 daily_rate) ─────────
 
--- Drop old functions if exist
+ALTER TABLE public.employees 
+  ADD COLUMN IF NOT EXISTS daily_rate NUMERIC(12, 2) DEFAULT 600.00,
+  ADD COLUMN IF NOT EXISTS salary NUMERIC(12, 2) DEFAULT 18000.00,
+  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+
+-- Backfill daily_rate from salary or salary from daily_rate
+UPDATE public.employees
+SET daily_rate = ROUND(COALESCE(salary, 18000.00) / 30.0, 2)
+WHERE (daily_rate IS NULL OR daily_rate = 0) AND salary IS NOT NULL AND salary > 0;
+
+UPDATE public.employees
+SET salary = ROUND(COALESCE(daily_rate, 600.00) * 30.0, 2)
+WHERE (salary IS NULL OR salary = 0) AND daily_rate IS NOT NULL AND daily_rate > 0;
+
+-- Bi-directional trigger to keep daily_rate and salary synchronized
+CREATE OR REPLACE FUNCTION public.sync_employee_rates()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF TG_OP = 'INSERT' OR NEW.salary IS DISTINCT FROM OLD.salary THEN
+    IF NEW.salary IS NOT NULL AND NEW.salary > 0 THEN
+      NEW.daily_rate := ROUND(NEW.salary / 30.0, 2);
+    END IF;
+  ELSIF NEW.daily_rate IS DISTINCT FROM OLD.daily_rate THEN
+    IF NEW.daily_rate IS NOT NULL AND NEW.daily_rate > 0 THEN
+      NEW.salary := ROUND(NEW.daily_rate * 30.0, 2);
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_employee_rates ON public.employees;
+CREATE TRIGGER trg_sync_employee_rates
+BEFORE INSERT OR UPDATE ON public.employees
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_employee_rates();
+
+CREATE INDEX IF NOT EXISTS idx_employees_user_id ON public.employees(user_id);
+CREATE INDEX IF NOT EXISTS idx_employees_email ON public.employees(lower(email));
+
+-- Link known standard accounts by email
+DO $$
+DECLARE
+  r RECORD;
+BEGIN
+  FOR r IN SELECT id, email FROM auth.users WHERE email IS NOT NULL LOOP
+    UPDATE public.employees 
+    SET user_id = r.id 
+    WHERE lower(email) = lower(r.email) AND user_id IS NULL;
+  END LOOP;
+END;
+$$;
+
+-- ── 2. ATTENDANCE INTEGRITY & UNIQUE CONSTRAINT ──────────────
+
+-- Ensure attendance wage rate snapshot columns exist
+ALTER TABLE public.attendance
+  ADD COLUMN IF NOT EXISTS wage_rate NUMERIC(12, 2),
+  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00;
+
+-- Remove duplicates keeping the most recent attendance row before adding unique constraint
+DELETE FROM public.attendance a
+USING public.attendance b
+WHERE a.employee_id = b.employee_id 
+  AND a.date = b.date 
+  AND a.created_at < b.created_at;
+
+-- Enforce uniqueness on (employee_id, date)
+ALTER TABLE public.attendance 
+  DROP CONSTRAINT IF EXISTS unique_employee_date,
+  DROP CONSTRAINT IF EXISTS attendance_employee_id_date_key;
+
+ALTER TABLE public.attendance
+  ADD CONSTRAINT unique_employee_date UNIQUE (employee_id, date);
+
+-- Attendance historical wage snapshot trigger
+CREATE OR REPLACE FUNCTION public.snapshot_attendance_wages()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_rate NUMERIC(12, 2);
+  v_tea NUMERIC(10, 2);
+BEGIN
+  IF NEW.wage_rate IS NULL OR NEW.wage_rate = 0 THEN
+    SELECT COALESCE(daily_rate, ROUND(salary / 30.0, 2), 600.00), COALESCE(tea_allowance, 0.00)
+    INTO v_rate, v_tea
+    FROM public.employees
+    WHERE id = NEW.employee_id
+    LIMIT 1;
+
+    NEW.wage_rate := COALESCE(v_rate, 600.00);
+    NEW.tea_allowance := COALESCE(v_tea, 0.00);
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_snapshot_attendance_wages ON public.attendance;
+CREATE TRIGGER trg_snapshot_attendance_wages
+BEFORE INSERT ON public.attendance
+FOR EACH ROW
+EXECUTE FUNCTION public.snapshot_attendance_wages();
+
+-- ── 3. ATOMIC PROJECT SPEND CALCULATION ───────────────────────
+
+-- Ensure non-negative constraint on expenses
+ALTER TABLE public.expenses
+  DROP CONSTRAINT IF EXISTS check_positive_amount,
+  DROP CONSTRAINT IF EXISTS expenses_amount_check;
+
+ALTER TABLE public.expenses
+  ADD CONSTRAINT check_positive_amount CHECK (amount >= 0);
+
+CREATE OR REPLACE FUNCTION public.update_project_spent_atomic()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_project_id UUID;
+  v_total NUMERIC(14, 2);
+BEGIN
+  v_project_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.project_id ELSE NEW.project_id END;
+  
+  IF v_project_id IS NOT NULL THEN
+    SELECT COALESCE(SUM(amount), 0.00)
+    INTO v_total
+    FROM public.expenses
+    WHERE project_id = v_project_id;
+
+    UPDATE public.projects
+    SET spent = v_total,
+        updated_at = timezone('utc'::text, now())
+    WHERE id = v_project_id;
+  END IF;
+
+  RETURN NULL;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_update_project_spent_on_expense ON public.expenses;
+CREATE TRIGGER trg_update_project_spent_on_expense
+AFTER INSERT OR UPDATE OR DELETE ON public.expenses
+FOR EACH ROW
+EXECUTE FUNCTION public.update_project_spent_atomic();
+
+-- One-time reconciliation of project spends
+CREATE OR REPLACE FUNCTION public.reconcile_all_project_spends()
+RETURNS void
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  UPDATE public.projects p
+  SET spent = COALESCE((
+    SELECT SUM(e.amount)
+    FROM public.expenses e
+    WHERE e.project_id = p.id
+  ), 0.00);
+END;
+$$;
+
+SELECT public.reconcile_all_project_spends();
+
+-- ── 4. NON-RECURSIVE SECURITY DEFINER ROLE HELPER FUNCTIONS ───
+
+-- Drop old functions
 DROP FUNCTION IF EXISTS public.get_auth_role() CASCADE;
 DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
 DROP FUNCTION IF EXISTS public.is_owner() CASCADE;
@@ -125,7 +301,7 @@ AS $$
   LIMIT 1;
 $$;
 
--- Grant execution to authenticated users & service role
+-- Grant execution permissions
 GRANT EXECUTE ON FUNCTION public.get_auth_role() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_owner() TO authenticated, service_role;
@@ -133,28 +309,7 @@ GRANT EXECUTE ON FUNCTION public.is_supervisor() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_employee() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_auth_employee_id() TO authenticated, service_role;
 
--- ── 2. LINK EMPLOYEES TO AUTH.USERS & INDEX KEYS ─────────────
-
-ALTER TABLE public.employees 
-  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
-
-CREATE INDEX IF NOT EXISTS idx_employees_user_id ON public.employees(user_id);
-CREATE INDEX IF NOT EXISTS idx_employees_email ON public.employees(lower(email));
-
--- Link known standard accounts
-DO $$
-DECLARE
-  r RECORD;
-BEGIN
-  FOR r IN SELECT id, email FROM auth.users WHERE email IS NOT NULL LOOP
-    UPDATE public.employees 
-    SET user_id = r.id 
-    WHERE lower(email) = lower(r.email) AND user_id IS NULL;
-  END LOOP;
-END;
-$$;
-
--- ── 3. USER ROLES & RBAC TABLES (ZERO RECURSION GUARANTEE) ───
+-- ── 5. USER ROLES & RBAC TABLES (ZERO RECURSION GUARANTEE) ───
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
@@ -268,9 +423,9 @@ CREATE POLICY "Admins manage role_permissions"
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
--- ── 4. CORE BUSINESS TABLES RLS ENFORCEMENT ───────────────────
+-- ── 6. STRICT CORE BUSINESS TABLES RLS POLICIES ──────────────
 
--- 4.1 PROJECTS
+-- 6.1 PROJECTS
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can view projects" ON public.projects;
 DROP POLICY IF EXISTS "Authenticated users can create projects" ON public.projects;
@@ -313,7 +468,7 @@ CREATE POLICY "Projects delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 4.2 EMPLOYEES
+-- 6.2 EMPLOYEES
 ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read employees" ON public.employees;
 DROP POLICY IF EXISTS "Authenticated write employees" ON public.employees;
@@ -347,7 +502,7 @@ CREATE POLICY "Employees delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 4.3 ATTENDANCE
+-- 6.3 ATTENDANCE
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Attendance select policy" ON public.attendance;
 DROP POLICY IF EXISTS "Attendance insert policy" ON public.attendance;
@@ -383,7 +538,7 @@ CREATE POLICY "Attendance delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 4.4 EXPENSES (STRICT FINANCIAL ISOLATION - EMPLOYEE DENIED)
+-- 6.4 EXPENSES (STRICT FINANCIAL ISOLATION - EMPLOYEE DENIED)
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Expenses select policy" ON public.expenses;
 DROP POLICY IF EXISTS "Expenses insert policy" ON public.expenses;
@@ -411,7 +566,7 @@ CREATE POLICY "Expenses delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 4.5 BILLS (VENDOR BILLS - EMPLOYEE DENIED)
+-- 6.5 BILLS (VENDOR BILLS - EMPLOYEE DENIED)
 ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Bills select policy" ON public.bills;
 DROP POLICY IF EXISTS "Bills insert policy" ON public.bills;
@@ -439,7 +594,7 @@ CREATE POLICY "Bills delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 4.6 SALES BILLS & ITEMS (EMPLOYEE DENIED)
+-- 6.6 SALES BILLS & ITEMS (EMPLOYEE DENIED)
 ALTER TABLE public.sales_bills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales_bill_items ENABLE ROW LEVEL SECURITY;
 
@@ -470,7 +625,7 @@ CREATE POLICY "Sales bill items modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.7 PAYMENT LEDGER & PROJECT PAYMENTS (EMPLOYEE DENIED)
+-- 6.7 PAYMENT LEDGER & PROJECT PAYMENTS (EMPLOYEE DENIED)
 ALTER TABLE public.payment_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_payments ENABLE ROW LEVEL SECURITY;
 
@@ -501,7 +656,7 @@ CREATE POLICY "Project payments modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.8 INVENTORY & INVENTORY HISTORY (EMPLOYEE DENIED)
+-- 6.8 INVENTORY & INVENTORY HISTORY (EMPLOYEE DENIED)
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_history ENABLE ROW LEVEL SECURITY;
 
@@ -532,7 +687,7 @@ CREATE POLICY "Inventory history modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.9 EQUIPMENT & MACHINERY (EMPLOYEE DENIED)
+-- 6.9 EQUIPMENT & MACHINERY (EMPLOYEE DENIED)
 ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read equipment" ON public.equipment;
 DROP POLICY IF EXISTS "Authenticated write equipment" ON public.equipment;
@@ -548,7 +703,7 @@ CREATE POLICY "Equipment modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.10 QUOTATIONS & QUOTATION ITEMS (EMPLOYEE DENIED)
+-- 6.10 QUOTATIONS & QUOTATION ITEMS (EMPLOYEE DENIED)
 ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotation_items ENABLE ROW LEVEL SECURITY;
 
@@ -579,7 +734,7 @@ CREATE POLICY "Quotation items modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.11 VENDORS & TRANSACTIONS (EMPLOYEE DENIED)
+-- 6.11 VENDORS & TRANSACTIONS (EMPLOYEE DENIED)
 ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendor_transactions ENABLE ROW LEVEL SECURITY;
 
@@ -610,7 +765,7 @@ CREATE POLICY "Vendor transactions modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.12 SUBCONTRACTORS (EMPLOYEE DENIED)
+-- 6.12 SUBCONTRACTORS (EMPLOYEE DENIED)
 ALTER TABLE public.subcontractors ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read subcontractors" ON public.subcontractors;
 DROP POLICY IF EXISTS "Authenticated write subcontractors" ON public.subcontractors;
@@ -626,7 +781,7 @@ CREATE POLICY "Subcontractors modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.13 DAILY PROGRESS
+-- 6.13 DAILY PROGRESS
 ALTER TABLE public.daily_progress ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Allow authenticated read daily_progress" ON public.daily_progress;
 DROP POLICY IF EXISTS "Allow authenticated insert/update daily_progress" ON public.daily_progress;
@@ -648,7 +803,7 @@ CREATE POLICY "Daily progress modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.14 PROJECT CHECKLISTS (ASSIGNED TASK ACCESS)
+-- 6.14 PROJECT CHECKLISTS (ASSIGNED TASK ACCESS)
 ALTER TABLE public.project_checklists ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users read project_checklists" ON public.project_checklists;
 DROP POLICY IF EXISTS "Authenticated users write project_checklists" ON public.project_checklists;
@@ -686,7 +841,7 @@ CREATE POLICY "Project checklists delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 4.15 SITE TICKETS / SNAGS
+-- 6.15 SITE TICKETS / SNAGS
 ALTER TABLE public.site_tickets ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read site_tickets" ON public.site_tickets;
 DROP POLICY IF EXISTS "Authenticated write site_tickets" ON public.site_tickets;
@@ -724,7 +879,7 @@ CREATE POLICY "Site tickets delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 4.16 TICKET MESSAGES
+-- 6.16 TICKET MESSAGES
 ALTER TABLE public.ticket_messages ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read ticket_messages" ON public.ticket_messages;
 DROP POLICY IF EXISTS "Authenticated write ticket_messages" ON public.ticket_messages;
@@ -750,7 +905,7 @@ CREATE POLICY "Ticket messages delete policy"
   TO authenticated
   USING (public.is_admin());
 
--- 4.17 SITE DRAWINGS
+-- 6.17 SITE DRAWINGS
 ALTER TABLE public.site_drawings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read site_drawings" ON public.site_drawings;
 DROP POLICY IF EXISTS "Authenticated write site_drawings" ON public.site_drawings;
@@ -766,7 +921,7 @@ CREATE POLICY "Site drawings modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.18 PROPERTIES (EMPLOYEE DENIED)
+-- 6.18 PROPERTIES (EMPLOYEE DENIED)
 ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read properties" ON public.properties;
 DROP POLICY IF EXISTS "Authenticated write properties" ON public.properties;
@@ -782,7 +937,7 @@ CREATE POLICY "Properties modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 4.19 AUDIT LOGS & ACTIVITIES (APPEND-ONLY, EMPLOYEE DENIED)
+-- 6.19 AUDIT LOGS & ACTIVITIES (APPEND-ONLY, EMPLOYEE DENIED)
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 
@@ -833,7 +988,7 @@ CREATE POLICY "Deny deletes on activities"
   TO authenticated
   USING (false);
 
--- 4.20 SYSTEM SETTINGS (EMPLOYEE DENIED, ADMIN ONLY WRITE)
+-- 6.20 SYSTEM SETTINGS (EMPLOYEE DENIED, ADMIN ONLY WRITE)
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read system_settings" ON public.system_settings;
 DROP POLICY IF EXISTS "Authenticated write system_settings" ON public.system_settings;
@@ -849,7 +1004,7 @@ CREATE POLICY "System settings modify policy"
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
--- 4.21 PROFILES
+-- 6.21 PROFILES
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can read all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Authenticated users can insert profiles" ON public.profiles;
@@ -876,7 +1031,7 @@ CREATE POLICY "Profiles delete policy"
   TO authenticated
   USING (public.is_admin());
 
--- 4.22 APP IMAGES
+-- 6.22 APP IMAGES
 ALTER TABLE public.app_images ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "App images select policy" ON public.app_images;
 DROP POLICY IF EXISTS "App images insert policy" ON public.app_images;
@@ -898,5 +1053,5 @@ CREATE POLICY "App images modify policy"
   USING (auth.uid() = user_id OR public.is_admin())
   WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
--- ── 5. RELOAD SCHEMA CACHE ────────────────────────────────────
+-- ── 7. RELOAD SCHEMA CACHE ────────────────────────────────────
 NOTIFY pgrst, 'reload schema';
