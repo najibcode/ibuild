@@ -11,12 +11,12 @@
 # Static Hashed Assets & Fonts — Long-lived Immutable Caching
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
-  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Origin: https://ibuild.najibcode.workers.dev
 
 # CanvasKit WASM Engine — Immutable Caching
 /*.wasm
   Cache-Control: public, max-age=31536000, immutable
-  Access-Control-Allow-Origin: *
+  Access-Control-Allow-Origin: https://ibuild.najibcode.workers.dev
 
 # Application JavaScript
 /*.js
