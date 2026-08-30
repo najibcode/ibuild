@@ -17,7 +17,7 @@ DROP FUNCTION IF EXISTS public.is_supervisor() CASCADE;
 DROP FUNCTION IF EXISTS public.is_employee() CASCADE;
 DROP FUNCTION IF EXISTS public.get_auth_employee_id() CASCADE;
 
--- Base role detector: reads from user_roles + roles bypassing table RLS
+-- Base role detector: reads from JWT / profiles / auth.users (NEVER queries user_roles to guarantee 0% recursion)
 CREATE OR REPLACE FUNCTION public.get_auth_role()
 RETURNS text
 LANGUAGE plpgsql
@@ -32,18 +32,18 @@ BEGIN
     RETURN 'anonymous';
   END IF;
 
-  -- 1. Query user_roles joined with roles
-  SELECT r.name INTO v_role
-  FROM public.user_roles ur
-  JOIN public.roles r ON ur.role_id = r.id
-  WHERE ur.user_id = auth.uid()
-  LIMIT 1;
+  -- 1. First check JWT claims (fastest and zero-table dependency)
+  v_role := lower(COALESCE(
+    auth.jwt() -> 'user_metadata' ->> 'role',
+    auth.jwt() -> 'app_metadata' ->> 'role',
+    ''
+  ));
 
-  IF v_role IS NOT NULL AND v_role <> '' THEN
-    RETURN lower(v_role);
+  IF v_role <> '' THEN
+    RETURN v_role;
   END IF;
 
-  -- 2. Fallback to profiles.role_display
+  -- 2. Check profiles table (isolated table, avoids recursion on user_roles)
   SELECT lower(role_display) INTO v_role
   FROM public.profiles
   WHERE id = auth.uid()
@@ -53,14 +53,13 @@ BEGIN
     RETURN v_role;
   END IF;
 
-  -- 3. Fallback to JWT metadata claims
-  v_role := lower(COALESCE(
-    auth.jwt() -> 'user_metadata' ->> 'role',
-    auth.jwt() -> 'app_metadata' ->> 'role',
-    ''
-  ));
+  -- 3. Check auth.users table
+  SELECT lower((raw_user_meta_data->>'role')::text) INTO v_role
+  FROM auth.users
+  WHERE id = auth.uid()
+  LIMIT 1;
 
-  IF v_role <> '' THEN
+  IF v_role IS NOT NULL AND v_role <> '' THEN
     RETURN v_role;
   END IF;
 
@@ -155,7 +154,7 @@ BEGIN
 END;
 $$;
 
--- ── 3. USER ROLES & RBAC TABLES (FIX RECURSION) ───────────────
+-- ── 3. USER ROLES & RBAC TABLES (ZERO RECURSION GUARANTEE) ───
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
@@ -176,7 +175,7 @@ DROP POLICY IF EXISTS "Users can insert own user_role or admin manage" ON public
 DROP POLICY IF EXISTS "Admins can update user_roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can delete user_roles" ON public.user_roles;
 
--- Clean non-recursive user_roles policies
+-- Clean non-recursive user_roles policies (get_auth_role / is_admin never queries user_roles)
 CREATE POLICY "Users can read own user_roles or admin read all"
   ON public.user_roles FOR SELECT
   TO authenticated
@@ -197,6 +196,37 @@ CREATE POLICY "Admins can delete user_roles"
   ON public.user_roles FOR DELETE
   TO authenticated
   USING (public.is_admin());
+
+-- Synchronize user_roles changes automatically to profiles and auth metadata
+CREATE OR REPLACE FUNCTION public.sync_user_role_to_profile_and_metadata()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_role_name text;
+BEGIN
+  SELECT name INTO v_role_name FROM public.roles WHERE id = NEW.role_id;
+  IF v_role_name IS NOT NULL THEN
+    UPDATE public.profiles
+    SET role_display = lower(v_role_name),
+        updated_at = timezone('utc'::text, now())
+    WHERE id = NEW.user_id;
+
+    UPDATE auth.users
+    SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || jsonb_build_object('role', lower(v_role_name))
+    WHERE id = NEW.user_id;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_sync_user_role_to_profile ON public.user_roles;
+CREATE TRIGGER trg_sync_user_role_to_profile
+AFTER INSERT OR UPDATE ON public.user_roles
+FOR EACH ROW
+EXECUTE FUNCTION public.sync_user_role_to_profile_and_metadata();
 
 -- Roles, Permissions, Role-Permissions
 DROP POLICY IF EXISTS "Authenticated users can read roles" ON public.roles;
