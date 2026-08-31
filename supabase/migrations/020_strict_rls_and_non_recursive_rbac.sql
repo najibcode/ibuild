@@ -3,12 +3,15 @@
 -- MIGRATION 020: STRICT RLS, NON-RECURSIVE RBAC & SCHEMA REPAIR
 --
 -- Fixes:
--- 1. All base tables & columns created first (full_name, email, daily_rate, salary, user_id)
--- 2. PostgreSQL 42P17 (infinite recursion in user_roles policy)
--- 3. Role-Scoped RLS isolation (Employee denied from all financials & other users)
--- 4. Attendance (employee_id, date) unique constraint & conflict safety
--- 5. Atomic project spend calculation on expense insert/update/delete
--- 6. Preserves all existing business data
+-- 1. All base tables & columns created first (full_name, email, daily_rate, salary, user_id, supervisor_id)
+-- 2. Complete user_roles seeding for Admin, Owner, Supervisor, Employee
+-- 3. Strict Project & Role-based Row Isolation:
+--    - Admin & Owner: Full visibility across all projects, expenses, bills, profiles
+--    - Supervisor: Scoped to assigned projects only; 0 access to bills, sales_bills, payment_ledger, or coworker profiles
+--    - Employee: 0 access to financials; own records and assigned tickets only
+-- 4. PostgreSQL 42P17 (zero recursion on user_roles)
+-- 5. Atomic project spend calculation on expense mutations
+-- 6. Attendance unique constraint & historical wage snapshotting
 -- ============================================================
 
 -- ── 1. ENSURE ALL BASE TABLES & COLUMNS EXIST (TOP PRIORITY) ──
@@ -88,6 +91,7 @@ CREATE TABLE IF NOT EXISTS public.projects (
   start_date DATE,
   end_date DATE,
   status TEXT DEFAULT 'In Progress',
+  supervisor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
   updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
 );
@@ -101,6 +105,7 @@ ALTER TABLE public.projects
   ADD COLUMN IF NOT EXISTS start_date DATE,
   ADD COLUMN IF NOT EXISTS end_date DATE,
   ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'In Progress',
+  ADD COLUMN IF NOT EXISTS supervisor_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
 
@@ -448,10 +453,37 @@ CREATE TABLE IF NOT EXISTS public.user_roles (
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
   role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  UNIQUE(user_id, role_id)
+  UNIQUE(user_id)
 );
 
--- ── 2. EMPLOYEE & ATTENDANCE DATA REPAIR & BACKFILL ──────────
+-- ── 2. SEED ROLES & AUTOMATICALLY POPULATE USER_ROLES ─────────
+
+INSERT INTO public.roles (id, name, description) VALUES
+  ('role-admin', 'admin', 'Technical administrator with full system access'),
+  ('role-owner', 'owner', 'Business owner with full business visibility'),
+  ('role-supervisor', 'supervisor', 'Site supervisor managing day-to-day operations'),
+  ('role-employee', 'employee', 'Field employee and site staff')
+ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
+
+-- Auto-seed user_roles for every user in auth.users
+INSERT INTO public.user_roles (user_id, role_id)
+SELECT 
+  u.id, 
+  r.id
+FROM auth.users u
+JOIN public.roles r ON r.name = LOWER(COALESCE(
+  u.raw_user_meta_data->>'role',
+  (SELECT role_display FROM public.profiles p WHERE p.id = u.id),
+  CASE 
+    WHEN u.email ILIKE '%admin%' THEN 'admin'
+    WHEN u.email ILIKE '%owner%' THEN 'owner'
+    WHEN u.email ILIKE '%supervisor%' THEN 'supervisor'
+    ELSE 'employee'
+  END
+))
+ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id;
+
+-- ── 3. DATA REPAIR, BACKFILL & LINKING ───────────────────────
 
 UPDATE public.employees
 SET daily_rate = ROUND(COALESCE(salary, 18000.00) / 30.0, 2)
@@ -500,6 +532,25 @@ BEGIN
 END;
 $$;
 
+-- Associate supervisor user_id to projects to verify project/role isolation
+DO $$
+DECLARE
+  v_sup_id UUID;
+BEGIN
+  SELECT id INTO v_sup_id FROM auth.users 
+  WHERE email ILIKE '%supervisor%' OR raw_user_meta_data->>'role' = 'supervisor' 
+  LIMIT 1;
+
+  IF v_sup_id IS NOT NULL THEN
+    UPDATE public.projects
+    SET supervisor_id = v_sup_id
+    WHERE id IN (
+      SELECT id FROM public.projects ORDER BY created_at ASC LIMIT 2
+    );
+  END IF;
+END;
+$$;
+
 DELETE FROM public.attendance a
 USING public.attendance b
 WHERE a.employee_id = b.employee_id 
@@ -541,7 +592,7 @@ BEFORE INSERT ON public.attendance
 FOR EACH ROW
 EXECUTE FUNCTION public.snapshot_attendance_wages();
 
--- ── 3. ATOMIC PROJECT SPEND CALCULATION ───────────────────────
+-- ── 4. ATOMIC PROJECT SPEND CALCULATION ───────────────────────
 
 ALTER TABLE public.expenses
   DROP CONSTRAINT IF EXISTS check_positive_amount,
@@ -602,7 +653,7 @@ $$;
 
 SELECT public.reconcile_all_project_spends();
 
--- ── 4. NON-RECURSIVE SECURITY DEFINER ROLE HELPER FUNCTIONS ───
+-- ── 5. NON-RECURSIVE SECURITY DEFINER ROLE HELPER FUNCTIONS ───
 
 DROP FUNCTION IF EXISTS public.get_auth_role() CASCADE;
 DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
@@ -611,7 +662,6 @@ DROP FUNCTION IF EXISTS public.is_supervisor() CASCADE;
 DROP FUNCTION IF EXISTS public.is_employee() CASCADE;
 DROP FUNCTION IF EXISTS public.get_auth_employee_id() CASCADE;
 
--- Base role detector: reads from JWT / profiles / auth.users (NEVER queries user_roles to guarantee 0% recursion)
 CREATE OR REPLACE FUNCTION public.get_auth_role()
 RETURNS text
 LANGUAGE plpgsql
@@ -721,7 +771,7 @@ GRANT EXECUTE ON FUNCTION public.is_supervisor() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_employee() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_auth_employee_id() TO authenticated, service_role;
 
--- ── 5. USER ROLES & RBAC POLICIES (ZERO RECURSION GUARANTEE) ──
+-- ── 6. USER ROLES & RBAC POLICIES (ZERO RECURSION GUARANTEE) ──
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
@@ -740,24 +790,26 @@ DROP POLICY IF EXISTS "Users can read own user_roles or admin read all" ON publi
 DROP POLICY IF EXISTS "Users can insert own user_role or admin manage" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can update user_roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can delete user_roles" ON public.user_roles;
+DROP POLICY IF EXISTS "User roles select policy" ON public.user_roles;
 
-CREATE POLICY "Users can read own user_roles or admin read all"
+-- Owner & Admin see all roles; Supervisor and Employee see own role
+CREATE POLICY "User roles select policy"
   ON public.user_roles FOR SELECT
   TO authenticated
-  USING (auth.uid() = user_id OR public.is_admin());
+  USING (auth.uid() = user_id OR public.is_owner());
 
-CREATE POLICY "Users can insert own user_role or admin manage"
+CREATE POLICY "User roles insert policy"
   ON public.user_roles FOR INSERT
   TO authenticated
   WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
-CREATE POLICY "Admins can update user_roles"
+CREATE POLICY "User roles update policy"
   ON public.user_roles FOR UPDATE
   TO authenticated
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
-CREATE POLICY "Admins can delete user_roles"
+CREATE POLICY "User roles delete policy"
   ON public.user_roles FOR DELETE
   TO authenticated
   USING (public.is_admin());
@@ -831,9 +883,9 @@ CREATE POLICY "Admins manage role_permissions"
   USING (public.is_admin())
   WITH CHECK (public.is_admin());
 
--- ── 6. STRICT CORE BUSINESS TABLES RLS POLICIES ──────────────
+-- ── 7. STRICT CORE BUSINESS TABLES RLS POLICIES ──────────────
 
--- 6.1 PROJECTS
+-- 7.1 PROJECTS (OWNER/ADMIN SEE ALL, SUPERVISOR SEES ASSIGNED, EMPLOYEE SEES ASSIGNED CHECKS)
 ALTER TABLE public.projects ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can view projects" ON public.projects;
 DROP POLICY IF EXISTS "Authenticated users can create projects" ON public.projects;
@@ -848,7 +900,8 @@ CREATE POLICY "Projects select policy"
   ON public.projects FOR SELECT
   TO authenticated
   USING (
-    public.is_supervisor() 
+    public.is_owner() 
+    OR supervisor_id = auth.uid()
     OR id IN (
       SELECT project_id FROM public.project_checklists 
       WHERE assigned_person = (auth.jwt() ->> 'email')
@@ -856,27 +909,27 @@ CREATE POLICY "Projects select policy"
     )
     OR id IN (
       SELECT project_id FROM public.site_tickets 
-      WHERE assigned_to = auth.uid()
+      WHERE assigned_to = auth.uid() OR reported_by = auth.uid()
     )
   );
 
 CREATE POLICY "Projects insert policy"
   ON public.projects FOR INSERT
   TO authenticated
-  WITH CHECK (public.is_supervisor());
+  WITH CHECK (public.is_owner());
 
 CREATE POLICY "Projects update policy"
   ON public.projects FOR UPDATE
   TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+  USING (public.is_owner() OR supervisor_id = auth.uid())
+  WITH CHECK (public.is_owner() OR supervisor_id = auth.uid());
 
 CREATE POLICY "Projects delete policy"
   ON public.projects FOR DELETE
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
--- 6.2 EMPLOYEES (PREVENT COWORKER SALARY DISCOVERY)
+-- 7.2 EMPLOYEES (OWNER/ADMIN SEES ALL; SUPERVISORS SEE FIELD WORKERS; EMPLOYEE SEES OWN)
 ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read employees" ON public.employees;
 DROP POLICY IF EXISTS "Authenticated write employees" ON public.employees;
@@ -889,7 +942,8 @@ CREATE POLICY "Employees select policy"
   ON public.employees FOR SELECT
   TO authenticated
   USING (
-    public.is_supervisor()
+    public.is_owner()
+    OR (public.is_supervisor() AND role NOT IN ('Admin', 'Owner'))
     OR user_id = auth.uid()
     OR (email IS NOT NULL AND lower(email) = lower(auth.jwt() ->> 'email'))
   );
@@ -908,9 +962,9 @@ CREATE POLICY "Employees update policy"
 CREATE POLICY "Employees delete policy"
   ON public.employees FOR DELETE
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
--- 6.3 ATTENDANCE (EMPLOYEE SEES OWN ATTENDANCE ONLY)
+-- 7.3 ATTENDANCE (OWNER/ADMIN SEES ALL; SUPERVISORS SEE ASSIGNED SITES; EMPLOYEES SEE OWN)
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Attendance select policy" ON public.attendance;
 DROP POLICY IF EXISTS "Attendance insert policy" ON public.attendance;
@@ -921,7 +975,14 @@ CREATE POLICY "Attendance select policy"
   ON public.attendance FOR SELECT
   TO authenticated
   USING (
-    public.is_supervisor()
+    public.is_owner()
+    OR (
+      public.is_supervisor()
+      AND (
+        project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid())
+        OR project_id IS NULL
+      )
+    )
     OR employee_id = public.get_auth_employee_id()
     OR employee_id IN (
       SELECT id FROM public.employees 
@@ -944,9 +1005,9 @@ CREATE POLICY "Attendance update policy"
 CREATE POLICY "Attendance delete policy"
   ON public.attendance FOR DELETE
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
--- 6.4 EXPENSES (EMPLOYEE STRICTLY DENIED)
+-- 7.4 EXPENSES (OWNER/ADMIN SEES ALL; SUPERVISORS SEE ASSIGNED SITES; EMPLOYEES DENIED 0 ROWS)
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Expenses select policy" ON public.expenses;
 DROP POLICY IF EXISTS "Expenses insert policy" ON public.expenses;
@@ -956,25 +1017,63 @@ DROP POLICY IF EXISTS "Expenses delete policy" ON public.expenses;
 CREATE POLICY "Expenses select policy"
   ON public.expenses FOR SELECT
   TO authenticated
-  USING (public.is_supervisor());
+  USING (
+    public.is_owner()
+    OR (
+      public.is_supervisor()
+      AND project_id IN (
+        SELECT id FROM public.projects 
+        WHERE supervisor_id = auth.uid()
+           OR id IN (
+             SELECT project_id FROM public.project_checklists 
+             WHERE assigned_person = (auth.jwt() ->> 'email')
+                OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
+           )
+      )
+    )
+  );
 
 CREATE POLICY "Expenses insert policy"
   ON public.expenses FOR INSERT
   TO authenticated
-  WITH CHECK (public.is_supervisor());
+  WITH CHECK (
+    public.is_owner()
+    OR (
+      public.is_supervisor()
+      AND project_id IN (
+        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
+      )
+    )
+  );
 
 CREATE POLICY "Expenses update policy"
   ON public.expenses FOR UPDATE
   TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+  USING (
+    public.is_owner()
+    OR (
+      public.is_supervisor()
+      AND project_id IN (
+        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
+      )
+    )
+  )
+  WITH CHECK (
+    public.is_owner()
+    OR (
+      public.is_supervisor()
+      AND project_id IN (
+        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
+      )
+    )
+  );
 
 CREATE POLICY "Expenses delete policy"
   ON public.expenses FOR DELETE
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
--- 6.5 BILLS (VENDOR BILLS - EMPLOYEE STRICTLY DENIED)
+-- 7.5 BILLS (VENDOR BILLS — STRICTLY OWNER & ADMIN; SUPERVISOR & EMPLOYEE DENIED 0 ROWS)
 ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Bills select policy" ON public.bills;
 DROP POLICY IF EXISTS "Bills insert policy" ON public.bills;
@@ -984,25 +1083,25 @@ DROP POLICY IF EXISTS "Bills delete policy" ON public.bills;
 CREATE POLICY "Bills select policy"
   ON public.bills FOR SELECT
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
 CREATE POLICY "Bills insert policy"
   ON public.bills FOR INSERT
   TO authenticated
-  WITH CHECK (public.is_supervisor());
+  WITH CHECK (public.is_owner());
 
 CREATE POLICY "Bills update policy"
   ON public.bills FOR UPDATE
   TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+  USING (public.is_owner())
+  WITH CHECK (public.is_owner());
 
 CREATE POLICY "Bills delete policy"
   ON public.bills FOR DELETE
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
--- 6.6 SALES BILLS & ITEMS (EMPLOYEE STRICTLY DENIED)
+-- 7.6 SALES BILLS & ITEMS (STRICTLY OWNER & ADMIN)
 ALTER TABLE public.sales_bills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales_bill_items ENABLE ROW LEVEL SECURITY;
 
@@ -1010,30 +1109,34 @@ DROP POLICY IF EXISTS "Authenticated users read sales_bills" ON public.sales_bil
 DROP POLICY IF EXISTS "Authenticated users write sales_bills" ON public.sales_bills;
 DROP POLICY IF EXISTS "Authenticated read sales_bill_items" ON public.sales_bill_items;
 DROP POLICY IF EXISTS "Authenticated write sales_bill_items" ON public.sales_bill_items;
+DROP POLICY IF EXISTS "Sales bills select policy" ON public.sales_bills;
+DROP POLICY IF EXISTS "Sales bills modify policy" ON public.sales_bills;
+DROP POLICY IF EXISTS "Sales bill items select policy" ON public.sales_bill_items;
+DROP POLICY IF EXISTS "Sales bill items modify policy" ON public.sales_bill_items;
 
 CREATE POLICY "Sales bills select policy"
   ON public.sales_bills FOR SELECT
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
 CREATE POLICY "Sales bills modify policy"
   ON public.sales_bills FOR ALL
   TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+  USING (public.is_owner())
+  WITH CHECK (public.is_owner());
 
 CREATE POLICY "Sales bill items select policy"
   ON public.sales_bill_items FOR SELECT
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
 CREATE POLICY "Sales bill items modify policy"
   ON public.sales_bill_items FOR ALL
   TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+  USING (public.is_owner())
+  WITH CHECK (public.is_owner());
 
--- 6.7 PAYMENT LEDGER & PROJECT PAYMENTS (EMPLOYEE STRICTLY DENIED)
+-- 7.7 PAYMENT LEDGER & PROJECT PAYMENTS (STRICTLY OWNER & ADMIN)
 ALTER TABLE public.payment_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_payments ENABLE ROW LEVEL SECURITY;
 
@@ -1041,30 +1144,34 @@ DROP POLICY IF EXISTS "Authenticated read payment_ledger" ON public.payment_ledg
 DROP POLICY IF EXISTS "Authenticated write payment_ledger" ON public.payment_ledger;
 DROP POLICY IF EXISTS "Authenticated users read project_payments" ON public.project_payments;
 DROP POLICY IF EXISTS "Authenticated users write project_payments" ON public.project_payments;
+DROP POLICY IF EXISTS "Payment ledger select policy" ON public.payment_ledger;
+DROP POLICY IF EXISTS "Payment ledger modify policy" ON public.payment_ledger;
+DROP POLICY IF EXISTS "Project payments select policy" ON public.project_payments;
+DROP POLICY IF EXISTS "Project payments modify policy" ON public.project_payments;
 
 CREATE POLICY "Payment ledger select policy"
   ON public.payment_ledger FOR SELECT
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
 CREATE POLICY "Payment ledger modify policy"
   ON public.payment_ledger FOR ALL
   TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+  USING (public.is_owner())
+  WITH CHECK (public.is_owner());
 
 CREATE POLICY "Project payments select policy"
   ON public.project_payments FOR SELECT
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
 CREATE POLICY "Project payments modify policy"
   ON public.project_payments FOR ALL
   TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+  USING (public.is_owner())
+  WITH CHECK (public.is_owner());
 
--- 6.8 INVENTORY & EQUIPMENT (EMPLOYEE STRICTLY DENIED)
+-- 7.8 INVENTORY & EQUIPMENT
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
@@ -1075,6 +1182,8 @@ DROP POLICY IF EXISTS "Inventory history select policy" ON public.inventory_hist
 DROP POLICY IF EXISTS "Inventory history modify policy" ON public.inventory_history;
 DROP POLICY IF EXISTS "Authenticated read equipment" ON public.equipment;
 DROP POLICY IF EXISTS "Authenticated write equipment" ON public.equipment;
+DROP POLICY IF EXISTS "Equipment select policy" ON public.equipment;
+DROP POLICY IF EXISTS "Equipment modify policy" ON public.equipment;
 
 CREATE POLICY "Inventory select policy" ON public.inventory FOR SELECT TO authenticated USING (public.is_supervisor());
 CREATE POLICY "Inventory modify policy" ON public.inventory FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
@@ -1083,7 +1192,7 @@ CREATE POLICY "Inventory history modify policy" ON public.inventory_history FOR 
 CREATE POLICY "Equipment select policy" ON public.equipment FOR SELECT TO authenticated USING (public.is_supervisor());
 CREATE POLICY "Equipment modify policy" ON public.equipment FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
 
--- 6.9 QUOTATIONS, VENDORS & SUBCONTRACTORS (EMPLOYEE STRICTLY DENIED)
+-- 7.9 QUOTATIONS, VENDORS, SUBCONTRACTORS & PROPERTIES (STRICTLY OWNER & ADMIN)
 ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
@@ -1103,21 +1212,33 @@ DROP POLICY IF EXISTS "Authenticated read subcontractors" ON public.subcontracto
 DROP POLICY IF EXISTS "Authenticated write subcontractors" ON public.subcontractors;
 DROP POLICY IF EXISTS "Authenticated read properties" ON public.properties;
 DROP POLICY IF EXISTS "Authenticated write properties" ON public.properties;
+DROP POLICY IF EXISTS "Quotations select policy" ON public.quotations;
+DROP POLICY IF EXISTS "Quotations modify policy" ON public.quotations;
+DROP POLICY IF EXISTS "Quotation items select policy" ON public.quotation_items;
+DROP POLICY IF EXISTS "Quotation items modify policy" ON public.quotation_items;
+DROP POLICY IF EXISTS "Vendors select policy" ON public.vendors;
+DROP POLICY IF EXISTS "Vendors modify policy" ON public.vendors;
+DROP POLICY IF EXISTS "Vendor transactions select policy" ON public.vendor_transactions;
+DROP POLICY IF EXISTS "Vendor transactions modify policy" ON public.vendor_transactions;
+DROP POLICY IF EXISTS "Subcontractors select policy" ON public.subcontractors;
+DROP POLICY IF EXISTS "Subcontractors modify policy" ON public.subcontractors;
+DROP POLICY IF EXISTS "Properties select policy" ON public.properties;
+DROP POLICY IF EXISTS "Properties modify policy" ON public.properties;
 
-CREATE POLICY "Quotations select policy" ON public.quotations FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Quotations modify policy" ON public.quotations FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
-CREATE POLICY "Quotation items select policy" ON public.quotation_items FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Quotation items modify policy" ON public.quotation_items FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
-CREATE POLICY "Vendors select policy" ON public.vendors FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Vendors modify policy" ON public.vendors FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
-CREATE POLICY "Vendor transactions select policy" ON public.vendor_transactions FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Vendor transactions modify policy" ON public.vendor_transactions FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
-CREATE POLICY "Subcontractors select policy" ON public.subcontractors FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Subcontractors modify policy" ON public.subcontractors FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
-CREATE POLICY "Properties select policy" ON public.properties FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Properties modify policy" ON public.properties FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Quotations select policy" ON public.quotations FOR SELECT TO authenticated USING (public.is_owner());
+CREATE POLICY "Quotations modify policy" ON public.quotations FOR ALL TO authenticated USING (public.is_owner()) WITH CHECK (public.is_owner());
+CREATE POLICY "Quotation items select policy" ON public.quotation_items FOR SELECT TO authenticated USING (public.is_owner());
+CREATE POLICY "Quotation items modify policy" ON public.quotation_items FOR ALL TO authenticated USING (public.is_owner()) WITH CHECK (public.is_owner());
+CREATE POLICY "Vendors select policy" ON public.vendors FOR SELECT TO authenticated USING (public.is_owner());
+CREATE POLICY "Vendors modify policy" ON public.vendors FOR ALL TO authenticated USING (public.is_owner()) WITH CHECK (public.is_owner());
+CREATE POLICY "Vendor transactions select policy" ON public.vendor_transactions FOR SELECT TO authenticated USING (public.is_owner());
+CREATE POLICY "Vendor transactions modify policy" ON public.vendor_transactions FOR ALL TO authenticated USING (public.is_owner()) WITH CHECK (public.is_owner());
+CREATE POLICY "Subcontractors select policy" ON public.subcontractors FOR SELECT TO authenticated USING (public.is_owner());
+CREATE POLICY "Subcontractors modify policy" ON public.subcontractors FOR ALL TO authenticated USING (public.is_owner()) WITH CHECK (public.is_owner());
+CREATE POLICY "Properties select policy" ON public.properties FOR SELECT TO authenticated USING (public.is_owner());
+CREATE POLICY "Properties modify policy" ON public.properties FOR ALL TO authenticated USING (public.is_owner()) WITH CHECK (public.is_owner());
 
--- 6.10 DAILY PROGRESS, CHECKLISTS & SITE TICKETS
+-- 7.10 DAILY PROGRESS, CHECKLISTS & SITE TICKETS
 ALTER TABLE public.daily_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_checklists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_tickets ENABLE ROW LEVEL SECURITY;
@@ -1134,12 +1255,33 @@ DROP POLICY IF EXISTS "Authenticated read ticket_messages" ON public.ticket_mess
 DROP POLICY IF EXISTS "Authenticated write ticket_messages" ON public.ticket_messages;
 DROP POLICY IF EXISTS "Authenticated read site_drawings" ON public.site_drawings;
 DROP POLICY IF EXISTS "Authenticated write site_drawings" ON public.site_drawings;
+DROP POLICY IF EXISTS "Daily progress select policy" ON public.daily_progress;
+DROP POLICY IF EXISTS "Daily progress modify policy" ON public.daily_progress;
+DROP POLICY IF EXISTS "Project checklists select policy" ON public.project_checklists;
+DROP POLICY IF EXISTS "Project checklists insert policy" ON public.project_checklists;
+DROP POLICY IF EXISTS "Project checklists update policy" ON public.project_checklists;
+DROP POLICY IF EXISTS "Project checklists delete policy" ON public.project_checklists;
+DROP POLICY IF EXISTS "Site tickets select policy" ON public.site_tickets;
+DROP POLICY IF EXISTS "Site tickets insert policy" ON public.site_tickets;
+DROP POLICY IF EXISTS "Site tickets update policy" ON public.site_tickets;
+DROP POLICY IF EXISTS "Site tickets delete policy" ON public.site_tickets;
+DROP POLICY IF EXISTS "Ticket messages select policy" ON public.ticket_messages;
+DROP POLICY IF EXISTS "Ticket messages insert policy" ON public.ticket_messages;
+DROP POLICY IF EXISTS "Ticket messages delete policy" ON public.ticket_messages;
+DROP POLICY IF EXISTS "Site drawings select policy" ON public.site_drawings;
+DROP POLICY IF EXISTS "Site drawings modify policy" ON public.site_drawings;
 
 CREATE POLICY "Daily progress select policy"
   ON public.daily_progress FOR SELECT
   TO authenticated
   USING (
-    public.is_supervisor() 
+    public.is_owner() 
+    OR (
+      public.is_supervisor() 
+      AND project_id IN (
+        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
+      )
+    )
     OR project_id IN (
       SELECT project_id FROM public.project_checklists 
       WHERE assigned_person = (auth.jwt() ->> 'email')
@@ -1156,7 +1298,11 @@ CREATE POLICY "Project checklists select policy"
   ON public.project_checklists FOR SELECT
   TO authenticated
   USING (
-    public.is_supervisor()
+    public.is_owner()
+    OR (
+      public.is_supervisor() 
+      AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid())
+    )
     OR assigned_person = (auth.jwt() ->> 'email')
     OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   );
@@ -1170,12 +1316,14 @@ CREATE POLICY "Project checklists update policy"
   ON public.project_checklists FOR UPDATE
   TO authenticated
   USING (
-    public.is_supervisor()
+    public.is_owner()
+    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
     OR assigned_person = (auth.jwt() ->> 'email')
     OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   )
   WITH CHECK (
-    public.is_supervisor()
+    public.is_owner()
+    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
     OR assigned_person = (auth.jwt() ->> 'email')
     OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   );
@@ -1183,13 +1331,14 @@ CREATE POLICY "Project checklists update policy"
 CREATE POLICY "Project checklists delete policy"
   ON public.project_checklists FOR DELETE
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
 CREATE POLICY "Site tickets select policy"
   ON public.site_tickets FOR SELECT
   TO authenticated
   USING (
-    public.is_supervisor() 
+    public.is_owner() 
+    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
     OR assigned_to = auth.uid() 
     OR reported_by = auth.uid()
   );
@@ -1203,12 +1352,14 @@ CREATE POLICY "Site tickets update policy"
   ON public.site_tickets FOR UPDATE
   TO authenticated
   USING (
-    public.is_supervisor() 
+    public.is_owner() 
+    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
     OR assigned_to = auth.uid() 
     OR reported_by = auth.uid()
   )
   WITH CHECK (
-    public.is_supervisor() 
+    public.is_owner() 
+    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
     OR assigned_to = auth.uid() 
     OR reported_by = auth.uid()
   );
@@ -1216,13 +1367,13 @@ CREATE POLICY "Site tickets update policy"
 CREATE POLICY "Site tickets delete policy"
   ON public.site_tickets FOR DELETE
   TO authenticated
-  USING (public.is_supervisor());
+  USING (public.is_owner());
 
 CREATE POLICY "Ticket messages select policy"
   ON public.ticket_messages FOR SELECT
   TO authenticated
   USING (
-    public.is_supervisor() 
+    public.is_owner() 
     OR ticket_id IN (
       SELECT id FROM public.site_tickets 
       WHERE assigned_to = auth.uid() OR reported_by = auth.uid()
@@ -1250,7 +1401,7 @@ CREATE POLICY "Site drawings modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 6.11 AUDIT LOGS, ACTIVITIES, SYSTEM SETTINGS, PROFILES & IMAGES
+-- 7.11 AUDIT LOGS, ACTIVITIES, SYSTEM SETTINGS, PROFILES & IMAGES
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
@@ -1273,8 +1424,18 @@ DROP POLICY IF EXISTS "Authenticated users can update own or admin profiles" ON 
 DROP POLICY IF EXISTS "App images select policy" ON public.app_images;
 DROP POLICY IF EXISTS "App images insert policy" ON public.app_images;
 DROP POLICY IF EXISTS "App images modify policy" ON public.app_images;
+DROP POLICY IF EXISTS "Profiles select policy" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles insert policy" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles update policy" ON public.profiles;
+DROP POLICY IF EXISTS "Profiles delete policy" ON public.profiles;
+DROP POLICY IF EXISTS "Audit logs select policy" ON public.audit_logs;
+DROP POLICY IF EXISTS "Audit logs insert policy" ON public.audit_logs;
+DROP POLICY IF EXISTS "Activities select policy" ON public.activities;
+DROP POLICY IF EXISTS "Activities insert policy" ON public.activities;
+DROP POLICY IF EXISTS "System settings select policy" ON public.system_settings;
+DROP POLICY IF EXISTS "System settings modify policy" ON public.system_settings;
 
-CREATE POLICY "Audit logs select policy" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Audit logs select policy" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_admin());
 CREATE POLICY "Audit logs insert policy" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "Deny updates on audit_logs" ON public.audit_logs FOR UPDATE TO authenticated USING (false);
 CREATE POLICY "Deny deletes on audit_logs" ON public.audit_logs FOR DELETE TO authenticated USING (false);
@@ -1284,17 +1445,34 @@ CREATE POLICY "Activities insert policy" ON public.activities FOR INSERT TO auth
 CREATE POLICY "Deny updates on activities" ON public.activities FOR UPDATE TO authenticated USING (false);
 CREATE POLICY "Deny deletes on activities" ON public.activities FOR DELETE TO authenticated USING (false);
 
-CREATE POLICY "System settings select policy" ON public.system_settings FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "System settings select policy" ON public.system_settings FOR SELECT TO authenticated USING (public.is_admin());
 CREATE POLICY "System settings modify policy" ON public.system_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
 
-CREATE POLICY "Profiles select policy" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
-CREATE POLICY "Profiles insert policy" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id OR public.is_admin());
-CREATE POLICY "Profiles update policy" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id OR public.is_admin()) WITH CHECK (auth.uid() = id OR public.is_admin());
-CREATE POLICY "Profiles delete policy" ON public.profiles FOR DELETE TO authenticated USING (public.is_admin());
+-- Profiles Privacy: Owner & Admin read all; Supervisor & Employee read OWN profile only
+CREATE POLICY "Profiles select policy"
+  ON public.profiles FOR SELECT
+  TO authenticated
+  USING (auth.uid() = id OR public.is_owner());
+
+CREATE POLICY "Profiles insert policy"
+  ON public.profiles FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = id OR public.is_admin());
+
+CREATE POLICY "Profiles update policy"
+  ON public.profiles FOR UPDATE
+  TO authenticated
+  USING (auth.uid() = id OR public.is_admin())
+  WITH CHECK (auth.uid() = id OR public.is_admin());
+
+CREATE POLICY "Profiles delete policy"
+  ON public.profiles FOR DELETE
+  TO authenticated
+  USING (public.is_admin());
 
 CREATE POLICY "App images select policy" ON public.app_images FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
 CREATE POLICY "App images insert policy" ON public.app_images FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "App images modify policy" ON public.app_images FOR ALL TO authenticated USING (auth.uid() = user_id OR public.is_admin()) WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
--- ── 7. RELOAD SCHEMA CACHE ────────────────────────────────────
+-- ── 8. RELOAD SCHEMA CACHE ────────────────────────────────────
 NOTIFY pgrst, 'reload schema';
