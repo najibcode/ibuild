@@ -4,7 +4,7 @@
 --
 -- Fixes:
 -- 1. All base tables & columns created first (full_name, email, daily_rate, salary, user_id, supervisor_id)
--- 2. Complete user_roles seeding for Admin, Owner, Supervisor, Employee
+-- 2. Complete user_roles seeding for Admin, Owner, Supervisor, Employee (UUID-compatible)
 -- 3. Strict Project & Role-based Row Isolation:
 --    - Admin & Owner: Full visibility across all projects, expenses, bills, profiles
 --    - Supervisor: Scoped to assigned projects only; 0 access to bills, sales_bills, payment_ledger, or coworker profiles
@@ -387,7 +387,7 @@ CREATE TABLE IF NOT EXISTS public.site_drawings (
 -- 1.12 AUDIT LOGS, ACTIVITIES, SETTINGS & IMAGES
 CREATE TABLE IF NOT EXISTS public.audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   user_email TEXT,
   action TEXT NOT NULL,
   entity TEXT,
@@ -399,8 +399,8 @@ CREATE TABLE IF NOT EXISTS public.audit_logs (
 
 CREATE TABLE IF NOT EXISTS public.activities (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID,
-  user_id UUID,
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   user_name TEXT,
   action TEXT NOT NULL,
   entity_type TEXT,
@@ -424,16 +424,16 @@ CREATE TABLE IF NOT EXISTS public.app_images (
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
 );
 
--- 1.13 ROLES & RBAC TABLES
+-- 1.13 ROLES & RBAC TABLES (UUID SCHEMA COMPATIBLE)
 CREATE TABLE IF NOT EXISTS public.roles (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT UNIQUE NOT NULL,
   description TEXT,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
 );
 
 CREATE TABLE IF NOT EXISTS public.permissions (
-  id TEXT PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   key TEXT UNIQUE NOT NULL,
   description TEXT,
   module TEXT,
@@ -442,8 +442,8 @@ CREATE TABLE IF NOT EXISTS public.permissions (
 
 CREATE TABLE IF NOT EXISTS public.role_permissions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
-  permission_id TEXT REFERENCES public.permissions(id) ON DELETE CASCADE,
+  role_id UUID REFERENCES public.roles(id) ON DELETE CASCADE,
+  permission_id UUID REFERENCES public.permissions(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
   UNIQUE(role_id, permission_id)
 );
@@ -451,18 +451,18 @@ CREATE TABLE IF NOT EXISTS public.role_permissions (
 CREATE TABLE IF NOT EXISTS public.user_roles (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
+  role_id UUID REFERENCES public.roles(id) ON DELETE CASCADE,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
   UNIQUE(user_id)
 );
 
 -- ── 2. SEED ROLES & AUTOMATICALLY POPULATE USER_ROLES ─────────
 
-INSERT INTO public.roles (id, name, description) VALUES
-  ('role-admin', 'admin', 'Technical administrator with full system access'),
-  ('role-owner', 'owner', 'Business owner with full business visibility'),
-  ('role-supervisor', 'supervisor', 'Site supervisor managing day-to-day operations'),
-  ('role-employee', 'employee', 'Field employee and site staff')
+INSERT INTO public.roles (name, description) VALUES
+  ('admin', 'Technical administrator with full system access'),
+  ('owner', 'Business owner with full business visibility'),
+  ('supervisor', 'Site supervisor managing day-to-day operations'),
+  ('employee', 'Field employee and site staff')
 ON CONFLICT (name) DO UPDATE SET description = EXCLUDED.description;
 
 -- Auto-seed user_roles for every user in auth.users
@@ -791,6 +791,9 @@ DROP POLICY IF EXISTS "Users can insert own user_role or admin manage" ON public
 DROP POLICY IF EXISTS "Admins can update user_roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can delete user_roles" ON public.user_roles;
 DROP POLICY IF EXISTS "User roles select policy" ON public.user_roles;
+DROP POLICY IF EXISTS "User roles insert policy" ON public.user_roles;
+DROP POLICY IF EXISTS "User roles update policy" ON public.user_roles;
+DROP POLICY IF EXISTS "User roles delete policy" ON public.user_roles;
 
 -- Owner & Admin see all roles; Supervisor and Employee see own role
 CREATE POLICY "User roles select policy"
