@@ -1,168 +1,166 @@
-# IBUILD ERP — Role-Based Access Control (RBAC) Guide
+# IBUILD ERP — Role-Based Access Control (RBAC) & Security Guide
 
-## Overview
+## 1. Overview
 
-IBUILD ERP implements a database-driven RBAC system with three roles: **Admin**, **Owner**, and **Supervisor**. Permissions are stored in Supabase and cached in-app after login via Riverpod providers.
+IBUILD ERP implements a strict, multi-tiered Role-Based Access Control (RBAC) system backed by **PostgreSQL Row-Level Security (RLS)** in Supabase and cached on the client via Riverpod providers.
 
----
-
-## Roles
-
-### Admin
-- Technical administrator with full system access
-- Can manage users, settings, database backups, and view system logs
-- **Cannot**: Change company ownership or permanently delete financial history
-
-### Owner
-- Business owner with complete business visibility
-- Can view/create/delete all projects, employees, billing, expenses, reports
-- **Cannot**: Access system settings, backend configuration, or developer tools
-
-### Supervisor
-- Site supervisor managing daily construction operations
-- Can view/edit all projects, mark attendance, manage inventory, submit expenses, create daily progress reports
-- **Cannot**: Delete employees or projects, access billing, access settings, manage users
+The architecture strictly enforces permissions at the **database level**, ensuring that regardless of client-side routing, unauthorized API or database requests cannot access restricted rows.
 
 ---
 
-## Permission Keys
+## 2. Roles & Access Scope
 
-| Module | Permission Key | Description |
-|---|---|---|
-| Dashboard | `dashboard.view` | View dashboard |
-| Project | `project.view` | View projects |
-| Project | `project.create` | Create projects |
-| Project | `project.update` | Update projects |
-| Project | `project.delete` | Delete projects |
-| Employee | `employee.view` | View employees |
-| Employee | `employee.create` | Create employees |
-| Employee | `employee.update` | Update employees |
-| Employee | `employee.delete` | Delete employees |
-| Attendance | `attendance.view` | View attendance |
-| Attendance | `attendance.create` | Mark attendance |
-| Attendance | `attendance.update` | Update attendance |
-| Inventory | `inventory.view` | View inventory |
-| Inventory | `inventory.create` | Add inventory items |
-| Inventory | `inventory.update` | Update inventory items |
-| Inventory | `inventory.delete` | Delete inventory items |
-| Billing | `billing.view` | View bills |
-| Billing | `billing.create` | Create bills |
-| Billing | `billing.update` | Update bills |
-| Billing | `billing.delete` | Delete bills |
-| Expense | `expense.view` | View expenses |
-| Expense | `expense.create` | Create expenses |
-| Expense | `expense.update` | Update expenses |
-| Expense | `expense.delete` | Delete expenses |
-| Reports | `reports.view` | View reports |
-| Reports | `reports.export` | Export reports |
-| Daily Progress | `daily_progress.view` | View daily progress |
-| Daily Progress | `daily_progress.create` | Create daily progress |
-| Daily Progress | `daily_progress.update` | Update daily progress |
-| Settings | `settings.manage` | Manage application settings |
-| Users | `users.manage` | Manage users |
-| Roles | `roles.manage` | Manage roles and permissions |
-| System | `system.manage` | Manage system configuration |
+| Role | Operational Scope | Financial Visibility | Workforce & Rates | Administrative Rights |
+|---|---|---|---|---|
+| **Admin** | Full System Access | Full Access | Full Access (Rates & Salary) | Manage Users, Roles, Settings, Backups |
+| **Owner** | Full Portfolio Oversight | Full Billing, Expenses, Ledgers | Full Access (Rates & Salary) | Company Business Operations |
+| **Supervisor** | Assigned Sites, Tasks, DPRs | Site-Level Expenses & Bills | Site Staff (Check-in & Muster) | Operational Site Management |
+| **Employee** | Assigned Tasks & Snags Only | ❌ **Strictly Denied (0 rows)** | ❌ **Own Record Only (Coworkers Hidden)** | ❌ None |
+
+### Role Profiles in Detail
+
+#### 👑 Admin
+- **Description**: Technical and administrative administrator.
+- **Capabilities**: Full CRUD across all 22+ tables, role assignments, custom permission overrides, system settings, and audit logs.
+- **Restrictions**: Cannot bypass immutable audit log append-only constraints.
+
+#### 🏢 Owner
+- **Description**: Executive business owner with full commercial visibility.
+- **Capabilities**: Comprehensive financial variance, client invoicing (`sales_bills`), vendor payables (`bills`), payment ledgers, profit & loss reports, and project creation.
+- **Restrictions**: System technical configurations and backend user role infrastructure.
+
+#### 👷 Supervisor
+- **Description**: Field site engineer and operations supervisor.
+- **Capabilities**: Project operations, daily progress reporting (DPR), attendance logging, site material inventory, machinery deployment, expense vouchers, and defect snagging.
+- **Restrictions**: Restricted from accessing global system settings, company-wide accounting ledgers, or deleting core projects/employees.
+
+#### 🛠️ Employee / Field Worker
+- **Description**: Individual site worker, specialist technician, or contractor.
+- **Capabilities**: Read own profile, log own attendance, view assigned project checklist items, and view/resolve assigned site tickets (snags).
+- **Strict Isolation**:
+  - **Zero Financial Rows**: `expenses`, `bills`, `sales_bills`, `payment_ledger`, `quotations`, `vendors`, `subcontractors`, `properties`, and `system_settings` return 0 rows.
+  - **No Salary / Rate Discovery**: An employee cannot view coworkers' daily wage rates, salaries, or attendance logs.
 
 ---
 
-## Database Tables
+## 3. Non-Recursive RLS Architecture (PostgreSQL 42P17 Prevention)
 
-### `roles`
-| Column | Type | Description |
-|---|---|---|
-| id | UUID PK | Auto-generated |
-| name | VARCHAR(50) UNIQUE | admin, owner, supervisor |
-| description | TEXT | Role description |
-| created_at | TIMESTAMPTZ | Creation timestamp |
+### The Recursion Problem
+In standard RLS implementations, a policy on `public.user_roles` that queries `user_roles` to verify if the caller is an admin causes **PostgreSQL error 42P17: infinite recursion detected in policy for relation "user_roles"**.
 
-### `permissions`
-| Column | Type | Description |
-|---|---|---|
-| id | UUID PK | Auto-generated |
-| key | VARCHAR(100) UNIQUE | e.g. `employee.create` |
-| description | TEXT | Human-readable description |
-| module | VARCHAR(50) | Module group (employee, project, etc.) |
-| created_at | TIMESTAMPTZ | Creation timestamp |
+### The IBUILD Solution ([Migration 020](file:///Users/najib/ibuild/supabase/migrations/020_strict_rls_and_non_recursive_rbac.sql))
+We decouple role resolution from table-level self-references:
 
-### `role_permissions`
-| Column | Type | Description |
-|---|---|---|
-| id | UUID PK | Auto-generated |
-| role_id | UUID FK → roles | The role |
-| permission_id | UUID FK → permissions | The permission |
-| UNIQUE(role_id, permission_id) | | No duplicates |
+1. **`SECURITY DEFINER` Non-Recursive Helper Functions**:
+   ```sql
+   CREATE OR REPLACE FUNCTION public.get_auth_role()
+   RETURNS text
+   LANGUAGE plpgsql
+   STABLE
+   SECURITY DEFINER
+   SET search_path = public
+   AS $$
+   DECLARE
+     v_role text;
+   BEGIN
+     IF auth.uid() IS NULL THEN RETURN 'anonymous'; END IF;
 
-### `user_roles`
-| Column | Type | Description |
-|---|---|---|
-| id | UUID PK | Auto-generated |
-| user_id | UUID FK → auth.users | The user |
-| role_id | UUID FK → roles | The assigned role |
-| UNIQUE(user_id) | | One role per user |
+     -- 1. Fast O(1) JWT metadata check (Zero table dependencies)
+     v_role := lower(COALESCE(
+       auth.jwt() -> 'user_metadata' ->> 'role',
+       auth.jwt() -> 'app_metadata' ->> 'role',
+       ''
+     ));
+     IF v_role <> '' THEN RETURN v_role; END IF;
+
+     -- 2. Profiles table check (Isolated from user_roles)
+     SELECT lower(role_display) INTO v_role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+     IF v_role IS NOT NULL AND v_role <> '' THEN RETURN v_role; END IF;
+
+     -- 3. Auth users metadata check
+     SELECT lower((raw_user_meta_data->>'role')::text) INTO v_role FROM auth.users WHERE id = auth.uid() LIMIT 1;
+     IF v_role IS NOT NULL AND v_role <> '' THEN RETURN v_role; END IF;
+
+     RETURN 'employee';
+   END;
+   $$;
+   ```
+
+2. **Automated Synchronization Trigger**:
+   When a role is assigned in `user_roles`, `trg_sync_user_role_to_profile` automatically updates `public.profiles.role_display` and `auth.users.raw_user_meta_data`.
+
+3. **Clean, Non-Recursive Policies on `user_roles`**:
+   ```sql
+   CREATE POLICY "Users can read own user_roles or admin read all"
+     ON public.user_roles FOR SELECT TO authenticated
+     USING (auth.uid() = user_id OR public.is_admin());
+   ```
 
 ---
 
-## Flutter Architecture
+## 4. Permission Keys
 
-### Providers (lib/features/rbac/presentation/providers/permission_provider.dart)
+| Module | Permission Key | Description | Admin | Owner | Supervisor | Employee |
+|---|---|---|---|---|---|---|
+| **Dashboard** | `dashboard.view` | View dashboard summary | ✅ | ✅ | ✅ | ✅ (Scoped) |
+| **Project** | `project.view` | View projects | ✅ | ✅ | ✅ | ✅ (Assigned) |
+| **Project** | `project.create` | Create new projects | ✅ | ✅ | ❌ | ❌ |
+| **Project** | `project.update` | Update project metadata | ✅ | ✅ | ✅ | ❌ |
+| **Project** | `project.delete` | Delete project record | ✅ | ✅ | ❌ | ❌ |
+| **Workforce** | `employee.view` | View employee directory | ✅ | ✅ | ✅ | ❌ (Own only) |
+| **Workforce** | `employee.create` | Add new employee | ✅ | ✅ | ✅ | ❌ |
+| **Workforce** | `employee.update` | Edit employee / rates | ✅ | ✅ | ✅ | ❌ |
+| **Attendance**| `attendance.view` | View attendance records | ✅ | ✅ | ✅ | ❌ (Own only) |
+| **Attendance**| `attendance.create`| Mark attendance muster | ✅ | ✅ | ✅ | ✅ (Own checkin) |
+| **Financials** | `expense.view` | View expense vouchers | ✅ | ✅ | ✅ | ❌ (0 rows) |
+| **Financials** | `expense.create` | Submit expense voucher | ✅ | ✅ | ✅ | ❌ |
+| **Financials** | `billing.view` | View vendor & sales bills | ✅ | ✅ | ✅ | ❌ (0 rows) |
+| **Financials** | `billing.create` | Issue client invoices | ✅ | ✅ | ❌ | ❌ |
+| **Inventory** | `inventory.view` | View material stock | ✅ | ✅ | ✅ | ❌ (0 rows) |
+| **Equipment** | `equipment.view` | View machinery fleet | ✅ | ✅ | ✅ | ❌ (0 rows) |
+| **Settings** | `settings.manage`| Manage system settings | ✅ | ❌ | ❌ | ❌ |
+| **Users** | `users.manage` | Manage user credentials | ✅ | ❌ | ❌ | ❌ |
+
+---
+
+## 5. Flutter Client Architecture
+
+### Providers (`lib/features/rbac/presentation/providers/permission_provider.dart`)
 
 ```dart
-// Fetch user's role once after login
-final userRoleProvider = FutureProvider<UserRole?>(...);
+// Resolves active user role with multi-layer fallback
+final userRoleProvider = FutureProvider<UserRole?>((ref) async {
+  final repo = ref.watch(roleRepositoryProvider);
+  final userId = ref.watch(currentUserIdProvider);
+  return repo.fetchUserRole(userId);
+});
 
-// Fetch all permission keys for the role
-final userPermissionsProvider = FutureProvider<Set<String>>(...);
-
-// Fast synchronous permission check
-final hasPermissionProvider = Provider.family<bool, String>(...);
-
-// Current role name string
-final currentRoleProvider = Provider<String>(...);
-
-// Boolean helpers
-final isAdminProvider = Provider<bool>(...);
-final isOwnerProvider = Provider<bool>(...);
-final isSupervisorProvider = Provider<bool>(...);
+// Fast boolean role helpers
+final isAdminProvider = Provider<bool>((ref) => ref.watch(userRoleProvider).value?.roleName == 'admin');
+final isOwnerProvider = Provider<bool>((ref) => ref.watch(userRoleProvider).value?.roleName == 'owner');
+final isSupervisorProvider = Provider<bool>((ref) => ref.watch(userRoleProvider).value?.roleName == 'supervisor');
+final isEmployeeProvider = Provider<bool>((ref) => ref.watch(userRoleProvider).value?.roleName == 'employee');
 ```
 
-### Widgets
+### UI Guards & Components
 
-**PermissionGuard** — Wraps any widget, shows it only if user has permission:
+**`PermissionGuard`** — Selectively renders widgets based on permission keys:
 ```dart
 PermissionGuard(
-  permission: 'employee.delete',
-  child: IconButton(onPressed: _delete, icon: Icon(Icons.delete)),
-)
-```
-
-**PermissionButton** — Permission-aware ElevatedButton:
-```dart
-PermissionButton(
-  permission: 'project.create',
-  onPressed: _createProject,
-  child: Text('New Project'),
+  permission: 'billing.create',
+  child: ElevatedButton(onPressed: _openInvoiceModal, child: Text('New Invoice')),
 )
 ```
 
 ---
 
-## Adding a New Role
+## 6. How to Assign Roles to Users
 
-1. Insert into `roles` table in Supabase
-2. Insert into `role_permissions` for each permission the role should have
-3. No Flutter code changes needed — the app reads roles and permissions from the database
-
-## Assigning a Role to a User
-
+To assign a role to a user in Supabase:
 ```sql
-INSERT INTO user_roles (user_id, role_id)
-SELECT 'USER_UUID', id FROM roles WHERE name = 'owner';
+-- Example: Assigning 'supervisor' role to a user
+INSERT INTO public.user_roles (user_id, role_id)
+VALUES ('USER-UUID-HERE', 'role-supervisor')
+ON CONFLICT (user_id, role_id) DO NOTHING;
 ```
-
----
-
-## Setup
-
-1. Run `supabase/migrations/001_rbac_tables.sql` in your Supabase SQL Editor
-2. The migration auto-assigns the `admin` role to `admin@ibuild.in`
-3. For new users, insert into `user_roles` with the desired role
+The database trigger automatically updates `profiles.role_display` and auth metadata, instantly granting the user their scoped permissions.

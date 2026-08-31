@@ -1,70 +1,54 @@
 # Upgrade Guide, Project Audit, & Release Protocols
 
-This document details the project audit findings, identifies current technical debt, defines the versioning guidelines, and provides release checklists for future IBUILD ERP iterations.
+This document details the project audit findings, security status, test execution results, and release checklists for **IBUILD ERP**.
 
 ---
 
-## 1. Project Audit Report
+## 1. Project Audit & Security Status
 
-A comprehensive audit was performed across the IBUILD codebase as of Version 1.0.0.
+A comprehensive audit was performed across the IBUILD codebase for the production release:
 
-### A. Architectural Evaluation
-*   **Strengths**: Clean separation of models, interfaces, repository implementations, and Riverpod controllers. This structure ensures adding new modules is straightforward.
-*   **Weaknesses**: The root `lib/` directory is cluttered with 12 orphan layout and detail screens. These bypass feature-first boundaries.
+### A. Security Posture & Hardening
+* **Row-Level Security (RLS)**: Strictly enforced across all 22+ PostgreSQL tables via Migration 020. Deny-by-default architecture prevents unauthorized data access.
+* **Employee Isolation**: Field employee accounts return **0 rows** on sensitive financial tables (`expenses`, `bills`, `sales_bills`, `payment_ledger`, `audit_logs`, `system_settings`), with access strictly restricted to own attendance and assigned tasks.
+* **Anti-Recursion RBAC (PostgreSQL 42P17)**: Non-recursive `SECURITY DEFINER` helper functions (`get_auth_role()`, `is_admin()`, `is_owner()`, `is_supervisor()`, `is_employee()`) prevent cyclic query evaluation on `user_roles`.
+* **Compact JWTs**: Authentication tokens are kept below 1 KB (~884–999 bytes) with avatar URL validation rejecting base64/data URI payloads.
+* **CORS & Headers**: Restricted to authorized production origin `https://ibuild.najibcode.workers.dev` with only `GET, POST, PATCH, DELETE, OPTIONS` methods permitted. Blocked `TRACE` and `CONNECT`.
 
-### B. Security Posture
-*   **Strengths**: Leverages Supabase Authentication securely. Configuration values are managed via `.env` files.
-*   **Weaknesses**: Row-Level Security (RLS) is not fully documented in project migrations. It needs to be verified on new tables (`billing`, `expenses`) to prevent supervisors from accessing global accounting balances.
+### B. Database Integrity & Concurrency
+* **Atomic Spend Calculations**: Trigger `update_project_spent_atomic()` automatically recalculates `projects.spent` upon expense insert/update/delete.
+* **Attendance Deduplication**: Database unique constraint `UNIQUE (employee_id, date)` blocks duplicate check-in submissions under concurrent conditions.
+* **Historical Rate Immutability**: `trg_snapshot_attendance_wages` captures wage rates at entry time.
 
-### C. Database & Supabase Integration
-*   **Strengths**: Well-structured relationships between projects, inventories, and daily logs.
-*   **Weaknesses**: Lack of soft-delete flags on critical business records. Deleting a project can cause cascading issues on linked inventories or bill records.
-
-### D. Coding Standards & Lints
-*   **Strengths**: Strict adherence to the `flutter_lints` rules. Strong types are used throughout models.
-*   **Weaknesses**: Some hardcoded strings remain in form validator screens rather than using translation templates.
-
----
-
-## 2. Technical Debt & Recommended Improvements
-
-| Priority | Issue / Debt | Recommended Action |
-|----------|--------------|--------------------|
-| **High** | Orphan screens in `lib/` root. | Move files like `mobile_dashboard.dart`, `web_dashboard.dart`, and `responsive_layout.dart` into a centralized `lib/features/dashboard/` or common directory. |
-| **High** | Hardcoded demo project ID. | In `MainRouterScreen`, line 138 hardcodes `projects/6661804967842142645`. Replace this with a dynamic query picking the active selection. |
-| **Medium**| Redundant theme configurations. | `lib/theme.dart` duplicates color systems defined in `lib/core/theme/app_colors.dart`. Remove `lib/theme.dart` once references are verified. |
-| **Medium**| Stack-based mobile navigation. | Migrate to GoRouter StatefulShellRoutes to support web routing, back-button history, and browser URL synchronization. |
-| **Low**  | Mock data fallbacks. | Remove remaining simulated delays in repository classes and replace them with real Supabase queries. |
+### C. Testing & QA Coverage
+* **120 Automated Tests Passing** across 33 test suites.
+* Key audit test suites:
+  - `test/features/audit/rls_role_access_matrix_test.dart` (Multi-role access matrix)
+  - `test/features/audit/live_auth_and_api_verification_test.dart` (Live authentication and token size verification)
+  - `test/features/audit/production_readiness_audit_test.dart` (CORS, CSP, atomic spend sums, and attendance unique keys)
 
 ---
 
-## 3. Version Control Strategy (Semantic Versioning)
+## 2. Release Verification Checklist
 
-IBUILD ERP uses [Semantic Versioning 2.0.0](https://semver.org/):
-$$\text{Version Format} = \text{MAJOR}.\text{MINOR}.\text{PATCH}$$
+Every release deployment to production must verify the following items:
 
-*   **MAJOR**: Incremented for breaking changes (e.g., restructuring the database without backward compatibility).
-*   **MINOR**: Incremented for new functionality (e.g., adding OCR, Portals, or Equipment tracking) without breaking existing APIs.
-*   **PATCH**: Incremented for bug fixes and internal refactoring (e.g., import path corrections, lint fixes).
-
----
-
-## 4. Release Verification Checklist
-
-Every release deployment to staging/production must verify the following items:
-
-- [ ] Run automated tests and analyze lints:
+- [x] Run automated test suite:
   ```bash
   flutter test
+  ```
+- [x] Analyze Dart/Flutter code for zero analyzer errors:
+  ```bash
   flutter analyze
   ```
-- [ ] Verify Row Level Security (RLS) policies are active for new tables.
-- [ ] Confirm `.env` file does not contain production service secrets on git check-ins.
-- [ ] Verify that all asset pathways in `pubspec.yaml` are correctly registered.
-- [ ] Perform a clean build run for targeted platforms:
+- [x] Verify Row-Level Security (RLS) policies are active on all tables in Supabase.
+- [x] Confirm no demo credentials or secrets exist in the production JavaScript bundle.
+- [x] Compile production Flutter web release bundle:
   ```bash
-  flutter build apk --split-per-abi
-  flutter build ios --no-codesign
   flutter build web --release
   ```
-- [ ] Check migration rollback integrity in a test database instance.
+- [x] Deploy to Cloudflare Workers Static Assets:
+  ```bash
+  npx wrangler deploy
+  ```
+- [x] Verify live deployment status returns `HTTP 200 OK` at [https://ibuild.najibcode.workers.dev](https://ibuild.najibcode.workers.dev).

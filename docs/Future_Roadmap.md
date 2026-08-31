@@ -1,93 +1,73 @@
-# IBUILD ERP — Future Roadmap (Version 2.0 & Beyond)
+# IBUILD ERP — Future Roadmap & Milestone Plan
 
-This document outlines the strategic product roadmap for IBUILD ERP. It documents planned features, expansion modules, and phase-wise timelines for future development iterations. 
+This document outlines the strategic product roadmap for IBUILD ERP, documenting completed deliverables and upcoming expansion modules.
 
 ---
 
 ## 1. Roadmap Overview & Philosophy
 
-The guiding principle of the IBUILD ERP roadmap is **Stability First, Extensibility Always**. Version 1.0 establishes the foundation for operational tracking (Projects, Employees, Attendance, Inventory, Billing, and Expenses). Future versions will focus on automation, intelligent workflows (AI/OCR), external collaboration, and offline reliability.
+The guiding principle of the IBUILD ERP roadmap is **Stability First, Extensibility Always**. 
+
+The core operational tracking system (Projects, Employees, Attendance, Inventory, Billing, Heavy Equipment, Defect Snagging, Daily Logs, and Strict RLS RBAC) is fully implemented and hardened in production. Future iterations focus on mobile biometric capture, OCR automation, external portal collaboration, and predictive analytics.
 
 ---
 
-## 2. Future Feature Catalog
-
-The following features have been identified and scoped for future development phases. They are grouped by functional areas.
-
-### A. Automation & Intelligent Workflows
-*   **AI Assistant**: A natural language assistant for querying project health, predicting shortages, summarizing costs, and generating reports.
-*   **OCR (Optical Character Recognition)**: Scanner to capture bills, invoices, and expense receipts directly from the device camera and auto-populate forms.
-*   **Document Scanner**: High-resolution image capture and deskewing for paper contracts, vendor agreements, and delivery notes.
-*   **Payroll Automation**: Automated calculation of employee payouts based on morning/evening attendance captures, overtime rates, and advance deductions.
-*   **Excel Import/Export**: Batch import/export capability for high-volume entities (Employees, Attendance, Material Inventory, Bills, and Salaries).
-
-### B. Access Control & Collaboration Platforms
-*   **Customer Portal**: Restricted view for project clients to track milestones, view site progress photos, and monitor billing histories.
-*   **Vendor Portal**: External workspace for suppliers to bid on material requests, submit digital invoices, and track outstanding payments.
-*   **Role Expansion**: Granular Role-Based Access Control (RBAC) extending beyond Owner/Supervisor to include Roles like Project Manager, Procurement Officer, and Accountant.
-*   **Audit Logs**: Comprehensive activity tracking logs detailing which user created, modified, or deleted any database record.
-*   **Multi-Company Support**: Core support for parent-child organization structures, permitting an owner to manage multiple sub-contracting firms under a single portal.
-
-### C. Site Operations & Field Utilities
-*   **QR Attendance**: Localized tablet-based check-in using employee-specific QR cards.
-*   **Face Recognition**: Biometric attendance verification at site gates to eliminate buddy-punching.
-*   **Maps & Geofencing**: GPS-enabled attendance capture restricted to a project's physical boundaries.
-*   **Equipment Tracking**: Management module for company-owned machinery, tracking allocations, fuel usage, and maintenance logs.
-*   **Machine Maintenance**: Service logging, preventative breakdown alerts, and repair cost tracking for heavy equipment.
-
-### D. Core Architecture Extensions
-*   **Offline Synchronization**: Offline-first architecture allowing supervisors to log progress, attendance, and inventory shifts in remote areas with zero network connectivity.
-*   **Real-time Collaboration**: WebSocket-based co-presence indicators, messaging, and push notifications for urgent site alerts.
-*   **Advanced Analytics**: Custom dashboards featuring cost-benefit projections, earned value management (EVM), and labor productivity analysis.
-*   **Voice Commands**: Hands-free field operations allowing supervisors to speak status reports ("Logged 50 bags of cement delivered").
-
----
-
-## 3. Implementation Phases
-
-To minimize architectural disruption and maintain system stability, the roadmap is divided into three execution phases.
+## 2. Milestone Execution Status
 
 ```mermaid
 timeline
-    title IBUILD ERP Roadmap Timeline
-    Phase 2 (Core Scalability & Portals)
-        : Customer/Vendor Portals
-        : Granular Roles (RBAC)
-        : Purchase Orders & Bills
-        : Offline Sync Foundation
-    Phase 3 (Automation & Field Utilities)
-        : OCR & Document Scanning
+    title IBUILD ERP Roadmap Milestones
+    Phase 1 (Core Foundation - Completed)
+        : Projects & Operations Hub
+        : Workforce Attendance & Muster
+        : Material Inventory Ledger
+        : GST Client Billing & Bills
+        : Heavy Machinery Fleet
+        : Strict RLS & Non-Recursive RBAC
+    Phase 2 (Scalability & Integrations - Current)
+        : Realtime Synchronization (13 tables)
+        : Offline Evidence Queue & Cache
+        : Multi-sheet Excel & Vector PDF
+        : Cloudflare Workers Edge Deploy
+    Phase 3 (Automation & Field Utilities - Next)
+        : OCR Bill & Invoice Scanner
         : Geofenced QR Attendance
-        : Equipment & Machine Maintenance
-        : Payroll Automation
-    Phase 4 (AI Integration & Analytics)
-        : Conversational AI Assistant
-        : Predictive Shortage Models
-        : Real-time Multi-company Analytics
+        : Automated Payroll Disbursement
+        : Vendor & Client Collaboration Portals
+    Phase 4 (AI Intelligence & Predictive Analytics)
+        : AI Site Assistant (Gemini Engine)
+        : Predictive Material Shortages
+        : Multi-Company Parent/Child Orgs
 ```
 
-### Phase 2: Core Scalability & Portals (Target: Q3-Q4)
-*   **Primary Focus**: Relational extensions and collaboration.
-*   **Deliverables**:
-    *   Customer Portal & Vendor Portal (read-only views initially).
-    *   Role Expansion (Procurement, Accountant).
-    *   Standard Purchase Order workflow matching inventory transactions.
-    *   Database-level audit logs for all entities.
-    *   Basic offline persistence logic.
+---
 
-### Phase 3: Automation & Field Utilities (Target: Q1-Q2 Next Year)
-*   **Primary Focus**: Operational velocity and field verification.
-*   **Deliverables**:
-    *   OCR Integration for bill scanning.
-    *   GPS-geofenced QR Code Attendance.
-    *   Equipment Tracking & Maintenance module.
-    *   Payroll calculation engine.
-    *   Excel data import/export workflows.
+## 3. Completed Modules (Production Ready)
 
-### Phase 4: AI & Advanced Intelligence (Target: Q3-Q4 Next Year)
-*   **Primary Focus**: Predictive analytics and natural language interfaces.
-*   **Deliverables**:
-    *   AI Agent for reporting, analysis, and predictive material shortages.
-    *   Biometric Face Recognition for attendance check-ins.
-    *   Voice Command integration for hands-free field logging.
-    *   Multi-company organization support.
+- ✅ **Project Portfolio Management**: 8-submodule operations hub, budget variance metrics, and atomic trigger-based spend recalculation.
+- ✅ **Workforce & Muster Roll**: Daily check-in/out, `daily_rate`/`salary` rate synchronization, tea allowance tracking, and historical wage snapshotting.
+- ✅ **Materials & Supply Chain**: Multi-location stock depots, low-stock threshold alerts, and project consumption assignments.
+- ✅ **Commercial Billing & Financials**: GST-compliant invoices (`INV-*`), vendor bills (`BILL-*`), quotations (`EST-*`), and party ledgers.
+- ✅ **Heavy Machinery & Equipment**: Fleet directory, operational condition logs, and daily rental rates.
+- ✅ **Daily Site Logs & Evidence**: DPR entries, photo attachments, architectural drawings, and defect snagging tickets.
+- ✅ **Security & RBAC**: Strict PostgreSQL RLS policies isolating Employee accounts, non-recursive `SECURITY DEFINER` role resolvers, and compact JWT tokens (< 8 KB).
+- ✅ **Exports & Reporting**: Multi-sheet Excel workbooks (`.xlsx`) and vector PDF reports.
+- ✅ **Cloudflare Edge Deployment**: Web client hosted on Cloudflare Workers Static Assets with global caching.
+
+---
+
+## 4. Upcoming Expansion Catalog
+
+### A. Automation & Field Utilities (Target: Q3-Q4)
+* **OCR Receipt Scanner**: Instant camera capture and OCR parsing of vendor bills and delivery challans.
+* **Geofenced QR Code Check-in**: Mobile tablet attendance kiosks restricted to physical site coordinates.
+* **Automated Payroll Engine**: 1-click batch generation of worker wage payouts factoring in attendance records, overtime, and advances.
+
+### B. Collaboration Portals & Multi-Company (Target: Q1 Next Year)
+* **Client Portal**: Dedicated read-only milestone tracking and progress photo feed for property buyers and clients.
+* **Vendor Portal**: Supplier self-service portal for submitting digital bids and viewing payment ledger balances.
+* **Multi-Company Architecture**: Parent-organization tenant isolation for contractors operating multiple corporate entities.
+
+### C. AI Site Assistant & Analytics (Target: Q2 Next Year)
+* **Conversational AI Agent**: Natural language query engine for project health, cost variance forecasting, and milestone analysis.
+* **Predictive Material Shortage**: Machine learning alerts predicting cement and steel stockouts based on DPR consumption velocity.

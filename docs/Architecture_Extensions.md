@@ -1,177 +1,74 @@
 # Architecture Extensions & Scalability Report
 
-This document reviews the current software architecture of IBUILD ERP and provides a blueprint for expanding the system to support Version 2.0 features without requiring code rewrites.
+This document details the software architecture, scalability mechanisms, offline synchronization pipeline, and database security design for **IBUILD ERP**.
 
 ---
 
-## 1. Current Architecture Review
+## 1. Core Architecture Review
 
 IBUILD ERP uses a **Feature-First / Layered Architecture** hybrid structure. Each module resides in a self-contained feature directory, separated into `Data`, `Domain`, and `Presentation` layers:
 
-*   **Data Layer**: Contains Entity Models (`fromJson`/`toJson`) and Supabase-backed concrete Repository implementations.
-*   **Domain Layer**: Contains Abstract Repository Interfaces defining the contracts.
-*   **Presentation Layer**: Contains Riverpod StateNotifier controllers and Screen/Form UI views.
-
-### Architectural Strengths
-1.  **Isolation**: Adding a feature (like `billing` or `expenses`) does not affect other features.
-2.  **Explicit Data Contacts**: Domain repository interfaces abstract Supabase details away from the UI.
-3.  **Low Rebuild Overhead**: Using fine-grained Riverpod `Provider` and `StateNotifierProvider` structures helps prevent global view rebuilds.
-
-### Architectural Weaknesses & Technical Debt
-1.  **Orphan Views in `lib/`**: There are 12 files at the root of `lib/` (e.g., `project_details_mobile.dart`, `web_dashboard.dart`, etc.) that bypass the clean feature-first folder structure. These files contain hardcoded mock flows and should be migrated to feature packages.
-2.  **Navigation Coupling**: Mobile navigation relies on a custom enum `MobileScreen` and state-based page switching in `MainRouterScreen` (in `main.dart`). This prevents deep-linking, breaks web URL updates, and makes nested flows (like detail screens) difficult to maintain.
-3.  **Lack of Dependency Injection abstraction**: Supabase is called directly through a single provider. For offline synchronization or local unit testing, a network service layer or caching repository decorator is missing.
+* **Data Layer**: Contains Entity Models (`fromJson`/`toJson`) and Supabase-backed concrete Repository implementations.
+* **Domain Layer**: Contains Abstract Repository Interfaces defining the contracts.
+* **Presentation Layer**: Contains Riverpod StateNotifier controllers and Screen/Form UI views.
 
 ---
 
-## 2. Navigation Routing Migration Plan
+## 2. Realtime Synchronization Architecture
 
-To support web URL mapping, deep linking, and complex nested dashboards (such as portals), IBUILD ERP must migrate from the `MainRouterScreen` stack switch to **GoRouter Declarative Nested Routes** (ShellRoutes).
+The application establishes a consolidated Supabase Realtime channel `public:ibuild_sync` listening for postgres changes across all 13 active write tables:
 
+```dart
+_realtimeChannel = _supabase
+    .channel('public:ibuild_sync')
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'projects', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'expenses', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'attendance', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'daily_progress', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'employees', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'inventory', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'equipment', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'bills', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'payment_ledger', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'snags', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'profiles', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'checklist_items', callback: ...)
+    .onPostgresChanges(event: PostgresChangeEvent.all, schema: 'public', table: 'project_checklists', callback: ...)
+    .subscribe();
 ```
-          [GoRouter Config]
-                  │
-          ┌───────┴───────┐
-          ▼               ▼
-    /login (Route)   /dashboard (ShellRoute)
-                          │
-         ┌────────┬───────┴────────┬────────┐
-         ▼        ▼                ▼        ▼
-       /home  /projects       /attendance /more
-                  │                         │
-                  ▼                         ▼
-         /projects/:id (Sub-route)  ┌───────┼───────┐
-                                    ▼       ▼       ▼
-                                 /billing /expenses /settings
-```
 
-### Transition Steps (Backward Compatible)
-1.  **Define Subroutes**: Migrate sub-views (like `ProjectMaterialsMobile` and `BudgetUtilizationMobile`) to child routes of `/projects/:id`.
-2.  **Introduce StatefulShellRoute**: Use GoRouter's `StatefulShellRoute.indexedStack` inside `core/routing/router.dart` to preserve bottom navigation tab state across switches.
-3.  **Deprecate `MainRouterScreen`**: Remove `MobileScreen` state modifications gradually, replacing `_pushMobile(screen)` calls with context-based routing, e.g., `context.go('/projects/$id')`.
+### Selective Invalidation
+When an update event fires, only the affected Riverpod state notifiers are reloaded, eliminating unnecessary full-app redraws.
 
 ---
 
-## 3. Recommended Future Feature Directory Structure
+## 3. Offline Synchronization & Evidence Queue
 
-Every new feature module added in Phase 2/3 must adhere to the standardized architecture layout:
-
-```
-lib/features/my_feature/
-├── data/
-│   ├── datasources/
-│   │   ├── my_feature_remote_datasource.dart   # Raw Supabase client requests
-│   │   └── my_feature_local_datasource.dart    # Offline SQLite/Hive caching
-│   ├── models/
-│   │   └── my_feature_model.dart               # Serialization & domain mapping
-│   └── repositories/
-│       └── my_feature_repository_impl.dart     # Concretely resolves local/remote datasources
-├── domain/
-│   ├── repositories/
-│   │   └── my_feature_repository.dart          # Contract interfaces
-│   └── usecases/                               # Optional: Separates complex business operations
-│       └── process_my_transaction.dart
-└── presentation/
-    ├── controllers/
-    │   └── my_feature_controller.dart          # Riverpod StateNotifier/Notifier
-    ├── screens/
-    │   ├── my_feature_list_screen.dart         # List page view
-    │   └── my_feature_detail_screen.dart       # Item detail view
-    └── widgets/
-        └── my_feature_card.dart                # Local reusable UI component
-```
-
----
-
-## 4. Scalability Extension Points
-
-### A. Offline-First Synchronization Extension
-To prepare for Offline Sync, we will use a **Repository Cache Decorator Pattern**:
+To ensure uninterrupted site operations in remote basement or connectivity-deprived environments:
 
 ```mermaid
-classDiagram
-    class FeatureRepository {
-        <<interface>>
-        +getItems() List
-    }
-    class SupabaseFeatureRepository {
-        -SupabaseClient client
-        +getItems() List
-    }
-    class LocalFeatureRepository {
-        -Database localDb
-        +getItems() List
-    }
-    class SyncFeatureRepository {
-        -SupabaseFeatureRepository remote
-        -LocalFeatureRepository local
-        -NetworkInfo network
-        +getItems() List
-    }
-    FeatureRepository <|.. SupabaseFeatureRepository
-    FeatureRepository <|.. LocalFeatureRepository
-    FeatureRepository <|.. SyncFeatureRepository
+graph TD
+    A[Supervisor Action / DPR Photo] --> B{Online?}
+    B -- Yes --> C[Direct Supabase Mutation + ImageKit Upload]
+    B -- No --> D[Enqueue Action in OfflineSyncService]
+    D --> E[Persist to OfflineDataCache Local Store]
+    E --> F[Optimistic UI Update in Feed]
+    F --> G[Network Connectivity Restored]
+    G --> H[Process Queue & Sync with Backend]
 ```
 
-The app will read from the `SyncFeatureRepository` provider. If offline, the provider queries the local storage database and schedules a sync queue.
-
-### B. Custom Portals and Role Expansion (RBAC)
-To prevent mixing client, vendor, and manager logic, we split presentation flows:
-*   **Core Logic Shares the Same Domain**: Both Owner app and Client/Vendor portal use the same `ProjectRepository`.
-*   **Separate Presentation Layers**: Create distinct screen directories (e.g. `lib/features/projects/presentation/screens_portal/`) to isolate portal UI components from internal supervisor UIs, while sharing underlying Riverpod state controllers.
-*   **Security at Database Level**: Secure access control at the database schema using Supabase RLS (Row Level Security), not app code.
+1. **`OfflineDataCache`**: Persists critical master datasets (employees, projects, attendance, snags) in local encrypted storage.
+2. **`OfflineSyncService`**: Queues write actions (`snagCreate`, `snagUpdate`, `attendanceLog`) with exponential retry and deduplication.
 
 ---
 
-## 5. Standardized Document Numbering & Anti-Fraud Authentication Strategy
+## 4. Standardized Document Numbering & Anti-Fraud Architecture
 
-To prevent fraudulent document generation and ensure standardized presentation across financial records, all document-issuing modules (Bills, Sales Bills, and Quotations/Estimates) share a single unified `DocumentNumberGenerator` model.
+All document-issuing modules (Vendor Bills, Client Invoices, and Quotations) share a unified `DocumentNumberGenerator`:
 
-### Numbering Specification
-*   **Bills (Vendor & Operational Expenses)**: `BILL-YYYYMMDD-XXXX` (e.g., `BILL-20260803-7A3B`)
-*   **Sales Bills (Client Invoices)**: `INV-YYYYMMDD-XXXX` (e.g., `INV-20260803-5E1F`)
-*   **Quotations & Estimates**: `EST-YYYYMMDD-XXXX` (e.g., `EST-20260803-9C2D`)
+* **Bills (Operational Expenses)**: `BILL-YYYYMMDD-XXXX` (e.g., `BILL-20260803-7A3B`)
+* **Sales Bills (Client Invoices)**: `INV-YYYYMMDD-XXXX` (e.g., `INV-20260803-5E1F`)
+* **Quotations & Estimates**: `EST-YYYYMMDD-XXXX` (e.g., `EST-20260803-9C2D`)
 
-### Authenticity Verification Mechanics
-1. **Deterministic Checksum**: The 4-character suffix (`XXXX`) is computed using an anti-tamper checksum function based on document date, seed, and prefix.
-2. **Format & Authenticity Checks**: The core service provides `verifyAuthenticity(number)` to validate format structural integrity and verify that document numbers have not been arbitrarily altered or manually forged.
-3. **Immutability in Presentation**: Creation screens enforce read-only presentation of document numbers with visual anti-fraud badges, removing manual entry error vectors.
-
----
-
-## 6. Navigation Architecture & Feature Scoping (Inside vs Outside Project)
-
-To preserve clean navigation and prevent user confusion, workflows are strictly categorized into **Global Workflows (Outside Project)** and **Site-Specific Workflows (Inside Project)**.
-
-### A. Global Workflows (Outside Project Navigation)
-Accessible directly from the main sidebar (`WebSidebar`) and main app navigation menu:
-*   **Billing & Financial Hub**: Single unified commercial section containing Operational Vendor Bills, Client Sales Invoices (`INV-YYYYMMDD-XXXX`), and Payment Ledgers.
-*   **Quotations & Estimates**, **Materials Inventory**, **Equipment & Tools**, **Subcontractors**, **Expenses**, and **Reports**.
-
-### B. Site-Specific Workflows (Inside Project Workspace)
-Contained within `ProjectOperationsScreen` for active site execution:
-*   **Site Drawings & Blueprints**: Includes direct `+ Add Drawing & Blueprint` button and upload modal inside the Drawings tab.
-*   **Inspection Checklist**: Includes direct `+ Add Inspection Item` button inside the Checklist tab.
-*   **Daily Site Progress**: Progress logs, photos, and site updates.
-*   **About Site Specifications**: Engineering metrics and project details.
-*   **Linked Project Shortcuts**: Quick actions (`+ Draw Invoice for this Site`, `+ Record Payment for this Site`) that launch global tools pre-configured for the active project.
-
----
-
-## 7. Site Activity Logging & Multi-Role Notification Engine
-
-To keep Owner, Supervisors, and Admin informed of real-time site events, all site operations emit structured activity logs and dispatch multi-role notifications.
-
-### A. Activity Dispatch Mechanism
-Whenever a site event occurs (drawing uploaded, payment recorded, invoice drawn, progress update submitted, inspection checklist task added), `SupabaseActivityRepository.logSiteActivityAndNotify()` logs an entry in `activities` table with:
-*   `action_type`: e.g. `drawing_added`, `payment_recorded`, `sales_bill_drawn`, `checklist_item_added`.
-*   `entity_type`: e.g. `site_drawings`, `project_payments`, `sales_bills`, `project_checklists`.
-*   `details`: JSON metadata containing project title, user role, amount, and reference tags.
-
-### B. Notification Presentation & Role Targets
-*   **Role Targets**: Broadcasted to `owner`, `admin`, and `supervisor` roles.
-*   **Web & Desktop**: Accessible via `NotificationsDropdown` in `WebHeader` and real-time activity feed panels on `AdminDashboard`, `SupervisorDashboard`, and `WebDashboard`.
-*   **Mobile Devices**: Accessible via the `MobileDashboard` top header notification bell with active unread badge alerts and mobile bottom sheet notifications drawer.
-
-
-
+### Authenticity Verification
+The 4-character suffix (`XXXX`) is computed via a cryptographic checksum verifying document date and sequence integrity, preventing arbitrary forgery.

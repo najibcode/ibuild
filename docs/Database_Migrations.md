@@ -1,206 +1,141 @@
 # Database Migration & Versioning Strategy
 
-This document establishes the guidelines, naming standards, and extension mechanisms for modifying the Supabase PostgreSQL database during Future Phases.
+This document establishes the guidelines, naming standards, relational extensions, and historical migration logs for the Supabase PostgreSQL database in **IBUILD ERP**.
 
 ---
 
 ## 1. Database Coding Standards & Naming Conventions
 
-Consistency in the PostgreSQL database ensures that automatic code generators and future developers can trace schemas without confusion.
-
-*   **Tables & Columns**: Always write names in lower_snake_case (e.g., `project_id`, `morning_image_url`). Use singular nouns for tables (e.g., `project`, `employee`, `attendance`, `bill`, `expense`).
-*   **Foreign Keys**: Explicitly prefix with target table and `_id` suffix (e.g., `supervisor_id` referencing `profiles(id)`).
-*   **Primary Keys**: Always use a unique identifier column named `id`. Recommend using `uuid` with `gen_random_uuid()` defaults for relational stability, or system-generated IDs where appropriate.
-*   **Timestamps**: Every table must include `created_at` and `updated_at` columns, default-initialized with timezone:
-    ```sql
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-    ```
+* **Tables & Columns**: Always write names in `lower_snake_case` (e.g., `project_id`, `daily_rate`, `tea_allowance`).
+* **Primary Keys**: Always use a unique identifier named `id` (`UUID PRIMARY KEY DEFAULT gen_random_uuid()`).
+* **Foreign Keys**: Explicitly prefix with target table and `_id` suffix (e.g., `employee_id REFERENCES public.employees(id)`).
+* **Timestamps**: Every table includes `created_at` and `updated_at` with UTC timezone defaults:
+  ```sql
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+  ```
 
 ---
 
-## 2. Relational Extension Points (Designing for Change)
+## 2. Applied Migrations Catalog
 
-To introduce Version 2 features (like Vendor Portals, Equipment Tracking, Notifications, and Auditing) without breaking Version 1 tables, the schema incorporates the following extension patterns:
-
-### A. Metadata JSONB Extensibility
-To prevent constant schema updates for minor properties, every table must support a `metadata` column:
-```sql
-ALTER TABLE project ADD COLUMN metadata JSONB DEFAULT '{}'::jsonb NOT NULL;
-```
-This is useful for storing ad-hoc attributes like external integration keys, temporary OCR logs, or custom notifications settings.
-
-### B. Soft Deletion Policy
-Never run `DELETE` commands directly on primary entities (Projects, Employees). Instead, use a boolean flag:
-```sql
-ALTER TABLE employee ADD COLUMN is_deleted BOOLEAN DEFAULT false NOT NULL;
-```
-This preserves historical relations in `attendance`, `billing`, and `expenses` even if an employee is removed.
+| Migration File | Purpose & Changes |
+|---|---|
+| **`001_rbac_tables.sql`** | Core RBAC schema (`roles`, `permissions`, `role_permissions`, `user_roles`). |
+| **`002_enterprise_production_features.sql`** | Subcontractors, bill items, payment methods, retention tracking. |
+| **`003_project_operations.sql`** | Project operations hub, phase groupings, and progress metrics. |
+| **`004_commercial_workflows.sql`** | Sales bills, GST invoices, and party ledger integrations. |
+| **`005_supervision_and_evidence.sql`** | Site drawings, defects/snags, checklists, and photo evidence. |
+| **`006_daily_progress_evidence.sql`** | Daily progress report photos, weather conditions, worker muster. |
+| **`007_machinery_equipment.sql`** | Heavy equipment directory, rental rates, and maintenance records. |
+| **`008_tea_snack_allowance.sql`** | Daily tea & snack allowance column (`tea_allowance NUMERIC(10,2)`). |
+| **`009_imagekit_metadata.sql`** | CDN photo metadata, thumbnail URLs, and document storage attachments. |
+| **`010_admin_control_center.sql`** | System settings, user administration, and audit logs. |
+| **`011_drawings_storage_and_categories.sql`** | Architectural and structural drawing categorization and file storage. |
+| **`012_fix_user_roles_recursion.sql`** | Initial non-recursive policy patch for `user_roles`. |
+| **`013_activities_table.sql`** | User activity logging table for site operations. |
+| **`014_user_custom_permissions.sql`** | Granular user-level custom permission overrides. |
+| **`015_add_avatar_url_to_profiles.sql`** | Avatar URLs on user profiles with CDN links. |
+| **`016_subcontractors_project_and_sync.sql`** | Project-level subcontractor linking and retention balance calculations. |
+| **`017_production_repair_triggers_and_constraints.sql`** | **Atomic Spend Calculation Trigger** (`update_project_spent_atomic`), **Attendance Unique Constraint** (`UNIQUE (employee_id, date)`), and Metadata Sanitizer. |
+| **`018_employee_salary_and_workforce_repair.sql`** | Schema support for both `salary` and `daily_rate`, with bidirectional synchronization trigger `trg_sync_employee_rates`. |
+| **`019_attendance_wage_rate_snapshot.sql`** | Attendance historical wage snapshotting trigger (`trg_snapshot_attendance_wages`) for immutable past payroll records. |
+| **`020_strict_rls_and_non_recursive_rbac.sql`** | **Consolidated Production Security Migration**: Non-recursive `SECURITY DEFINER` role check functions, zero-recursion `user_roles` policies, table-by-table RLS denial for Employee accounts on all financial tables, and project-scoped access. |
 
 ---
 
-## 3. Recommended Schema Additions for Future Modules
+## 3. Key Production Database Triggers & Functions
 
-The following SQL schemas define the extensions required for future modules. They are designed to hook into existing Version 1 tables seamlessly.
+### A. Non-Recursive Role Resolver (`get_auth_role()`)
+```sql
+CREATE OR REPLACE FUNCTION public.get_auth_role()
+RETURNS text
+LANGUAGE plpgsql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_role text;
+BEGIN
+  IF auth.uid() IS NULL THEN RETURN 'anonymous'; END IF;
 
-```mermaid
-erDiagram
-    employee ||--o{ attendance : has
-    project ||--o{ expense : incurs
-    project ||--o{ bill : charges
-    project ||--o{ daily_progress : reports
-    project ||--o{ purchase_order : requests
-    vendor ||--o{ purchase_order : fulfills
-    employee ||--o{ salary_payment : paid
-    equipment ||--o{ machine_maintenance : needs
+  -- 1. Fast O(1) JWT claim check
+  v_role := lower(COALESCE(
+    auth.jwt() -> 'user_metadata' ->> 'role',
+    auth.jwt() -> 'app_metadata' ->> 'role',
+    ''
+  ));
+  IF v_role <> '' THEN RETURN v_role; END IF;
+
+  -- 2. Profiles table check (avoids user_roles recursion)
+  SELECT lower(role_display) INTO v_role FROM public.profiles WHERE id = auth.uid() LIMIT 1;
+  IF v_role IS NOT NULL AND v_role <> '' THEN RETURN v_role; END IF;
+
+  -- 3. Auth users metadata check
+  SELECT lower((raw_user_meta_data->>'role')::text) INTO v_role FROM auth.users WHERE id = auth.uid() LIMIT 1;
+  IF v_role IS NOT NULL AND v_role <> '' THEN RETURN v_role; END IF;
+
+  RETURN 'employee';
+END;
+$$;
 ```
 
-### A. Equipment, Machinery & Tools Tracking
+### B. Atomic Project Spend Calculation
 ```sql
--- Supports Heavy Machinery, Power Tools (Drilling Machines), Climbing Gear (Ladders, Stools), and Site Tools
-CREATE TABLE equipment (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    name VARCHAR(255) NOT NULL,
-    category VARCHAR(100) DEFAULT 'Heavy Machinery', -- Heavy Machinery, Power Tools & Machines, Ladders & Climbing, Hand Tools & Site Gear, Generators & Power Units
-    tag_number VARCHAR(100),
-    site_name VARCHAR(255),
-    status VARCHAR(50) DEFAULT 'Operational' CHECK (status IN ('Operational', 'In Use', 'Maintenance', 'Idle')),
-    rental_cost_per_day NUMERIC(10, 2) DEFAULT 0.00,
-    fuel_consumption_liters_per_day NUMERIC(10, 2) DEFAULT 0.00,
-    notes TEXT,
-    current_project_id UUID REFERENCES projects(id) ON DELETE SET NULL,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-
--- Enable RLS
-ALTER TABLE equipment ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "Allow authenticated read/write on equipment" ON equipment FOR ALL USING (auth.role() = 'authenticated');
-
-
-
-CREATE TABLE machine_maintenance (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    equipment_id UUID REFERENCES equipment(id) ON DELETE CASCADE NOT NULL,
-    maintenance_date DATE NOT NULL,
-    description TEXT NOT NULL,
-    cost NUMERIC(10, 2) NOT NULL,
-    performed_by VARCHAR(255),
-    next_due_date DATE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+CREATE OR REPLACE FUNCTION public.update_project_spent_atomic()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+DECLARE
+  v_project_id UUID;
+  v_total NUMERIC(14, 2);
+BEGIN
+  v_project_id := CASE WHEN TG_OP = 'DELETE' THEN OLD.project_id ELSE NEW.project_id END;
+  IF v_project_id IS NOT NULL THEN
+    SELECT COALESCE(SUM(amount), 0.00) INTO v_total FROM public.expenses WHERE project_id = v_project_id;
+    UPDATE public.projects SET spent = v_total, updated_at = timezone('utc'::text, now()) WHERE id = v_project_id;
+  END IF;
+  RETURN NULL;
+END;
+$$;
 ```
 
-### B. Purchase Orders & Vendor Portal
+### C. Attendance Historical Wage Rate Snapshotting
 ```sql
-CREATE TABLE vendor (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    company_name VARCHAR(255) NOT NULL,
-    contact_person VARCHAR(100),
-    phone VARCHAR(50),
-    email VARCHAR(100) UNIQUE,
-    gstin VARCHAR(15),
-    address TEXT,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+CREATE OR REPLACE FUNCTION public.snapshot_attendance_wages()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_rate NUMERIC(12, 2);
+  v_tea NUMERIC(10, 2);
+BEGIN
+  IF NEW.wage_rate IS NULL OR NEW.wage_rate = 0 THEN
+    SELECT COALESCE(daily_rate, ROUND(salary / 30.0, 2), 600.00), COALESCE(tea_allowance, 0.00)
+    INTO v_rate, v_tea
+    FROM public.employees WHERE id = NEW.employee_id LIMIT 1;
 
-CREATE TABLE purchase_order (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    po_number VARCHAR(50) UNIQUE NOT NULL,
-    project_id UUID REFERENCES projects(id) ON DELETE RESTRICT NOT NULL,
-    vendor_id UUID REFERENCES vendor(id) ON DELETE RESTRICT NOT NULL,
-    order_date DATE NOT NULL,
-    expected_delivery DATE,
-    total_amount NUMERIC(12, 2) NOT NULL,
-    status VARCHAR(50) DEFAULT 'draft' CHECK (status IN ('draft', 'pending_approval', 'approved', 'delivered', 'cancelled')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-```
-
-### C. Salary & Payroll Automation
-```sql
-CREATE TABLE salary_payment (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    employee_id UUID REFERENCES employees(id) ON DELETE RESTRICT NOT NULL,
-    pay_period_start DATE NOT NULL,
-    pay_period_end DATE NOT NULL,
-    basic_salary NUMERIC(10, 2) NOT NULL,
-    deductions NUMERIC(10, 2) DEFAULT 0.00,
-    bonuses NUMERIC(10, 2) DEFAULT 0.00,
-    net_payout NUMERIC(10, 2) GENERATED ALWAYS AS (basic_salary - deductions + bonuses) STORED,
-    payment_date DATE NOT NULL,
-    payment_mode VARCHAR(50) DEFAULT 'bank' CHECK (payment_mode IN ('cash', 'bank', 'upi', 'cheque')),
-    status VARCHAR(50) DEFAULT 'paid' CHECK (status IN ('draft', 'processing', 'paid')),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
-```
-
-### D. Audit Logging
-```sql
-CREATE TABLE audit_log (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-    action_type VARCHAR(50) NOT NULL, -- INSERT, UPDATE, DELETE
-    table_name VARCHAR(100) NOT NULL,
-    record_id VARCHAR(100) NOT NULL,
-    old_data JSONB,
-    new_data JSONB,
-    timestamp TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
-);
+    NEW.wage_rate := COALESCE(v_rate, 600.00);
+    NEW.tea_allowance := COALESCE(v_tea, 0.00);
+  END IF;
+  RETURN NEW;
+END;
+$$;
 ```
 
 ---
 
-## 4. Migration Strategy & Rollback Plans
+## 4. Execution & Rollback Instructions
 
-To run schema changes without downtime or data corruption, follow this workflow:
+### Applying Migrations
+All migration scripts are idempotent with `IF NOT EXISTS` and `OR REPLACE` clauses. To apply to Supabase:
+1. Open the [Supabase Dashboard -> SQL Editor](https://supabase.com/dashboard/project/dxjvvashdbhlfvsjfdjq/sql).
+2. Paste the contents of [supabase/migrations/020_strict_rls_and_non_recursive_rbac.sql](file:///Users/najib/ibuild/supabase/migrations/020_strict_rls_and_non_recursive_rbac.sql).
+3. Click **Run**. Schema cache is automatically reloaded via `NOTIFY pgrst, 'reload schema'`.
 
-1.  **Local Schema Iteration**: Spin up a local Postgres environment using Supabase CLI (`supabase start`).
-2.  **Generate Migration Scripts**: Create SQL files containing schema shifts (`supabase db diff --file add_equipment`).
-3.  **Apply Migrations**: Test local migrations using `supabase db reset`.
-4.  **Zero-Downtime Rule**: 
-    *   Do not drop columns currently in use by Version 1 clients.
-    *   Add new columns as `NULLABLE` first. Apply default values via background migrations, then alter constraint to `NOT NULL` in a subsequent release.
-5.  **Rollback Plan**: For every migration script (e.g., `XXXX_up.sql`), write a companion rollback script (`XXXX_down.sql`).
-    *   *Example Up*: `ALTER TABLE project ADD COLUMN is_archived BOOLEAN DEFAULT false;`
-    *   *Example Down*: `ALTER TABLE project DROP COLUMN is_archived;`
-
----
-
-## 5. Applied Migrations Log
-
-* **`008_tea_snack_allowance.sql`**: Adds `tea_snack_allowance NUMERIC(10, 2) DEFAULT 20.00` to the `employee` table to track daily tea and snacks expenditure incurred by the employer separate from worker base wages.
-* **`009_quotations_table.sql`**: Adds `quotations` table to track client project cost estimates, itemized particulars, and approval pipeline status.
-
----
-
-## 9. Quotations & Project Estimates Table (`quotations`)
-
-Stores itemized client cost estimations, total project quote amounts, and approval lifecycle statuses.
-
-```sql
--- Create quotations table
-CREATE TABLE IF NOT EXISTS public.quotations (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
-    client_name TEXT NOT NULL,
-    client_phone TEXT,
-    subject TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'draft', -- 'draft', 'sent', 'approved', 'rejected'
-    items JSONB NOT NULL DEFAULT '[]'::jsonb, -- Array of {particular, unit, qty, rate, total}
-    total_amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
-    valid_until DATE,
-    notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Enable RLS
-ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
-
--- Allow authenticated users to perform all operations
-CREATE POLICY "Allow all authenticated users access to quotations"
-ON public.quotations
-FOR ALL
-USING (true);
-```
-
+### Rollback Strategy
+In the event a rollback is required:
+1. Restore previous policy definitions using `DROP POLICY ... ON table_name` and re-applying legacy policy scripts if necessary.
+2. Trigger functions can be safely dropped or replaced with previous signatures using `DROP TRIGGER IF EXISTS ...`.
