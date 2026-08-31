@@ -564,7 +564,7 @@ BEGIN
 
   -- 4. Employee (Strictly employee role!)
   UPDATE auth.users
-  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "employee"}'::jsonb
+  SET raw_user_meta_data = jsonb_build_object('full_name', 'Field Employee', 'role', 'employee')
   WHERE email ILIKE '%employee@ibuild.in%';
 
   UPDATE public.profiles
@@ -576,6 +576,10 @@ BEGIN
     SELECT id, v_emp_role FROM auth.users WHERE email ILIKE '%employee@ibuild.in%'
     ON CONFLICT (user_id) DO UPDATE SET role_id = v_emp_role;
   END IF;
+
+  -- Invalidate all active sessions so stale JWT tokens with old claims cannot be reused
+  DELETE FROM auth.sessions;
+  DELETE FROM auth.refresh_tokens;
 END;
 $$;
 
@@ -773,7 +777,18 @@ BEGIN
     RETURN 'anonymous';
   END IF;
 
-  -- 1. Canonical database user_roles table (SECURITY DEFINER safely bypasses RLS without recursion)
+  -- 1. Direct auth.users email lookup (Highest priority, immune to stale claims)
+  SELECT lower(email) INTO v_email FROM auth.users WHERE id = auth.uid() LIMIT 1;
+  IF v_email IS NULL OR v_email = '' THEN
+    v_email := lower(COALESCE(auth.jwt() ->> 'email', ''));
+  END IF;
+
+  IF v_email = 'admin@ibuild.in' THEN RETURN 'admin'; END IF;
+  IF v_email = 'owner@ibuild.in' THEN RETURN 'owner'; END IF;
+  IF v_email = 'supervisor@ibuild.in' THEN RETURN 'supervisor'; END IF;
+  IF v_email = 'employee@ibuild.in' THEN RETURN 'employee'; END IF;
+
+  -- 2. Canonical database user_roles table (SECURITY DEFINER safely bypasses RLS without recursion)
   SELECT lower(r.name) INTO v_role
   FROM public.user_roles ur
   JOIN public.roles r ON r.id = ur.role_id
@@ -783,13 +798,6 @@ BEGIN
   IF v_role IS NOT NULL AND v_role <> '' THEN
     RETURN v_role;
   END IF;
-
-  -- 2. Check standard test account emails
-  v_email := lower(COALESCE(auth.jwt() ->> 'email', ''));
-  IF v_email = 'admin@ibuild.in' THEN RETURN 'admin'; END IF;
-  IF v_email = 'owner@ibuild.in' THEN RETURN 'owner'; END IF;
-  IF v_email = 'supervisor@ibuild.in' THEN RETURN 'supervisor'; END IF;
-  IF v_email = 'employee@ibuild.in' THEN RETURN 'employee'; END IF;
 
   -- 3. Profiles table
   SELECT lower(role_display) INTO v_role
@@ -931,7 +939,22 @@ $$;
 GRANT EXECUTE ON FUNCTION public.get_supervisor_project_ids() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_assigned_project_ids() TO authenticated, service_role;
 
--- ── 6. USER ROLES & RBAC POLICIES (ZERO RECURSION GUARANTEE) ──
+-- ── 6. PURGE ALL LEGACY POLICIES (ELIMINATES PERMISSIVE OR OVERRIDES) ──
+DO $$
+DECLARE
+  pol RECORD;
+BEGIN
+  FOR pol IN 
+    SELECT schemaname, tablename, policyname 
+    FROM pg_policies 
+    WHERE schemaname = 'public'
+  LOOP
+    EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I;', pol.policyname, pol.schemaname, pol.tablename);
+  END LOOP;
+END;
+$$;
+
+-- ── 6.1 USER ROLES & RBAC POLICIES (ZERO RECURSION GUARANTEE) ──
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;

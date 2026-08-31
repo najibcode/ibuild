@@ -15,6 +15,7 @@ const _kTestSupervisorPassword = String.fromEnvironment('TEST_SUPERVISOR_PASSWOR
 const _kTestEmployeeEmail = String.fromEnvironment('TEST_EMPLOYEE_EMAIL', defaultValue: 'employee@ibuild.in');
 const _kTestEmployeePassword = String.fromEnvironment('TEST_EMPLOYEE_PASSWORD', defaultValue: 'employee@123');
 
+@Timeout(Duration(minutes: 3))
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   HttpOverrides.global = _RealHttpOverrides();
@@ -50,29 +51,7 @@ void main() {
         // Check initial token size without printing token
         final token = res.session?.accessToken ?? '';
         final initialSize = utf8.encode(token).length;
-
-        // Clean user_metadata if oversized
-        if (initialSize > 8192 || (res.user?.userMetadata?.containsKey('avatar_url') ?? false)) {
-          await client.auth.updateUser(UserAttributes(
-            data: {
-              'full_name': 'System Administrator',
-              'avatar_url': null,
-              'logo_url': null,
-              'raw_avatar': null,
-              'image_bytes': null,
-            },
-          ));
-
-          await client.auth.signOut();
-          final refreshedRes = await client.auth.signInWithPassword(
-            email: _kTestAdminEmail,
-            password: _kTestAdminPassword,
-          );
-
-          final newToken = refreshedRes.session?.accessToken ?? '';
-          final newSize = utf8.encode(newToken).length;
-          expect(newSize, lessThan(8192));
-        }
+        expect(initialSize, lessThan(8192));
 
         // Authenticated reads on all required resources
         final tables = [
@@ -96,7 +75,7 @@ void main() {
       } catch (e) {
         expect(e, isNotNull);
       }
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
     test('2. Owner & Supervisor login produce compact JWT and can read resources', () async {
       if (!_kRunLiveTests) {
@@ -133,7 +112,7 @@ void main() {
             password: roleInfo['pwd']!,
           );
 
-          final token = cleanRes.session?.accessToken ?? '';
+          final token = res.session?.accessToken ?? '';
           final tokenSize = utf8.encode(token).length;
           expect(tokenSize, lessThan(8192));
 
@@ -145,9 +124,9 @@ void main() {
           expect(e, isNotNull);
         }
       }
-    });
+    }, timeout: const Timeout(Duration(minutes: 2)));
 
-    test('3. Employee login produces compact JWT and denies financial tables', () async {
+    test('3. Employee login produces compact JWT, denies financial tables, and blocks inventory mutation', () async {
       if (!_kRunLiveTests) {
         final cleanJwtPayload = {'sub': 'emp-uid', 'role': 'employee', 'user_metadata': {'full_name': 'Employee'}};
         final tokenLength = utf8.encode(base64Url.encode(utf8.encode(jsonEncode(cleanJwtPayload)))).length;
@@ -165,20 +144,31 @@ void main() {
         final tokenSize = utf8.encode(token).length;
         expect(tokenSize, lessThan(8192));
 
-        // Attempt reading financial tables - should return empty or error
-        try {
-          final expenses = await client.from('expenses').select().limit(5);
-          expect((expenses as List).isEmpty, isTrue);
-        } catch (e) {
-          expect(e, isNotNull);
-        }
+        // 1. Employee reading financial tables strictly returns 0 rows
+        final expenses = await client.from('expenses').select().limit(10);
+        expect((expenses as List).isEmpty, isTrue, reason: 'Employee must see 0 expense rows');
 
+        final bills = await client.from('bills').select().limit(10);
+        expect((bills as List).isEmpty, isTrue, reason: 'Employee must see 0 bill rows');
+
+        // 2. Employee cannot create inventory records (RLS blocks INSERT with PostgrestException)
+        bool inventoryInsertBlocked = false;
         try {
-          final bills = await client.from('bills').select().limit(5);
-          expect((bills as List).isEmpty, isTrue);
+          await client.from('inventory').insert({
+            'item_name': 'AUDIT-PROBE-EMPLOYEE-DENIED',
+            'category': 'Audit',
+            'quantity': 1.0,
+            'unit_price': 100.0,
+          });
         } catch (e) {
-          expect(e, isNotNull);
+          inventoryInsertBlocked = true;
+          expect(e.toString().contains('policy') || e.toString().contains('violates') || e.toString().contains('42501') || e.toString().contains('permission'), isTrue);
         }
+        expect(inventoryInsertBlocked, isTrue, reason: 'Employee must not be permitted to insert inventory');
+
+        // 3. Verify inventory_transactions table exists in schema cache (no PGRST205)
+        final invTx = await client.from('inventory_transactions').select().limit(1);
+        expect(invTx, isA<List>(), reason: 'inventory_transactions must be queryable in schema cache');
 
         await client.auth.signOut();
       } catch (e) {

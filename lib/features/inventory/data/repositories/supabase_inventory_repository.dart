@@ -203,7 +203,7 @@ class SupabaseInventoryRepository implements InventoryRepository {
     // 1. Update inventory record
     await updateItem(updatedItem);
 
-    // 2. Log history entry
+    // 2. Log history entry and structured inventory_transaction
     try {
       final historyNote =
           'Received +${quantity.toStringAsFixed(1)} ${item.unit} from $supplier${notes != null && notes.isNotEmpty ? " ($notes)" : ""}';
@@ -213,6 +213,18 @@ class SupabaseInventoryRepository implements InventoryRepository {
         quantityChange: quantity,
         notes: historyNote,
       );
+
+      final rate = effectiveUnitPrice > 0 ? effectiveUnitPrice : item.purchasePrice;
+      await _client.from('inventory_transactions').insert({
+        'inventory_id': item.id,
+        'project_id': (projectId != null && projectId.isNotEmpty && projectId != 'general') ? projectId : null,
+        'transaction_type': 'in',
+        'quantity': quantity,
+        'unit_price': rate,
+        'total_amount': quantity * rate,
+        'notes': historyNote,
+        'performed_by': _client.auth.currentUser?.id,
+      });
     } catch (_) {}
 
     // 3. Log site activity & notify
@@ -253,6 +265,20 @@ class SupabaseInventoryRepository implements InventoryRepository {
 
     // 2. Calculate expense cost
     final totalCost = quantity * item.purchasePrice;
+
+    // Record structured inventory transaction
+    try {
+      await _client.from('inventory_transactions').insert({
+        'inventory_id': item.id,
+        'project_id': (projectId.isNotEmpty && projectId != 'general') ? projectId : null,
+        'transaction_type': 'out',
+        'quantity': quantity,
+        'unit_price': item.purchasePrice,
+        'total_amount': totalCost,
+        'notes': 'Issued to project: $projectName${notes != null && notes.isNotEmpty ? " ($notes)" : ""}',
+        'performed_by': _client.auth.currentUser?.id,
+      });
+    } catch (_) {}
 
     // 3. Insert Expense entry automatically into Supabase expenses table for selected project!
     if (projectId.isNotEmpty && projectId != 'general' && totalCost > 0) {
