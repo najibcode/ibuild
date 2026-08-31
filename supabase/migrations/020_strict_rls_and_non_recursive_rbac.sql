@@ -3,21 +3,45 @@
 -- MIGRATION 020: STRICT RLS, NON-RECURSIVE RBAC & SCHEMA REPAIR
 --
 -- Fixes:
--- 1. PostgreSQL 42P17 (infinite recursion in user_roles policy)
--- 2. Role-Scoped RLS isolation (Employee denied from all financials & other users)
--- 3. PostgreSQL 42703 (employees.daily_rate column added & synchronized with salary)
+-- 1. PostgreSQL 42703 (employees missing columns: email, daily_rate, salary, user_id)
+-- 2. PostgreSQL 42P17 (infinite recursion in user_roles policy)
+-- 3. Role-Scoped RLS isolation (Employee denied from all financials & other users)
 -- 4. Attendance (employee_id, date) unique constraint & conflict safety
 -- 5. Atomic project spend calculation on expense insert/update/delete
 -- 6. Preserves all existing business data
 -- ============================================================
 
--- ── 1. EMPLOYEE SCHEMA REPAIR (FIX 42703 daily_rate) ─────────
+-- ── 1. ENSURE BASE TABLES & SCHEMA DEFINITIONS EXIST ─────────
+
+CREATE TABLE IF NOT EXISTS public.employees (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT,
+  role TEXT DEFAULT 'Labor',
+  phone TEXT,
+  email TEXT,
+  photo_url TEXT,
+  daily_rate NUMERIC(12, 2) DEFAULT 600.00,
+  salary NUMERIC(12, 2) DEFAULT 18000.00,
+  tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'active',
+  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
 
 ALTER TABLE public.employees 
+  ADD COLUMN IF NOT EXISTS name TEXT,
+  ADD COLUMN IF NOT EXISTS role TEXT DEFAULT 'Labor',
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS photo_url TEXT,
   ADD COLUMN IF NOT EXISTS daily_rate NUMERIC(12, 2) DEFAULT 600.00,
   ADD COLUMN IF NOT EXISTS salary NUMERIC(12, 2) DEFAULT 18000.00,
   ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
-  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL;
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active',
+  ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
 
 -- Backfill daily_rate from salary or salary from daily_rate
 UPDATE public.employees
@@ -71,19 +95,32 @@ $$;
 
 -- ── 2. ATTENDANCE INTEGRITY & UNIQUE CONSTRAINT ──────────────
 
--- Ensure attendance wage rate snapshot columns exist
+CREATE TABLE IF NOT EXISTS public.attendance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID REFERENCES public.employees(id) ON DELETE CASCADE,
+  project_id UUID,
+  date DATE NOT NULL,
+  status TEXT DEFAULT 'Present',
+  morning_status TEXT DEFAULT 'present',
+  afternoon_status TEXT DEFAULT 'present',
+  wage_rate NUMERIC(12, 2),
+  tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.attendance
   ADD COLUMN IF NOT EXISTS wage_rate NUMERIC(12, 2),
-  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00;
+  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS morning_status TEXT DEFAULT 'present',
+  ADD COLUMN IF NOT EXISTS afternoon_status TEXT DEFAULT 'present';
 
--- Remove duplicates keeping the most recent attendance row before adding unique constraint
 DELETE FROM public.attendance a
 USING public.attendance b
 WHERE a.employee_id = b.employee_id 
   AND a.date = b.date 
   AND a.created_at < b.created_at;
 
--- Enforce uniqueness on (employee_id, date)
 ALTER TABLE public.attendance 
   DROP CONSTRAINT IF EXISTS unique_employee_date,
   DROP CONSTRAINT IF EXISTS attendance_employee_id_date_key;
@@ -91,7 +128,6 @@ ALTER TABLE public.attendance
 ALTER TABLE public.attendance
   ADD CONSTRAINT unique_employee_date UNIQUE (employee_id, date);
 
--- Attendance historical wage snapshot trigger
 CREATE OR REPLACE FUNCTION public.snapshot_attendance_wages()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -122,7 +158,30 @@ EXECUTE FUNCTION public.snapshot_attendance_wages();
 
 -- ── 3. ATOMIC PROJECT SPEND CALCULATION ───────────────────────
 
--- Ensure non-negative constraint on expenses
+CREATE TABLE IF NOT EXISTS public.projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  client TEXT,
+  location TEXT,
+  budget NUMERIC(14, 2) DEFAULT 0.00,
+  spent NUMERIC(14, 2) DEFAULT 0.00,
+  start_date DATE,
+  end_date DATE,
+  status TEXT DEFAULT 'In Progress',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  category TEXT DEFAULT 'General',
+  amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.expenses
   DROP CONSTRAINT IF EXISTS check_positive_amount,
   DROP CONSTRAINT IF EXISTS expenses_amount_check;
@@ -164,7 +223,6 @@ AFTER INSERT OR UPDATE OR DELETE ON public.expenses
 FOR EACH ROW
 EXECUTE FUNCTION public.update_project_spent_atomic();
 
--- One-time reconciliation of project spends
 CREATE OR REPLACE FUNCTION public.reconcile_all_project_spends()
 RETURNS void
 LANGUAGE plpgsql
@@ -185,7 +243,6 @@ SELECT public.reconcile_all_project_spends();
 
 -- ── 4. NON-RECURSIVE SECURITY DEFINER ROLE HELPER FUNCTIONS ───
 
--- Drop old functions
 DROP FUNCTION IF EXISTS public.get_auth_role() CASCADE;
 DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
 DROP FUNCTION IF EXISTS public.is_owner() CASCADE;
@@ -208,7 +265,7 @@ BEGIN
     RETURN 'anonymous';
   END IF;
 
-  -- 1. First check JWT claims (fastest and zero-table dependency)
+  -- 1. JWT claim (fastest and zero-table dependency)
   v_role := lower(COALESCE(
     auth.jwt() -> 'user_metadata' ->> 'role',
     auth.jwt() -> 'app_metadata' ->> 'role',
@@ -219,7 +276,7 @@ BEGIN
     RETURN v_role;
   END IF;
 
-  -- 2. Check profiles table (isolated table, avoids recursion on user_roles)
+  -- 2. Profiles table (isolated table, avoids recursion on user_roles)
   SELECT lower(role_display) INTO v_role
   FROM public.profiles
   WHERE id = auth.uid()
@@ -229,7 +286,7 @@ BEGIN
     RETURN v_role;
   END IF;
 
-  -- 3. Check auth.users table
+  -- 3. Auth users table
   SELECT lower((raw_user_meta_data->>'role')::text) INTO v_role
   FROM auth.users
   WHERE id = auth.uid()
@@ -243,7 +300,6 @@ BEGIN
 END;
 $$;
 
--- Admin check: full technical & administrative access
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean
 LANGUAGE sql
@@ -254,7 +310,6 @@ AS $$
   SELECT public.get_auth_role() = 'admin';
 $$;
 
--- Owner check: admin or business owner
 CREATE OR REPLACE FUNCTION public.is_owner()
 RETURNS boolean
 LANGUAGE sql
@@ -265,7 +320,6 @@ AS $$
   SELECT public.get_auth_role() IN ('admin', 'owner');
 $$;
 
--- Supervisor check: admin, owner, or site supervisor
 CREATE OR REPLACE FUNCTION public.is_supervisor()
 RETURNS boolean
 LANGUAGE sql
@@ -276,7 +330,6 @@ AS $$
   SELECT public.get_auth_role() IN ('admin', 'owner', 'supervisor');
 $$;
 
--- Employee check: field employee
 CREATE OR REPLACE FUNCTION public.is_employee()
 RETURNS boolean
 LANGUAGE sql
@@ -287,7 +340,6 @@ AS $$
   SELECT public.get_auth_role() = 'employee';
 $$;
 
--- Helper to find employee.id for current auth.uid()
 CREATE OR REPLACE FUNCTION public.get_auth_employee_id()
 RETURNS uuid
 LANGUAGE sql
@@ -301,7 +353,6 @@ AS $$
   LIMIT 1;
 $$;
 
--- Grant execution permissions
 GRANT EXECUTE ON FUNCTION public.get_auth_role() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_admin() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_owner() TO authenticated, service_role;
@@ -311,12 +362,42 @@ GRANT EXECUTE ON FUNCTION public.get_auth_employee_id() TO authenticated, servic
 
 -- ── 5. USER ROLES & RBAC TABLES (ZERO RECURSION GUARANTEE) ───
 
+CREATE TABLE IF NOT EXISTS public.roles (
+  id TEXT PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.permissions (
+  id TEXT PRIMARY KEY,
+  key TEXT UNIQUE NOT NULL,
+  description TEXT,
+  module TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.role_permissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
+  permission_id TEXT REFERENCES public.permissions(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  UNIQUE(role_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  UNIQUE(user_id, role_id)
+);
+
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.permissions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.role_permissions ENABLE ROW LEVEL SECURITY;
 
--- Drop all previous policies on user_roles
 DROP POLICY IF EXISTS "Admins can manage all user_roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Users can read own role" ON public.user_roles;
 DROP POLICY IF EXISTS "Users can insert own role" ON public.user_roles;
@@ -330,7 +411,6 @@ DROP POLICY IF EXISTS "Users can insert own user_role or admin manage" ON public
 DROP POLICY IF EXISTS "Admins can update user_roles" ON public.user_roles;
 DROP POLICY IF EXISTS "Admins can delete user_roles" ON public.user_roles;
 
--- Clean non-recursive user_roles policies (get_auth_role / is_admin never queries user_roles)
 CREATE POLICY "Users can read own user_roles or admin read all"
   ON public.user_roles FOR SELECT
   TO authenticated
@@ -352,7 +432,6 @@ CREATE POLICY "Admins can delete user_roles"
   TO authenticated
   USING (public.is_admin());
 
--- Synchronize user_roles changes automatically to profiles and auth metadata
 CREATE OR REPLACE FUNCTION public.sync_user_role_to_profile_and_metadata()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -383,7 +462,6 @@ AFTER INSERT OR UPDATE ON public.user_roles
 FOR EACH ROW
 EXECUTE FUNCTION public.sync_user_role_to_profile_and_metadata();
 
--- Roles, Permissions, Role-Permissions
 DROP POLICY IF EXISTS "Authenticated users can read roles" ON public.roles;
 CREATE POLICY "Authenticated users can read roles"
   ON public.roles FOR SELECT
@@ -468,7 +546,7 @@ CREATE POLICY "Projects delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 6.2 EMPLOYEES
+-- 6.2 EMPLOYEES (PREVENT COWORKER SALARY DISCOVERY)
 ALTER TABLE public.employees ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read employees" ON public.employees;
 DROP POLICY IF EXISTS "Authenticated write employees" ON public.employees;
@@ -502,7 +580,7 @@ CREATE POLICY "Employees delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 6.3 ATTENDANCE
+-- 6.3 ATTENDANCE (EMPLOYEE SEES OWN ATTENDANCE ONLY)
 ALTER TABLE public.attendance ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Attendance select policy" ON public.attendance;
 DROP POLICY IF EXISTS "Attendance insert policy" ON public.attendance;
@@ -538,7 +616,7 @@ CREATE POLICY "Attendance delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 6.4 EXPENSES (STRICT FINANCIAL ISOLATION - EMPLOYEE DENIED)
+-- 6.4 EXPENSES (EMPLOYEE STRICTLY DENIED)
 ALTER TABLE public.expenses ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Expenses select policy" ON public.expenses;
 DROP POLICY IF EXISTS "Expenses insert policy" ON public.expenses;
@@ -566,7 +644,18 @@ CREATE POLICY "Expenses delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 6.5 BILLS (VENDOR BILLS - EMPLOYEE DENIED)
+-- 6.5 BILLS (VENDOR BILLS - EMPLOYEE STRICTLY DENIED)
+CREATE TABLE IF NOT EXISTS public.bills (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  vendor TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  status TEXT DEFAULT 'Pending',
+  due_date DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Bills select policy" ON public.bills;
 DROP POLICY IF EXISTS "Bills insert policy" ON public.bills;
@@ -594,7 +683,28 @@ CREATE POLICY "Bills delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 6.6 SALES BILLS & ITEMS (EMPLOYEE DENIED)
+-- 6.6 SALES BILLS & ITEMS (EMPLOYEE STRICTLY DENIED)
+CREATE TABLE IF NOT EXISTS public.sales_bills (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bill_number TEXT,
+  client_name TEXT,
+  total_amount NUMERIC(14, 2) DEFAULT 0.00,
+  tax_amount NUMERIC(14, 2) DEFAULT 0.00,
+  grand_total NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Draft',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.sales_bill_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sales_bill_id UUID REFERENCES public.sales_bills(id) ON DELETE CASCADE,
+  description TEXT,
+  quantity NUMERIC(10, 2) DEFAULT 1.00,
+  unit_price NUMERIC(12, 2) DEFAULT 0.00,
+  total_price NUMERIC(14, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.sales_bills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales_bill_items ENABLE ROW LEVEL SECURITY;
 
@@ -625,7 +735,30 @@ CREATE POLICY "Sales bill items modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 6.7 PAYMENT LEDGER & PROJECT PAYMENTS (EMPLOYEE DENIED)
+-- 6.7 PAYMENT LEDGER & PROJECT PAYMENTS (EMPLOYEE STRICTLY DENIED)
+CREATE TABLE IF NOT EXISTS public.payment_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID,
+  party TEXT NOT NULL,
+  type TEXT DEFAULT 'Payment In',
+  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+  date DATE DEFAULT CURRENT_DATE,
+  mode TEXT DEFAULT 'Cash',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.project_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+  payment_type TEXT DEFAULT 'Milestone',
+  payment_method TEXT DEFAULT 'Bank Transfer',
+  status TEXT DEFAULT 'Completed',
+  payment_date DATE DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.payment_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_payments ENABLE ROW LEVEL SECURITY;
 
@@ -656,135 +789,228 @@ CREATE POLICY "Project payments modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 6.8 INVENTORY & INVENTORY HISTORY (EMPLOYEE DENIED)
+-- 6.8 INVENTORY & EQUIPMENT (EMPLOYEE STRICTLY DENIED)
+CREATE TABLE IF NOT EXISTS public.inventory (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_name TEXT NOT NULL,
+  category TEXT DEFAULT 'General',
+  quantity NUMERIC(10, 2) DEFAULT 0.00,
+  unit TEXT DEFAULT 'Nos',
+  min_threshold NUMERIC(10, 2) DEFAULT 10.00,
+  unit_price NUMERIC(12, 2) DEFAULT 0.00,
+  location TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.inventory_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inventory_id UUID REFERENCES public.inventory(id) ON DELETE CASCADE,
+  change_type TEXT,
+  quantity_changed NUMERIC(10, 2) DEFAULT 0.00,
+  balance_after NUMERIC(10, 2) DEFAULT 0.00,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.equipment (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  type TEXT DEFAULT 'Machinery',
+  status TEXT DEFAULT 'Operational',
+  assigned_project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+  daily_rental_cost NUMERIC(12, 2) DEFAULT 0.00,
+  operator_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Inventory select policy" ON public.inventory;
 DROP POLICY IF EXISTS "Inventory modify policy" ON public.inventory;
 DROP POLICY IF EXISTS "Inventory history select policy" ON public.inventory_history;
 DROP POLICY IF EXISTS "Inventory history modify policy" ON public.inventory_history;
-
-CREATE POLICY "Inventory select policy"
-  ON public.inventory FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Inventory modify policy"
-  ON public.inventory FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
-
-CREATE POLICY "Inventory history select policy"
-  ON public.inventory_history FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Inventory history modify policy"
-  ON public.inventory_history FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
-
--- 6.9 EQUIPMENT & MACHINERY (EMPLOYEE DENIED)
-ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read equipment" ON public.equipment;
 DROP POLICY IF EXISTS "Authenticated write equipment" ON public.equipment;
 
-CREATE POLICY "Equipment select policy"
-  ON public.equipment FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
+CREATE POLICY "Inventory select policy" ON public.inventory FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Inventory modify policy" ON public.inventory FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Inventory history select policy" ON public.inventory_history FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Inventory history modify policy" ON public.inventory_history FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Equipment select policy" ON public.equipment FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Equipment modify policy" ON public.equipment FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
 
-CREATE POLICY "Equipment modify policy"
-  ON public.equipment FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+-- 6.9 QUOTATIONS, VENDORS & SUBCONTRACTORS (EMPLOYEE STRICTLY DENIED)
+CREATE TABLE IF NOT EXISTS public.quotations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quotation_number TEXT,
+  client_name TEXT,
+  total_amount NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Draft',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
 
--- 6.10 QUOTATIONS & QUOTATION ITEMS (EMPLOYEE DENIED)
+CREATE TABLE IF NOT EXISTS public.quotation_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quotation_id UUID REFERENCES public.quotations(id) ON DELETE CASCADE,
+  description TEXT,
+  quantity NUMERIC(10, 2) DEFAULT 1.00,
+  unit_price NUMERIC(12, 2) DEFAULT 0.00,
+  total_price NUMERIC(14, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.vendors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  category TEXT DEFAULT 'Materials',
+  phone TEXT,
+  email TEXT,
+  balance NUMERIC(14, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.vendor_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID REFERENCES public.vendors(id) ON DELETE CASCADE,
+  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+  type TEXT DEFAULT 'Purchase',
+  date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.subcontractors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  trade TEXT,
+  phone TEXT,
+  email TEXT,
+  total_contract_value NUMERIC(14, 2) DEFAULT 0.00,
+  paid_amount NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Active',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.properties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  unit_number TEXT,
+  type TEXT DEFAULT 'Apartment',
+  price NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Available',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotation_items ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vendor_transactions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.subcontractors ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Authenticated read quotations" ON public.quotations;
 DROP POLICY IF EXISTS "Authenticated write quotations" ON public.quotations;
 DROP POLICY IF EXISTS "Authenticated read quotation_items" ON public.quotation_items;
 DROP POLICY IF EXISTS "Authenticated write quotation_items" ON public.quotation_items;
-
-CREATE POLICY "Quotations select policy"
-  ON public.quotations FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Quotations modify policy"
-  ON public.quotations FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
-
-CREATE POLICY "Quotation items select policy"
-  ON public.quotation_items FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Quotation items modify policy"
-  ON public.quotation_items FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
-
--- 6.11 VENDORS & TRANSACTIONS (EMPLOYEE DENIED)
-ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
-ALTER TABLE public.vendor_transactions ENABLE ROW LEVEL SECURITY;
-
 DROP POLICY IF EXISTS "Authenticated read vendors" ON public.vendors;
 DROP POLICY IF EXISTS "Authenticated write vendors" ON public.vendors;
 DROP POLICY IF EXISTS "Authenticated read vendor_transactions" ON public.vendor_transactions;
 DROP POLICY IF EXISTS "Authenticated write vendor_transactions" ON public.vendor_transactions;
-
-CREATE POLICY "Vendors select policy"
-  ON public.vendors FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Vendors modify policy"
-  ON public.vendors FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
-
-CREATE POLICY "Vendor transactions select policy"
-  ON public.vendor_transactions FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Vendor transactions modify policy"
-  ON public.vendor_transactions FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
-
--- 6.12 SUBCONTRACTORS (EMPLOYEE DENIED)
-ALTER TABLE public.subcontractors ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated read subcontractors" ON public.subcontractors;
 DROP POLICY IF EXISTS "Authenticated write subcontractors" ON public.subcontractors;
+DROP POLICY IF EXISTS "Authenticated read properties" ON public.properties;
+DROP POLICY IF EXISTS "Authenticated write properties" ON public.properties;
 
-CREATE POLICY "Subcontractors select policy"
-  ON public.subcontractors FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
+CREATE POLICY "Quotations select policy" ON public.quotations FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Quotations modify policy" ON public.quotations FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Quotation items select policy" ON public.quotation_items FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Quotation items modify policy" ON public.quotation_items FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Vendors select policy" ON public.vendors FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Vendors modify policy" ON public.vendors FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Vendor transactions select policy" ON public.vendor_transactions FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Vendor transactions modify policy" ON public.vendor_transactions FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Subcontractors select policy" ON public.subcontractors FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Subcontractors modify policy" ON public.subcontractors FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Properties select policy" ON public.properties FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Properties modify policy" ON public.properties FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
 
-CREATE POLICY "Subcontractors modify policy"
-  ON public.subcontractors FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+-- 6.10 DAILY PROGRESS, CHECKLISTS & SITE TICKETS
+CREATE TABLE IF NOT EXISTS public.daily_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  work_description TEXT,
+  progress_percentage NUMERIC(5, 2) DEFAULT 0.00,
+  date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
 
--- 6.13 DAILY PROGRESS
+CREATE TABLE IF NOT EXISTS public.project_checklists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  assigned_person TEXT,
+  approval_status TEXT DEFAULT 'Pending',
+  phase TEXT DEFAULT 'Structural',
+  is_completed BOOLEAN DEFAULT FALSE,
+  due_date DATE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.site_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  priority TEXT DEFAULT 'Medium',
+  status TEXT DEFAULT 'Open',
+  assigned_to UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  reported_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.ticket_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID REFERENCES public.site_tickets(id) ON DELETE CASCADE,
+  sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  sender_role TEXT DEFAULT 'Site Staff',
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.site_drawings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  category TEXT DEFAULT 'Architectural',
+  file_url TEXT NOT NULL,
+  is_archived BOOLEAN DEFAULT FALSE,
+  file_size_bytes BIGINT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.daily_progress ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.project_checklists ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_tickets ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.ticket_messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.site_drawings ENABLE ROW LEVEL SECURITY;
+
 DROP POLICY IF EXISTS "Allow authenticated read daily_progress" ON public.daily_progress;
 DROP POLICY IF EXISTS "Allow authenticated insert/update daily_progress" ON public.daily_progress;
+DROP POLICY IF EXISTS "Authenticated users read project_checklists" ON public.project_checklists;
+DROP POLICY IF EXISTS "Authenticated users write project_checklists" ON public.project_checklists;
+DROP POLICY IF EXISTS "Authenticated read site_tickets" ON public.site_tickets;
+DROP POLICY IF EXISTS "Authenticated write site_tickets" ON public.site_tickets;
+DROP POLICY IF EXISTS "Authenticated read ticket_messages" ON public.ticket_messages;
+DROP POLICY IF EXISTS "Authenticated write ticket_messages" ON public.ticket_messages;
+DROP POLICY IF EXISTS "Authenticated read site_drawings" ON public.site_drawings;
+DROP POLICY IF EXISTS "Authenticated write site_drawings" ON public.site_drawings;
 
 CREATE POLICY "Daily progress select policy"
   ON public.daily_progress FOR SELECT
@@ -802,11 +1028,6 @@ CREATE POLICY "Daily progress modify policy"
   TO authenticated
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
-
--- 6.14 PROJECT CHECKLISTS (ASSIGNED TASK ACCESS)
-ALTER TABLE public.project_checklists ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Authenticated users read project_checklists" ON public.project_checklists;
-DROP POLICY IF EXISTS "Authenticated users write project_checklists" ON public.project_checklists;
 
 CREATE POLICY "Project checklists select policy"
   ON public.project_checklists FOR SELECT
@@ -841,11 +1062,6 @@ CREATE POLICY "Project checklists delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 6.15 SITE TICKETS / SNAGS
-ALTER TABLE public.site_tickets ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Authenticated read site_tickets" ON public.site_tickets;
-DROP POLICY IF EXISTS "Authenticated write site_tickets" ON public.site_tickets;
-
 CREATE POLICY "Site tickets select policy"
   ON public.site_tickets FOR SELECT
   TO authenticated
@@ -879,11 +1095,6 @@ CREATE POLICY "Site tickets delete policy"
   TO authenticated
   USING (public.is_supervisor());
 
--- 6.16 TICKET MESSAGES
-ALTER TABLE public.ticket_messages ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Authenticated read ticket_messages" ON public.ticket_messages;
-DROP POLICY IF EXISTS "Authenticated write ticket_messages" ON public.ticket_messages;
-
 CREATE POLICY "Ticket messages select policy"
   ON public.ticket_messages FOR SELECT
   TO authenticated
@@ -905,11 +1116,6 @@ CREATE POLICY "Ticket messages delete policy"
   TO authenticated
   USING (public.is_admin());
 
--- 6.17 SITE DRAWINGS
-ALTER TABLE public.site_drawings ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Authenticated read site_drawings" ON public.site_drawings;
-DROP POLICY IF EXISTS "Authenticated write site_drawings" ON public.site_drawings;
-
 CREATE POLICY "Site drawings select policy"
   ON public.site_drawings FOR SELECT
   TO authenticated
@@ -921,25 +1127,63 @@ CREATE POLICY "Site drawings modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 6.18 PROPERTIES (EMPLOYEE DENIED)
-ALTER TABLE public.properties ENABLE ROW LEVEL SECURITY;
-DROP POLICY IF EXISTS "Authenticated read properties" ON public.properties;
-DROP POLICY IF EXISTS "Authenticated write properties" ON public.properties;
+-- 6.11 AUDIT LOGS, SYSTEM SETTINGS, PROFILES & IMAGES
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID,
+  user_email TEXT,
+  action TEXT NOT NULL,
+  entity TEXT,
+  entity_id TEXT,
+  details TEXT,
+  ip_address TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
 
-CREATE POLICY "Properties select policy"
-  ON public.properties FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
+CREATE TABLE IF NOT EXISTS public.activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID,
+  user_id UUID,
+  user_name TEXT,
+  action TEXT NOT NULL,
+  entity_type TEXT,
+  entity_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
 
-CREATE POLICY "Properties modify policy"
-  ON public.properties FOR ALL
-  TO authenticated
-  USING (public.is_supervisor())
-  WITH CHECK (public.is_supervisor());
+CREATE TABLE IF NOT EXISTS public.system_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value JSONB,
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
 
--- 6.19 AUDIT LOGS & ACTIVITIES (APPEND-ONLY, EMPLOYEE DENIED)
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT,
+  email TEXT,
+  role_display TEXT DEFAULT 'owner',
+  avatar_url TEXT,
+  phone TEXT,
+  company TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.app_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  file_id TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.app_images ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Authenticated users can read audit logs" ON public.audit_logs;
 DROP POLICY IF EXISTS "Authenticated users can insert audit logs" ON public.audit_logs;
@@ -947,111 +1191,38 @@ DROP POLICY IF EXISTS "Deny updates on audit_logs" ON public.audit_logs;
 DROP POLICY IF EXISTS "Deny deletes on audit_logs" ON public.audit_logs;
 DROP POLICY IF EXISTS "Authenticated users can read activities" ON public.activities;
 DROP POLICY IF EXISTS "Authenticated users can insert activities" ON public.activities;
-
-CREATE POLICY "Audit logs select policy"
-  ON public.audit_logs FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Audit logs insert policy"
-  ON public.audit_logs FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Deny updates on audit_logs"
-  ON public.audit_logs FOR UPDATE
-  TO authenticated
-  USING (false);
-
-CREATE POLICY "Deny deletes on audit_logs"
-  ON public.audit_logs FOR DELETE
-  TO authenticated
-  USING (false);
-
-CREATE POLICY "Activities select policy"
-  ON public.activities FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "Activities insert policy"
-  ON public.activities FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Deny updates on activities"
-  ON public.activities FOR UPDATE
-  TO authenticated
-  USING (false);
-
-CREATE POLICY "Deny deletes on activities"
-  ON public.activities FOR DELETE
-  TO authenticated
-  USING (false);
-
--- 6.20 SYSTEM SETTINGS (EMPLOYEE DENIED, ADMIN ONLY WRITE)
-ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Deny updates on activities" ON public.activities;
+DROP POLICY IF EXISTS "Deny deletes on activities" ON public.activities;
 DROP POLICY IF EXISTS "Authenticated read system_settings" ON public.system_settings;
 DROP POLICY IF EXISTS "Authenticated write system_settings" ON public.system_settings;
-
-CREATE POLICY "System settings select policy"
-  ON public.system_settings FOR SELECT
-  TO authenticated
-  USING (public.is_supervisor());
-
-CREATE POLICY "System settings modify policy"
-  ON public.system_settings FOR ALL
-  TO authenticated
-  USING (public.is_admin())
-  WITH CHECK (public.is_admin());
-
--- 6.21 PROFILES
-ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Authenticated users can read all profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Authenticated users can insert profiles" ON public.profiles;
 DROP POLICY IF EXISTS "Authenticated users can update own or admin profiles" ON public.profiles;
-
-CREATE POLICY "Profiles select policy"
-  ON public.profiles FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
-
-CREATE POLICY "Profiles insert policy"
-  ON public.profiles FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() = id OR public.is_admin());
-
-CREATE POLICY "Profiles update policy"
-  ON public.profiles FOR UPDATE
-  TO authenticated
-  USING (auth.uid() = id OR public.is_admin())
-  WITH CHECK (auth.uid() = id OR public.is_admin());
-
-CREATE POLICY "Profiles delete policy"
-  ON public.profiles FOR DELETE
-  TO authenticated
-  USING (public.is_admin());
-
--- 6.22 APP IMAGES
-ALTER TABLE public.app_images ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "App images select policy" ON public.app_images;
 DROP POLICY IF EXISTS "App images insert policy" ON public.app_images;
 DROP POLICY IF EXISTS "App images modify policy" ON public.app_images;
 
-CREATE POLICY "App images select policy"
-  ON public.app_images FOR SELECT
-  TO authenticated
-  USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Audit logs select policy" ON public.audit_logs FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Audit logs insert policy" ON public.audit_logs FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Deny updates on audit_logs" ON public.audit_logs FOR UPDATE TO authenticated USING (false);
+CREATE POLICY "Deny deletes on audit_logs" ON public.audit_logs FOR DELETE TO authenticated USING (false);
 
-CREATE POLICY "App images insert policy"
-  ON public.app_images FOR INSERT
-  TO authenticated
-  WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Activities select policy" ON public.activities FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "Activities insert policy" ON public.activities FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Deny updates on activities" ON public.activities FOR UPDATE TO authenticated USING (false);
+CREATE POLICY "Deny deletes on activities" ON public.activities FOR DELETE TO authenticated USING (false);
 
-CREATE POLICY "App images modify policy"
-  ON public.app_images FOR ALL
-  TO authenticated
-  USING (auth.uid() = user_id OR public.is_admin())
-  WITH CHECK (auth.uid() = user_id OR public.is_admin());
+CREATE POLICY "System settings select policy" ON public.system_settings FOR SELECT TO authenticated USING (public.is_supervisor());
+CREATE POLICY "System settings modify policy" ON public.system_settings FOR ALL TO authenticated USING (public.is_admin()) WITH CHECK (public.is_admin());
+
+CREATE POLICY "Profiles select policy" ON public.profiles FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Profiles insert policy" ON public.profiles FOR INSERT TO authenticated WITH CHECK (auth.uid() = id OR public.is_admin());
+CREATE POLICY "Profiles update policy" ON public.profiles FOR UPDATE TO authenticated USING (auth.uid() = id OR public.is_admin()) WITH CHECK (auth.uid() = id OR public.is_admin());
+CREATE POLICY "Profiles delete policy" ON public.profiles FOR DELETE TO authenticated USING (public.is_admin());
+
+CREATE POLICY "App images select policy" ON public.app_images FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
+CREATE POLICY "App images insert policy" ON public.app_images FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "App images modify policy" ON public.app_images FOR ALL TO authenticated USING (auth.uid() = user_id OR public.is_admin()) WITH CHECK (auth.uid() = user_id OR public.is_admin());
 
 -- ── 7. RELOAD SCHEMA CACHE ────────────────────────────────────
 NOTIFY pgrst, 'reload schema';
