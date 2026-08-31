@@ -3,7 +3,7 @@
 -- MIGRATION 020: STRICT RLS, NON-RECURSIVE RBAC & SCHEMA REPAIR
 --
 -- Fixes:
--- 1. PostgreSQL 42703 (employees missing columns: email, daily_rate, salary, user_id)
+-- 1. All base tables & columns created first (full_name, email, daily_rate, salary, user_id)
 -- 2. PostgreSQL 42P17 (infinite recursion in user_roles policy)
 -- 3. Role-Scoped RLS isolation (Employee denied from all financials & other users)
 -- 4. Attendance (employee_id, date) unique constraint & conflict safety
@@ -11,8 +11,42 @@
 -- 6. Preserves all existing business data
 -- ============================================================
 
--- ── 1. ENSURE BASE TABLES & SCHEMA DEFINITIONS EXIST ─────────
+-- ── 1. ENSURE ALL BASE TABLES & COLUMNS EXIST (TOP PRIORITY) ──
 
+-- 1.1 PROFILES
+CREATE TABLE IF NOT EXISTS public.profiles (
+  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  full_name TEXT,
+  name TEXT,
+  email TEXT,
+  role_display TEXT DEFAULT 'owner',
+  avatar_url TEXT,
+  phone TEXT,
+  company_name TEXT DEFAULT 'IBUILD',
+  is_disabled BOOLEAN NOT NULL DEFAULT false,
+  custom_permissions JSONB DEFAULT '[]'::jsonb,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS full_name TEXT,
+  ADD COLUMN IF NOT EXISTS name TEXT,
+  ADD COLUMN IF NOT EXISTS email TEXT,
+  ADD COLUMN IF NOT EXISTS role_display TEXT DEFAULT 'owner',
+  ADD COLUMN IF NOT EXISTS avatar_url TEXT,
+  ADD COLUMN IF NOT EXISTS phone TEXT,
+  ADD COLUMN IF NOT EXISTS company_name TEXT DEFAULT 'IBUILD',
+  ADD COLUMN IF NOT EXISTS is_disabled BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS custom_permissions JSONB DEFAULT '[]'::jsonb,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
+
+UPDATE public.profiles
+SET full_name = COALESCE(full_name, name, 'User')
+WHERE full_name IS NULL;
+
+-- 1.2 EMPLOYEES
 CREATE TABLE IF NOT EXISTS public.employees (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT,
@@ -43,7 +77,382 @@ ALTER TABLE public.employees
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
   ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
 
--- Backfill daily_rate from salary or salary from daily_rate
+-- 1.3 PROJECTS
+CREATE TABLE IF NOT EXISTS public.projects (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  client TEXT,
+  location TEXT,
+  budget NUMERIC(14, 2) DEFAULT 0.00,
+  spent NUMERIC(14, 2) DEFAULT 0.00,
+  start_date DATE,
+  end_date DATE,
+  status TEXT DEFAULT 'In Progress',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.projects
+  ADD COLUMN IF NOT EXISTS name TEXT,
+  ADD COLUMN IF NOT EXISTS client TEXT,
+  ADD COLUMN IF NOT EXISTS location TEXT,
+  ADD COLUMN IF NOT EXISTS budget NUMERIC(14, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS spent NUMERIC(14, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS start_date DATE,
+  ADD COLUMN IF NOT EXISTS end_date DATE,
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'In Progress',
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
+
+-- 1.4 ATTENDANCE
+CREATE TABLE IF NOT EXISTS public.attendance (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  employee_id UUID REFERENCES public.employees(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+  date DATE NOT NULL,
+  status TEXT DEFAULT 'Present',
+  morning_status TEXT DEFAULT 'present',
+  afternoon_status TEXT DEFAULT 'present',
+  wage_rate NUMERIC(12, 2),
+  tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.attendance
+  ADD COLUMN IF NOT EXISTS employee_id UUID,
+  ADD COLUMN IF NOT EXISTS project_id UUID,
+  ADD COLUMN IF NOT EXISTS date DATE,
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Present',
+  ADD COLUMN IF NOT EXISTS morning_status TEXT DEFAULT 'present',
+  ADD COLUMN IF NOT EXISTS afternoon_status TEXT DEFAULT 'present',
+  ADD COLUMN IF NOT EXISTS wage_rate NUMERIC(12, 2),
+  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
+
+-- 1.5 EXPENSES
+CREATE TABLE IF NOT EXISTS public.expenses (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  category TEXT DEFAULT 'General',
+  amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.expenses
+  ADD COLUMN IF NOT EXISTS project_id UUID,
+  ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'General',
+  ADD COLUMN IF NOT EXISTS amount NUMERIC(12, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS date DATE DEFAULT CURRENT_DATE,
+  ADD COLUMN IF NOT EXISTS notes TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
+
+-- 1.6 BILLS
+CREATE TABLE IF NOT EXISTS public.bills (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  vendor TEXT NOT NULL,
+  amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  status TEXT DEFAULT 'Pending',
+  due_date DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.bills
+  ADD COLUMN IF NOT EXISTS project_id UUID,
+  ADD COLUMN IF NOT EXISTS vendor TEXT,
+  ADD COLUMN IF NOT EXISTS amount NUMERIC(12, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'Pending',
+  ADD COLUMN IF NOT EXISTS due_date DATE,
+  ADD COLUMN IF NOT EXISTS notes TEXT,
+  ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now());
+
+-- 1.7 SALES BILLS & ITEMS
+CREATE TABLE IF NOT EXISTS public.sales_bills (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  bill_number TEXT,
+  client_name TEXT,
+  total_amount NUMERIC(14, 2) DEFAULT 0.00,
+  tax_amount NUMERIC(14, 2) DEFAULT 0.00,
+  grand_total NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Draft',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.sales_bill_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  sales_bill_id UUID REFERENCES public.sales_bills(id) ON DELETE CASCADE,
+  description TEXT,
+  quantity NUMERIC(10, 2) DEFAULT 1.00,
+  unit_price NUMERIC(12, 2) DEFAULT 0.00,
+  total_price NUMERIC(14, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 1.8 PAYMENT LEDGER & PROJECT PAYMENTS
+CREATE TABLE IF NOT EXISTS public.payment_ledger (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID,
+  party TEXT NOT NULL,
+  type TEXT DEFAULT 'Payment In',
+  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+  date DATE DEFAULT CURRENT_DATE,
+  mode TEXT DEFAULT 'Cash',
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.project_payments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+  payment_type TEXT DEFAULT 'Milestone',
+  payment_method TEXT DEFAULT 'Bank Transfer',
+  status TEXT DEFAULT 'Completed',
+  payment_date DATE DEFAULT CURRENT_DATE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 1.9 INVENTORY & EQUIPMENT
+CREATE TABLE IF NOT EXISTS public.inventory (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  item_name TEXT NOT NULL,
+  category TEXT DEFAULT 'General',
+  quantity NUMERIC(10, 2) DEFAULT 0.00,
+  unit TEXT DEFAULT 'Nos',
+  min_threshold NUMERIC(10, 2) DEFAULT 10.00,
+  unit_price NUMERIC(12, 2) DEFAULT 0.00,
+  location TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.inventory_history (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inventory_id UUID REFERENCES public.inventory(id) ON DELETE CASCADE,
+  change_type TEXT,
+  quantity_changed NUMERIC(10, 2) DEFAULT 0.00,
+  balance_after NUMERIC(10, 2) DEFAULT 0.00,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.equipment (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  type TEXT DEFAULT 'Machinery',
+  status TEXT DEFAULT 'Operational',
+  assigned_project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+  daily_rental_cost NUMERIC(12, 2) DEFAULT 0.00,
+  operator_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 1.10 QUOTATIONS, VENDORS & SUBCONTRACTORS
+CREATE TABLE IF NOT EXISTS public.quotations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quotation_number TEXT,
+  client_name TEXT,
+  total_amount NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Draft',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.quotation_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  quotation_id UUID REFERENCES public.quotations(id) ON DELETE CASCADE,
+  description TEXT,
+  quantity NUMERIC(10, 2) DEFAULT 1.00,
+  unit_price NUMERIC(12, 2) DEFAULT 0.00,
+  total_price NUMERIC(14, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.vendors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  category TEXT DEFAULT 'Materials',
+  phone TEXT,
+  email TEXT,
+  balance NUMERIC(14, 2) DEFAULT 0.00,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.vendor_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  vendor_id UUID REFERENCES public.vendors(id) ON DELETE CASCADE,
+  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
+  type TEXT DEFAULT 'Purchase',
+  date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.subcontractors (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL,
+  trade TEXT,
+  phone TEXT,
+  email TEXT,
+  total_contract_value NUMERIC(14, 2) DEFAULT 0.00,
+  paid_amount NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Active',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.properties (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  unit_number TEXT,
+  type TEXT DEFAULT 'Apartment',
+  price NUMERIC(14, 2) DEFAULT 0.00,
+  status TEXT DEFAULT 'Available',
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 1.11 DAILY PROGRESS, CHECKLISTS & TICKETS
+CREATE TABLE IF NOT EXISTS public.daily_progress (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  work_description TEXT,
+  progress_percentage NUMERIC(5, 2) DEFAULT 0.00,
+  date DATE DEFAULT CURRENT_DATE,
+  notes TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.project_checklists (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  assigned_person TEXT,
+  approval_status TEXT DEFAULT 'Pending',
+  phase TEXT DEFAULT 'Structural',
+  is_completed BOOLEAN DEFAULT FALSE,
+  due_date DATE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+ALTER TABLE public.project_checklists
+  ADD COLUMN IF NOT EXISTS assigned_person TEXT,
+  ADD COLUMN IF NOT EXISTS approval_status TEXT DEFAULT 'Pending',
+  ADD COLUMN IF NOT EXISTS phase TEXT DEFAULT 'Structural',
+  ADD COLUMN IF NOT EXISTS is_completed BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS due_date DATE;
+
+CREATE TABLE IF NOT EXISTS public.site_tickets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  description TEXT,
+  priority TEXT DEFAULT 'Medium',
+  status TEXT DEFAULT 'Open',
+  assigned_to UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  reported_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  image_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.ticket_messages (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  ticket_id UUID REFERENCES public.site_tickets(id) ON DELETE CASCADE,
+  sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  sender_role TEXT DEFAULT 'Site Staff',
+  message TEXT NOT NULL,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.site_drawings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  category TEXT DEFAULT 'Architectural',
+  file_url TEXT NOT NULL,
+  is_archived BOOLEAN DEFAULT FALSE,
+  file_size_bytes BIGINT DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 1.12 AUDIT LOGS, ACTIVITIES, SETTINGS & IMAGES
+CREATE TABLE IF NOT EXISTS public.audit_logs (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID,
+  user_email TEXT,
+  action TEXT NOT NULL,
+  entity TEXT,
+  entity_id TEXT,
+  details TEXT,
+  ip_address TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.activities (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  project_id UUID,
+  user_id UUID,
+  user_name TEXT,
+  action TEXT NOT NULL,
+  entity_type TEXT,
+  entity_name TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.system_settings (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  key TEXT UNIQUE NOT NULL,
+  value JSONB,
+  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.app_images (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  file_id TEXT NOT NULL,
+  file_url TEXT NOT NULL,
+  thumbnail_url TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+-- 1.13 ROLES & RBAC TABLES
+CREATE TABLE IF NOT EXISTS public.roles (
+  id TEXT PRIMARY KEY,
+  name TEXT UNIQUE NOT NULL,
+  description TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.permissions (
+  id TEXT PRIMARY KEY,
+  key TEXT UNIQUE NOT NULL,
+  description TEXT,
+  module TEXT,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
+);
+
+CREATE TABLE IF NOT EXISTS public.role_permissions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
+  permission_id TEXT REFERENCES public.permissions(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  UNIQUE(role_id, permission_id)
+);
+
+CREATE TABLE IF NOT EXISTS public.user_roles (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
+  UNIQUE(user_id, role_id)
+);
+
+-- ── 2. EMPLOYEE & ATTENDANCE DATA REPAIR & BACKFILL ──────────
+
 UPDATE public.employees
 SET daily_rate = ROUND(COALESCE(salary, 18000.00) / 30.0, 2)
 WHERE (daily_rate IS NULL OR daily_rate = 0) AND salary IS NOT NULL AND salary > 0;
@@ -52,7 +461,6 @@ UPDATE public.employees
 SET salary = ROUND(COALESCE(daily_rate, 600.00) * 30.0, 2)
 WHERE (salary IS NULL OR salary = 0) AND daily_rate IS NOT NULL AND daily_rate > 0;
 
--- Bi-directional trigger to keep daily_rate and salary synchronized
 CREATE OR REPLACE FUNCTION public.sync_employee_rates()
 RETURNS TRIGGER
 LANGUAGE plpgsql
@@ -80,7 +488,6 @@ EXECUTE FUNCTION public.sync_employee_rates();
 CREATE INDEX IF NOT EXISTS idx_employees_user_id ON public.employees(user_id);
 CREATE INDEX IF NOT EXISTS idx_employees_email ON public.employees(lower(email));
 
--- Link known standard accounts by email
 DO $$
 DECLARE
   r RECORD;
@@ -92,28 +499,6 @@ BEGIN
   END LOOP;
 END;
 $$;
-
--- ── 2. ATTENDANCE INTEGRITY & UNIQUE CONSTRAINT ──────────────
-
-CREATE TABLE IF NOT EXISTS public.attendance (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  employee_id UUID REFERENCES public.employees(id) ON DELETE CASCADE,
-  project_id UUID,
-  date DATE NOT NULL,
-  status TEXT DEFAULT 'Present',
-  morning_status TEXT DEFAULT 'present',
-  afternoon_status TEXT DEFAULT 'present',
-  wage_rate NUMERIC(12, 2),
-  tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-ALTER TABLE public.attendance
-  ADD COLUMN IF NOT EXISTS wage_rate NUMERIC(12, 2),
-  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
-  ADD COLUMN IF NOT EXISTS morning_status TEXT DEFAULT 'present',
-  ADD COLUMN IF NOT EXISTS afternoon_status TEXT DEFAULT 'present';
 
 DELETE FROM public.attendance a
 USING public.attendance b
@@ -157,30 +542,6 @@ FOR EACH ROW
 EXECUTE FUNCTION public.snapshot_attendance_wages();
 
 -- ── 3. ATOMIC PROJECT SPEND CALCULATION ───────────────────────
-
-CREATE TABLE IF NOT EXISTS public.projects (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  client TEXT,
-  location TEXT,
-  budget NUMERIC(14, 2) DEFAULT 0.00,
-  spent NUMERIC(14, 2) DEFAULT 0.00,
-  start_date DATE,
-  end_date DATE,
-  status TEXT DEFAULT 'In Progress',
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.expenses (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  category TEXT DEFAULT 'General',
-  amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-  date DATE DEFAULT CURRENT_DATE,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
 
 ALTER TABLE public.expenses
   DROP CONSTRAINT IF EXISTS check_positive_amount,
@@ -360,38 +721,7 @@ GRANT EXECUTE ON FUNCTION public.is_supervisor() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_employee() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_auth_employee_id() TO authenticated, service_role;
 
--- ── 5. USER ROLES & RBAC TABLES (ZERO RECURSION GUARANTEE) ───
-
-CREATE TABLE IF NOT EXISTS public.roles (
-  id TEXT PRIMARY KEY,
-  name TEXT UNIQUE NOT NULL,
-  description TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.permissions (
-  id TEXT PRIMARY KEY,
-  key TEXT UNIQUE NOT NULL,
-  description TEXT,
-  module TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.role_permissions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
-  permission_id TEXT REFERENCES public.permissions(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  UNIQUE(role_id, permission_id)
-);
-
-CREATE TABLE IF NOT EXISTS public.user_roles (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  role_id TEXT REFERENCES public.roles(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  UNIQUE(user_id, role_id)
-);
+-- ── 5. USER ROLES & RBAC POLICIES (ZERO RECURSION GUARANTEE) ──
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.roles ENABLE ROW LEVEL SECURITY;
@@ -522,7 +852,7 @@ CREATE POLICY "Projects select policy"
     OR id IN (
       SELECT project_id FROM public.project_checklists 
       WHERE assigned_person = (auth.jwt() ->> 'email')
-         OR assigned_person = (SELECT full_name FROM public.profiles WHERE id = auth.uid())
+         OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
     )
     OR id IN (
       SELECT project_id FROM public.site_tickets 
@@ -645,17 +975,6 @@ CREATE POLICY "Expenses delete policy"
   USING (public.is_supervisor());
 
 -- 6.5 BILLS (VENDOR BILLS - EMPLOYEE STRICTLY DENIED)
-CREATE TABLE IF NOT EXISTS public.bills (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  vendor TEXT NOT NULL,
-  amount NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
-  status TEXT DEFAULT 'Pending',
-  due_date DATE,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
 ALTER TABLE public.bills ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Bills select policy" ON public.bills;
 DROP POLICY IF EXISTS "Bills insert policy" ON public.bills;
@@ -684,27 +1003,6 @@ CREATE POLICY "Bills delete policy"
   USING (public.is_supervisor());
 
 -- 6.6 SALES BILLS & ITEMS (EMPLOYEE STRICTLY DENIED)
-CREATE TABLE IF NOT EXISTS public.sales_bills (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  bill_number TEXT,
-  client_name TEXT,
-  total_amount NUMERIC(14, 2) DEFAULT 0.00,
-  tax_amount NUMERIC(14, 2) DEFAULT 0.00,
-  grand_total NUMERIC(14, 2) DEFAULT 0.00,
-  status TEXT DEFAULT 'Draft',
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.sales_bill_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  sales_bill_id UUID REFERENCES public.sales_bills(id) ON DELETE CASCADE,
-  description TEXT,
-  quantity NUMERIC(10, 2) DEFAULT 1.00,
-  unit_price NUMERIC(12, 2) DEFAULT 0.00,
-  total_price NUMERIC(14, 2) DEFAULT 0.00,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
 ALTER TABLE public.sales_bills ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.sales_bill_items ENABLE ROW LEVEL SECURITY;
 
@@ -736,29 +1034,6 @@ CREATE POLICY "Sales bill items modify policy"
   WITH CHECK (public.is_supervisor());
 
 -- 6.7 PAYMENT LEDGER & PROJECT PAYMENTS (EMPLOYEE STRICTLY DENIED)
-CREATE TABLE IF NOT EXISTS public.payment_ledger (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID,
-  party TEXT NOT NULL,
-  type TEXT DEFAULT 'Payment In',
-  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
-  date DATE DEFAULT CURRENT_DATE,
-  mode TEXT DEFAULT 'Cash',
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.project_payments (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
-  payment_type TEXT DEFAULT 'Milestone',
-  payment_method TEXT DEFAULT 'Bank Transfer',
-  status TEXT DEFAULT 'Completed',
-  payment_date DATE DEFAULT CURRENT_DATE,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
 ALTER TABLE public.payment_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_payments ENABLE ROW LEVEL SECURITY;
 
@@ -790,39 +1065,6 @@ CREATE POLICY "Project payments modify policy"
   WITH CHECK (public.is_supervisor());
 
 -- 6.8 INVENTORY & EQUIPMENT (EMPLOYEE STRICTLY DENIED)
-CREATE TABLE IF NOT EXISTS public.inventory (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  item_name TEXT NOT NULL,
-  category TEXT DEFAULT 'General',
-  quantity NUMERIC(10, 2) DEFAULT 0.00,
-  unit TEXT DEFAULT 'Nos',
-  min_threshold NUMERIC(10, 2) DEFAULT 10.00,
-  unit_price NUMERIC(12, 2) DEFAULT 0.00,
-  location TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.inventory_history (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  inventory_id UUID REFERENCES public.inventory(id) ON DELETE CASCADE,
-  change_type TEXT,
-  quantity_changed NUMERIC(10, 2) DEFAULT 0.00,
-  balance_after NUMERIC(10, 2) DEFAULT 0.00,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.equipment (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  type TEXT DEFAULT 'Machinery',
-  status TEXT DEFAULT 'Operational',
-  assigned_project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
-  daily_rental_cost NUMERIC(12, 2) DEFAULT 0.00,
-  operator_name TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_history ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
@@ -842,67 +1084,6 @@ CREATE POLICY "Equipment select policy" ON public.equipment FOR SELECT TO authen
 CREATE POLICY "Equipment modify policy" ON public.equipment FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
 
 -- 6.9 QUOTATIONS, VENDORS & SUBCONTRACTORS (EMPLOYEE STRICTLY DENIED)
-CREATE TABLE IF NOT EXISTS public.quotations (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  quotation_number TEXT,
-  client_name TEXT,
-  total_amount NUMERIC(14, 2) DEFAULT 0.00,
-  status TEXT DEFAULT 'Draft',
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.quotation_items (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  quotation_id UUID REFERENCES public.quotations(id) ON DELETE CASCADE,
-  description TEXT,
-  quantity NUMERIC(10, 2) DEFAULT 1.00,
-  unit_price NUMERIC(12, 2) DEFAULT 0.00,
-  total_price NUMERIC(14, 2) DEFAULT 0.00,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.vendors (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  category TEXT DEFAULT 'Materials',
-  phone TEXT,
-  email TEXT,
-  balance NUMERIC(14, 2) DEFAULT 0.00,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.vendor_transactions (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  vendor_id UUID REFERENCES public.vendors(id) ON DELETE CASCADE,
-  amount NUMERIC(14, 2) NOT NULL DEFAULT 0.00,
-  type TEXT DEFAULT 'Purchase',
-  date DATE DEFAULT CURRENT_DATE,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.subcontractors (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL,
-  trade TEXT,
-  phone TEXT,
-  email TEXT,
-  total_contract_value NUMERIC(14, 2) DEFAULT 0.00,
-  paid_amount NUMERIC(14, 2) DEFAULT 0.00,
-  status TEXT DEFAULT 'Active',
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.properties (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  unit_number TEXT,
-  type TEXT DEFAULT 'Apartment',
-  price NUMERIC(14, 2) DEFAULT 0.00,
-  status TEXT DEFAULT 'Available',
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
 ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.quotation_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.vendors ENABLE ROW LEVEL SECURITY;
@@ -937,64 +1118,6 @@ CREATE POLICY "Properties select policy" ON public.properties FOR SELECT TO auth
 CREATE POLICY "Properties modify policy" ON public.properties FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
 
 -- 6.10 DAILY PROGRESS, CHECKLISTS & SITE TICKETS
-CREATE TABLE IF NOT EXISTS public.daily_progress (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  work_description TEXT,
-  progress_percentage NUMERIC(5, 2) DEFAULT 0.00,
-  date DATE DEFAULT CURRENT_DATE,
-  notes TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.project_checklists (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  assigned_person TEXT,
-  approval_status TEXT DEFAULT 'Pending',
-  phase TEXT DEFAULT 'Structural',
-  is_completed BOOLEAN DEFAULT FALSE,
-  due_date DATE,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.site_tickets (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  description TEXT,
-  priority TEXT DEFAULT 'Medium',
-  status TEXT DEFAULT 'Open',
-  assigned_to UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  reported_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  image_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.ticket_messages (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  ticket_id UUID REFERENCES public.site_tickets(id) ON DELETE CASCADE,
-  sender_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
-  sender_role TEXT DEFAULT 'Site Staff',
-  message TEXT NOT NULL,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.site_drawings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID REFERENCES public.projects(id) ON DELETE CASCADE,
-  title TEXT NOT NULL,
-  category TEXT DEFAULT 'Architectural',
-  file_url TEXT NOT NULL,
-  is_archived BOOLEAN DEFAULT FALSE,
-  file_size_bytes BIGINT DEFAULT 0,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
 ALTER TABLE public.daily_progress ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.project_checklists ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.site_tickets ENABLE ROW LEVEL SECURITY;
@@ -1035,7 +1158,7 @@ CREATE POLICY "Project checklists select policy"
   USING (
     public.is_supervisor()
     OR assigned_person = (auth.jwt() ->> 'email')
-    OR assigned_person = (SELECT full_name FROM public.profiles WHERE id = auth.uid())
+    OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   );
 
 CREATE POLICY "Project checklists insert policy"
@@ -1049,12 +1172,12 @@ CREATE POLICY "Project checklists update policy"
   USING (
     public.is_supervisor()
     OR assigned_person = (auth.jwt() ->> 'email')
-    OR assigned_person = (SELECT full_name FROM public.profiles WHERE id = auth.uid())
+    OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   )
   WITH CHECK (
     public.is_supervisor()
     OR assigned_person = (auth.jwt() ->> 'email')
-    OR assigned_person = (SELECT full_name FROM public.profiles WHERE id = auth.uid())
+    OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   );
 
 CREATE POLICY "Project checklists delete policy"
@@ -1127,58 +1250,7 @@ CREATE POLICY "Site drawings modify policy"
   USING (public.is_supervisor())
   WITH CHECK (public.is_supervisor());
 
--- 6.11 AUDIT LOGS, SYSTEM SETTINGS, PROFILES & IMAGES
-CREATE TABLE IF NOT EXISTS public.audit_logs (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID,
-  user_email TEXT,
-  action TEXT NOT NULL,
-  entity TEXT,
-  entity_id TEXT,
-  details TEXT,
-  ip_address TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.activities (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  project_id UUID,
-  user_id UUID,
-  user_name TEXT,
-  action TEXT NOT NULL,
-  entity_type TEXT,
-  entity_name TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.system_settings (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  key TEXT UNIQUE NOT NULL,
-  value JSONB,
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.profiles (
-  id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-  full_name TEXT,
-  email TEXT,
-  role_display TEXT DEFAULT 'owner',
-  avatar_url TEXT,
-  phone TEXT,
-  company TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
-  updated_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
-CREATE TABLE IF NOT EXISTS public.app_images (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
-  file_id TEXT NOT NULL,
-  file_url TEXT NOT NULL,
-  thumbnail_url TEXT,
-  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
-);
-
+-- 6.11 AUDIT LOGS, ACTIVITIES, SYSTEM SETTINGS, PROFILES & IMAGES
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.activities ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.system_settings ENABLE ROW LEVEL SECURITY;
