@@ -771,6 +771,51 @@ GRANT EXECUTE ON FUNCTION public.is_supervisor() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.is_employee() TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.get_auth_employee_id() TO authenticated, service_role;
 
+-- ── 5b. RECURSION-BREAKING SECURITY DEFINER PROJECT HELPERS ───
+-- These functions bypass RLS to read project assignments, preventing
+-- circular dependencies between projects ↔ project_checklists policies.
+
+DROP FUNCTION IF EXISTS public.get_supervisor_project_ids() CASCADE;
+DROP FUNCTION IF EXISTS public.get_assigned_project_ids() CASCADE;
+
+-- Returns project IDs where the current user is the assigned supervisor
+CREATE OR REPLACE FUNCTION public.get_supervisor_project_ids()
+RETURNS SETOF uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT id FROM public.projects WHERE supervisor_id = auth.uid();
+$$;
+
+-- Returns project IDs where the current user is assigned via checklists or tickets
+CREATE OR REPLACE FUNCTION public.get_assigned_project_ids()
+RETURNS SETOF uuid
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT DISTINCT project_id FROM (
+    SELECT project_id FROM public.project_checklists
+    WHERE assigned_person = (auth.jwt() ->> 'email')
+       OR assigned_person = (
+            SELECT COALESCE(full_name, name)
+            FROM public.profiles
+            WHERE id = auth.uid()
+            LIMIT 1
+          )
+    UNION
+    SELECT project_id FROM public.site_tickets
+    WHERE assigned_to = auth.uid() OR reported_by = auth.uid()
+  ) sub
+  WHERE project_id IS NOT NULL;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.get_supervisor_project_ids() TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.get_assigned_project_ids() TO authenticated, service_role;
+
 -- ── 6. USER ROLES & RBAC POLICIES (ZERO RECURSION GUARANTEE) ──
 
 ALTER TABLE public.user_roles ENABLE ROW LEVEL SECURITY;
@@ -903,17 +948,9 @@ CREATE POLICY "Projects select policy"
   ON public.projects FOR SELECT
   TO authenticated
   USING (
-    public.is_owner() 
-    OR supervisor_id = auth.uid()
-    OR id IN (
-      SELECT project_id FROM public.project_checklists 
-      WHERE assigned_person = (auth.jwt() ->> 'email')
-         OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
-    )
-    OR id IN (
-      SELECT project_id FROM public.site_tickets 
-      WHERE assigned_to = auth.uid() OR reported_by = auth.uid()
-    )
+    public.is_owner()
+    OR id IN (SELECT public.get_supervisor_project_ids())
+    OR id IN (SELECT public.get_assigned_project_ids())
   );
 
 CREATE POLICY "Projects insert policy"
@@ -982,16 +1019,11 @@ CREATE POLICY "Attendance select policy"
     OR (
       public.is_supervisor()
       AND (
-        project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid())
+        project_id IN (SELECT public.get_supervisor_project_ids())
         OR project_id IS NULL
       )
     )
     OR employee_id = public.get_auth_employee_id()
-    OR employee_id IN (
-      SELECT id FROM public.employees 
-      WHERE user_id = auth.uid() 
-         OR (email IS NOT NULL AND lower(email) = lower(auth.jwt() ->> 'email'))
-    )
   );
 
 CREATE POLICY "Attendance insert policy"
@@ -1024,15 +1056,7 @@ CREATE POLICY "Expenses select policy"
     public.is_owner()
     OR (
       public.is_supervisor()
-      AND project_id IN (
-        SELECT id FROM public.projects 
-        WHERE supervisor_id = auth.uid()
-           OR id IN (
-             SELECT project_id FROM public.project_checklists 
-             WHERE assigned_person = (auth.jwt() ->> 'email')
-                OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
-           )
-      )
+      AND project_id IN (SELECT public.get_supervisor_project_ids())
     )
   );
 
@@ -1043,9 +1067,7 @@ CREATE POLICY "Expenses insert policy"
     public.is_owner()
     OR (
       public.is_supervisor()
-      AND project_id IN (
-        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
-      )
+      AND project_id IN (SELECT public.get_supervisor_project_ids())
     )
   );
 
@@ -1056,18 +1078,14 @@ CREATE POLICY "Expenses update policy"
     public.is_owner()
     OR (
       public.is_supervisor()
-      AND project_id IN (
-        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
-      )
+      AND project_id IN (SELECT public.get_supervisor_project_ids())
     )
   )
   WITH CHECK (
     public.is_owner()
     OR (
       public.is_supervisor()
-      AND project_id IN (
-        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
-      )
+      AND project_id IN (SELECT public.get_supervisor_project_ids())
     )
   );
 
@@ -1181,19 +1199,39 @@ ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Inventory select policy" ON public.inventory;
 DROP POLICY IF EXISTS "Inventory modify policy" ON public.inventory;
+DROP POLICY IF EXISTS "Inventory insert policy" ON public.inventory;
+DROP POLICY IF EXISTS "Inventory update policy" ON public.inventory;
+DROP POLICY IF EXISTS "Inventory delete policy" ON public.inventory;
 DROP POLICY IF EXISTS "Inventory history select policy" ON public.inventory_history;
 DROP POLICY IF EXISTS "Inventory history modify policy" ON public.inventory_history;
+DROP POLICY IF EXISTS "Inventory history insert policy" ON public.inventory_history;
+DROP POLICY IF EXISTS "Inventory history update policy" ON public.inventory_history;
+DROP POLICY IF EXISTS "Inventory history delete policy" ON public.inventory_history;
 DROP POLICY IF EXISTS "Authenticated read equipment" ON public.equipment;
 DROP POLICY IF EXISTS "Authenticated write equipment" ON public.equipment;
 DROP POLICY IF EXISTS "Equipment select policy" ON public.equipment;
 DROP POLICY IF EXISTS "Equipment modify policy" ON public.equipment;
+DROP POLICY IF EXISTS "Equipment insert policy" ON public.equipment;
+DROP POLICY IF EXISTS "Equipment update policy" ON public.equipment;
+DROP POLICY IF EXISTS "Equipment delete policy" ON public.equipment;
 
-CREATE POLICY "Inventory select policy" ON public.inventory FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Inventory modify policy" ON public.inventory FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
-CREATE POLICY "Inventory history select policy" ON public.inventory_history FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Inventory history modify policy" ON public.inventory_history FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+-- Inventory: Employee gets read-only; Supervisor+ can mutate; Owner+ can delete
+CREATE POLICY "Inventory select policy" ON public.inventory FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Inventory insert policy" ON public.inventory FOR INSERT TO authenticated WITH CHECK (public.is_supervisor());
+CREATE POLICY "Inventory update policy" ON public.inventory FOR UPDATE TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Inventory delete policy" ON public.inventory FOR DELETE TO authenticated USING (public.is_owner());
+
+-- Inventory history: Employee gets read-only; Supervisor+ can insert
+CREATE POLICY "Inventory history select policy" ON public.inventory_history FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Inventory history insert policy" ON public.inventory_history FOR INSERT TO authenticated WITH CHECK (public.is_supervisor());
+CREATE POLICY "Inventory history update policy" ON public.inventory_history FOR UPDATE TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Inventory history delete policy" ON public.inventory_history FOR DELETE TO authenticated USING (public.is_owner());
+
+-- Equipment: Supervisor+ full access; Employee denied
 CREATE POLICY "Equipment select policy" ON public.equipment FOR SELECT TO authenticated USING (public.is_supervisor());
-CREATE POLICY "Equipment modify policy" ON public.equipment FOR ALL TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Equipment insert policy" ON public.equipment FOR INSERT TO authenticated WITH CHECK (public.is_supervisor());
+CREATE POLICY "Equipment update policy" ON public.equipment FOR UPDATE TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Equipment delete policy" ON public.equipment FOR DELETE TO authenticated USING (public.is_owner());
 
 -- 7.9 QUOTATIONS, VENDORS, SUBCONTRACTORS & PROPERTIES (STRICTLY OWNER & ADMIN)
 ALTER TABLE public.quotations ENABLE ROW LEVEL SECURITY;
@@ -1278,16 +1316,10 @@ CREATE POLICY "Daily progress select policy"
   ON public.daily_progress FOR SELECT
   TO authenticated
   USING (
-    public.is_owner() 
+    public.is_owner()
     OR (
-      public.is_supervisor() 
-      AND project_id IN (
-        SELECT id FROM public.projects WHERE supervisor_id = auth.uid()
-      )
-    )
-    OR project_id IN (
-      SELECT project_id FROM public.project_checklists 
-      WHERE assigned_person = (auth.jwt() ->> 'email')
+      public.is_supervisor()
+      AND project_id IN (SELECT public.get_supervisor_project_ids())
     )
   );
 
@@ -1302,10 +1334,7 @@ CREATE POLICY "Project checklists select policy"
   TO authenticated
   USING (
     public.is_owner()
-    OR (
-      public.is_supervisor() 
-      AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid())
-    )
+    OR project_id IN (SELECT public.get_supervisor_project_ids())
     OR assigned_person = (auth.jwt() ->> 'email')
     OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   );
@@ -1320,13 +1349,13 @@ CREATE POLICY "Project checklists update policy"
   TO authenticated
   USING (
     public.is_owner()
-    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
+    OR project_id IN (SELECT public.get_supervisor_project_ids())
     OR assigned_person = (auth.jwt() ->> 'email')
     OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   )
   WITH CHECK (
     public.is_owner()
-    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
+    OR project_id IN (SELECT public.get_supervisor_project_ids())
     OR assigned_person = (auth.jwt() ->> 'email')
     OR assigned_person = (SELECT COALESCE(full_name, name) FROM public.profiles WHERE id = auth.uid())
   );
@@ -1340,9 +1369,9 @@ CREATE POLICY "Site tickets select policy"
   ON public.site_tickets FOR SELECT
   TO authenticated
   USING (
-    public.is_owner() 
-    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
-    OR assigned_to = auth.uid() 
+    public.is_owner()
+    OR project_id IN (SELECT public.get_supervisor_project_ids())
+    OR assigned_to = auth.uid()
     OR reported_by = auth.uid()
   );
 
@@ -1355,15 +1384,15 @@ CREATE POLICY "Site tickets update policy"
   ON public.site_tickets FOR UPDATE
   TO authenticated
   USING (
-    public.is_owner() 
-    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
-    OR assigned_to = auth.uid() 
+    public.is_owner()
+    OR project_id IN (SELECT public.get_supervisor_project_ids())
+    OR assigned_to = auth.uid()
     OR reported_by = auth.uid()
   )
   WITH CHECK (
-    public.is_owner() 
-    OR (public.is_supervisor() AND project_id IN (SELECT id FROM public.projects WHERE supervisor_id = auth.uid()))
-    OR assigned_to = auth.uid() 
+    public.is_owner()
+    OR project_id IN (SELECT public.get_supervisor_project_ids())
+    OR assigned_to = auth.uid()
     OR reported_by = auth.uid()
   );
 
@@ -1376,9 +1405,10 @@ CREATE POLICY "Ticket messages select policy"
   ON public.ticket_messages FOR SELECT
   TO authenticated
   USING (
-    public.is_owner() 
+    public.is_owner()
+    OR sender_id = auth.uid()
     OR ticket_id IN (
-      SELECT id FROM public.site_tickets 
+      SELECT id FROM public.site_tickets
       WHERE assigned_to = auth.uid() OR reported_by = auth.uid()
     )
   );

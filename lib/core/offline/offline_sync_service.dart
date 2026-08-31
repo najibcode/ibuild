@@ -253,11 +253,11 @@ class OfflineSyncService extends StateNotifier<SyncState> {
         return true;
 
       case SyncActionType.inventoryTransact:
-        await client.from('inventory_transactions').insert(payload);
+        await client.from('inventory_history').insert(payload);
         return true;
 
       case SyncActionType.dprCreate:
-        await client.from('daily_progress_reports').insert(payload);
+        await client.from('daily_progress').insert(payload);
         return true;
 
       case SyncActionType.custom:

@@ -127,16 +127,18 @@ void main() {
         'payment_ledger',
         'snags',
         'profiles',
-        'checklist_items',
+        'project_checklists',
       ];
 
       // Verify no stale aliases exist
       expect(activeCrudTables.contains('material_stock'), isFalse);
       expect(activeCrudTables.contains('vendor_bills'), isFalse);
       expect(activeCrudTables.contains('payments'), isFalse);
+      expect(activeCrudTables.contains('checklist_items'), isFalse);
       expect(activeCrudTables.contains('inventory'), isTrue);
       expect(activeCrudTables.contains('bills'), isTrue);
       expect(activeCrudTables.contains('payment_ledger'), isTrue);
+      expect(activeCrudTables.contains('project_checklists'), isTrue);
     });
 
     test('6. Security Headers CSP contains all required origins and blocks framing', () {

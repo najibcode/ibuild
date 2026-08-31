@@ -225,12 +225,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
           .onPostgresChanges(
             event: PostgresChangeEvent.all,
             schema: 'public',
-            table: 'checklist_items',
-            callback: (payload) => _onTableChanged('checklist_items'),
-          )
-          .onPostgresChanges(
-            event: PostgresChangeEvent.all,
-            schema: 'public',
             table: 'project_checklists',
             callback: (payload) => _onTableChanged('project_checklists'),
           )
@@ -248,7 +242,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
       switch (table) {
         case 'projects':
         case 'daily_progress':
-        case 'checklist_items':
         case 'project_checklists':
           ref.read(projectControllerProvider.notifier).loadProjects();
           break;
