@@ -44,7 +44,8 @@ export default {
     const headers = new Headers(response.headers);
     headers.set("Access-Control-Allow-Origin", allowOriginHeader);
     headers.set("Access-Control-Allow-Methods", "GET, POST, PUT, PATCH, DELETE, OPTIONS, HEAD");
-    headers.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, apikey, Prefer");
+    headers.set("Content-Security-Policy", "default-src 'self'; script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob: https://www.gstatic.com https://*.gstatic.com https://unpkg.com https://fonts.googleapis.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: https: blob:; connect-src 'self' https://dxjvvashdbhlfvsjfdjq.supabase.co wss://dxjvvashdbhlfvsjfdjq.supabase.co https://upload.imagekit.io https://ik.imagekit.io https://www.gstatic.com https://*.gstatic.com https://fonts.gstatic.com data: blob:; frame-ancestors 'none'; base-uri 'self'; object-src 'none';");
+    headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
     headers.set("X-Content-Type-Options", "nosniff");
     headers.set("X-Frame-Options", "DENY");
     headers.set("X-XSS-Protection", "1; mode=block");

@@ -122,6 +122,7 @@ void main() {
         'daily_progress',
         'employees',
         'inventory',
+        'inventory_transactions',
         'equipment',
         'bills',
         'payment_ledger',
@@ -136,6 +137,7 @@ void main() {
       expect(activeCrudTables.contains('payments'), isFalse);
       expect(activeCrudTables.contains('checklist_items'), isFalse);
       expect(activeCrudTables.contains('inventory'), isTrue);
+      expect(activeCrudTables.contains('inventory_transactions'), isTrue);
       expect(activeCrudTables.contains('bills'), isTrue);
       expect(activeCrudTables.contains('payment_ledger'), isTrue);
       expect(activeCrudTables.contains('project_checklists'), isTrue);

@@ -39,7 +39,7 @@ This document establishes the guidelines, naming standards, relational extension
 | **`017_production_repair_triggers_and_constraints.sql`** | **Atomic Spend Calculation Trigger** (`update_project_spent_atomic`), **Attendance Unique Constraint** (`UNIQUE (employee_id, date)`), and Metadata Sanitizer. |
 | **`018_employee_salary_and_workforce_repair.sql`** | Schema support for both `salary` and `daily_rate`, with bidirectional synchronization trigger `trg_sync_employee_rates`. |
 | **`019_attendance_wage_rate_snapshot.sql`** | Attendance historical wage snapshotting trigger (`trg_snapshot_attendance_wages`) for immutable past payroll records. |
-| **`020_strict_rls_and_non_recursive_rbac.sql`** | **Consolidated Production Security Migration**: Non-recursive `SECURITY DEFINER` role check functions, zero-recursion `user_roles` policies, table-by-table RLS denial for Employee accounts on all financial tables, and project-scoped access. |
+| **`020_strict_rls_and_non_recursive_rbac.sql`** | **Consolidated Production Security Migration**: Non-recursive `SECURITY DEFINER` role check functions, zero-recursion `user_roles` policies, table-by-table RLS denial for Employee accounts on all financial tables, `inventory_transactions` schema definition, test account role sanitization, and project-scoped access. |
 
 ---
 

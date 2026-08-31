@@ -245,6 +245,20 @@ CREATE TABLE IF NOT EXISTS public.inventory_history (
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now())
 );
 
+CREATE TABLE IF NOT EXISTS public.inventory_transactions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  inventory_id UUID REFERENCES public.inventory(id) ON DELETE CASCADE,
+  project_id UUID REFERENCES public.projects(id) ON DELETE SET NULL,
+  transaction_type TEXT NOT NULL,
+  quantity NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+  unit_price NUMERIC(12, 2) DEFAULT 0.00,
+  total_amount NUMERIC(14, 2) DEFAULT 0.00,
+  reference_number TEXT,
+  notes TEXT,
+  performed_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+  created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS public.equipment (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name TEXT NOT NULL,
@@ -472,6 +486,13 @@ SELECT
   r.id
 FROM auth.users u
 JOIN public.roles r ON r.name = LOWER(COALESCE(
+  CASE 
+    WHEN u.email ILIKE '%admin@ibuild.in%' THEN 'admin'
+    WHEN u.email ILIKE '%owner@ibuild.in%' THEN 'owner'
+    WHEN u.email ILIKE '%supervisor@ibuild.in%' THEN 'supervisor'
+    WHEN u.email ILIKE '%employee@ibuild.in%' THEN 'employee'
+    ELSE NULL
+  END,
   u.raw_user_meta_data->>'role',
   (SELECT role_display FROM public.profiles p WHERE p.id = u.id),
   CASE 
@@ -482,6 +503,81 @@ JOIN public.roles r ON r.name = LOWER(COALESCE(
   END
 ))
 ON CONFLICT (user_id) DO UPDATE SET role_id = EXCLUDED.role_id;
+
+-- Explicitly sanitize and assign standard test accounts
+DO $$
+DECLARE
+  v_admin_role UUID;
+  v_owner_role UUID;
+  v_sup_role UUID;
+  v_emp_role UUID;
+BEGIN
+  SELECT id INTO v_admin_role FROM public.roles WHERE name = 'admin' LIMIT 1;
+  SELECT id INTO v_owner_role FROM public.roles WHERE name = 'owner' LIMIT 1;
+  SELECT id INTO v_sup_role FROM public.roles WHERE name = 'supervisor' LIMIT 1;
+  SELECT id INTO v_emp_role FROM public.roles WHERE name = 'employee' LIMIT 1;
+
+  -- 1. Admin
+  UPDATE auth.users
+  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "admin"}'::jsonb
+  WHERE email ILIKE '%admin@ibuild.in%';
+
+  UPDATE public.profiles
+  SET role_display = 'admin'
+  WHERE id IN (SELECT id FROM auth.users WHERE email ILIKE '%admin@ibuild.in%');
+
+  IF v_admin_role IS NOT NULL THEN
+    INSERT INTO public.user_roles (user_id, role_id)
+    SELECT id, v_admin_role FROM auth.users WHERE email ILIKE '%admin@ibuild.in%'
+    ON CONFLICT (user_id) DO UPDATE SET role_id = v_admin_role;
+  END IF;
+
+  -- 2. Owner
+  UPDATE auth.users
+  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "owner"}'::jsonb
+  WHERE email ILIKE '%owner@ibuild.in%';
+
+  UPDATE public.profiles
+  SET role_display = 'owner'
+  WHERE id IN (SELECT id FROM auth.users WHERE email ILIKE '%owner@ibuild.in%');
+
+  IF v_owner_role IS NOT NULL THEN
+    INSERT INTO public.user_roles (user_id, role_id)
+    SELECT id, v_owner_role FROM auth.users WHERE email ILIKE '%owner@ibuild.in%'
+    ON CONFLICT (user_id) DO UPDATE SET role_id = v_owner_role;
+  END IF;
+
+  -- 3. Supervisor
+  UPDATE auth.users
+  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "supervisor"}'::jsonb
+  WHERE email ILIKE '%supervisor@ibuild.in%';
+
+  UPDATE public.profiles
+  SET role_display = 'supervisor'
+  WHERE id IN (SELECT id FROM auth.users WHERE email ILIKE '%supervisor@ibuild.in%');
+
+  IF v_sup_role IS NOT NULL THEN
+    INSERT INTO public.user_roles (user_id, role_id)
+    SELECT id, v_sup_role FROM auth.users WHERE email ILIKE '%supervisor@ibuild.in%'
+    ON CONFLICT (user_id) DO UPDATE SET role_id = v_sup_role;
+  END IF;
+
+  -- 4. Employee (Strictly employee role!)
+  UPDATE auth.users
+  SET raw_user_meta_data = COALESCE(raw_user_meta_data, '{}'::jsonb) || '{"role": "employee"}'::jsonb
+  WHERE email ILIKE '%employee@ibuild.in%';
+
+  UPDATE public.profiles
+  SET role_display = 'employee'
+  WHERE id IN (SELECT id FROM auth.users WHERE email ILIKE '%employee@ibuild.in%');
+
+  IF v_emp_role IS NOT NULL THEN
+    INSERT INTO public.user_roles (user_id, role_id)
+    SELECT id, v_emp_role FROM auth.users WHERE email ILIKE '%employee@ibuild.in%'
+    ON CONFLICT (user_id) DO UPDATE SET role_id = v_emp_role;
+  END IF;
+END;
+$$;
 
 -- ── 3. DATA REPAIR, BACKFILL & LINKING ───────────────────────
 
@@ -671,12 +767,41 @@ SET search_path = public
 AS $$
 DECLARE
   v_role text;
+  v_email text;
 BEGIN
   IF auth.uid() IS NULL THEN
     RETURN 'anonymous';
   END IF;
 
-  -- 1. JWT claim (fastest and zero-table dependency)
+  -- 1. Canonical database user_roles table (SECURITY DEFINER safely bypasses RLS without recursion)
+  SELECT lower(r.name) INTO v_role
+  FROM public.user_roles ur
+  JOIN public.roles r ON r.id = ur.role_id
+  WHERE ur.user_id = auth.uid()
+  LIMIT 1;
+
+  IF v_role IS NOT NULL AND v_role <> '' THEN
+    RETURN v_role;
+  END IF;
+
+  -- 2. Check standard test account emails
+  v_email := lower(COALESCE(auth.jwt() ->> 'email', ''));
+  IF v_email = 'admin@ibuild.in' THEN RETURN 'admin'; END IF;
+  IF v_email = 'owner@ibuild.in' THEN RETURN 'owner'; END IF;
+  IF v_email = 'supervisor@ibuild.in' THEN RETURN 'supervisor'; END IF;
+  IF v_email = 'employee@ibuild.in' THEN RETURN 'employee'; END IF;
+
+  -- 3. Profiles table
+  SELECT lower(role_display) INTO v_role
+  FROM public.profiles
+  WHERE id = auth.uid()
+  LIMIT 1;
+
+  IF v_role IS NOT NULL AND v_role <> '' THEN
+    RETURN v_role;
+  END IF;
+
+  -- 4. JWT user_metadata claim
   v_role := lower(COALESCE(
     auth.jwt() -> 'user_metadata' ->> 'role',
     auth.jwt() -> 'app_metadata' ->> 'role',
@@ -687,17 +812,7 @@ BEGIN
     RETURN v_role;
   END IF;
 
-  -- 2. Profiles table (isolated table, avoids recursion on user_roles)
-  SELECT lower(role_display) INTO v_role
-  FROM public.profiles
-  WHERE id = auth.uid()
-  LIMIT 1;
-
-  IF v_role IS NOT NULL AND v_role <> '' THEN
-    RETURN v_role;
-  END IF;
-
-  -- 3. Auth users table
+  -- 5. Auth users raw metadata
   SELECT lower((raw_user_meta_data->>'role')::text) INTO v_role
   FROM auth.users
   WHERE id = auth.uid()
@@ -1195,6 +1310,7 @@ CREATE POLICY "Project payments modify policy"
 -- 7.8 INVENTORY & EQUIPMENT
 ALTER TABLE public.inventory ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.inventory_history ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.inventory_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.equipment ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Inventory select policy" ON public.inventory;
@@ -1207,6 +1323,10 @@ DROP POLICY IF EXISTS "Inventory history modify policy" ON public.inventory_hist
 DROP POLICY IF EXISTS "Inventory history insert policy" ON public.inventory_history;
 DROP POLICY IF EXISTS "Inventory history update policy" ON public.inventory_history;
 DROP POLICY IF EXISTS "Inventory history delete policy" ON public.inventory_history;
+DROP POLICY IF EXISTS "Inventory transactions select policy" ON public.inventory_transactions;
+DROP POLICY IF EXISTS "Inventory transactions insert policy" ON public.inventory_transactions;
+DROP POLICY IF EXISTS "Inventory transactions update policy" ON public.inventory_transactions;
+DROP POLICY IF EXISTS "Inventory transactions delete policy" ON public.inventory_transactions;
 DROP POLICY IF EXISTS "Authenticated read equipment" ON public.equipment;
 DROP POLICY IF EXISTS "Authenticated write equipment" ON public.equipment;
 DROP POLICY IF EXISTS "Equipment select policy" ON public.equipment;
@@ -1226,6 +1346,12 @@ CREATE POLICY "Inventory history select policy" ON public.inventory_history FOR 
 CREATE POLICY "Inventory history insert policy" ON public.inventory_history FOR INSERT TO authenticated WITH CHECK (public.is_supervisor());
 CREATE POLICY "Inventory history update policy" ON public.inventory_history FOR UPDATE TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
 CREATE POLICY "Inventory history delete policy" ON public.inventory_history FOR DELETE TO authenticated USING (public.is_owner());
+
+-- Inventory transactions: Employee gets read-only; Supervisor+ can mutate; Owner+ can delete
+CREATE POLICY "Inventory transactions select policy" ON public.inventory_transactions FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
+CREATE POLICY "Inventory transactions insert policy" ON public.inventory_transactions FOR INSERT TO authenticated WITH CHECK (public.is_supervisor());
+CREATE POLICY "Inventory transactions update policy" ON public.inventory_transactions FOR UPDATE TO authenticated USING (public.is_supervisor()) WITH CHECK (public.is_supervisor());
+CREATE POLICY "Inventory transactions delete policy" ON public.inventory_transactions FOR DELETE TO authenticated USING (public.is_owner());
 
 -- Equipment: Supervisor+ full access; Employee denied
 CREATE POLICY "Equipment select policy" ON public.equipment FOR SELECT TO authenticated USING (public.is_supervisor());
