@@ -19,12 +19,20 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     try {
       final response = await _client
           .from('attendance')
-          .select('*, employees(name)')
+          .select('*, employees(name, salary, tea_snack_allowance)')
           .eq('date', date);
 
       final list = (response as List).map((json) {
-        final employeeName = (json['employees'] as Map?)?['name'] as String?;
-        return Attendance.fromJson(json, employeeName: employeeName);
+        final empMap = json['employees'] as Map?;
+        final employeeName = empMap?['name'] as String?;
+        final fallbackSalary = (empMap?['salary'] as num?)?.toDouble();
+        final fallbackTea = (empMap?['tea_snack_allowance'] as num?)?.toDouble();
+
+        final parsed = Attendance.fromJson(json, employeeName: employeeName);
+        return parsed.copyWith(
+          wageRate: parsed.wageRate ?? fallbackSalary,
+          teaAllowance: parsed.teaAllowance ?? fallbackTea,
+        );
       }).toList();
 
       // Cache records locally for offline access
@@ -199,9 +207,10 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     required String? projectId,
     required String date,
     required bool isPresent,
+    double? wageRate,
   }) async {
     final noteTag = '[EMP:${employee.id}]';
-    final salary = employee.salary;
+    final salary = wageRate ?? employee.salary;
 
     try {
       // Find existing auto-generated wage expense for this employee on this date

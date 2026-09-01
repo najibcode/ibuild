@@ -23,5 +23,6 @@ abstract class AttendanceRepository {
     required String? projectId,
     required String date,
     required bool isPresent,
+    double? wageRate,
   });
 }

@@ -48,9 +48,10 @@ class FakeAttendanceExpenseRepository implements AttendanceRepository {
     required String? projectId,
     required String date,
     required bool isPresent,
+    double? wageRate,
   }) async {
     final noteTag = '[EMP:${employee.id}]';
-    final salary = employee.salary;
+    final salary = wageRate ?? employee.salary;
 
     // Find existing auto-generated wage expense
     final existing = expenseStore.where((e) {

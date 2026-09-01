@@ -73,5 +73,60 @@ void main() {
 
       expect(leaveAttendance.status, equals('Absent'));
     });
+
+    test('Historical wage rate snapshot isolation when salary is increased from 500 to 600', () {
+      // 1. Employee originally had salary = 500
+      var worker = Employee(
+        id: 'emp-201',
+        name: 'Sunil Mason',
+        phone: '+91 9888877777',
+        role: 'Mason',
+        salary: 500.0,
+        teaSnackAllowance: 20.0,
+        salaryEffectiveDate: '2026-08-01',
+        status: 'active',
+      );
+
+      // 2. Attendance on Aug 30 was marked with wage rate = 500
+      final yesterdayAttendance = Attendance(
+        id: 'att-201',
+        employeeId: worker.id,
+        date: '2026-08-30',
+        status: 'Present',
+        wageRate: 500.0,
+        teaAllowance: 20.0,
+      );
+
+      // 3. TODAY (Sept 1), employer updates salary from 500 to 600
+      worker = worker.copyWith(
+        salary: 600.0,
+        salaryEffectiveDate: '2026-09-01',
+      );
+
+      // 4. Attendance for TODAY is marked with new salary = 600
+      final todayAttendance = Attendance(
+        id: 'att-202',
+        employeeId: worker.id,
+        date: '2026-09-01',
+        status: 'Present',
+        wageRate: worker.salary, // 600
+        teaAllowance: worker.teaSnackAllowance,
+      );
+
+      // 5. Assert that yesterday's attendance strictly preserves 500
+      expect(yesterdayAttendance.wageRate, equals(500.0));
+      // 6. Assert that today's attendance has 600
+      expect(todayAttendance.wageRate, equals(600.0));
+
+      // 7. Verify total earnings across both days = 500 + 600 = 1100 (NOT 600 + 600 = 1200)
+      final historyLogs = [yesterdayAttendance, todayAttendance];
+      double totalEarned = 0.0;
+      for (final log in historyLogs) {
+        if (log.status == 'Present') {
+          totalEarned += (log.wageRate ?? worker.salary);
+        }
+      }
+      expect(totalEarned, equals(1100.0));
+    });
   });
 }

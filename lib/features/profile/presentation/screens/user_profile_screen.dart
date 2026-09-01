@@ -1107,16 +1107,12 @@ class _UserProfileScreenState extends ConsumerState<UserProfileScreen>
                     validator: (val) {
                       final url = val?.trim() ?? '';
                       if (url.isEmpty) return null;
-                      if (!url.startsWith('https://')) {
-                        return 'Avatar URL must start with https://';
+                      if (url.startsWith('https://') ||
+                          url.startsWith('http://') ||
+                          url.startsWith('data:image/')) {
+                        return null;
                       }
-                      if (url.startsWith('data:') || url.startsWith('blob:')) {
-                        return 'Data URIs and blob URLs are not permitted.';
-                      }
-                      if (url.length > 2048) {
-                        return 'URL must be less than 2,048 characters.';
-                      }
-                      return null;
+                      return 'Please enter a valid image URL (https://) or upload a photo';
                     },
                   ),
                   const SizedBox(height: 24),

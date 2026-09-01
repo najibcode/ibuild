@@ -206,8 +206,18 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       }
     }
 
-    final wageSnapshot = targetEmployee?.salary ?? currentRecord?.wageRate;
-    final teaSnapshot = targetEmployee?.teaSnackAllowance ?? currentRecord?.teaAllowance;
+    final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+    final isPastDate = dateStr.compareTo(todayStr) < 0;
+
+    // For past dates with an existing recorded wage rate, strictly preserve historical wage rate!
+    // For today or future dates, use the current active employee salary.
+    final double? wageSnapshot = (isPastDate && currentRecord?.wageRate != null && currentRecord!.wageRate! > 0)
+        ? currentRecord!.wageRate
+        : (targetEmployee?.salary ?? currentRecord?.wageRate);
+
+    final double? teaSnapshot = (isPastDate && currentRecord?.teaAllowance != null && currentRecord!.teaAllowance! > 0)
+        ? currentRecord!.teaAllowance
+        : (targetEmployee?.teaSnackAllowance ?? currentRecord?.teaAllowance);
 
     final newRecord = Attendance(
       id: currentRecord?.id ?? '',
@@ -249,13 +259,14 @@ class AttendanceController extends StateNotifier<AttendanceState> {
       debugPrint('[AttendanceCtrl] site_assignments save error: $e');
     });
 
-    // Automatically sync employee salary to project expenses
+    // Automatically sync employee salary to project expenses with date-specific wage snapshot
     void doSyncExpense(Employee emp) {
       _repository.syncEmployeeSalaryExpense(
         employee: emp,
         projectId: assignedProjId,
         date: dateStr,
         isPresent: normalizedStatus == 'Present',
+        wageRate: wageSnapshot,
       ).then((_) {
         debugPrint('[AttendanceCtrl] syncEmployeeSalaryExpense completed for ${emp.name}');
         try {

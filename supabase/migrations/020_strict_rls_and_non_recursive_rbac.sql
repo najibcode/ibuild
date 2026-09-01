@@ -59,7 +59,9 @@ CREATE TABLE IF NOT EXISTS public.employees (
   photo_url TEXT,
   daily_rate NUMERIC(12, 2) DEFAULT 600.00,
   salary NUMERIC(12, 2) DEFAULT 18000.00,
-  tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  salary_effective_date DATE DEFAULT CURRENT_DATE,
+  tea_snack_allowance NUMERIC(10, 2) DEFAULT 20.00,
+  tea_allowance NUMERIC(10, 2) DEFAULT 20.00,
   status TEXT DEFAULT 'active',
   user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
@@ -73,8 +75,10 @@ ALTER TABLE public.employees
   ADD COLUMN IF NOT EXISTS email TEXT,
   ADD COLUMN IF NOT EXISTS photo_url TEXT,
   ADD COLUMN IF NOT EXISTS daily_rate NUMERIC(12, 2) DEFAULT 600.00,
-  ADD COLUMN IF NOT EXISTS salary NUMERIC(12, 2) DEFAULT 18000.00,
-  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 0.00,
+  ADD COLUMN IF NOT EXISTS salary NUMERIC(12, 2) DEFAULT 600.00,
+  ADD COLUMN IF NOT EXISTS salary_effective_date DATE DEFAULT CURRENT_DATE,
+  ADD COLUMN IF NOT EXISTS tea_snack_allowance NUMERIC(10, 2) DEFAULT 20.00,
+  ADD COLUMN IF NOT EXISTS tea_allowance NUMERIC(10, 2) DEFAULT 20.00,
   ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'active',
   ADD COLUMN IF NOT EXISTS user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ DEFAULT timezone('utc'::text, now()),
@@ -1655,6 +1659,19 @@ CREATE POLICY "Profiles delete policy"
 CREATE POLICY "App images select policy" ON public.app_images FOR SELECT TO authenticated USING (auth.uid() IS NOT NULL);
 CREATE POLICY "App images insert policy" ON public.app_images FOR INSERT TO authenticated WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "App images modify policy" ON public.app_images FOR ALL TO authenticated USING (auth.uid() = user_id OR public.is_admin()) WITH CHECK (auth.uid() = user_id OR public.is_admin());
+
+-- ── 7.12 STORAGE BUCKETS (PROFILES & PROGRESS) ────────────────
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('site-progress', 'site-progress', true), ('avatars', 'avatars', true)
+ON CONFLICT (id) DO UPDATE SET public = true;
+
+DROP POLICY IF EXISTS "Public read storage" ON storage.objects;
+DROP POLICY IF EXISTS "Auth upload storage" ON storage.objects;
+DROP POLICY IF EXISTS "Auth update storage" ON storage.objects;
+
+CREATE POLICY "Public read storage" ON storage.objects FOR SELECT USING (bucket_id IN ('site-progress', 'avatars'));
+CREATE POLICY "Auth upload storage" ON storage.objects FOR INSERT TO authenticated WITH CHECK (bucket_id IN ('site-progress', 'avatars'));
+CREATE POLICY "Auth update storage" ON storage.objects FOR UPDATE TO authenticated USING (bucket_id IN ('site-progress', 'avatars'));
 
 -- ── 8. RELOAD SCHEMA CACHE ────────────────────────────────────
 NOTIFY pgrst, 'reload schema';

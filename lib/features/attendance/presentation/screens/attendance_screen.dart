@@ -546,10 +546,16 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                           ],
                         ),
                         const SizedBox(height: 2),
-                        Text(
-                          '${employee.role.toUpperCase()} • Rate: ₹${employee.salary.toInt()}/day + ₹${employee.teaSnackAllowance.toInt()} tea',
-                          style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
-                          overflow: TextOverflow.ellipsis,
+                        Builder(
+                          builder: (context) {
+                            final effectiveWage = logged.wageRate ?? employee.salary;
+                            final effectiveTea = logged.teaAllowance ?? employee.teaSnackAllowance;
+                            return Text(
+                              '${employee.role.toUpperCase()} • Rate: ₹${effectiveWage.toInt()}/day + ₹${effectiveTea.toInt()} tea',
+                              style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                              overflow: TextOverflow.ellipsis,
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -863,7 +869,9 @@ class _AttendanceScreenState extends ConsumerState<AttendanceScreen> {
                             ),
                           );
                           final isPres = logged.status.toLowerCase() == 'present';
-                          final empCost = isPres ? (emp.salary + emp.teaSnackAllowance).toDouble() : 0.0;
+                          final effectiveWage = logged.wageRate ?? emp.salary;
+                          final effectiveTea = logged.teaAllowance ?? emp.teaSnackAllowance;
+                          final empCost = isPres ? (effectiveWage + effectiveTea).toDouble() : 0.0;
 
                           return Container(
                             margin: const EdgeInsets.only(bottom: 6),

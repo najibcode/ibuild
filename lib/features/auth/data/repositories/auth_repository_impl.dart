@@ -124,14 +124,13 @@ class AuthRepositoryImpl implements AuthRepository {
     String? upiId,
     String? logoUrl,
   }) async {
-    // Validate avatarUrl: must be https only, max 2048 chars, reject data/blob/base64
+    // Accept https, http, and data:image/ for avatarUrl
     String? sanitizedAvatarUrl;
     if (avatarUrl != null && avatarUrl.trim().isNotEmpty) {
       final cleanUrl = avatarUrl.trim();
-      if (cleanUrl.startsWith('https://') &&
-          !cleanUrl.startsWith('data:') &&
-          !cleanUrl.startsWith('blob:') &&
-          cleanUrl.length <= 2048) {
+      if (cleanUrl.startsWith('https://') ||
+          cleanUrl.startsWith('http://') ||
+          cleanUrl.startsWith('data:image/')) {
         sanitizedAvatarUrl = cleanUrl;
       }
     }

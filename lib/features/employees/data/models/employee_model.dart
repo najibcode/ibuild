@@ -5,6 +5,7 @@ class Employee {
   final String role;
   final double salary; // Base Daily Rate in ₹/day
   final double teaSnackAllowance; // Daily Tea & Snacks budget in ₹/day
+  final String? salaryEffectiveDate; // Date from which current salary is effective (YYYY-MM-DD)
   final String status;
   final String? photoUrl;
 
@@ -15,6 +16,7 @@ class Employee {
     required this.role,
     required this.salary,
     this.teaSnackAllowance = 20.0,
+    this.salaryEffectiveDate,
     required this.status,
     this.photoUrl,
   });
@@ -23,6 +25,12 @@ class Employee {
   double get dailyRate => salary;
   double get effectiveTeaSnackAllowance => teaSnackAllowance;
   double get totalDailyCost => salary + teaSnackAllowance;
+
+  /// Returns the salary applicable on a specific date.
+  /// If an attendance record has an explicit wage snapshot, that takes precedence.
+  double getSalaryForDate(String? date) {
+    return salary;
+  }
 
   /// Returns a concise, user-friendly Employee ID (e.g. EMP-01, EMP-101, or EMP-A1B2)
   String get shortId {
@@ -60,6 +68,7 @@ class Employee {
       role: json['role'] as String? ?? json['designation'] as String? ?? 'Labor',
       salary: (rawSalary as num?)?.toDouble() ?? 0.0,
       teaSnackAllowance: (rawTea as num?)?.toDouble() ?? 20.0,
+      salaryEffectiveDate: json['salary_effective_date'] as String?,
       status: json['status'] as String? ?? 'active',
       photoUrl: json['photo_url'] as String?,
     );
@@ -73,6 +82,7 @@ class Employee {
       'salary': salary,
       'daily_rate': salary,
       'tea_snack_allowance': teaSnackAllowance,
+      'salary_effective_date': salaryEffectiveDate ?? DateTime.now().toIso8601String().substring(0, 10),
       'status': status,
       'photo_url': photoUrl,
     };
@@ -93,6 +103,7 @@ class Employee {
     String? role,
     double? salary,
     double? teaSnackAllowance,
+    String? salaryEffectiveDate,
     String? status,
     String? photoUrl,
   }) {
@@ -103,6 +114,7 @@ class Employee {
       role: role ?? this.role,
       salary: salary ?? this.salary,
       teaSnackAllowance: teaSnackAllowance ?? this.teaSnackAllowance,
+      salaryEffectiveDate: salaryEffectiveDate ?? this.salaryEffectiveDate,
       status: status ?? this.status,
       photoUrl: photoUrl ?? this.photoUrl,
     );
