@@ -5,6 +5,9 @@ import 'core/navigation/mobile_nav_helper.dart';
 import 'core/utils/avatar_helper.dart';
 import 'core/services/push_notification_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
+import 'features/dashboard/presentation/controllers/homepage_widgets_provider.dart';
+import 'features/dashboard/presentation/widgets/duolingo_widgets.dart';
+import 'features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
 import 'core/widgets/notifications_dropdown.dart';
 import 'core/widgets/offline_sync_indicator.dart';
@@ -14,6 +17,7 @@ import 'features/dashboard/presentation/widgets/project_portfolio_performance_wi
 import 'features/dashboard/presentation/widgets/project_health_widget.dart';
 import 'features/dashboard/presentation/widgets/attention_required_widget.dart';
 import 'features/dashboard/presentation/widgets/portfolio_pulse_widget.dart';
+import 'features/dashboard/data/models/dashboard_stats_model.dart';
 
 import 'features/auth/presentation/controllers/auth_controller.dart';
 
@@ -38,6 +42,8 @@ class MobileDashboard extends ConsumerWidget {
 
     final statsAsync = ref.watch(dashboardStatsProvider);
     final authState = ref.watch(authControllerProvider);
+    final activeWidgets = ref.watch(homepageWidgetsProvider).where((w) => w.isEnabled).toList()
+      ..sort((a, b) => a.order.compareTo(b.order));
     final profile = authState.profile;
 
     final displayName = profile?['full_name'] as String? ??
@@ -107,10 +113,15 @@ class MobileDashboard extends ConsumerWidget {
         ),
         actions: [
           const Padding(
-            padding: EdgeInsets.only(right: 6),
+            padding: EdgeInsets.only(right: 4),
             child: Center(
               child: OfflineSyncIndicator(isCompact: true),
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary, size: 22),
+            tooltip: 'Customize Homepage',
+            onPressed: () => CustomizeDashboardModal.show(context),
           ),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.containerMargin),
@@ -218,33 +229,35 @@ class MobileDashboard extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sectionGap),
 
-            // 2. Dynamic Construction Portfolio Visualizations & Pulse
+            // 2. Render Active Customizable Widgets
             statsAsync.when(
-              data: (stats) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Portfolio Pulse Section
-                  PortfolioPulseWidget(stats: stats),
-                  const SizedBox(height: AppSpacing.sectionGap),
+              data: (stats) {
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final widgetCfg in activeWidgets) ...[
+                      _buildCustomWidget(
+                        context,
+                        widgetCfg.type,
+                        stats,
+                        onViewProjects: onViewProjects,
+                        onViewTrack: onViewTrack,
+                        onViewSupply: onViewSupply,
+                      ),
+                      const SizedBox(height: AppSpacing.sectionGap),
+                    ],
 
-                  // Attention Required Alerts
-                  AttentionRequiredWidget(
-                    alerts: stats.attentionAlerts,
-                  ),
-                  const SizedBox(height: AppSpacing.sectionGap),
+                    // Attention Required Alerts (always displayed if alerts present)
+                    if (stats.attentionAlerts.isNotEmpty) ...[
+                      AttentionRequiredWidget(alerts: stats.attentionAlerts),
+                      const SizedBox(height: AppSpacing.sectionGap),
+                    ],
 
-                  // Project Portfolio Performance List
-                  ProjectPortfolioPerformanceWidget(
-                    projects: stats.portfolioProjects,
-                  ),
-                  const SizedBox(height: AppSpacing.sectionGap),
-
-                  // Project Health Donut Chart
-                  ProjectHealthWidget(
-                    projects: stats.portfolioProjects,
-                  ),
-                ],
-              ),
+                    // Project Portfolio Performance List
+                    ProjectPortfolioPerformanceWidget(projects: stats.portfolioProjects),
+                  ],
+                );
+              },
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, s) => Container(
                 padding: const EdgeInsets.all(16),
@@ -262,5 +275,44 @@ class MobileDashboard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildCustomWidget(
+    BuildContext context,
+    DashboardWidgetType type,
+    DashboardStats stats, {
+    required VoidCallback onViewProjects,
+    required VoidCallback onViewTrack,
+    required VoidCallback onViewSupply,
+  }) {
+    switch (type) {
+      case DashboardWidgetType.dailyStreak:
+        return DuolingoStreakWidget(
+          streakDays: 14,
+          onTap: onViewTrack,
+        );
+      case DashboardWidgetType.dailyQuests:
+        return const DuolingoDailyQuestsWidget();
+      case DashboardWidgetType.powerActions:
+        return DuolingoPowerActionsWidget(
+          onAttendance: onViewTrack,
+          onDailyProgress: onViewTrack,
+          onSnags: onViewProjects,
+          onExpenses: onViewTrack,
+        );
+      case DashboardWidgetType.safetyShield:
+        return const DuolingoSafetyShieldWidget(
+          safeDays: 64,
+          safetyScore: 98.8,
+        );
+      case DashboardWidgetType.materialRadar:
+        return DuolingoMaterialRadarWidget(
+          onRestockTap: onViewSupply,
+        );
+      case DashboardWidgetType.portfolioPulse:
+        return PortfolioPulseWidget(stats: stats);
+      case DashboardWidgetType.projectHealth:
+        return ProjectHealthWidget(projects: stats.portfolioProjects);
+    }
   }
 }
