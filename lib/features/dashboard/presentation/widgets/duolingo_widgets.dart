@@ -1,24 +1,40 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
-import 'package:ibuild/features/dashboard/data/models/dashboard_stats_model.dart';
 
-// ── DUOLINGO DESIGN TOKENS ──────────────────────────────────
+// ── EXECUTIVE & PROJECT COLOR TOKENS ─────────────────────────
+/// Unified project palette tokens for executive tactile dashboard widgets.
+/// Maps directly to [AppColors] for brand consistency and dark-mode compliance.
+class ExecutiveWidgetColors {
+  static const indigo = AppColors.primary; // 0xFF1E40AF Vibrant Indigo
+  static const indigoDark = Color(0xFF172554); // Deep Navy Shadow
+  static const electricBlue = AppColors.primaryContainer; // 0xFF3B82F6 Accent Blue
+  static const blueDark = Color(0xFF1D4ED8);
+  static const emerald = AppColors.secondary; // 0xFF059669 Construction Emerald
+  static const emeraldDark = Color(0xFF047857);
+  static const amber = AppColors.warning; // 0xFFF59E0B Warm Amber
+  static const amberDark = Color(0xFFD97706);
+  static const crimson = AppColors.error; // 0xFFDC2626 Enterprise Crimson
+  static const crimsonDark = Color(0xFFB91C1C);
+  static const slateDark = AppColors.darkBackground; // 0xFF0B132B
+}
+
+/// Backwards-compatible alias for existing widget references,
+/// aligned strictly with the [AppColors] project palette.
 class DuoColors {
-  static const green = Color(0xFF58CC02);
-  static const greenDark = Color(0xFF46A302);
-  static const fireOrange = Color(0xFFFF9600);
-  static const fireDark = Color(0xFFCC7800);
-  static const gemBlue = Color(0xFF1CB0F6);
-  static const gemDark = Color(0xFF1899D6);
-  static const crownGold = Color(0xFFFFC800);
-  static const goldDark = Color(0xFFCCA000);
-  static const heartRed = Color(0xFFFF4B4B);
-  static const heartDark = Color(0xFFD63B3B);
-  static const purple = Color(0xFFCE82FF);
-  static const purpleDark = Color(0xFFA568CC);
-  static const slateDark = Color(0xFF1E293B);
+  static const green = AppColors.secondary; // 0xFF059669 Emerald
+  static const greenDark = Color(0xFF047857);
+  static const fireOrange = AppColors.warning; // 0xFFF59E0B Warm Amber
+  static const fireDark = Color(0xFFD97706);
+  static const gemBlue = AppColors.primary; // 0xFF1E40AF Deep Indigo
+  static const gemDark = Color(0xFF172554);
+  static const crownGold = Color(0xFFD97706); // Amber Gold
+  static const goldDark = Color(0xFFB45309);
+  static const heartRed = AppColors.error; // 0xFFDC2626 Enterprise Crimson
+  static const heartDark = Color(0xFFB91C1C);
+  static const purple = AppColors.primaryContainer; // 0xFF3B82F6 Electric Blue
+  static const purpleDark = Color(0xFF1D4ED8);
+  static const slateDark = AppColors.darkBackground; // 0xFF0B132B
 }
 
 // ── 3D TACTILE CARD WRAPPER ─────────────────────────────────
@@ -43,9 +59,9 @@ class DuoTactileCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
-    final bg = isDark ? const Color(0xFF1E293B) : backgroundColor;
-    final border = isDark ? const Color(0xFF334155) : borderColor;
-    final bottomShadow = isDark ? const Color(0xFF0F172A) : bottomShadowColor;
+    final bg = isDark ? AppColors.darkCard : backgroundColor;
+    final border = isDark ? AppColors.darkBorder : borderColor;
+    final bottomShadow = isDark ? const Color(0xFF080D1A) : bottomShadowColor;
 
     return Container(
       margin: const EdgeInsets.only(bottom: 4),
@@ -99,8 +115,8 @@ class DuolingoStreakWidget extends StatelessWidget {
 
     return DuoTactileCard(
       onTap: onTap,
-      borderColor: DuoColors.fireOrange.withValues(alpha: 0.3),
-      bottomShadowColor: DuoColors.fireDark.withValues(alpha: 0.4),
+      borderColor: AppColors.warning.withValues(alpha: 0.35),
+      bottomShadowColor: const Color(0xFFD97706).withValues(alpha: 0.35),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -110,14 +126,14 @@ class DuolingoStreakWidget extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [DuoColors.fireOrange, Color(0xFFFF5722)],
+                    colors: [AppColors.warning, Color(0xFFEA580C)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   ),
                   borderRadius: BorderRadius.circular(12),
                   boxShadow: [
                     BoxShadow(
-                      color: DuoColors.fireDark.withValues(alpha: 0.5),
+                      color: const Color(0xFFD97706).withValues(alpha: 0.5),
                       offset: const Offset(0, 2),
                     ),
                   ],
@@ -144,12 +160,12 @@ class DuolingoStreakWidget extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'DAILY SITE STREAK',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w900,
-                        color: DuoColors.fireOrange,
+                        color: Color(0xFFD97706),
                         letterSpacing: 1.0,
                       ),
                     ),
@@ -168,7 +184,7 @@ class DuolingoStreakWidget extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(6),
                 decoration: BoxDecoration(
-                  color: DuoColors.crownGold.withValues(alpha: 0.15),
+                  color: AppColors.warning.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
                 ),
                 child: const Text('⚡', style: TextStyle(fontSize: 14)),
@@ -192,19 +208,19 @@ class DuolingoStreakWidget extends StatelessWidget {
                     height: 34,
                     decoration: BoxDecoration(
                       color: isChecked
-                          ? DuoColors.fireOrange
+                          ? AppColors.primary
                           : AppColors.cardBg(context),
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: isToday
-                            ? DuoColors.fireDark
-                            : (isChecked ? DuoColors.fireOrange : AppColors.border(context)),
+                            ? const Color(0xFF172554)
+                            : (isChecked ? AppColors.primary : AppColors.border(context)),
                         width: isToday ? 2.5 : 1.5,
                       ),
                       boxShadow: isChecked
                           ? [
                               BoxShadow(
-                                color: DuoColors.fireDark.withValues(alpha: 0.4),
+                                color: const Color(0xFF172554).withValues(alpha: 0.35),
                                 offset: const Offset(0, 2),
                               )
                             ]
@@ -229,7 +245,7 @@ class DuolingoStreakWidget extends StatelessWidget {
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: isToday ? FontWeight.w900 : FontWeight.w600,
-                      color: isToday ? DuoColors.fireOrange : AppColors.mutedText(context),
+                      color: isToday ? AppColors.primaryColor(context) : AppColors.mutedText(context),
                     ),
                   ),
                 ],
@@ -267,8 +283,8 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
     final totalXp = _quests.where((q) => q['done'] == true).fold<int>(0, (sum, q) => sum + (q['xp'] as int));
 
     return DuoTactileCard(
-      borderColor: DuoColors.green.withValues(alpha: 0.35),
-      bottomShadowColor: DuoColors.greenDark.withValues(alpha: 0.4),
+      borderColor: AppColors.secondary.withValues(alpha: 0.35),
+      bottomShadowColor: const Color(0xFF047857).withValues(alpha: 0.35),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -280,10 +296,10 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
                   Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: DuoColors.green.withValues(alpha: 0.15),
+                      color: AppColors.secondary.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(10),
                     ),
-                    child: const Icon(Icons.emoji_events_rounded, color: DuoColors.green, size: 20),
+                    child: const Icon(Icons.emoji_events_rounded, color: AppColors.secondary, size: 20),
                   ),
                   const SizedBox(width: 8),
                   Column(
@@ -294,7 +310,7 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w900,
-                          color: DuoColors.greenDark,
+                          color: AppColors.secondary,
                           letterSpacing: 1.0,
                         ),
                       ),
@@ -313,9 +329,9 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                 decoration: BoxDecoration(
-                  color: DuoColors.crownGold.withValues(alpha: 0.2),
+                  color: AppColors.warning.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: DuoColors.crownGold, width: 1.5),
+                  border: Border.all(color: const Color(0xFFD97706), width: 1.5),
                 ),
                 child: Row(
                   children: [
@@ -336,7 +352,7 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
           ),
           const SizedBox(height: 12),
 
-          // Duolingo Style Progress Bar
+          // Project-themed Progress Bar
           ClipRRect(
             borderRadius: BorderRadius.circular(10),
             child: Stack(
@@ -351,7 +367,7 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
                     height: 12,
                     decoration: BoxDecoration(
                       gradient: const LinearGradient(
-                        colors: [DuoColors.green, Color(0xFF4ADE80)],
+                        colors: [AppColors.secondary, AppColors.secondaryContainer],
                       ),
                       borderRadius: BorderRadius.circular(10),
                     ),
@@ -370,12 +386,12 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
               decoration: BoxDecoration(
                 color: isDone
-                    ? DuoColors.green.withValues(alpha: 0.08)
+                    ? AppColors.secondary.withValues(alpha: 0.08)
                     : AppColors.bg(context),
                 borderRadius: BorderRadius.circular(10),
                 border: Border.all(
                   color: isDone
-                      ? DuoColors.green.withValues(alpha: 0.3)
+                      ? AppColors.secondary.withValues(alpha: 0.35)
                       : AppColors.border(context),
                 ),
               ),
@@ -392,10 +408,10 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
                       width: 24,
                       height: 24,
                       decoration: BoxDecoration(
-                        color: isDone ? DuoColors.green : Colors.transparent,
+                        color: isDone ? AppColors.secondary : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                         border: Border.all(
-                          color: isDone ? DuoColors.greenDark : AppColors.mutedText(context),
+                          color: isDone ? const Color(0xFF047857) : AppColors.mutedText(context),
                           width: 2,
                         ),
                       ),
@@ -421,7 +437,7 @@ class _DuolingoDailyQuestsWidgetState extends State<DuolingoDailyQuestsWidget> {
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: DuoColors.crownGold.withValues(alpha: 0.15),
+                      color: AppColors.warning.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
@@ -465,14 +481,14 @@ class DuolingoPowerActionsWidget extends StatelessWidget {
       children: [
         Row(
           children: [
-            const Text('⚡', style: TextStyle(fontSize: 14)),
+            Icon(Icons.bolt_rounded, size: 16, color: AppColors.primaryColor(context)),
             const SizedBox(width: 6),
             Text(
               'FAST ACTIONS',
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w900,
-                color: DuoColors.gemDark,
+                color: AppColors.primaryColor(context),
                 letterSpacing: 1.0,
               ),
             ),
@@ -486,8 +502,8 @@ class DuolingoPowerActionsWidget extends StatelessWidget {
                 context,
                 title: '+ Attendance',
                 icon: Icons.how_to_reg_rounded,
-                color: DuoColors.green,
-                shadowColor: DuoColors.greenDark,
+                color: AppColors.primary,
+                shadowColor: const Color(0xFF172554),
                 onTap: onAttendance,
               ),
             ),
@@ -497,8 +513,8 @@ class DuolingoPowerActionsWidget extends StatelessWidget {
                 context,
                 title: '+ Daily DPR',
                 icon: Icons.camera_alt_rounded,
-                color: DuoColors.gemBlue,
-                shadowColor: DuoColors.gemDark,
+                color: AppColors.primaryContainer,
+                shadowColor: const Color(0xFF1D4ED8),
                 onTap: onDailyProgress,
               ),
             ),
@@ -512,8 +528,8 @@ class DuolingoPowerActionsWidget extends StatelessWidget {
                 context,
                 title: '+ Site Snag',
                 icon: Icons.warning_amber_rounded,
-                color: DuoColors.fireOrange,
-                shadowColor: DuoColors.fireDark,
+                color: const Color(0xFFD97706),
+                shadowColor: const Color(0xFFB45309),
                 onTap: onSnags,
               ),
             ),
@@ -523,8 +539,8 @@ class DuolingoPowerActionsWidget extends StatelessWidget {
                 context,
                 title: '+ Expense',
                 icon: Icons.payments_rounded,
-                color: DuoColors.purple,
-                shadowColor: DuoColors.purpleDark,
+                color: AppColors.secondary,
+                shadowColor: const Color(0xFF047857),
                 onTap: onExpenses,
               ),
             ),
@@ -604,22 +620,22 @@ class DuolingoSafetyShieldWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return DuoTactileCard(
       onTap: onTap,
-      borderColor: DuoColors.gemBlue.withValues(alpha: 0.3),
-      bottomShadowColor: DuoColors.gemDark.withValues(alpha: 0.4),
+      borderColor: AppColors.primary.withValues(alpha: 0.3),
+      bottomShadowColor: const Color(0xFF172554).withValues(alpha: 0.35),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
-                colors: [DuoColors.gemBlue, Color(0xFF0284C7)],
+                colors: [AppColors.primary, AppColors.primaryContainer],
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(16),
               boxShadow: [
                 BoxShadow(
-                  color: DuoColors.gemDark.withValues(alpha: 0.5),
+                  color: const Color(0xFF172554).withValues(alpha: 0.45),
                   offset: const Offset(0, 2.5),
                 ),
               ],
@@ -633,12 +649,12 @@ class DuolingoSafetyShieldWidget extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Text(
+                    Text(
                       'ZERO INCIDENT SHIELD',
                       style: TextStyle(
                         fontSize: 10,
                         fontWeight: FontWeight.w900,
-                        color: DuoColors.gemDark,
+                        color: AppColors.primaryColor(context),
                         letterSpacing: 0.8,
                       ),
                     ),
@@ -646,7 +662,7 @@ class DuolingoSafetyShieldWidget extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: DuoColors.green.withValues(alpha: 0.15),
+                        color: AppColors.secondary.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: const Text(
@@ -654,7 +670,7 @@ class DuolingoSafetyShieldWidget extends StatelessWidget {
                         style: TextStyle(
                           fontSize: 9,
                           fontWeight: FontWeight.bold,
-                          color: DuoColors.greenDark,
+                          color: AppColors.secondary,
                         ),
                       ),
                     ),
@@ -694,25 +710,25 @@ class DuolingoMaterialRadarWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final materials = [
-      {'name': 'Cement (OPC 53)', 'level': 0.82, 'unit': '410 / 500 bags', 'status': 'Optimal', 'color': DuoColors.green},
-      {'name': 'TMT Rebar (12mm)', 'level': 0.35, 'unit': '3.5 / 10 Tons', 'status': 'Low Stock', 'color': DuoColors.fireOrange},
-      {'name': 'River Sand', 'level': 0.65, 'unit': '650 / 1000 cft', 'status': 'Optimal', 'color': DuoColors.gemBlue},
+      {'name': 'Cement (OPC 53)', 'level': 0.82, 'unit': '410 / 500 bags', 'status': 'Optimal', 'color': AppColors.secondary},
+      {'name': 'TMT Rebar (12mm)', 'level': 0.35, 'unit': '3.5 / 10 Tons', 'status': 'Low Stock', 'color': AppColors.warning},
+      {'name': 'River Sand', 'level': 0.65, 'unit': '650 / 1000 cft', 'status': 'Optimal', 'color': AppColors.primaryContainer},
     ];
 
     return DuoTactileCard(
-      borderColor: DuoColors.crownGold.withValues(alpha: 0.3),
-      bottomShadowColor: DuoColors.goldDark.withValues(alpha: 0.4),
+      borderColor: const Color(0xFFD97706).withValues(alpha: 0.3),
+      bottomShadowColor: const Color(0xFFB45309).withValues(alpha: 0.35),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
+              const Row(
                 children: [
-                  const Text('📦', style: TextStyle(fontSize: 16)),
-                  const SizedBox(width: 6),
-                  const Text(
+                  Text('📦', style: TextStyle(fontSize: 16)),
+                  SizedBox(width: 6),
+                  Text(
                     'LIVE MATERIAL RADAR',
                     style: TextStyle(
                       fontSize: 11,
@@ -729,15 +745,15 @@ class DuolingoMaterialRadarWidget extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(
-                      color: DuoColors.fireOrange.withValues(alpha: 0.15),
+                      color: AppColors.primary.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Reorder +',
                       style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: DuoColors.fireDark,
+                        color: AppColors.primaryColor(context),
                       ),
                     ),
                   ),

@@ -84,9 +84,9 @@ class _WebDashboardState extends ConsumerState<WebDashboard>
                     ElevatedButton.icon(
                       onPressed: () => CustomizeDashboardModal.show(context),
                       icon: const Icon(Icons.dashboard_customize_rounded, size: 18, color: Colors.white),
-                      label: const Text('Customize Homepage', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      label: const Text('Widget Options', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: DuoColors.green,
+                        backgroundColor: AppColors.primaryColor(context),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),

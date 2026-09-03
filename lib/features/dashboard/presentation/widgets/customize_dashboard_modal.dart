@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
 import '../controllers/homepage_widgets_provider.dart';
-import 'duolingo_widgets.dart';
 
 class CustomizeDashboardModal extends ConsumerWidget {
   const CustomizeDashboardModal({super.key});
@@ -56,7 +55,9 @@ class CustomizeDashboardModal extends ConsumerWidget {
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [DuoColors.green, DuoColors.greenDark],
+                          colors: [AppColors.primary, AppColors.primaryContainer],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
                         ),
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -67,7 +68,7 @@ class CustomizeDashboardModal extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Customize Homepage',
+                          'Dashboard Widget Options',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,
@@ -75,7 +76,7 @@ class CustomizeDashboardModal extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          'Toggle & organize your daily control widgets',
+                          'Toggle & organize widgets on your home screen',
                           style: TextStyle(
                             fontSize: 12,
                             color: AppColors.mutedText(context),
@@ -109,20 +110,21 @@ class CustomizeDashboardModal extends ConsumerWidget {
                   margin: const EdgeInsets.only(bottom: 12),
                   decoration: BoxDecoration(
                     color: isEnabled
-                        ? (isDark ? const Color(0xFF1E293B) : Colors.white)
+                        ? (isDark ? AppColors.darkCard : Colors.white)
                         : (isDark ? const Color(0xFF0F172A) : const Color(0xFFF8FAFC)),
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: isEnabled
-                          ? DuoColors.gemBlue.withValues(alpha: 0.4)
+                          ? AppColors.primary.withValues(alpha: 0.5)
                           : AppColors.border(context),
                       width: isEnabled ? 2 : 1,
                     ),
                     boxShadow: isEnabled
                         ? [
                             BoxShadow(
-                              color: DuoColors.gemDark.withValues(alpha: 0.15),
+                              color: AppColors.primary.withValues(alpha: 0.12),
                               offset: const Offset(0, 3),
+                              blurRadius: 4,
                             ),
                           ]
                         : null,
@@ -133,13 +135,13 @@ class CustomizeDashboardModal extends ConsumerWidget {
                       padding: const EdgeInsets.all(10),
                       decoration: BoxDecoration(
                         color: isEnabled
-                            ? DuoColors.gemBlue.withValues(alpha: 0.15)
+                            ? AppColors.primary.withValues(alpha: 0.12)
                             : AppColors.mutedText(context).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: Icon(
                         type.icon,
-                        color: isEnabled ? DuoColors.gemBlue : AppColors.mutedText(context),
+                        color: isEnabled ? AppColors.primaryColor(context) : AppColors.mutedText(context),
                         size: 22,
                       ),
                     ),
@@ -162,7 +164,8 @@ class CustomizeDashboardModal extends ConsumerWidget {
                     ),
                     trailing: Switch.adaptive(
                       value: isEnabled,
-                      activeColor: DuoColors.green,
+                      activeThumbColor: AppColors.primaryColor(context),
+                      activeTrackColor: AppColors.primaryColor(context).withValues(alpha: 0.4),
                       onChanged: (val) {
                         HapticFeedback.lightImpact();
                         notifier.toggleWidget(type, val);
@@ -203,11 +206,11 @@ class CustomizeDashboardModal extends ConsumerWidget {
                   flex: 2,
                   child: Container(
                     decoration: BoxDecoration(
-                      color: DuoColors.green,
+                      color: AppColors.primaryColor(context),
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: const [
                         BoxShadow(
-                          color: DuoColors.greenDark,
+                          color: Color(0xFF172554),
                           offset: Offset(0, 4),
                         ),
                       ],
@@ -220,8 +223,8 @@ class CustomizeDashboardModal extends ConsumerWidget {
                           Navigator.pop(context);
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Homepage widgets updated ✓'),
-                              backgroundColor: DuoColors.green,
+                              content: Text('Dashboard widgets updated ✓'),
+                              backgroundColor: AppColors.secondary,
                               behavior: SnackBarBehavior.floating,
                               duration: Duration(seconds: 2),
                             ),
