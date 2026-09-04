@@ -22,6 +22,8 @@ import 'features/projects/presentation/controllers/project_controller.dart';
 import 'mobile_dashboard.dart';
 import 'features/attendance/presentation/screens/attendance_screen.dart';
 import 'features/attendance/presentation/controllers/attendance_controller.dart';
+import 'features/daily_progress/presentation/screens/daily_progress_screen.dart';
+import 'features/projects/data/models/project_model.dart';
 import 'features/employees/presentation/screens/employee_list_screen.dart';
 import 'features/settings/presentation/screens/settings_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
@@ -118,7 +120,8 @@ enum MobileScreen {
 }
 
 class MainRouterScreen extends ConsumerStatefulWidget {
-  const MainRouterScreen({super.key});
+  final String? initialTab;
+  const MainRouterScreen({super.key, this.initialTab});
 
   @override
   ConsumerState<MainRouterScreen> createState() => _MainRouterScreenState();
@@ -151,11 +154,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> with Widget
     HomeWidgetSyncService.initializeWidgetListeners(
       onRoute: (route) {
         if (!mounted) return;
-        if (route == '/attendance') {
-          _setMobileTab(MobileScreen.attendance);
-        } else if (route == '/projects') {
-          _setMobileTab(MobileScreen.projectsList);
-        }
+        _handleTargetRoute(route);
       },
       onRefreshRequested: () {
         ref.invalidate(dashboardStatsProvider);
@@ -168,12 +167,14 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> with Widget
     // Check if app was launched directly from an Android Home Screen Widget action
     HomeWidgetSyncService.getInitialWidgetRoute().then((route) {
       if (!mounted || route == null) return;
-      if (route == '/attendance') {
-        _setMobileTab(MobileScreen.attendance);
-      } else if (route == '/projects') {
-        _setMobileTab(MobileScreen.projectsList);
-      }
+      _handleTargetRoute(route);
     });
+
+    if (widget.initialTab != null && widget.initialTab!.isNotEmpty) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleTargetRoute(widget.initialTab!);
+      });
+    }
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
@@ -184,6 +185,18 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> with Widget
         }).catchError((_) {});
       }
     });
+  }
+
+  @override
+  void didUpdateWidget(covariant MainRouterScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.initialTab != null &&
+        widget.initialTab!.isNotEmpty &&
+        widget.initialTab != oldWidget.initialTab) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _handleTargetRoute(widget.initialTab!);
+      });
+    }
   }
 
   @override
@@ -357,6 +370,254 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> with Widget
 
   // Get current active mobile screen
   MobileScreen get _currentMobileScreen => _mobileNavStack.last;
+
+  /// Handles deep-linking and widget button clicks seamlessly without route crashes
+  void _handleTargetRoute(String route) {
+    if (!mounted) return;
+    final cleanRoute = route.replaceAll('/', '').trim().toLowerCase();
+    if (cleanRoute == 'attendance') {
+      _setMobileTab(MobileScreen.attendance);
+    } else if (cleanRoute == 'projects') {
+      _setMobileTab(MobileScreen.projectsList);
+    } else if (cleanRoute == 'dpr' || cleanRoute == 'daily_progress') {
+      _openDprFlow();
+    }
+  }
+
+  /// Opens the DPR workflow: switches to projects and launches project selector or screen
+  Future<void> _openDprFlow() async {
+    if (!mounted) return;
+    _setMobileTab(MobileScreen.projectsList);
+
+    var projects = ref.read(projectControllerProvider).projects;
+    if (projects.isEmpty) {
+      await ref.read(projectControllerProvider.notifier).loadProjects();
+      projects = ref.read(projectControllerProvider).projects;
+    }
+
+    if (!mounted) return;
+
+    if (projects.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('No projects found. Create a project first to log Daily Progress (DPR).'),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (projects.length == 1) {
+      _navigateToDprScreen(projects.first);
+      return;
+    }
+
+    _showDprProjectSelectorModal(projects);
+  }
+
+  void _navigateToDprScreen(Project project) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => DailyProgressScreen(
+          projectId: project.id,
+          projectName: project.name,
+        ),
+      ),
+    );
+  }
+
+  void _showDprProjectSelectorModal(List<Project> projects) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) {
+        return Container(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.75,
+          ),
+          decoration: BoxDecoration(
+            color: AppColors.cardBg(sheetContext),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.15),
+                blurRadius: 20,
+                offset: const Offset(0, -4),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Pull handle
+              Container(
+                margin: const EdgeInsets.only(top: 12, bottom: 8),
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border(sheetContext),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(
+                        Icons.camera_enhance_rounded,
+                        color: AppColors.primary,
+                        size: 22,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Daily Progress Report (DPR)',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.text(sheetContext),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Text(
+                            'Select project to record site work & photos',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: AppColors.mutedText(sheetContext),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.close, color: AppColors.mutedText(sheetContext), size: 20),
+                      onPressed: () => Navigator.pop(sheetContext),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(height: 1),
+              // Projects List
+              Flexible(
+                child: ListView.separated(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  itemCount: projects.length,
+                  separatorBuilder: (context, index) => const SizedBox(height: 8),
+                  itemBuilder: (ctx, index) {
+                    final project = projects[index];
+                    final isCompleted = project.status.toLowerCase() == 'completed';
+                    final statusColor = isCompleted
+                        ? Colors.grey
+                        : (project.status.toLowerCase() == 'delayed'
+                            ? Colors.redAccent
+                            : AppColors.primary);
+
+                    return Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: () {
+                          Navigator.pop(sheetContext);
+                          _navigateToDprScreen(project);
+                        },
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: AppColors.cardBg(ctx),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: AppColors.border(ctx)),
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 40,
+                                height: 40,
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Icon(
+                                  Icons.foundation_rounded,
+                                  color: statusColor,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      project.name,
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.bold,
+                                        color: AppColors.text(ctx),
+                                      ),
+                                    ),
+                                    if (project.clientName != null && project.clientName!.isNotEmpty) ...[
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        project.clientName!,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: AppColors.mutedText(ctx),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.1),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: Text(
+                                  project.status.toUpperCase(),
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    color: statusColor,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Icon(
+                                Icons.chevron_right_rounded,
+                                color: AppColors.mutedText(ctx),
+                                size: 20,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 16),
+            ],
+          ),
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

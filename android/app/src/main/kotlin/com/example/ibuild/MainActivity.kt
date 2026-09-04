@@ -14,11 +14,15 @@ class MainActivity : FlutterActivity() {
     private var initialRoute: String? = null
     private var refreshReceiver: BroadcastReceiver? = null
 
+    override fun getInitialRoute(): String {
+        return "/dashboard"
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
 
-        // Capture route from widget intent
-        initialRoute = intent?.getStringExtra("route")
+        // Capture target screen from widget intent
+        initialRoute = intent?.getStringExtra("target_screen") ?: intent?.getStringExtra("route")
 
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
         channel.setMethodCallHandler { call, result ->
@@ -82,9 +86,9 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        val route = intent.getStringExtra("route")
-        if (route != null && flutterEngine != null) {
-            MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, CHANNEL).invokeMethod("onWidgetRoute", route)
+        val target = intent.getStringExtra("target_screen") ?: intent.getStringExtra("route")
+        if (target != null && flutterEngine != null) {
+            MethodChannel(flutterEngine!!.dartExecutor.binaryMessenger, CHANNEL).invokeMethod("onWidgetRoute", target)
         }
     }
 

@@ -29,9 +29,13 @@ class HomeWidgetSyncService {
           ? ((stats.employeesPresent / stats.totalEmployees) * 100).round()
           : 0;
 
-      final streakSub = stats.atRiskCount > 0
-          ? '${stats.atRiskCount} At-Risk'
-          : 'Zero Incidents';
+      final atRiskText = stats.atRiskCount == 0
+          ? '0 At-Risk'
+          : '${stats.atRiskCount} At-Risk';
+
+      final atRiskSub = stats.atRiskCount == 0
+          ? (stats.delayedProjects == 0 ? 'All Sites OK' : '${stats.delayedProjects} Delayed')
+          : (stats.delayedProjects > 0 ? '${stats.delayedProjects} Delayed' : 'Attention Needed');
 
       await _channel.invokeMethod('updateWidgetData', {
         'portfolioValue': CurrencyFormatter.formatCompact(stats.totalBudget),
@@ -41,8 +45,8 @@ class HomeWidgetSyncService {
         'totalProjects': '${stats.totalProjects} Total',
         'todayAttendance': '${stats.employeesPresent} / ${stats.totalEmployees}',
         'attendancePct': '$attendanceRate% On-Site',
-        'streakDays': '$streakDays Days',
-        'streakSub': streakSub,
+        'streakDays': atRiskText,
+        'streakSub': atRiskSub,
         'lastUpdated': timeStr,
       });
     } catch (e) {

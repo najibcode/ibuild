@@ -74,8 +74,8 @@ class IBuildAppWidgetProvider : AppWidgetProvider() {
             val totalProjects = prefs.getString(KEY_TOTAL_PROJECTS, "0 Total") ?: "0 Total"
             val todayAttendance = prefs.getString(KEY_TODAY_ATTENDANCE, "0 / 0") ?: "0 / 0"
             val attendancePct = prefs.getString(KEY_ATTENDANCE_PCT, "0% On-Site") ?: "0% On-Site"
-            val streakDays = prefs.getString(KEY_STREAK_DAYS, "14 Days") ?: "14 Days"
-            val streakSub = prefs.getString(KEY_STREAK_SUB, "Zero Incidents") ?: "Zero Incidents"
+            val streakDays = prefs.getString(KEY_STREAK_DAYS, "0 At-Risk") ?: "0 At-Risk"
+            val streakSub = prefs.getString(KEY_STREAK_SUB, "All Sites Normal") ?: "All Sites Normal"
             val lastUpdated = prefs.getString(KEY_LAST_UPDATED, "Last sync: Just now") ?: "Last sync: Just now"
 
             val views = RemoteViews(context.packageName, R.layout.ibuild_appwidget).apply {
@@ -96,7 +96,7 @@ class IBuildAppWidgetProvider : AppWidgetProvider() {
                 setTextViewText(R.id.widget_site_streak, streakDays)
                 setTextViewText(R.id.widget_streak_sub, streakSub)
 
-                // 1. Root click launches main app
+                // 1. Root click launches main app dashboard
                 val rootIntent = Intent(context, MainActivity::class.java).apply {
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
@@ -123,7 +123,7 @@ class IBuildAppWidgetProvider : AppWidgetProvider() {
                 // 3. Projects box click launches Projects screen
                 val projectsIntent = Intent(context, MainActivity::class.java).apply {
                     action = ACTION_OPEN_PROJECTS
-                    putExtra("route", "/projects")
+                    putExtra("target_screen", "projects")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
                 val projectsPendingIntent = PendingIntent.getActivity(
@@ -137,7 +137,7 @@ class IBuildAppWidgetProvider : AppWidgetProvider() {
                 // 4. Attendance button & box click launch Attendance
                 val attendanceIntent = Intent(context, MainActivity::class.java).apply {
                     action = ACTION_OPEN_ATTENDANCE
-                    putExtra("route", "/attendance")
+                    putExtra("target_screen", "attendance")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
                 val attendancePendingIntent = PendingIntent.getActivity(
@@ -149,10 +149,10 @@ class IBuildAppWidgetProvider : AppWidgetProvider() {
                 setOnClickPendingIntent(R.id.widget_btn_attendance, attendancePendingIntent)
                 setOnClickPendingIntent(R.id.widget_box_attendance, attendancePendingIntent)
 
-                // 5. Quick DPR button & streak box launch DPR / Projects
+                // 5. Quick DPR button & health box launch Daily DPR
                 val dprIntent = Intent(context, MainActivity::class.java).apply {
                     action = ACTION_OPEN_DPR
-                    putExtra("route", "/projects")
+                    putExtra("target_screen", "dpr")
                     flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
                 }
                 val dprPendingIntent = PendingIntent.getActivity(

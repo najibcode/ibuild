@@ -53,12 +53,28 @@ final routerProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/dashboard',
-        builder: (context, state) => const MainRouterScreen(),
+        builder: (context, state) {
+          final tab = state.uri.queryParameters['tab'];
+          return MainRouterScreen(initialTab: tab);
+        },
+      ),
+      GoRoute(
+        path: '/attendance',
+        redirect: (context, state) => '/dashboard?tab=attendance',
+      ),
+      GoRoute(
+        path: '/projects',
+        redirect: (context, state) => '/dashboard?tab=projects',
+      ),
+      GoRoute(
+        path: '/dpr',
+        redirect: (context, state) => '/dashboard?tab=dpr',
       ),
       GoRoute(
         path: '/profile',
         builder: (context, state) => const UserProfileScreen(),
       ),
     ],
+    errorBuilder: (context, state) => const MainRouterScreen(),
   );
 });
