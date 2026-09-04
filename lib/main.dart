@@ -15,6 +15,7 @@ import 'core/widgets/web_sidebar.dart';
 import 'core/widgets/offline_sync_indicator.dart';
 import 'core/offline/offline_sync_service.dart';
 import 'core/offline/offline_data_cache.dart';
+import 'core/services/home_widget_sync_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
 import 'features/projects/presentation/controllers/project_controller.dart';
 
@@ -123,7 +124,7 @@ class MainRouterScreen extends ConsumerStatefulWidget {
   ConsumerState<MainRouterScreen> createState() => _MainRouterScreenState();
 }
 
-class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
+class _MainRouterScreenState extends ConsumerState<MainRouterScreen> with WidgetsBindingObserver {
   // Navigation history stack for mobile view
   final List<MobileScreen> _mobileNavStack = [MobileScreen.dashboard];
 
@@ -136,6 +137,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _subscribeToRealtimeSync();
     _authSubscription = Supabase.instance.client.auth.onAuthStateChange.listen((data) {
       if (data.event == AuthChangeEvent.passwordRecovery) {
@@ -144,11 +146,55 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
         }
       }
     });
+
+    // Initialize Home Screen Widget route listener and on-demand refresh listener
+    HomeWidgetSyncService.initializeWidgetListeners(
+      onRoute: (route) {
+        if (!mounted) return;
+        if (route == '/attendance') {
+          _setMobileTab(MobileScreen.attendance);
+        } else if (route == '/projects') {
+          _setMobileTab(MobileScreen.projectsList);
+        }
+      },
+      onRefreshRequested: () {
+        ref.invalidate(dashboardStatsProvider);
+        ref.read(dashboardStatsProvider.future).then((stats) {
+          HomeWidgetSyncService.syncDashboardStats(stats);
+        }).catchError((_) {});
+      },
+    );
+
+    // Check if app was launched directly from an Android Home Screen Widget action
+    HomeWidgetSyncService.getInitialWidgetRoute().then((route) {
+      if (!mounted || route == null) return;
+      if (route == '/attendance') {
+        _setMobileTab(MobileScreen.attendance);
+      } else if (route == '/projects') {
+        _setMobileTab(MobileScreen.projectsList);
+      }
+    });
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         ref.read(pushNotificationServiceProvider).initializeRealtimeListener(context);
+        // Initial sync of widget with fresh dashboard metrics
+        ref.read(dashboardStatsProvider.future).then((stats) {
+          HomeWidgetSyncService.syncDashboardStats(stats);
+        }).catchError((_) {});
       }
     });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // Auto-sync widget metrics whenever user returns to the app
+      ref.invalidate(dashboardStatsProvider);
+      ref.read(dashboardStatsProvider.future).then((stats) {
+        HomeWidgetSyncService.syncDashboardStats(stats);
+      }).catchError((_) {});
+    }
   }
 
   void _subscribeToRealtimeSync() {
@@ -274,6 +320,7 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _realtimeChannel?.unsubscribe();
     _authSubscription?.cancel();
     super.dispose();
@@ -313,6 +360,13 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Keep Android Home Screen Widget constantly synced whenever stats change
+    ref.listen(dashboardStatsProvider, (previous, next) {
+      next.whenData((stats) {
+        HomeWidgetSyncService.syncDashboardStats(stats);
+      });
+    });
+
     final session = Supabase.instance.client.auth.currentSession;
     final authState = ref.watch(authControllerProvider);
     final profile = authState.profile;

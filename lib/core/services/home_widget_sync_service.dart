@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:ibuild/core/utils/currency_formatter.dart';
 import 'package:ibuild/features/dashboard/data/models/dashboard_stats_model.dart';
 
 /// Service that bridges live Flutter app data to the native Android Home Screen Widget (AppWidget).
 class HomeWidgetSyncService {
   static const MethodChannel _channel = MethodChannel('com.example.ibuild/widget');
+  static VoidCallback? _onRefreshRequestedCallback;
 
-  /// Push updated site metrics to the Android Home Screen Widget.
+  /// Push updated executive & site metrics to the Android Home Screen Widget.
   static Future<void> syncDashboardStats(DashboardStats stats, {int streakDays = 14}) async {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return;
@@ -14,12 +16,33 @@ class HomeWidgetSyncService {
 
     try {
       final now = DateTime.now();
-      final timeStr = 'Updated ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+      final period = now.hour >= 12 ? 'PM' : 'AM';
+      final hour = now.hour == 0 ? 12 : (now.hour > 12 ? now.hour - 12 : now.hour);
+      final minute = now.minute.toString().padLeft(2, '0');
+      final timeStr = 'Last sync: $hour:$minute $period';
+
+      final utilization = stats.totalBudget > 0
+          ? ((stats.totalSpent / stats.totalBudget) * 100).round()
+          : 0;
+
+      final attendanceRate = stats.totalEmployees > 0
+          ? ((stats.employeesPresent / stats.totalEmployees) * 100).round()
+          : 0;
+
+      final streakSub = stats.atRiskCount > 0
+          ? '${stats.atRiskCount} At-Risk'
+          : 'Zero Incidents';
 
       await _channel.invokeMethod('updateWidgetData', {
+        'portfolioValue': CurrencyFormatter.formatCompact(stats.totalBudget),
+        'totalSpent': CurrencyFormatter.formatCompact(stats.totalSpent),
+        'budgetUtilizationPct': utilization,
         'activeProjects': '${stats.activeProjects} Active',
+        'totalProjects': '${stats.totalProjects} Total',
         'todayAttendance': '${stats.employeesPresent} / ${stats.totalEmployees}',
+        'attendancePct': '$attendanceRate% On-Site',
         'streakDays': '$streakDays Days',
+        'streakSub': streakSub,
         'lastUpdated': timeStr,
       });
     } catch (e) {
@@ -41,18 +64,28 @@ class HomeWidgetSyncService {
     }
   }
 
-  /// Listen for widget clicks while app is already running in background.
-  static void initializeRouteListener(Function(String route) onRoute) {
+  /// Initialize listeners for widget interactions (route navigation & TradingView-style refresh clicks).
+  static void initializeWidgetListeners({
+    required Function(String route) onRoute,
+    VoidCallback? onRefreshRequested,
+  }) {
     if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
       return;
     }
 
+    _onRefreshRequestedCallback = onRefreshRequested;
+
     _channel.setMethodCallHandler((call) async {
-      if (call.method == 'onWidgetRoute') {
-        final route = call.arguments as String?;
-        if (route != null && route.isNotEmpty) {
-          onRoute(route);
-        }
+      switch (call.method) {
+        case 'onWidgetRoute':
+          final route = call.arguments as String?;
+          if (route != null && route.isNotEmpty) {
+            onRoute(route);
+          }
+          break;
+        case 'onRefreshRequested':
+          _onRefreshRequestedCallback?.call();
+          break;
       }
     });
   }
