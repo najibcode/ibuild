@@ -5,9 +5,7 @@ import 'core/navigation/mobile_nav_helper.dart';
 import 'core/utils/avatar_helper.dart';
 import 'core/services/push_notification_service.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
-import 'features/dashboard/presentation/controllers/homepage_widgets_provider.dart';
-import 'features/dashboard/presentation/widgets/duolingo_widgets.dart';
-import 'features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
+
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
 import 'core/widgets/notifications_dropdown.dart';
 import 'core/widgets/offline_sync_indicator.dart';
@@ -18,7 +16,6 @@ import 'features/dashboard/presentation/widgets/project_portfolio_performance_wi
 import 'features/dashboard/presentation/widgets/project_health_widget.dart';
 import 'features/dashboard/presentation/widgets/attention_required_widget.dart';
 import 'features/dashboard/presentation/widgets/portfolio_pulse_widget.dart';
-import 'features/dashboard/data/models/dashboard_stats_model.dart';
 
 import 'features/auth/presentation/controllers/auth_controller.dart';
 
@@ -43,8 +40,6 @@ class MobileDashboard extends ConsumerWidget {
 
     final statsAsync = ref.watch(dashboardStatsProvider);
     final authState = ref.watch(authControllerProvider);
-    final activeWidgets = ref.watch(homepageWidgetsProvider).where((w) => w.isEnabled).toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
     final profile = authState.profile;
 
     final displayName = profile?['full_name'] as String? ??
@@ -114,15 +109,10 @@ class MobileDashboard extends ConsumerWidget {
         ),
         actions: [
           const Padding(
-            padding: EdgeInsets.only(right: 4),
+            padding: EdgeInsets.only(right: 6),
             child: Center(
               child: OfflineSyncIndicator(isCompact: true),
             ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary, size: 22),
-            tooltip: 'Widget Options',
-            onPressed: () => CustomizeDashboardModal.show(context),
           ),
           Padding(
             padding: const EdgeInsets.only(right: AppSpacing.containerMargin),
@@ -230,7 +220,7 @@ class MobileDashboard extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sectionGap),
 
-            // 2. Render Active Customizable Widgets with Header & Options
+            // 2. Dynamic Construction Portfolio Visualizations & Pulse
             statsAsync.when(
               data: (stats) {
                 // Sync live metrics to Android Home Screen Widget (AppWidget)
@@ -239,140 +229,26 @@ class MobileDashboard extends ConsumerWidget {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Section header with prominent Widget Options button
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.widgets_outlined,
-                              size: 16,
-                              color: AppColors.primaryColor(context),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              'DASHBOARD WIDGETS',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.w900,
-                                color: AppColors.primaryColor(context),
-                                letterSpacing: 1.0,
-                              ),
-                            ),
-                          ],
-                        ),
-                        InkWell(
-                          onTap: () => CustomizeDashboardModal.show(context),
-                          borderRadius: BorderRadius.circular(20),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AppColors.primaryColor(context).withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: AppColors.primaryColor(context).withValues(alpha: 0.25),
-                              ),
-                            ),
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Icon(
-                                  Icons.dashboard_customize_outlined,
-                                  size: 14,
-                                  color: AppColors.primaryColor(context),
-                                ),
-                                const SizedBox(width: 4),
-                                Text(
-                                  'Widget Options',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.bold,
-                                    color: AppColors.primaryColor(context),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
+                    // Portfolio Pulse Section
+                    PortfolioPulseWidget(stats: stats),
+                    const SizedBox(height: AppSpacing.sectionGap),
+
+                    // Attention Required Alerts
+                    AttentionRequiredWidget(
+                      alerts: stats.attentionAlerts,
                     ),
-                    const SizedBox(height: AppSpacing.stackSm),
-
-                    // Fallback when no widgets are active
-                    if (activeWidgets.isEmpty) ...[
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: AppColors.cardBg(context),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border(context)),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(
-                              Icons.dashboard_customize_outlined,
-                              size: 36,
-                              color: AppColors.primaryColor(context).withValues(alpha: 0.6),
-                            ),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No Active Widgets',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                                color: AppColors.text(context),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              'Customize your homepage to add streaks, quick actions, safety metrics, and live radars.',
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: AppColors.mutedText(context),
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ElevatedButton.icon(
-                              onPressed: () => CustomizeDashboardModal.show(context),
-                              icon: const Icon(Icons.tune_rounded, size: 16),
-                              label: const Text('Configure Widgets'),
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.primaryColor(context),
-                                foregroundColor: Colors.white,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: AppSpacing.sectionGap),
-                    ],
-
-                    for (final widgetCfg in activeWidgets) ...[
-                      _buildCustomWidget(
-                        context,
-                        widgetCfg.type,
-                        stats,
-                        onViewProjects: onViewProjects,
-                        onViewTrack: onViewTrack,
-                        onViewSupply: onViewSupply,
-                      ),
-                      const SizedBox(height: AppSpacing.sectionGap),
-                    ],
-
-                    // Attention Required Alerts (always displayed if alerts present)
-                    if (stats.attentionAlerts.isNotEmpty) ...[
-                      AttentionRequiredWidget(alerts: stats.attentionAlerts),
-                      const SizedBox(height: AppSpacing.sectionGap),
-                    ],
+                    const SizedBox(height: AppSpacing.sectionGap),
 
                     // Project Portfolio Performance List
-                    ProjectPortfolioPerformanceWidget(projects: stats.portfolioProjects),
+                    ProjectPortfolioPerformanceWidget(
+                      projects: stats.portfolioProjects,
+                    ),
+                    const SizedBox(height: AppSpacing.sectionGap),
+
+                    // Project Health Donut Chart
+                    ProjectHealthWidget(
+                      projects: stats.portfolioProjects,
+                    ),
                   ],
                 );
               },
@@ -393,44 +269,5 @@ class MobileDashboard extends ConsumerWidget {
         ),
       ),
     );
-  }
-
-  Widget _buildCustomWidget(
-    BuildContext context,
-    DashboardWidgetType type,
-    DashboardStats stats, {
-    required VoidCallback onViewProjects,
-    required VoidCallback onViewTrack,
-    required VoidCallback onViewSupply,
-  }) {
-    switch (type) {
-      case DashboardWidgetType.dailyStreak:
-        return DuolingoStreakWidget(
-          streakDays: 14,
-          onTap: onViewTrack,
-        );
-      case DashboardWidgetType.dailyQuests:
-        return const DuolingoDailyQuestsWidget();
-      case DashboardWidgetType.powerActions:
-        return DuolingoPowerActionsWidget(
-          onAttendance: onViewTrack,
-          onDailyProgress: onViewTrack,
-          onSnags: onViewProjects,
-          onExpenses: onViewTrack,
-        );
-      case DashboardWidgetType.safetyShield:
-        return const DuolingoSafetyShieldWidget(
-          safeDays: 64,
-          safetyScore: 98.8,
-        );
-      case DashboardWidgetType.materialRadar:
-        return DuolingoMaterialRadarWidget(
-          onRestockTap: onViewSupply,
-        );
-      case DashboardWidgetType.portfolioPulse:
-        return PortfolioPulseWidget(stats: stats);
-      case DashboardWidgetType.projectHealth:
-        return ProjectHealthWidget(projects: stats.portfolioProjects);
-    }
   }
 }

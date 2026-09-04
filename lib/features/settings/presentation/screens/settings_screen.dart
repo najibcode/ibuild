@@ -12,7 +12,6 @@ import 'package:ibuild/features/profile/presentation/screens/user_profile_screen
 import 'package:ibuild/features/admin/presentation/widgets/admin_overview_tab.dart';
 import 'package:ibuild/features/admin/presentation/widgets/admin_user_management_tab.dart';
 import 'package:ibuild/features/admin/presentation/widgets/admin_audit_log_tab.dart';
-import 'package:ibuild/features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 
 // State Provider to hold draft theme selection before user clicks Apply
 final draftThemeSelectionProvider = StateProvider<ThemeMode>((ref) {
@@ -468,91 +467,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> with SingleTick
                         : AppColors.secondary,
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: 24),
-
-        // Dashboard Widgets Configuration Section
-        Text(
-          'DASHBOARD & WIDGET OPTIONS',
-          style: TextStyle(
-            fontSize: 11,
-            color: mutedText,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: cardBg,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: borderCol),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.all(8),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryColor(context).withValues(alpha: 0.12),
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: Icon(
-                      Icons.dashboard_customize_outlined,
-                      color: AppColors.primaryColor(context),
-                      size: 20,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Homepage Widgets',
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                            color: AppColors.text(context),
-                          ),
-                        ),
-                        Text(
-                          'Toggle & organize executive widgets on your home screen',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: mutedText,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  onPressed: () => CustomizeDashboardModal.show(context),
-                  icon: const Icon(Icons.tune_rounded, size: 16),
-                  label: const Text(
-                    'Configure Dashboard Widgets',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                  ),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColors.primaryColor(context),
-                    side: BorderSide(color: AppColors.primaryColor(context).withValues(alpha: 0.3)),
-                    padding: const EdgeInsets.symmetric(vertical: 12),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10),
                     ),

@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/theme/app_colors.dart';
 import 'features/dashboard/presentation/controllers/dashboard_controller.dart';
-import 'features/dashboard/presentation/controllers/homepage_widgets_provider.dart';
-import 'features/dashboard/presentation/widgets/duolingo_widgets.dart';
-import 'features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 import 'features/profile/presentation/screens/user_profile_screen.dart';
 
 import 'features/dashboard/presentation/widgets/dashboard_kpi_cards.dart';
@@ -47,8 +44,6 @@ class _WebDashboardState extends ConsumerState<WebDashboard>
   @override
   Widget build(BuildContext context) {
     final statsAsync = ref.watch(dashboardStatsProvider);
-    final activeWidgets = ref.watch(homepageWidgetsProvider).where((w) => w.isEnabled).toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppSpacing.containerMargin),
@@ -81,17 +76,6 @@ class _WebDashboardState extends ConsumerState<WebDashboard>
                 ),
                 Row(
                   children: [
-                    ElevatedButton.icon(
-                      onPressed: () => CustomizeDashboardModal.show(context),
-                      icon: const Icon(Icons.dashboard_customize_rounded, size: 18, color: Colors.white),
-                      label: const Text('Widget Options', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryColor(context),
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
                     OutlinedButton.icon(
                       onPressed: _handleRefresh,
                       icon: RotationTransition(
@@ -132,23 +116,22 @@ class _WebDashboardState extends ConsumerState<WebDashboard>
             const DashboardKPICards(),
             const SizedBox(height: 24),
 
-            // ── 3. Render Active Customizable Widgets ──
+            // ── 3. Main Portfolio Analytics, Pulse & Alerts ──
             statsAsync.when(
               data: (stats) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  for (final widgetCfg in activeWidgets) ...[
-                    _buildCustomWidget(context, widgetCfg.type, stats),
-                    const SizedBox(height: 20),
-                  ],
+                  // A. Portfolio Pulse Section
+                  PortfolioPulseWidget(stats: stats),
+                  const SizedBox(height: 24),
 
-                  // Attention Required Alerts Section (if any alerts)
-                  if (stats.attentionAlerts.isNotEmpty) ...[
-                    AttentionRequiredWidget(alerts: stats.attentionAlerts),
-                    const SizedBox(height: 24),
-                  ],
+                  // B. Attention Required Alerts Section
+                  AttentionRequiredWidget(
+                    alerts: stats.attentionAlerts,
+                  ),
+                  const SizedBox(height: 24),
 
-                  // Project Performance List + Project Health Donut Chart
+                  // B. Project Performance List + Project Health Donut Chart
                   LayoutBuilder(
                     builder: (context, constraints) {
                       if (constraints.maxWidth >= 850) {
@@ -220,28 +203,5 @@ class _WebDashboardState extends ConsumerState<WebDashboard>
         ),
       ),
     );
-  }
-
-  Widget _buildCustomWidget(
-    BuildContext context,
-    DashboardWidgetType type,
-    dynamic stats,
-  ) {
-    switch (type) {
-      case DashboardWidgetType.dailyStreak:
-        return const DuolingoStreakWidget(streakDays: 14);
-      case DashboardWidgetType.dailyQuests:
-        return const DuolingoDailyQuestsWidget();
-      case DashboardWidgetType.powerActions:
-        return const DuolingoPowerActionsWidget();
-      case DashboardWidgetType.safetyShield:
-        return const DuolingoSafetyShieldWidget(safeDays: 64, safetyScore: 98.8);
-      case DashboardWidgetType.materialRadar:
-        return const DuolingoMaterialRadarWidget();
-      case DashboardWidgetType.portfolioPulse:
-        return PortfolioPulseWidget(stats: stats);
-      case DashboardWidgetType.projectHealth:
-        return ProjectHealthWidget(projects: stats.portfolioProjects);
-    }
   }
 }

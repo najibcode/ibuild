@@ -3,9 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ibuild/core/theme/app_colors.dart';
 import 'package:ibuild/core/navigation/mobile_nav_helper.dart';
 import 'package:ibuild/features/dashboard/presentation/controllers/dashboard_controller.dart';
-import 'package:ibuild/features/dashboard/presentation/controllers/homepage_widgets_provider.dart';
-import 'package:ibuild/features/dashboard/presentation/widgets/duolingo_widgets.dart';
-import 'package:ibuild/features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 import 'package:ibuild/features/inventory/presentation/screens/inventory_list_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
 import 'package:ibuild/core/services/home_widget_sync_service.dart';
@@ -18,8 +15,6 @@ class SupervisorDashboard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(dashboardStatsProvider);
-    final activeWidgets = ref.watch(homepageWidgetsProvider).where((w) => w.isEnabled).toList()
-      ..sort((a, b) => a.order.compareTo(b.order));
 
     return Scaffold(
       backgroundColor: AppColors.bg(context),
@@ -31,14 +26,7 @@ class SupervisorDashboard extends ConsumerWidget {
           'Supervisor Dashboard',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary, size: 22),
-            tooltip: 'Widget Options',
-            onPressed: () => CustomizeDashboardModal.show(context),
-          ),
-          const SizedBox(width: 8),
-        ],
+
       ),
       body: SafeArea(
         child: statsAsync.when(
@@ -136,72 +124,6 @@ class SupervisorDashboard extends ConsumerWidget {
                 },
               ),
               const SizedBox(height: 24),
-
-              // Customizable Dashboard Widgets Header & Options
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.widgets_outlined,
-                        size: 16,
-                        color: AppColors.primaryColor(context),
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        'DASHBOARD WIDGETS',
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w900,
-                          color: AppColors.primaryColor(context),
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ],
-                  ),
-                  InkWell(
-                    onTap: () => CustomizeDashboardModal.show(context),
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: AppColors.primaryColor(context).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(
-                          color: AppColors.primaryColor(context).withValues(alpha: 0.25),
-                        ),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            Icons.dashboard_customize_outlined,
-                            size: 14,
-                            color: AppColors.primaryColor(context),
-                          ),
-                          const SizedBox(width: 4),
-                          Text(
-                            'Widget Options',
-                            style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: AppColors.primaryColor(context),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-
-              // Customizable Executive Widgets
-              ...activeWidgets.map((cfg) => Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: _buildCustomWidget(context, cfg.type, stats),
-              )),
 
               // Recent Activity Section
               Container(
@@ -354,29 +276,6 @@ class SupervisorDashboard extends ConsumerWidget {
         return const Color(0xFFF44336);
       default:
         return AppColors.outline;
-    }
-  }
-
-  Widget _buildCustomWidget(
-    BuildContext context,
-    DashboardWidgetType type,
-    dynamic stats,
-  ) {
-    switch (type) {
-      case DashboardWidgetType.dailyStreak:
-        return const DuolingoStreakWidget(streakDays: 14);
-      case DashboardWidgetType.dailyQuests:
-        return const DuolingoDailyQuestsWidget();
-      case DashboardWidgetType.powerActions:
-        return const DuolingoPowerActionsWidget();
-      case DashboardWidgetType.safetyShield:
-        return const DuolingoSafetyShieldWidget(safeDays: 64, safetyScore: 98.8);
-      case DashboardWidgetType.materialRadar:
-        return const DuolingoMaterialRadarWidget();
-      case DashboardWidgetType.portfolioPulse:
-        return const SizedBox.shrink();
-      case DashboardWidgetType.projectHealth:
-        return const SizedBox.shrink();
     }
   }
 }

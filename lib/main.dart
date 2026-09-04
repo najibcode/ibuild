@@ -36,7 +36,6 @@ import 'features/reports/presentation/screens/full_report_generator_screen.dart'
 import 'web_dashboard.dart';
 import 'features/dashboard/presentation/screens/admin_dashboard.dart';
 import 'features/dashboard/presentation/screens/supervisor_dashboard.dart';
-import 'features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 import 'features/rbac/presentation/providers/permission_provider.dart';
 
 import 'features/auth/presentation/controllers/auth_controller.dart';
@@ -760,18 +759,6 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> {
                     onTap: () {
                       Navigator.pop(context);
                       _pushMobile(MobileScreen.reports);
-                    },
-                  ),
-
-                  // CUSTOMIZATION
-                  _drawerSectionHeader(context, 'CUSTOMIZATION'),
-                  _drawerItem(
-                    icon: Icons.dashboard_customize_outlined,
-                    label: 'Widget Options',
-                    isSelected: false,
-                    onTap: () {
-                      Navigator.pop(context);
-                      CustomizeDashboardModal.show(context);
                     },
                   ),
 
