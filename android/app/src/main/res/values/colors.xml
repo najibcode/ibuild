@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- iBuild Project Color Palette (Matching AppColors) -->
+    <color name="ibuild_primary">#1E40AF</color>
+    <color name="ibuild_primary_container">#3B82F6</color>
+    <color name="ibuild_secondary">#059669</color>
+    <color name="ibuild_secondary_container">#10B981</color>
+    <color name="ibuild_warning">#F59E0B</color>
+    <color name="ibuild_warning_dark">#D97706</color>
+    <color name="ibuild_error">#DC2626</color>
+    
+    <!-- Dark Mode Slate Navy Surfaces -->
+    <color name="ibuild_dark_bg">#0B132B</color>
+    <color name="ibuild_dark_card">#1C2541</color>
+    <color name="ibuild_dark_card_surface">#131B31</color>
+    <color name="ibuild_dark_border">#2E3B55</color>
+    <color name="ibuild_dark_divider">#1F293D</color>
+    
+    <!-- Typography & Accents -->
+    <color name="ibuild_text_main">#F8FAFC</color>
+    <color name="ibuild_text_muted">#94A3B8</color>
+    <color name="ibuild_white">#FFFFFF</color>
+</resources>

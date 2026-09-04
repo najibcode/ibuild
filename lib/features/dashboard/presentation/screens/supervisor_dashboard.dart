@@ -8,6 +8,7 @@ import 'package:ibuild/features/dashboard/presentation/widgets/duolingo_widgets.
 import 'package:ibuild/features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 import 'package:ibuild/features/inventory/presentation/screens/inventory_list_screen.dart';
 import 'package:ibuild/features/profile/presentation/screens/user_profile_screen.dart';
+import 'package:ibuild/core/services/home_widget_sync_service.dart';
 
 /// Dashboard shown to users with the 'supervisor' role.
 /// Focuses on daily operations: attendance, inventory alerts, and project progress.
@@ -41,11 +42,13 @@ class SupervisorDashboard extends ConsumerWidget {
       ),
       body: SafeArea(
         child: statsAsync.when(
-          data: (stats) => SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.containerMargin),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          data: (stats) {
+            HomeWidgetSyncService.syncDashboardStats(stats);
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(AppSpacing.containerMargin),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
               // Subtitle Row
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -285,8 +288,9 @@ class SupervisorDashboard extends ConsumerWidget {
               ),
             ],
           ),
-        ),
-        loading: () => const Center(child: CircularProgressIndicator()),
+        );
+      },
+          loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Error: $e')),
       ),
       ),

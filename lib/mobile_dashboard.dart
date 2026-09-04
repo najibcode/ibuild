@@ -11,6 +11,7 @@ import 'features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 import 'features/activities/data/repositories/supabase_activity_repository.dart';
 import 'core/widgets/notifications_dropdown.dart';
 import 'core/widgets/offline_sync_indicator.dart';
+import 'core/services/home_widget_sync_service.dart';
 
 import 'features/dashboard/presentation/widgets/dashboard_kpi_cards.dart';
 import 'features/dashboard/presentation/widgets/project_portfolio_performance_widget.dart';
@@ -232,6 +233,9 @@ class MobileDashboard extends ConsumerWidget {
             // 2. Render Active Customizable Widgets with Header & Options
             statsAsync.when(
               data: (stats) {
+                // Sync live metrics to Android Home Screen Widget (AppWidget)
+                HomeWidgetSyncService.syncDashboardStats(stats);
+
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [

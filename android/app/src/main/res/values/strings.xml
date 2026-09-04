@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">IBUILD</string>
+    <string name="widget_name">iBuild Site Control</string>
+    <string name="widget_description">Real-time site metrics, attendance, active projects, and 1-tap quick actions.</string>
+</resources>
