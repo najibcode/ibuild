@@ -7,6 +7,7 @@ import 'package:ibuild/features/activities/data/repositories/supabase_activity_r
 import 'package:ibuild/features/rbac/presentation/providers/permission_provider.dart';
 import 'package:ibuild/core/supabase/supabase_client.provider.dart';
 import 'package:ibuild/features/settings/presentation/screens/settings_screen.dart';
+import 'package:ibuild/features/dashboard/presentation/widgets/customize_dashboard_modal.dart';
 
 /// Clean Executive Admin Dashboard: System Health, RBAC, Roles Distribution & Live Activity Logs.
 class AdminDashboard extends ConsumerWidget {
@@ -45,6 +46,11 @@ class AdminDashboard extends ConsumerWidget {
           ],
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary, size: 22),
+            tooltip: 'Widget Options',
+            onPressed: () => CustomizeDashboardModal.show(context),
+          ),
           IconButton(
             icon: const Icon(Icons.tune_outlined),
             tooltip: 'Open Admin Control Center',

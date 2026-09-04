@@ -98,12 +98,22 @@ void main() {
         ),
       );
 
-      expect(find.text('Customize Homepage'), findsOneWidget);
+      expect(find.text('Dashboard Widget Options'), findsOneWidget);
       expect(find.text('🔥 Daily Site Streak'), findsOneWidget);
       expect(find.text('🎯 Daily Site Quests'), findsOneWidget);
       expect(find.text('⚡ Power Quick Actions'), findsOneWidget);
       expect(find.text('SAVE & APPLY'), findsOneWidget);
       expect(find.text('Reset Defaults'), findsOneWidget);
+    });
+
+    test('ExecutiveWidgetColors and DuoColors align with project color palette AppColors', () {
+      expect(DuoColors.green, equals(const Color(0xFF059669))); // AppColors.secondary
+      expect(DuoColors.fireOrange, equals(const Color(0xFFF59E0B))); // AppColors.warning
+      expect(DuoColors.gemBlue, equals(const Color(0xFF1E40AF))); // AppColors.primary
+      expect(DuoColors.purple, equals(const Color(0xFF3B82F6))); // AppColors.primaryContainer
+      expect(DuoColors.heartRed, equals(const Color(0xFFDC2626))); // AppColors.error
+      expect(ExecutiveWidgetColors.indigo, equals(const Color(0xFF1E40AF)));
+      expect(ExecutiveWidgetColors.emerald, equals(const Color(0xFF059669)));
     });
   });
 }

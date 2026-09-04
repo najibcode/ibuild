@@ -33,7 +33,7 @@ class SupervisorDashboard extends ConsumerWidget {
         actions: [
           IconButton(
             icon: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary, size: 22),
-            tooltip: 'Customize Homepage',
+            tooltip: 'Widget Options',
             onPressed: () => CustomizeDashboardModal.show(context),
           ),
           const SizedBox(width: 8),
@@ -109,13 +109,13 @@ class SupervisorDashboard extends ConsumerWidget {
                         icon: Icons.people,
                         label: "Today's Attendance",
                         value: '${stats.employeesPresent}/${stats.totalEmployees}',
-                        color: const Color(0xFF4CAF50),
+                        color: AppColors.secondary,
                       ),
                       _buildStatCard(
                         context,
                         width: cardWidth,
-                        icon: Icons.warning_amber_rounded,
-                        label: 'Low Stock Items',
+                        icon: Icons.inventory_2,
+                        label: 'Low Stock Alerts',
                         value: '${stats.lowStockItems}',
                         color: stats.lowStockItems > 0
                             ? const Color(0xFFF44336)
@@ -134,7 +134,67 @@ class SupervisorDashboard extends ConsumerWidget {
               ),
               const SizedBox(height: 24),
 
-              // Customizable Duolingo Widgets
+              // Customizable Dashboard Widgets Header & Options
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.widgets_outlined,
+                        size: 16,
+                        color: AppColors.primaryColor(context),
+                      ),
+                      const SizedBox(width: 6),
+                      Text(
+                        'DASHBOARD WIDGETS',
+                        style: TextStyle(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w900,
+                          color: AppColors.primaryColor(context),
+                          letterSpacing: 1.0,
+                        ),
+                      ),
+                    ],
+                  ),
+                  InkWell(
+                    onTap: () => CustomizeDashboardModal.show(context),
+                    borderRadius: BorderRadius.circular(20),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                          color: AppColors.primaryColor(context).withValues(alpha: 0.25),
+                        ),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.dashboard_customize_outlined,
+                            size: 14,
+                            color: AppColors.primaryColor(context),
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Widget Options',
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: AppColors.primaryColor(context),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+
+              // Customizable Executive Widgets
               ...activeWidgets.map((cfg) => Padding(
                 padding: const EdgeInsets.only(bottom: 20),
                 child: _buildCustomWidget(context, cfg.type, stats),

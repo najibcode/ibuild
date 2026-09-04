@@ -120,7 +120,7 @@ class MobileDashboard extends ConsumerWidget {
           ),
           IconButton(
             icon: const Icon(Icons.dashboard_customize_outlined, color: AppColors.primary, size: 22),
-            tooltip: 'Customize Homepage',
+            tooltip: 'Widget Options',
             onPressed: () => CustomizeDashboardModal.show(context),
           ),
           Padding(
@@ -229,12 +229,126 @@ class MobileDashboard extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sectionGap),
 
-            // 2. Render Active Customizable Widgets
+            // 2. Render Active Customizable Widgets with Header & Options
             statsAsync.when(
               data: (stats) {
                 return Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    // Section header with prominent Widget Options button
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.widgets_outlined,
+                              size: 16,
+                              color: AppColors.primaryColor(context),
+                            ),
+                            const SizedBox(width: 6),
+                            Text(
+                              'DASHBOARD WIDGETS',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.primaryColor(context),
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                        InkWell(
+                          onTap: () => CustomizeDashboardModal.show(context),
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryColor(context).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: AppColors.primaryColor(context).withValues(alpha: 0.25),
+                              ),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  Icons.dashboard_customize_outlined,
+                                  size: 14,
+                                  color: AppColors.primaryColor(context),
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  'Widget Options',
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    color: AppColors.primaryColor(context),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: AppSpacing.stackSm),
+
+                    // Fallback when no widgets are active
+                    if (activeWidgets.isEmpty) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: AppColors.cardBg(context),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border(context)),
+                        ),
+                        child: Column(
+                          children: [
+                            Icon(
+                              Icons.dashboard_customize_outlined,
+                              size: 36,
+                              color: AppColors.primaryColor(context).withValues(alpha: 0.6),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              'No Active Widgets',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14,
+                                color: AppColors.text(context),
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              'Customize your homepage to add streaks, quick actions, safety metrics, and live radars.',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: AppColors.mutedText(context),
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton.icon(
+                              onPressed: () => CustomizeDashboardModal.show(context),
+                              icon: const Icon(Icons.tune_rounded, size: 16),
+                              label: const Text('Configure Widgets'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.primaryColor(context),
+                                foregroundColor: Colors.white,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacing.sectionGap),
+                    ],
+
                     for (final widgetCfg in activeWidgets) ...[
                       _buildCustomWidget(
                         context,
