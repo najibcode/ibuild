@@ -361,7 +361,7 @@ class _ProjectCard extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  if (ref.watch(isAdminProvider)) ...[
+                  if (ref.watch(isAdminOrOwnerProvider) || ref.watch(isSupervisorProvider)) ...[
                     const SizedBox(width: 4),
                     IconButton(
                       icon: const Icon(
@@ -369,7 +369,7 @@ class _ProjectCard extends ConsumerWidget {
                         color: AppColors.error,
                         size: 20,
                       ),
-                      tooltip: 'Delete Project (Admin)',
+                      tooltip: 'Delete Project',
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                       constraints: const BoxConstraints(minWidth: 32, minHeight: 32),
@@ -379,16 +379,27 @@ class _ProjectCard extends ConsumerWidget {
                           project.name,
                         );
                         if (confirmed) {
-                          await ref
-                              .read(projectControllerProvider.notifier)
-                              .removeProject(project.id);
-                          if (context.mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text('Project "${project.name}" deleted successfully ✓'),
-                                backgroundColor: AppColors.secondary,
-                              ),
-                            );
+                          try {
+                            await ref
+                                .read(projectControllerProvider.notifier)
+                                .removeProject(project.id);
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Project "${project.name}" deleted successfully ✓'),
+                                  backgroundColor: AppColors.secondary,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to delete project: $e'),
+                                  backgroundColor: AppColors.error,
+                                ),
+                              );
+                            }
                           }
                         }
                       },

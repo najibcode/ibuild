@@ -175,30 +175,41 @@ class _ProjectFormScreenState extends ConsumerState<ProjectFormScreen> {
       appBar: AppBar(
         title: Text(isEditing ? 'Edit Project' : 'New Project'),
         actions: [
-          if (isEditing && ref.watch(isAdminProvider))
+          if (isEditing && (ref.watch(isAdminOrOwnerProvider) || ref.watch(isSupervisorProvider)))
             IconButton(
               icon: const Icon(
                 Icons.delete_outline_rounded,
                 color: AppColors.error,
               ),
-              tooltip: 'Delete Project (Admin)',
+              tooltip: 'Delete Project',
               onPressed: () async {
                 final confirmed = await showDeleteProjectConfirmationDialog(
                   context,
                   widget.project!.name,
                 );
                 if (confirmed) {
-                  await ref
-                      .read(projectControllerProvider.notifier)
-                      .removeProject(widget.project!.id);
-                  if (mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Project "${widget.project!.name}" deleted successfully ✓'),
-                        backgroundColor: AppColors.secondary,
-                      ),
-                    );
+                  try {
+                    await ref
+                        .read(projectControllerProvider.notifier)
+                        .removeProject(widget.project!.id);
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Project "${widget.project!.name}" deleted successfully ✓'),
+                          backgroundColor: AppColors.secondary,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to delete project: $e'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
                   }
                 }
               },

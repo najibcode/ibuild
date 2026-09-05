@@ -87,30 +87,41 @@ class _ProjectDashboardScreenState
               }
             },
           ),
-          if (ref.watch(isAdminProvider))
+          if (ref.watch(isAdminOrOwnerProvider) || ref.watch(isSupervisorProvider))
             IconButton(
               icon: const Icon(
                 Icons.delete_outline_rounded,
                 color: AppColors.error,
               ),
-              tooltip: 'Delete Project (Admin)',
+              tooltip: 'Delete Project',
               onPressed: () async {
                 final confirmed = await showDeleteProjectConfirmationDialog(
                   context,
                   effectiveName,
                 );
                 if (confirmed) {
-                  await ref
-                      .read(projectControllerProvider.notifier)
-                      .removeProject(widget.projectId);
-                  if (context.mounted) {
-                    Navigator.of(context).pop();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text('Project "$effectiveName" deleted successfully ✓'),
-                        backgroundColor: AppColors.secondary,
-                      ),
-                    );
+                  try {
+                    await ref
+                        .read(projectControllerProvider.notifier)
+                        .removeProject(widget.projectId);
+                    if (context.mounted) {
+                      Navigator.of(context).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Project "$effectiveName" deleted successfully ✓'),
+                          backgroundColor: AppColors.secondary,
+                        ),
+                      );
+                    }
+                  } catch (e) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Failed to delete project: $e'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
                   }
                 }
               },

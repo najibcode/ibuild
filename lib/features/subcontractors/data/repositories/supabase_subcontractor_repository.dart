@@ -62,9 +62,7 @@ class SupabaseSubcontractorRepository {
         return Subcontractor.fromJson(map);
       }).toList();
 
-      if (subs.isNotEmpty) {
-        cache.cacheSubcontractors(subs.map((s) => s.toMap()).toList());
-      }
+      cache.cacheSubcontractors(subs.map((s) => s.toMap()).toList());
       return subs;
     } catch (e) {
       debugPrint('Error fetching with project join, trying plain select: $e');
@@ -97,9 +95,7 @@ class SupabaseSubcontractorRepository {
           return Subcontractor.fromJson(map);
         }).toList();
 
-        if (subs.isNotEmpty) {
-          cache.cacheSubcontractors(subs.map((s) => s.toMap()).toList());
-        }
+        cache.cacheSubcontractors(subs.map((s) => s.toMap()).toList());
         return subs;
       } catch (e2) {
         debugPrint('Fallback to offline cached subcontractors: $e2');
@@ -396,5 +392,11 @@ class SupabaseSubcontractorRepository {
   /// Delete a subcontractor
   Future<void> deleteSubcontractor(String id) async {
     await _client.from('subcontractors').delete().eq('id', id);
+    try {
+      final cache = OfflineDataCache();
+      final existing = cache.getCachedSubcontractors() ?? [];
+      existing.removeWhere((s) => s['id']?.toString() == id);
+      cache.cacheSubcontractors(existing);
+    } catch (_) {}
   }
 }

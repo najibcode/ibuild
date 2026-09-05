@@ -41,11 +41,23 @@ class EmployeeDetailScreen extends ConsumerWidget {
       final success = await ref
           .read(employeeListControllerProvider.notifier)
           .removeEmployee(employee.id);
-      if (success && context.mounted) {
-        Navigator.of(context).pop();
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Employee deleted successfully')),
-        );
+      if (context.mounted) {
+        if (success) {
+          Navigator.of(context).pop();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Employee deleted successfully ✓'),
+              backgroundColor: AppColors.secondary,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to delete employee from database. Please verify permissions or try again.'),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        }
       }
     }
   }

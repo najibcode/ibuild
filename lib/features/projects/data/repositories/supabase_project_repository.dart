@@ -51,7 +51,7 @@ class SupabaseProjectRepository implements ProjectRepository {
       }
 
       final response = await query;
-      if (response is List && response.isNotEmpty) {
+      if (response is List) {
         final List<Project> remote = [];
         for (final j in response) {
           try {
@@ -60,11 +60,8 @@ class SupabaseProjectRepository implements ProjectRepository {
             debugPrint('Error mapping project: $err');
           }
         }
-        final Map<String, Project> map = {for (var p in projects) p.id: p};
-        for (var p in remote) {
-          map[p.id] = p;
-        }
-        projects = map.values.toList();
+        // Remote Supabase response is the canonical truth — purge deleted projects from cache
+        projects = remote;
         cache.cacheProjects(projects.map((p) => p.toMap()).toList());
       }
     } catch (e) {
@@ -339,29 +336,45 @@ class SupabaseProjectRepository implements ProjectRepository {
 
   @override
   Future<void> deleteProject(String id) async {
-    final cache = OfflineDataCache();
-    final existing = cache.getCachedProjects() ?? [];
-    existing.removeWhere((p) => p['id'] == id);
-    cache.cacheProjects(existing);
-
     try {
-      await _client
-          .from('projects')
-          .delete()
-          .eq('id', id);
+      // 1. Try atomic cascade delete RPC, or clean up dependent foreign key tables in order
+      try {
+        await _client.rpc('delete_project_cascade', params: {'p_project_id': id});
+      } catch (_) {
+        // Fallback: manually delete dependent child records first to satisfy foreign keys
+        try { await _client.from('expenses').delete().eq('project_id', id); } catch (_) {}
+        try { await _client.from('daily_progress').delete().eq('project_id', id); } catch (_) {}
+        try { await _client.from('snags').delete().eq('project_id', id); } catch (_) {}
+        try { await _client.from('bills').delete().eq('project_id', id); } catch (_) {}
+        try { await _client.from('project_checklists').delete().eq('project_id', id); } catch (_) {}
+        try { await _client.from('project_drawings').delete().eq('project_id', id); } catch (_) {}
+        try { await _client.from('subcontractors').update({'project_id': null}).eq('project_id', id); } catch (_) {}
+        try { await _client.from('equipment').update({'project_id': null}).eq('project_id', id); } catch (_) {}
+        try { await _client.from('attendance').update({'project_id': null}).eq('project_id', id); } catch (_) {}
+
+        // Finally delete the project record from Supabase
+        await _client.from('projects').delete().eq('id', id);
+      }
+
+      // 2. Update local cache ONLY AFTER Supabase deletion succeeds
+      final cache = OfflineDataCache();
+      final existing = cache.getCachedProjects() ?? [];
+      existing.removeWhere((p) => p['id'] == id);
+      cache.cacheProjects(existing);
+
+      // 3. Log activity
+      try {
+        await _activityRepo.logActivity(
+          actionType: 'deleted_project',
+          entityType: 'Project',
+          entityId: id,
+          details: {'id': id},
+        );
+      } catch (_) {}
     } catch (e) {
       debugPrint('Supabase delete project error: $e');
+      rethrow;
     }
-
-    // Log activity
-    try {
-      await _activityRepo.logActivity(
-        actionType: 'deleted_project',
-        entityType: 'Project',
-        entityId: id,
-        details: {'id': id},
-      );
-    } catch (_) {}
   }
 
   @override

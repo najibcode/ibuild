@@ -159,17 +159,15 @@ class _SnagListScreenState extends ConsumerState<SnagListScreen> {
     try {
       final client = ref.read(supabaseClientProvider);
       final response = await client.from('snags').select().order('created_at', ascending: false);
-      if ((response as List).isNotEmpty) {
-        final loaded = response.map((m) => SnagItem.fromMap(Map<String, dynamic>.from(m))).toList();
-        cache.cacheSnags(loaded.map((s) => s.toMap()).toList());
-        if (mounted) {
-          setState(() {
-            _snags = loaded;
-            _isLoading = false;
-          });
-        }
-        return;
+      final loaded = response.map((m) => SnagItem.fromMap(Map<String, dynamic>.from(m))).toList();
+      cache.cacheSnags(loaded.map((s) => s.toMap()).toList());
+      if (mounted) {
+        setState(() {
+          _snags = loaded;
+          _isLoading = false;
+        });
       }
+      return;
     } catch (_) {
       // Offline fallback
     }

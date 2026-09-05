@@ -212,11 +212,11 @@ class AttendanceController extends StateNotifier<AttendanceState> {
     // For past dates with an existing recorded wage rate, strictly preserve historical wage rate!
     // For today or future dates, use the current active employee salary.
     final double? wageSnapshot = (isPastDate && currentRecord?.wageRate != null && currentRecord!.wageRate! > 0)
-        ? currentRecord!.wageRate
+        ? currentRecord.wageRate
         : (targetEmployee?.salary ?? currentRecord?.wageRate);
 
     final double? teaSnapshot = (isPastDate && currentRecord?.teaAllowance != null && currentRecord!.teaAllowance! > 0)
-        ? currentRecord!.teaAllowance
+        ? currentRecord.teaAllowance
         : (targetEmployee?.teaSnackAllowance ?? currentRecord?.teaAllowance);
 
     final newRecord = Attendance(

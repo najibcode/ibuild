@@ -23,26 +23,11 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
     }
 
     try {
-      final response = await _client.from('employees').select();
-      if (response.isNotEmpty) {
-        final remote = response.map((json) => Employee.fromJson(json)).toList();
-        final Map<String, Employee> map = {for (var e in employees) e.id: e};
-        for (var r in remote) {
-          final local = map[r.id];
-          if (local != null) {
-            // Keep non-zero local values if remote has null/zero fallback values
-            map[r.id] = r.copyWith(
-              salary: r.salary > 0 ? r.salary : local.salary,
-              teaSnackAllowance: r.teaSnackAllowance > 0 ? r.teaSnackAllowance : local.teaSnackAllowance,
-              photoUrl: r.photoUrl ?? local.photoUrl,
-            );
-          } else {
-            map[r.id] = r;
-          }
-        }
-        employees = map.values.toList();
-        cache.cacheEmployees(employees.map((e) => e.toMap()).toList());
-      }
+      final response = await _client.from('employees').select().order('name');
+      final remote = response.map((json) => Employee.fromJson(json)).toList();
+      // Remote Supabase response is the canonical truth — purge deleted employees from cache
+      employees = remote;
+      cache.cacheEmployees(employees.map((e) => e.toMap()).toList());
     } catch (e) {
       debugPrint('Employees query note: $e');
     }
@@ -199,24 +184,33 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
 
   @override
   Future<void> deleteEmployee(String id) async {
-    final cache = OfflineDataCache();
-    final existing = cache.getCachedEmployees() ?? [];
-    existing.removeWhere((e) => e['id'] == id);
-    cache.cacheEmployees(existing);
-
     try {
-      await _client.from('employees').delete().eq('id', id);
+      // 1. First attempt atomic cascade delete via RPC if available, or delete child foreign keys
+      try {
+        await _client.rpc('delete_employee_cascade', params: {'p_employee_id': id});
+      } catch (_) {
+        // Fallback: delete attendance records first to satisfy foreign key constraints
+        try { await _client.from('attendance').delete().eq('employee_id', id); } catch (_) {}
+        await _client.from('employees').delete().eq('id', id);
+      }
+
+      // 2. Update local cache ONLY AFTER Supabase successfully confirms delete
+      final cache = OfflineDataCache();
+      final existing = cache.getCachedEmployees() ?? [];
+      existing.removeWhere((e) => e['id'] == id);
+      cache.cacheEmployees(existing);
+
+      // 3. Log activity
+      try {
+        await _activityRepo.logActivity(
+          actionType: 'deleted_employee',
+          entityType: 'Employee',
+          entityId: id,
+        );
+      } catch (_) {}
     } catch (e) {
       debugPrint('Supabase delete employee error: $e');
+      rethrow;
     }
-    
-    // Log activity
-    try {
-      await _activityRepo.logActivity(
-        actionType: 'deleted_employee',
-        entityType: 'Employee',
-        entityId: id,
-      );
-    } catch (_) {}
   }
 }

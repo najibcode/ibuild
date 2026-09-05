@@ -174,14 +174,9 @@ class SupabaseDashboardRepository implements DashboardRepository {
       final remoteRows = await _client
           .from('projects')
           .select('id, name, status, budget, spent, is_archived');
-      if (remoteRows.isNotEmpty) {
-        final Map<String, Map<String, dynamic>> map = {for (var r in rows) r['id']?.toString() ?? '': r};
-        for (var r in remoteRows) {
-          map[r['id']?.toString() ?? ''] = Map<String, dynamic>.from(r);
-        }
-        rows = map.values.toList();
-        cache.cacheProjects(rows);
-      }
+      // Canonical ground truth from Supabase — purge deleted projects from dashboard cache
+      rows = List<Map<String, dynamic>>.from(remoteRows);
+      cache.cacheProjects(rows);
     } catch (e) {
       debugPrint('Supabase projects query note: $e');
     }
@@ -351,9 +346,7 @@ class SupabaseDashboardRepository implements DashboardRepository {
   Future<int> _fetchEmployees() async {
     try {
       final rows = await _client.from('employees').select('id');
-      if (rows.isNotEmpty) {
-        return rows.length;
-      }
+      return rows.length;
     } catch (_) {}
     return _fallbackEmployeeCount();
   }
