@@ -43,6 +43,24 @@ class FakeAttendanceExpenseRepository implements AttendanceRepository {
   }
 
   @override
+  Future<void> lockHistoricalWagesForEmployee({
+    required String employeeId,
+    required String beforeDate,
+    required double previousWageRate,
+    required double previousTeaAllowance,
+  }) async {
+    for (int i = 0; i < attendanceStore.length; i++) {
+      final a = attendanceStore[i];
+      if (a.employeeId == employeeId && a.date.compareTo(beforeDate) < 0) {
+        attendanceStore[i] = a.copyWith(
+          wageRate: (a.wageRate == null || a.wageRate == 0) ? previousWageRate : a.wageRate,
+          teaAllowance: a.teaAllowance ?? previousTeaAllowance,
+        );
+      }
+    }
+  }
+
+  @override
   Future<void> syncEmployeeSalaryExpense({
     required Employee employee,
     required String? projectId,

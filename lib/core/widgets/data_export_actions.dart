@@ -29,7 +29,112 @@ class DataExportActions extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+
     if (compact) {
+      if (isMobile) {
+        return PopupMenuButton<String>(
+          tooltip: 'Export Data',
+          icon: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: AppColors.primaryColor(context).withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: AppColors.primaryColor(context).withValues(alpha: 0.2),
+              ),
+            ),
+            child: Icon(
+              Icons.file_download_outlined,
+              color: AppColors.primaryColor(context),
+              size: 20,
+            ),
+          ),
+          position: PopupMenuPosition.under,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          onSelected: (format) => _showDateRangeMenu(context, format),
+          itemBuilder: (ctx) => [
+            PopupMenuItem(
+              value: 'PDF',
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: Colors.deepOrange.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.picture_as_pdf,
+                      color: Colors.deepOrange,
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Export PDF Report',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        'Official formatted document',
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const PopupMenuDivider(),
+            PopupMenuItem(
+              value: 'Excel',
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(6),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF107C41).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Icon(
+                      Icons.table_chart,
+                      color: Color(0xFF107C41),
+                      size: 18,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        'Export Excel (.xlsx)',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                      Text(
+                        'Raw spreadsheet for analysis',
+                        style: TextStyle(fontSize: 10, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        );
+      }
+
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -163,12 +268,14 @@ class _DateRangePickerDialogState extends State<_DateRangePickerDialog> {
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final dateFormat = DateFormat('dd MMM yyyy');
+    final screenWidth = MediaQuery.of(context).size.width;
+    final maxDialogWidth = (screenWidth - 32).clamp(280.0, 380.0);
 
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       insetPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 380),
+        constraints: BoxConstraints(maxWidth: maxDialogWidth),
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
           child: Column(

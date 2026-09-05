@@ -17,16 +17,28 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
   @override
   Future<List<Attendance>> getAttendanceForDate(String date) async {
     try {
-      final response = await _client
-          .from('attendance')
-          .select('*, employees(name, salary, tea_snack_allowance)')
-          .eq('date', date);
+      List<dynamic> responseList = [];
+      try {
+        final response = await _client
+            .from('attendance')
+            .select('*, employees(name, salary, tea_allowance)')
+            .eq('date', date);
+        responseList = response as List;
+      } catch (joinErr) {
+        debugPrint('[Attendance] getAttendanceForDate with relation failed ($joinErr), trying flat select');
+        final flatResponse = await _client
+            .from('attendance')
+            .select()
+            .eq('date', date);
+        responseList = flatResponse as List;
+      }
 
-      final list = (response as List).map((json) {
+      final list = responseList.map((json) {
         final empMap = json['employees'] as Map?;
         final employeeName = empMap?['name'] as String?;
         final fallbackSalary = (empMap?['salary'] as num?)?.toDouble();
-        final fallbackTea = (empMap?['tea_snack_allowance'] as num?)?.toDouble();
+        final fallbackTea = (empMap?['tea_allowance'] as num?)?.toDouble()
+            ?? (empMap?['tea_snack_allowance'] as num?)?.toDouble();
 
         final parsed = Attendance.fromJson(json, employeeName: employeeName);
         return parsed.copyWith(
@@ -38,7 +50,7 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
       // Cache records locally for offline access
       OfflineDataCache().cacheAttendanceForDate(
         date,
-        (response as List).map((e) => Map<String, dynamic>.from(e as Map)).toList(),
+        responseList.map((e) => Map<String, dynamic>.from(e as Map)).toList(),
       );
 
       return list;
@@ -135,14 +147,15 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
     try {
       final response = await _client
           .from('attendance')
-          .select('*, employees(name, salary, tea_snack_allowance)')
+          .select('*, employees(name, salary, tea_allowance)')
           .eq('employee_id', employeeId)
           .order('date', ascending: false);
       return (response as List).map((json) {
         final empMap = json['employees'] as Map?;
         final employeeName = empMap?['name'] as String?;
         final fallbackSalary = (empMap?['salary'] as num?)?.toDouble();
-        final fallbackTea = (empMap?['tea_snack_allowance'] as num?)?.toDouble();
+        final fallbackTea = (empMap?['tea_allowance'] as num?)?.toDouble()
+            ?? (empMap?['tea_snack_allowance'] as num?)?.toDouble();
 
         final parsed = Attendance.fromJson(json, employeeName: employeeName);
         return parsed.copyWith(
@@ -162,6 +175,31 @@ class SupabaseAttendanceRepository implements AttendanceRepository {
         debugPrint('[Attendance] getAttendanceHistory fallback failed: $e');
         return [];
       }
+    }
+  }
+
+  @override
+  Future<void> lockHistoricalWagesForEmployee({
+    required String employeeId,
+    required String beforeDate,
+    required double previousWageRate,
+    required double previousTeaAllowance,
+  }) async {
+    if (employeeId.isEmpty || previousWageRate <= 0) return;
+    try {
+      debugPrint('[Attendance] Locking historical wages for employee $employeeId before $beforeDate at ₹$previousWageRate/day');
+      await _client
+          .from('attendance')
+          .update({
+            'wage_rate': previousWageRate,
+            'tea_allowance': previousTeaAllowance,
+          })
+          .eq('employee_id', employeeId)
+          .lt('date', beforeDate)
+          .or('wage_rate.is.null,wage_rate.eq.0');
+      debugPrint('[Attendance] Successfully locked historical wages for employee $employeeId ✓');
+    } catch (e) {
+      debugPrint('[Attendance] lockHistoricalWagesForEmployee error: $e');
     }
   }
 

@@ -52,6 +52,18 @@ export default {
     headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
     headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=()");
 
+    const url = new URL(request.url);
+    if (
+      url.pathname.endsWith(".html") ||
+      url.pathname === "/" ||
+      url.pathname.endsWith(".js") ||
+      url.pathname.endsWith(".json")
+    ) {
+      headers.set("Cache-Control", "no-cache, no-store, must-revalidate");
+      headers.set("Pragma", "no-cache");
+      headers.set("Expires", "0");
+    }
+
     return new Response(response.body, {
       status: response.status,
       statusText: response.statusText,

@@ -87,7 +87,8 @@ class AttendanceReportService {
           siteName = logged.projectName!;
         }
 
-        final wage = emp != null ? '₹${emp.salary.toInt()}' : 'N/A';
+        final effectiveWageRate = logged?.wageRate ?? emp?.salary;
+        final wage = effectiveWageRate != null ? '₹${effectiveWageRate.toInt()}' : 'N/A';
 
         dayRows.add({
           'empId': empId.length > 8 ? empId.substring(0, 8) : empId,

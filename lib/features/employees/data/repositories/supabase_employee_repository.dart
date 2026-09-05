@@ -132,6 +132,29 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
       throw ArgumentError('Tea and snacks allowance cannot be negative.');
     }
 
+    // Fetch previous employee state to detect salary change and lock historical attendance wages
+    final previousEmp = await getEmployeeById(employee.id);
+    final bool salaryChanged = previousEmp != null && 
+        (previousEmp.salary != employee.salary || previousEmp.teaSnackAllowance != employee.teaSnackAllowance);
+
+    if (salaryChanged && previousEmp.salary > 0) {
+      final todayStr = DateTime.now().toIso8601String().substring(0, 10);
+      try {
+        debugPrint('[EmployeeRepo] Salary change detected for ${employee.name} (₹${previousEmp.salary} -> ₹${employee.salary}). Locking historical attendance before $todayStr.');
+        await _client
+            .from('attendance')
+            .update({
+              'wage_rate': previousEmp.salary,
+              'tea_allowance': previousEmp.teaSnackAllowance,
+            })
+            .eq('employee_id', employee.id)
+            .lt('date', todayStr)
+            .or('wage_rate.is.null,wage_rate.eq.0');
+      } catch (lockErr) {
+        debugPrint('[EmployeeRepo] Historical wage lock note: $lockErr');
+      }
+    }
+
     // 1. Update in OfflineDataCache immediately
     final cache = OfflineDataCache();
     final existing = cache.getCachedEmployees() ?? [];
@@ -178,6 +201,63 @@ class SupabaseEmployeeRepository implements EmployeeRepository {
         entityType: 'Employee',
         entityId: employee.id,
         details: {'name': employee.name, 'salary': employee.salary},
+      );
+    } catch (_) {}
+  }
+
+  @override
+  Future<void> applySalaryRevision({
+    required String employeeId,
+    required double newSalary,
+    required double newTeaAllowance,
+    required DateTime effectiveDate,
+    String? reason,
+  }) async {
+    final effectiveDateStr = effectiveDate.toIso8601String().substring(0, 10);
+    final previousEmp = await getEmployeeById(employeeId);
+    if (previousEmp == null) return;
+
+    final oldSalary = previousEmp.salary;
+    final oldTea = previousEmp.teaSnackAllowance;
+
+    // 1. Lock all attendance records before effectiveDate at the old salary
+    if (oldSalary > 0) {
+      try {
+        debugPrint('[SalaryRevision] Locking wages before $effectiveDateStr at ₹$oldSalary/day');
+        await _client
+            .from('attendance')
+            .update({
+              'wage_rate': oldSalary,
+              'tea_allowance': oldTea,
+            })
+            .eq('employee_id', employeeId)
+            .lt('date', effectiveDateStr)
+            .or('wage_rate.is.null,wage_rate.eq.0');
+      } catch (e) {
+        debugPrint('[SalaryRevision] Historical lock note: $e');
+      }
+    }
+
+    // 2. Update employee's active salary
+    final updatedEmp = previousEmp.copyWith(
+      salary: newSalary,
+      teaSnackAllowance: newTeaAllowance,
+    );
+    await updateEmployee(updatedEmp);
+
+    // 3. Log activity audit
+    try {
+      await _activityRepo.logActivity(
+        actionType: 'salary_revision',
+        entityType: 'Employee',
+        entityId: employeeId,
+        details: {
+          'name': previousEmp.name,
+          'old_salary': oldSalary,
+          'new_salary': newSalary,
+          'effective_date': effectiveDateStr,
+          'reason': reason ?? 'Manual salary increment',
+        },
       );
     } catch (_) {}
   }

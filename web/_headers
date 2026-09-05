@@ -18,9 +18,9 @@
   Cache-Control: public, max-age=31536000, immutable
   Access-Control-Allow-Origin: https://ibuild.najibcode.workers.dev
 
-# Application JavaScript
+# Application JavaScript — Always revalidate so releases apply immediately
 /*.js
-  Cache-Control: public, max-age=86400, stale-while-revalidate=604800
+  Cache-Control: public, max-age=0, must-revalidate
 
 # HTML Shell — Always revalidate so users receive newest release
 /index.html

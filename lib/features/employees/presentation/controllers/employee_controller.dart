@@ -48,6 +48,28 @@ class EmployeeListController extends StateNotifier<AsyncValue<List<Employee>>> {
     }
   }
 
+  Future<bool> applySalaryRevision({
+    required String employeeId,
+    required double newSalary,
+    required double newTeaAllowance,
+    required DateTime effectiveDate,
+    String? reason,
+  }) async {
+    try {
+      await _repository.applySalaryRevision(
+        employeeId: employeeId,
+        newSalary: newSalary,
+        newTeaAllowance: newTeaAllowance,
+        effectiveDate: effectiveDate,
+        reason: reason,
+      );
+      await loadEmployees();
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   Future<bool> removeEmployee(String id) async {
     try {
       await _repository.deleteEmployee(id);

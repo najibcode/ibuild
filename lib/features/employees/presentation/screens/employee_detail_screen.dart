@@ -62,6 +62,225 @@ class EmployeeDetailScreen extends ConsumerWidget {
     }
   }
 
+  void _showSalaryRevisionDialog(BuildContext context, WidgetRef ref, Employee emp) {
+    final salaryCtrl = TextEditingController(text: emp.salary.toInt().toString());
+    final teaCtrl = TextEditingController(text: emp.teaSnackAllowance.toInt().toString());
+    DateTime effectiveDate = DateTime.now();
+
+    showDialog(
+      context: context,
+      builder: (dialogCtx) => StatefulBuilder(
+        builder: (ctx, setStateModal) {
+          final curDateStr = '${effectiveDate.year}-${effectiveDate.month.toString().padLeft(2, '0')}-${effectiveDate.day.toString().padLeft(2, '0')}';
+          return AlertDialog(
+            backgroundColor: AppColors.cardBg(context),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            title: Row(
+              children: [
+                const Icon(Icons.trending_up, color: AppColors.secondary, size: 22),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'Salary Increment / Revision',
+                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppColors.text(context)),
+                  ),
+                ),
+              ],
+            ),
+            content: SizedBox(
+              width: MediaQuery.of(context).size.width < 500 ? double.maxFinite : 440,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Adjust wage rate for ${emp.name} (${emp.role}) without altering past records.',
+                      style: TextStyle(fontSize: 12, color: AppColors.mutedText(context)),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Current Wage Banner
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(
+                        color: AppColors.bg(context),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.border(context)),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Current Active Rate:', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),
+                          Text('₹${emp.salary.toInt()} / day', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: AppColors.text(context))),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // New Salary Input
+                    Text('New Daily Wage (₹/day) *', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: salaryCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.currency_rupee, size: 18),
+                        hintText: 'e.g. 600',
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Quick Increment Chips
+                    Wrap(
+                      spacing: 8,
+                      children: [50, 100, 200].map((inc) {
+                        return ActionChip(
+                          label: Text('+₹$inc', style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () {
+                            final cur = double.tryParse(salaryCtrl.text) ?? emp.salary;
+                            setStateModal(() {
+                              salaryCtrl.text = (cur + inc).toInt().toString();
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Tea Snack Allowance Input
+                    Text('Daily Tea Allowance (₹)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    const SizedBox(height: 6),
+                    TextField(
+                      controller: teaCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.coffee_outlined, size: 18),
+                        hintText: 'e.g. 20',
+                        isDense: true,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Effective Date
+                    Text('Effective Date (Preserves Prior Logs)', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppColors.text(context))),
+                    const SizedBox(height: 6),
+                    InkWell(
+                      onTap: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: effectiveDate,
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                        );
+                        if (picked != null) {
+                          setStateModal(() => effectiveDate = picked);
+                        }
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: AppColors.border(context)),
+                          borderRadius: BorderRadius.circular(8),
+                          color: AppColors.bg(context),
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(curDateStr, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: AppColors.text(context))),
+                            const Icon(Icons.calendar_today, size: 16, color: AppColors.secondary),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+
+                    // Historical Preservation Notice
+                    Container(
+                      padding: const EdgeInsets.all(10),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: AppColors.secondary.withValues(alpha: 0.3)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.shield_outlined, size: 16, color: AppColors.secondary),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Attendance logged prior to $curDateStr will remain locked at ₹${emp.salary.toInt()}/day. All attendance from $curDateStr onwards will use the new rate.',
+                              style: TextStyle(fontSize: 11, color: AppColors.text(context)),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogCtx).pop(),
+                child: const Text('Cancel'),
+              ),
+              ElevatedButton.icon(
+                onPressed: () async {
+                  final newSal = double.tryParse(salaryCtrl.text.trim()) ?? 0.0;
+                  final newTea = double.tryParse(teaCtrl.text.trim()) ?? 20.0;
+                  if (newSal <= 0) return;
+
+                  Navigator.of(dialogCtx).pop();
+
+                  final success = await ref
+                      .read(employeeListControllerProvider.notifier)
+                      .applySalaryRevision(
+                        employeeId: emp.id,
+                        newSalary: newSal,
+                        newTeaAllowance: newTea,
+                        effectiveDate: effectiveDate,
+                        reason: 'Manual increment from ₹${emp.salary.toInt()} to ₹${newSal.toInt()}',
+                      );
+
+                  if (context.mounted) {
+                    if (success) {
+                      ref.invalidate(employeeAttendanceHistoryProvider(emp.id));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Salary updated to ₹${newSal.toInt()}/day effective $curDateStr ✓'),
+                          backgroundColor: AppColors.secondary,
+                        ),
+                      );
+                    } else {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Failed to update salary.'),
+                          backgroundColor: AppColors.error,
+                        ),
+                      );
+                    }
+                  }
+                },
+                icon: const Icon(Icons.check_circle_outline, size: 16),
+                label: const Text('Apply Revision'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.secondary,
+                  foregroundColor: Colors.white,
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final employeesListAsync = ref.watch(employeeListControllerProvider);
@@ -213,7 +432,22 @@ class EmployeeDetailScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: () => _showSalaryRevisionDialog(context, ref, currentEmployee),
+                      icon: const Icon(Icons.trending_up, size: 16),
+                      label: const Text('Revise Salary / Add Increment'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: AppColors.secondary,
+                        side: const BorderSide(color: AppColors.secondary),
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: Text('Mobile Phone: ${currentEmployee.phone}', style: TextStyle(fontSize: 12, color: AppColors.mutedText(context))),

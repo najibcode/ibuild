@@ -25,4 +25,13 @@ abstract class AttendanceRepository {
     required bool isPresent,
     double? wageRate,
   });
+
+  /// Locks all historical attendance records for [employeeId] before [beforeDate]
+  /// where wage_rate is currently null or 0, permanently snapshotting them at [previousWageRate].
+  Future<void> lockHistoricalWagesForEmployee({
+    required String employeeId,
+    required String beforeDate,
+    required double previousWageRate,
+    required double previousTeaAllowance,
+  });
 }

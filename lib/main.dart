@@ -1018,13 +1018,61 @@ class _MainRouterScreenState extends ConsumerState<MainRouterScreen> with Widget
               ),
             ),
 
-            // Menu Items Organized By Categories (No duplicate primary tabs)
+            // Menu Items Organized By Categories
             Expanded(
               child: ListView(
                 padding: const EdgeInsets.symmetric(vertical: 6),
                 children: [
-                  // BUSINESS
-                  _drawerSectionHeader(context, 'BUSINESS'),
+                  // CORE MODULES
+                  _drawerSectionHeader(context, 'CORE MODULES'),
+                  _drawerItem(
+                    icon: Icons.dashboard_outlined,
+                    label: 'Executive Dashboard',
+                    isSelected: _currentMobileScreen == MobileScreen.dashboard,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.dashboard);
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.foundation_outlined,
+                    label: 'Projects Portfolio',
+                    isSelected: _currentMobileScreen == MobileScreen.projectsList,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.projectsList);
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.how_to_reg_outlined,
+                    label: 'Attendance & Site Roll Call',
+                    isSelected: _currentMobileScreen == MobileScreen.attendance,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.attendance);
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.inventory_2_outlined,
+                    label: 'Material Inventory',
+                    isSelected: _currentMobileScreen == MobileScreen.inventory,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.inventory);
+                    },
+                  ),
+                  _drawerItem(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'Financials & Billing Hub',
+                    isSelected: _currentMobileScreen == MobileScreen.financials,
+                    onTap: () {
+                      Navigator.pop(context);
+                      _setMobileTab(MobileScreen.financials);
+                    },
+                  ),
+
+                  // WORKFORCE & PARTNERS
+                  _drawerSectionHeader(context, 'WORKFORCE & PARTNERS'),
                   _drawerItem(
                     icon: Icons.people_outline,
                     label: 'Employees & Staff Directory',

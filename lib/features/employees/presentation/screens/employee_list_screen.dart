@@ -179,42 +179,89 @@ class _EmployeeListScreenState extends ConsumerState<EmployeeListScreen> {
               // Workforce & Wage Summary Header Cards
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: _buildMetricCard(
-                        context,
-                        title: 'Total Workforce',
-                        value: '${employees.length}',
-                        subtitle: '$activeCount Active Staff',
-                        icon: Icons.people_outline,
-                        color: AppColors.primaryColor(context),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildMetricCard(
-                        context,
-                        title: 'Active Ratio',
-                        value:
-                            '${employees.isEmpty ? 0 : ((activeCount / employees.length) * 100).toInt()}%',
-                        subtitle: '$activeCount On Duty',
-                        icon: Icons.check_circle_outline,
-                        color: AppColors.secondary,
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _buildMetricCard(
-                        context,
-                        title: 'Est Daily Wages',
-                        value: '₹${totalDailyWageEst.toInt()}',
-                        subtitle: 'Per Day Payroll',
-                        icon: Icons.payments_outlined,
-                        color: Colors.amber.shade800,
-                      ),
-                    ),
-                  ],
+                child: LayoutBuilder(
+                  builder: (context, constraints) {
+                    final isNarrow = constraints.maxWidth < 460;
+                    if (isNarrow) {
+                      return Column(
+                        children: [
+                          Row(
+                            children: [
+                              Expanded(
+                                child: _buildMetricCard(
+                                  context,
+                                  title: 'Total Workforce',
+                                  value: '${employees.length}',
+                                  subtitle: '$activeCount Active Staff',
+                                  icon: Icons.people_outline,
+                                  color: AppColors.primaryColor(context),
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: _buildMetricCard(
+                                  context,
+                                  title: 'Active Ratio',
+                                  value:
+                                      '${employees.isEmpty ? 0 : ((activeCount / employees.length) * 100).toInt()}%',
+                                  subtitle: '$activeCount On Duty',
+                                  icon: Icons.check_circle_outline,
+                                  color: AppColors.secondary,
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 8),
+                          _buildMetricCard(
+                            context,
+                            title: 'Est Daily Wages',
+                            value: '₹${totalDailyWageEst.toInt()}',
+                            subtitle: 'Per Day Workforce Payroll Allocation',
+                            icon: Icons.payments_outlined,
+                            color: Colors.amber.shade800,
+                          ),
+                        ],
+                      );
+                    }
+
+                    return Row(
+                      children: [
+                        Expanded(
+                          child: _buildMetricCard(
+                            context,
+                            title: 'Total Workforce',
+                            value: '${employees.length}',
+                            subtitle: '$activeCount Active Staff',
+                            icon: Icons.people_outline,
+                            color: AppColors.primaryColor(context),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildMetricCard(
+                            context,
+                            title: 'Active Ratio',
+                            value:
+                                '${employees.isEmpty ? 0 : ((activeCount / employees.length) * 100).toInt()}%',
+                            subtitle: '$activeCount On Duty',
+                            icon: Icons.check_circle_outline,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _buildMetricCard(
+                            context,
+                            title: 'Est Daily Wages',
+                            value: '₹${totalDailyWageEst.toInt()}',
+                            subtitle: 'Per Day Payroll',
+                            icon: Icons.payments_outlined,
+                            color: Colors.amber.shade800,
+                          ),
+                        ),
+                      ],
+                    );
+                  },
                 ),
               ),
 
